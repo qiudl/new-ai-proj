@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal Height Management Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+        }
+        
+        .test-button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .test-button:hover {
+            background: #40a9ff;
+        }
+        
+        /* 模拟 Ant Design Modal 样式 */
+        .ant-modal-wrap {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            background: rgba(0,0,0,0.45);
+            display: none;
+        }
+        
+        .ant-modal-wrap.ant-modal-wrap-open {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .ant-modal {
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            width: 600px;
+            max-width: 90vw;
+            position: relative;
+        }
+        
+        .ant-modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #f0f0f0;
+            border-radius: 6px 6px 0 0;
+        }
+        
+        .ant-modal-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: rgba(0,0,0,0.85);
+        }
+        
+        .ant-modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: rgba(0,0,0,0.45);
+        }
+        
+        .ant-modal-body {
+            padding: 24px;
+            line-height: 1.5;
+        }
+        
+        .ant-modal-footer {
+            padding: 10px 16px;
+            text-align: right;
+            border-top: 1px solid #f0f0f0;
+            border-radius: 0 0 6px 6px;
+        }
+        
+        /* 高度管理的Modal样式 */
+        .modal-height-managed .ant-modal-body {
+            max-height: calc(90vh - 200px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 8px;
+        }
+        
+        .modal-height-managed .ant-modal-body::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .modal-height-managed .ant-modal-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .modal-height-managed .ant-modal-body::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        .modal-height-managed .ant-modal-body::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+        
+        .form-item {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        
+        .status-success {
+            background: #f6ffed;
+            color: #52c41a;
+            border: 1px solid #b7eb8f;
+        }
+        
+        .status-info {
+            background: #e6f7ff;
+            color: #1890ff;
+            border: 1px solid #91d5ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>弹窗高度管理功能测试</h1>
+        <p>这个页面测试新实现的弹窗高度判断和滚动条功能。</p>
+        
+        <div class="test-section">
+            <h2>测试 1: 短内容弹窗</h2>
+            <p>测试内容高度未超过屏幕时的正常显示。</p>
+            <button class="test-button" onclick="openShortModal()">打开短内容弹窗</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>测试 2: 长内容弹窗</h2>
+            <p>测试内容高度超过屏幕时自动添加滚动条。</p>
+            <button class="test-button" onclick="openLongModal()">打开长内容弹窗</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>测试 3: 任务编辑表单</h2>
+            <p>测试类似真实任务编辑弹窗的复杂表单。</p>
+            <button class="test-button" onclick="openTaskModal()">打开任务表单弹窗</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>测试 4: OKR目标表单</h2>
+            <p>测试类似OKR目标创建的长表单。</p>
+            <button class="test-button" onclick="openOKRModal()">打开OKR表单弹窗</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>测试结果</h2>
+            <div id="test-results">
+                <span class="status-indicator status-info">等待测试</span>
+                手动测试各种弹窗的高度管理功能
+            </div>
+        </div>
+    </div>
+
+    <!-- 短内容弹窗 -->
+    <div id="short-modal" class="ant-modal-wrap">
+        <div class="ant-modal">
+            <div class="ant-modal-header">
+                <div class="ant-modal-title">短内容弹窗</div>
+                <button class="ant-modal-close" onclick="closeModal('short-modal')">&times;</button>
+            </div>
+            <div class="ant-modal-body">
+                <p>这是一个内容较短的弹窗，应该正常显示而不需要滚动条。</p>
+                <p>高度管理系统应该检测到内容未超过屏幕高度，不会应用滚动样式。</p>
+            </div>
+            <div class="ant-modal-footer">
+                <button class="test-button" onclick="closeModal('short-modal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 长内容弹窗 -->
+    <div id="long-modal" class="ant-modal-wrap modal-height-managed">
+        <div class="ant-modal">
+            <div class="ant-modal-header">
+                <div class="ant-modal-title">长内容弹窗（带滚动条）</div>
+                <button class="ant-modal-close" onclick="closeModal('long-modal')">&times;</button>
+            </div>
+            <div class="ant-modal-body">
+                <p>这是一个内容很长的弹窗，应该自动添加滚动条。</p>
+                <div style="height: 200px; background: #f5f5f5; margin: 10px 0; padding: 20px;">
+                    <h3>模拟长内容区域 1</h3>
+                    <p>这里是一些长内容的模拟...</p>
+                </div>
+                <div style="height: 200px; background: #e6f7ff; margin: 10px 0; padding: 20px;">
+                    <h3>模拟长内容区域 2</h3>
+                    <p>更多内容...</p>
+                </div>
+                <div style="height: 200px; background: #f6ffed; margin: 10px 0; padding: 20px;">
+                    <h3>模拟长内容区域 3</h3>
+                    <p>继续更多内容...</p>
+                </div>
+                <div style="height: 200px; background: #fff7e6; margin: 10px 0; padding: 20px;">
+                    <h3>模拟长内容区域 4</h3>
+                    <p>更多内容，测试滚动...</p>
+                </div>
+                <div style="height: 200px; background: #fff1f0; margin: 10px 0; padding: 20px;">
+                    <h3>模拟长内容区域 5</h3>
+                    <p>这是最后一部分长内容。</p>
+                </div>
+            </div>
+            <div class="ant-modal-footer">
+                <button class="test-button" onclick="closeModal('long-modal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 任务表单弹窗 -->
+    <div id="task-modal" class="ant-modal-wrap modal-height-managed">
+        <div class="ant-modal">
+            <div class="ant-modal-header">
+                <div class="ant-modal-title">创建任务</div>
+                <button class="ant-modal-close" onclick="closeModal('task-modal')">&times;</button>
+            </div>
+            <div class="ant-modal-body">
+                <div class="form-item">
+                    <label class="form-label">任务标题</label>
+                    <input type="text" class="form-input" placeholder="请输入任务标题">
+                </div>
+                <div class="form-item">
+                    <label class="form-label">任务描述</label>
+                    <textarea class="form-textarea" placeholder="请输入任务描述（支持Markdown格式）"></textarea>
+                </div>
+                <div class="form-item">
+                    <label class="form-label">任务状态</label>
+                    <select class="form-select">
+                        <option>待办</option>
+                        <option>进行中</option>
+                        <option>已完成</option>
+                        <option>已取消</option>
+                    </select>
+                </div>
+                <div class="form-item">
+                    <label class="form-label">优先级</label>
+                    <select class="form-select">
+                        <option>低</option>
+                        <option>中</option>
+                        <option>高</option>
+                    </select>
+                </div>
+                <div class="form-item">
+                    <label class="form-label">截止时间</label>
+                    <input type="date" class="form-input">
+                </div>
+                <div class="form-item">
+                    <label class="form-label">预估时间</label>
+                    <input type="number" class="form-input" placeholder="小时">
+                </div>
+                <div class="form-item">
+                    <label class="form-label">标签</label>
+                    <input type="text" class="form-input" placeholder="多个标签用逗号分隔">
+                </div>
+                <div class="form-item">
+                    <label class="form-label">附加说明</label>
+                    <textarea class="form-textarea" placeholder="其他说明信息"></textarea>
+                </div>
+            </div>
+            <div class="ant-modal-footer">
+                <button class="test-button" style="background: #f5f5f5; color: #666;" onclick="closeModal('task-modal')">取消</button>
+                <button class="test-button" onclick="closeModal('task-modal')">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OKR表单弹窗 -->
+    <div id="okr-modal" class="ant-modal-wrap modal-height-managed">
+        <div class="ant-modal">
+            <div class="ant-modal-header">
+                <div class="ant-modal-title">创建OKR目标</div>
+                <button class="ant-modal-close" onclick="closeModal('okr-modal')">&times;</button>
+            </div>
+            <div class="ant-modal-body">
+                <div class="form-item">
+                    <label class="form-label">目标标题</label>
+                    <input type="text" class="form-input" placeholder="输入具体、可衡量的目标">
+                </div>
+                <div class="form-item">
+                    <label class="form-label">目标描述</label>
+                    <textarea class="form-textarea" placeholder="详细描述目标的背景和意义"></textarea>
+                </div>
+                <div class="form-item">
+                    <label class="form-label">时间范围</label>
+                    <input type="date" class="form-input">
+                </div>
+                
+                <h3>关键结果 (Key Results)</h3>
+                <div style="border: 1px solid #f0f0f0; padding: 16px; margin: 16px 0; border-radius: 6px; background: #fafafa;">
+                    <h4>关键结果 1</h4>
+                    <div class="form-item">
+                        <label class="form-label">标题</label>
+                        <input type="text" class="form-input" placeholder="输入可量化的关键结果">
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-textarea" placeholder="描述如何衡量这个关键结果"></textarea>
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">类型</label>
+                        <select class="form-select">
+                            <option>百分比</option>
+                            <option>数值</option>
+                            <option>是/否</option>
+                        </select>
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">目标值</label>
+                        <input type="number" class="form-input" placeholder="目标值">
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">单位</label>
+                        <input type="text" class="form-input" placeholder="单位 (如: %, 个, 分)">
+                    </div>
+                </div>
+                
+                <div style="border: 1px solid #f0f0f0; padding: 16px; margin: 16px 0; border-radius: 6px; background: #fafafa;">
+                    <h4>关键结果 2</h4>
+                    <div class="form-item">
+                        <label class="form-label">标题</label>
+                        <input type="text" class="form-input" placeholder="输入可量化的关键结果">
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-textarea" placeholder="描述如何衡量这个关键结果"></textarea>
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">类型</label>
+                        <select class="form-select">
+                            <option>百分比</option>
+                            <option>数值</option>
+                            <option>是/否</option>
+                        </select>
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">目标值</label>
+                        <input type="number" class="form-input" placeholder="目标值">
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">单位</label>
+                        <input type="text" class="form-input" placeholder="单位 (如: %, 个, 分)">
+                    </div>
+                </div>
+                
+                <div style="border: 1px solid #f0f0f0; padding: 16px; margin: 16px 0; border-radius: 6px; background: #fafafa;">
+                    <h4>关键结果 3</h4>
+                    <div class="form-item">
+                        <label class="form-label">标题</label>
+                        <input type="text" class="form-input" placeholder="输入可量化的关键结果">
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-textarea" placeholder="描述如何衡量这个关键结果"></textarea>
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">类型</label>
+                        <select class="form-select">
+                            <option>百分比</option>
+                            <option>数值</option>
+                            <option>是/否</option>
+                        </select>
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">目标值</label>
+                        <input type="number" class="form-input" placeholder="目标值">
+                    </div>
+                    <div class="form-item">
+                        <label class="form-label">单位</label>
+                        <input type="text" class="form-input" placeholder="单位 (如: %, 个, 分)">
+                    </div>
+                </div>
+            </div>
+            <div class="ant-modal-footer">
+                <button class="test-button" style="background: #f5f5f5; color: #666;" onclick="closeModal('okr-modal')">取消</button>
+                <button class="test-button" onclick="closeModal('okr-modal')">创建目标</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.add('ant-modal-wrap-open');
+            modal.style.display = 'flex';
+            
+            // 模拟高度检测
+            setTimeout(() => {
+                const modalBody = modal.querySelector('.ant-modal-body');
+                const viewportHeight = window.innerHeight;
+                const modalHeight = modal.querySelector('.ant-modal').offsetHeight;
+                
+                console.log(`Modal ${modalId}:`, {
+                    viewportHeight,
+                    modalHeight,
+                    needsScroll: modalHeight > (viewportHeight * 0.9)
+                });
+                
+                updateTestResults(modalId, modalHeight, viewportHeight);
+            }, 100);
+        }
+        
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.remove('ant-modal-wrap-open');
+            modal.style.display = 'none';
+        }
+        
+        function openShortModal() {
+            openModal('short-modal');
+        }
+        
+        function openLongModal() {
+            openModal('long-modal');
+        }
+        
+        function openTaskModal() {
+            openModal('task-modal');
+        }
+        
+        function openOKRModal() {
+            openModal('okr-modal');
+        }
+        
+        function updateTestResults(modalId, modalHeight, viewportHeight) {
+            const resultsDiv = document.getElementById('test-results');
+            const needsScroll = modalHeight > (viewportHeight * 0.9);
+            const status = needsScroll ? 'status-info' : 'status-success';
+            const message = needsScroll ? 
+                `${modalId}: 需要滚动条 (${modalHeight}px > ${Math.round(viewportHeight * 0.9)}px)` :
+                `${modalId}: 无需滚动条 (${modalHeight}px ≤ ${Math.round(viewportHeight * 0.9)}px)`;
+            
+            resultsDiv.innerHTML += `<br><span class="status-indicator ${status}">${message}</span>`;
+        }
+        
+        // 点击遮罩关闭弹窗
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('ant-modal-wrap')) {
+                const modalId = e.target.id;
+                closeModal(modalId);
+            }
+        });
+        
+        // ESC键关闭弹窗
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const openModals = document.querySelectorAll('.ant-modal-wrap-open');
+                openModals.forEach(modal => {
+                    closeModal(modal.id);
+                });
+            }
+        });
+        
+        console.log('Modal height management test page loaded');
+        console.log('Viewport height:', window.innerHeight);
+        console.log('90% viewport height:', Math.round(window.innerHeight * 0.9));
+    </script>
+</body>
+</html>

@@ -147,6 +147,11 @@ type Task struct {
 	// ltree hierarchy fields
 	Path      *string    `json:"path,omitempty" db:"path"`
 	Depth     int        `json:"depth" db:"depth"`
+	// Archive-related fields
+	ArchivedAt     *time.Time `json:"archived_at,omitempty" db:"archived_at"`
+	ArchivedBy     *int       `json:"archived_by,omitempty" db:"archived_by"`
+	ArchiveReason  *string    `json:"archive_reason,omitempty" db:"archive_reason"`
+	// Timestamps
 	CreatedAt time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
 	DeletedAt *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`

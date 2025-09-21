@@ -110,10 +110,11 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
     isSelected ? 'selected' : '',
     isDisabled ? 'disabled' : '',
     onClick ? 'clickable' : '',
+    task.status === 'archived' ? 'archived' : '',
     className,
   ]
     .filter(Boolean)
-    .join(' '), [isSelected, isDisabled, onClick, className]);
+    .join(' '), [isSelected, isDisabled, onClick, task.status, className]);
 
   // Memoize status-related calculations
   const statusInfo = useMemo(() => {
@@ -125,6 +126,8 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
           return 'processing';
         case 'cancelled':
           return 'error';
+        case 'archived':
+          return 'default';
         default:
           return 'default';
       }
@@ -140,6 +143,8 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
           return '已完成';
         case 'cancelled':
           return '已取消';
+        case 'archived':
+          return '已归档';
         default:
           return status;
       }
@@ -232,6 +237,21 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
         .task-tree-node.disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+
+        .task-tree-node.archived {
+          opacity: 0.6;
+          background-color: #fafafa;
+          filter: grayscale(20%);
+        }
+
+        .task-tree-node.archived .task-title {
+          color: #8c8c8c;
+          text-decoration: line-through;
+        }
+
+        .task-tree-node.archived .task-tree-node-icon {
+          color: #bfbfbf;
         }
 
         .task-tree-node-content {
@@ -360,6 +380,10 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
         .task-status-inline.status-cancelled {
           background-color: #fff2f0;
           color: #ff4d4f;
+        }
+        .task-status-inline.status-archived {
+          background-color: #f5f5f5;
+          color: #8c8c8c;
         }
 
         .highlight-keyword {

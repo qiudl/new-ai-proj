@@ -43,7 +43,7 @@ const TaskArchiveModal: React.FC<TaskArchiveModalProps> = ({
       } else {
         const taskIds = tasks.map(task => task.id);
         const result = await archiveTasks(projectId, taskIds, values.reason);
-        message.success(`成功归档 ${result.archived_count} 个任务`);
+        message.success(`成功归档 ${result.success_count} 个任务`);
       }
       
       form.resetFields();

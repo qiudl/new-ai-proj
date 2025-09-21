@@ -1,0 +1,63 @@
+/**
+ * Emergency Modal Fix
+ * 紧急修复：防止 .ant-modal-wrap 错误地遮挡整个屏幕
+ */
+
+/* 修复：确保空的modal-wrap不显示，但不影响正常Modal */
+.ant-modal-wrap:empty {
+  display: none !important;
+}
+
+.ant-modal-wrap.ant-modal-wrap-open {
+  display: flex !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 550 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: auto !important;
+}
+
+/* 确保遮罩背景正确显示 */
+.ant-modal-mask {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  z-index: 549 !important;
+}
+
+/* 确保 Modal 内容在最上层 */
+.ant-modal {
+  position: relative !important;
+  z-index: 551 !important;
+  pointer-events: auto !important;
+}
+
+/* 备用方案：只隐藏真正空的或者有问题的modal-wrap */
+.ant-modal-wrap:not(:has(.ant-modal)):not(.ant-modal-wrap-open) {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+/* 用户管理相关Modal的特定修复 */
+.user-edit-modal.ant-modal-wrap,
+.user-reset-password-modal.ant-modal-wrap {
+  z-index: 550 !important;
+}
+
+.user-edit-modal .ant-modal,
+.user-reset-password-modal .ant-modal {
+  z-index: 551 !important;
+}
+
+.user-edit-modal .ant-modal-mask,
+.user-reset-password-modal .ant-modal-mask {
+  z-index: 549 !important;
+}

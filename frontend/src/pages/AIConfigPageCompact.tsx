@@ -653,11 +653,13 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
           display: 'flex',
           flexDirection: 'column'
         }}
-        bodyStyle={{ 
-          padding: '16px', 
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column'
+        styles={{ 
+          body: {
+            padding: '16px', 
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column'
+          }
         }}
         title={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

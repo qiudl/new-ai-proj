@@ -69,13 +69,11 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 		c.JSON(200, gin.H{"success": true, "data": []interface{}{}, "message": "Search coming soon"})
 	})
 
-	// Version management - 占位符实现
-	authorized.GET("/documents/:id/versions", func(c *gin.Context) {
-		c.JSON(200, gin.H{"success": true, "data": []interface{}{}, "message": "Version management coming soon"})
-	})
-	authorized.POST("/documents/:id/versions", func(c *gin.Context) {
-		c.JSON(200, gin.H{"success": true, "message": "Version creation coming soon"})
-	})
+	// Version management - using DocumentVersionHandler
+	versionHandler := app.GetDocumentVersionHandler()
+	authorized.GET("/documents/:id/versions", versionHandler.GetVersionHistory)
+	authorized.GET("/documents/:id/versions/:version_number", versionHandler.GetVersion)
+	authorized.POST("/documents/:id/versions", versionHandler.CreateVersion)
 
 	// Legacy compatibility routes (使用现有的HybridDocumentHandler方法)
 	authorized.POST("/documents/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
@@ -148,6 +146,12 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 				taskDocuments.DELETE("/:documentId", func(c *gin.Context) {
 					c.JSON(200, gin.H{"success": true, "message": "Detach document coming soon"})
 				})
+
+				// 文档版本管理路由
+				versionHandler := app.GetDocumentVersionHandler()
+				taskDocuments.GET("/:documentId/versions", versionHandler.GetVersionHistory)
+				taskDocuments.GET("/:documentId/versions/:version_number", versionHandler.GetVersion)
+				taskDocuments.POST("/:documentId/versions", versionHandler.CreateVersion)
 			}
 		}
 	}

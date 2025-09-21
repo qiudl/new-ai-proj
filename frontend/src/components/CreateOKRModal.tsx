@@ -15,6 +15,7 @@ import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { CreateObjectiveRequest } from '../types/okr';
 import okrService from '../services/okrService';
 import dayjs from 'dayjs';
+import { useUnifiedModal } from '../hooks/useUnifiedModal';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -38,6 +39,18 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  
+  // 使用统一Modal配置，启用高度管理
+  const modalConfig = useUnifiedModal({ 
+    width: 600,
+    centered: true,
+    enableHeightManagement: true,
+    heightConfig: {
+      maxHeightRatio: 0.85, // OKR表单可能比较长，使用更多屏幕空间
+      topMargin: 30,
+      bottomMargin: 30
+    }
+  });
 
   const handleSubmit = async () => {
     try {
@@ -201,8 +214,10 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
           {isEdit ? "保存修改" : "创建目标"}
         </Button>
       ]}
-      width={600}
-      centered
+      width={modalConfig.width}
+      className={modalConfig.className}
+      styles={modalConfig.styles}
+      centered={modalConfig.centered}
       destroyOnClose
     >
       <Form

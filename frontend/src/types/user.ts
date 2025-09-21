@@ -53,6 +53,10 @@ export interface UserUpdateRequest {
   role?: UserRole;
   status?: UserStatus;
   profile?: UserProfile;
+  contact_person_name?: string;
+  contact_phone?: string;
+  department_title?: string;
+  notes?: string;
 }
 
 export interface UserProfileUpdateRequest {

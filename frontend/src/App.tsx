@@ -101,6 +101,8 @@ const RefreshTestPage = React.lazy(() => import('./pages/RefreshTestPage'));
 // const WebSocketProgressTestPage = React.lazy(() => import('./pages/WebSocketProgressTestPage')); // DISABLED: WebSocket functionality
 const RoleTemplatesPage = React.lazy(() => import('./pages/RoleTemplatesPage'));
 const RoleTemplateDetailPage = React.lazy(() => import('./pages/RoleTemplateDetailPage'));
+const VersionHistoryPage = React.lazy(() => import('./pages/VersionHistoryPage'));
+const VersionHistoryDemoPage = React.lazy(() => import('./pages/VersionHistoryDemoPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -313,6 +315,12 @@ const AppContent: React.FC = () => {
 
 
                 <Route path="/task-documents" element={<TaskDocumentListPage />} />
+
+                {/* Version History routes */}
+                <Route path="/version-history" element={<VersionHistoryPage />} />
+                <Route path="/version-history-demo" element={<VersionHistoryDemoPage />} />
+                <Route path="/documents/:documentId/version-history" element={<VersionHistoryPage />} />
+                <Route path="/tasks/:taskId/version-history" element={<VersionHistoryPage />} />
 
                 {/* Admin routes - 系统管理 */}
                 <Route path="/admin/permissions" element={

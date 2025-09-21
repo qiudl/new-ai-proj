@@ -51,13 +51,7 @@ func RegisterDailyFocusTaskRoutes(authorized *gin.RouterGroup, app ApplicationIn
 			})
 		})
 		// GET /api/v1/daily-focus-tasks/recommendations (前端兼容性)
-		dailyFocus.GET("/recommendations", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
-				"success": true,
-				"message": "获取任务推荐成功",
-				"data": []interface{}{},
-			})
-		})
+		dailyFocus.GET("/recommendations", dailyFocusHandler.GetTaskSuggestions)
 
 		// 获取统计信息
 		// GET /api/v1/daily-focus-tasks/stats
@@ -87,6 +81,10 @@ func RegisterDailyFocusTaskRoutes(authorized *gin.RouterGroup, app ApplicationIn
 				},
 			})
 		})
+
+		// 延续任务
+		// POST /api/v1/daily-focus-tasks/carry-over
+		dailyFocus.POST("/carry-over", dailyFocusHandler.CarryOverTasks)
 	}
 
 	log.Printf("✅ Daily Focus Task routes registered successfully")

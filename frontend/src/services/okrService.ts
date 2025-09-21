@@ -36,8 +36,15 @@ class OKRService {
   }
 
   async updateObjective(id: number, data: UpdateObjectiveRequest): Promise<OKRObjective> {
-    const response = await api.put(`${this.baseUrl}/objectives/${id}`, data);
-    return response as OKRObjective;
+    console.log('🐛 [OKRService] updateObjective called with:', { id, data });
+    try {
+      const response = await api.put(`${this.baseUrl}/objectives/${id}`, data);
+      console.log('🐛 [OKRService] updateObjective response:', response);
+      return response as OKRObjective;
+    } catch (error) {
+      console.error('🐛 [OKRService] updateObjective error:', error);
+      throw error;
+    }
   }
 
   async deleteObjective(id: number): Promise<void> {

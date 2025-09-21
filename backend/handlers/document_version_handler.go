@@ -36,7 +36,7 @@ func NewDocumentVersionHandler(versionService *services.DocumentVersionService) 
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/documents/{document_id}/versions [get]
 func (h *DocumentVersionHandler) GetVersionHistory(c *gin.Context) {
-	documentIDStr := c.Param("document_id")
+	documentIDStr := c.Param("documentId")
 	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -57,7 +57,24 @@ func (h *DocumentVersionHandler) GetVersionHistory(c *gin.Context) {
 		return
 	}
 
-	versions, err := h.versionService.GetVersionHistory(c.Request.Context(), documentID, userID.(uint64))
+	// Convert userID to uint64
+	var userIDUint64 uint64
+	switch v := userID.(type) {
+	case int:
+		userIDUint64 = uint64(v)
+	case int64:
+		userIDUint64 = uint64(v)
+	case uint64:
+		userIDUint64 = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "无效的用户ID类型",
+		})
+		return
+	}
+
+	versions, err := h.versionService.GetVersionHistory(c.Request.Context(), documentID, userIDUint64)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -124,7 +141,7 @@ func (h *DocumentVersionHandler) GetVersionHistory(c *gin.Context) {
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/documents/{document_id}/versions/{version_number} [get]
 func (h *DocumentVersionHandler) GetVersion(c *gin.Context) {
-	documentIDStr := c.Param("document_id")
+	documentIDStr := c.Param("documentId")
 	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -155,7 +172,24 @@ func (h *DocumentVersionHandler) GetVersion(c *gin.Context) {
 		return
 	}
 
-	version, err := h.versionService.GetVersion(c.Request.Context(), documentID, versionNumber, userID.(uint64))
+	// Convert userID to uint64
+	var userIDUint64 uint64
+	switch v := userID.(type) {
+	case int:
+		userIDUint64 = uint64(v)
+	case int64:
+		userIDUint64 = uint64(v)
+	case uint64:
+		userIDUint64 = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "无效的用户ID类型",
+		})
+		return
+	}
+
+	version, err := h.versionService.GetVersion(c.Request.Context(), documentID, versionNumber, userIDUint64)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
@@ -188,7 +222,7 @@ func (h *DocumentVersionHandler) GetVersion(c *gin.Context) {
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/documents/{document_id}/versions [post]
 func (h *DocumentVersionHandler) CreateVersion(c *gin.Context) {
-	documentIDStr := c.Param("document_id")
+	documentIDStr := c.Param("documentId")
 	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{

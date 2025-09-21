@@ -377,7 +377,7 @@ export const TimerIntegrationDemo: React.FC<TimerIntegrationDemoProps> = ({
 
       {/* 控制面板 */}
       {showControls && (
-        <Card style={{ marginBottom: 16 }} bodyStyle={{ padding: '12px 16px' }}>
+        <Card style={{ marginBottom: 16 }} styles={{ body: { padding: '12px 16px' } }}>
           <Row justify="space-between" align="middle">
             <Col>
               <Space>

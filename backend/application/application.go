@@ -383,6 +383,63 @@ func (app *Application) GetSimpleDocumentHandler() *handlers.HybridDocumentHandl
 	return app.documentHandler
 }
 
+// GetDocumentVersionHandler returns the document version handler
+func (app *Application) GetDocumentVersionHandler() *handlers.DocumentVersionHandler {
+	// Get underlying *gorm.DB from the database interface
+	dbInstance := app.db.GetDB()
+	app.logger.Printf("DEBUG: Database instance type: %T", dbInstance)
+	
+	gormDB, ok := dbInstance.(*gorm.DB)
+	if !ok {
+		// If not GORM, try to create one from *sql.DB
+		if sqlDB, ok := dbInstance.(*sql.DB); ok {
+			app.logger.Printf("DEBUG: Converting *sql.DB to *gorm.DB")
+			var err error
+			gormDB, err = gorm.Open(postgres.New(postgres.Config{
+				Conn: sqlDB,
+			}), &gorm.Config{})
+			if err != nil {
+				app.logger.Printf("ERROR: Failed to create GORM instance from sql.DB: %v", err)
+				return nil
+			}
+		} else {
+			app.logger.Printf("ERROR: DocumentVersionHandler requires *gorm.DB or *sql.DB but got %T", dbInstance)
+			return nil
+		}
+	}
+
+	app.logger.Printf("DEBUG: Successfully obtained GORM DB instance")
+
+	// Create storage adapter (using local storage for now)
+	storageBasePath := "/tmp/document_versions" // TODO: make this configurable
+	storageAdapter := services.NewLocalStorageAdapter(storageBasePath, "")
+	app.logger.Printf("DEBUG: Created storage adapter with path: %s", storageBasePath)
+
+	// Create document service
+	documentService := services.NewDocumentService(gormDB, storageBasePath)
+	if documentService == nil {
+		app.logger.Printf("ERROR: Failed to create DocumentService")
+		return nil
+	}
+	app.logger.Printf("DEBUG: Created document service")
+
+	// Create DocumentVersionService with all required dependencies
+	versionService := services.NewDocumentVersionService(gormDB, storageAdapter, documentService)
+	if versionService == nil {
+		app.logger.Printf("ERROR: Failed to create DocumentVersionService")
+		return nil
+	}
+	app.logger.Printf("DEBUG: Created document version service")
+
+	handler := handlers.NewDocumentVersionHandler(versionService)
+	if handler == nil {
+		app.logger.Printf("ERROR: Failed to create DocumentVersionHandler")
+		return nil
+	}
+	app.logger.Printf("DEBUG: Successfully created DocumentVersionHandler")
+	return handler
+}
+
 
 // GetWorkNoteFolderHandler returns the work note folder handler
 func (app *Application) GetWorkNoteFolderHandler() *handlers.WorkNoteFolderHandler {

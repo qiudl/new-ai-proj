@@ -71,6 +71,7 @@ export interface UpdateObjectiveRequest {
   progress?: number;
   startDate?: string;
   endDate?: string;
+  keyResults?: UpdateKeyResultRequest[] | CreateKeyResultRequest[]; // 支持更新或创建关键结果
 }
 
 export interface UpdateKeyResultRequest {

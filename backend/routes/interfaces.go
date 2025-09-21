@@ -127,6 +127,7 @@ type ApplicationInterface interface {
 	GetHybridDocumentHandler() *handlers.HybridDocumentHandler
 	GetSimpleDocumentHandler() *handlers.HybridDocumentHandler
 	GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler // Document folder handler
+	GetDocumentVersionHandler() *handlers.DocumentVersionHandler              // Document version handler
 
 	// 工作笔记文件夹处理器
 	GetWorkNoteFolderHandler() *handlers.WorkNoteFolderHandler

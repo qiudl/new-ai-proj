@@ -1,6 +1,25 @@
 {
+  "name": "ai-project-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "mock:dev": "node mock-server.js",
+    "mock:start": "npm run mock:dev",
+    "dev:mock": "npm run mock:dev",
+    "dev:frontend": "cd frontend && npm start",
+    "dev:full": "concurrently \"npm run mock:dev\" \"npm run dev:frontend\"",
+    "build": "cd frontend && npm run build",
+    "test": "cd frontend && npm test"
+  },
   "dependencies": {
     "axios": "^1.11.0",
+    "cors": "^2.8.5",
+    "json-server": "^0.17.4",
     "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }

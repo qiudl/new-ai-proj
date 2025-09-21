@@ -35,7 +35,7 @@ const DailyFocusTaskToggle: React.FC<DailyFocusTaskToggleProps> = ({
   } = useDailyFocusTasks({ autoRefresh: false });
 
   // Check if current task is in daily focus tasks
-  const dailyFocusTask = focusTasks.find(task => task.task_id === taskId);
+  const dailyFocusTask = focusTasks?.find(task => task.task_id === taskId);
   const isInDailyFocus = !!dailyFocusTask;
 
   // Load daily focus tasks on mount to check current state
@@ -61,7 +61,7 @@ const DailyFocusTaskToggle: React.FC<DailyFocusTaskToggleProps> = ({
           task_id: taskId,
           priority: initialPriority,
           notes: `从任务详情页添加`,
-          sort_order: focusTasks.length + 1 // Add at the end
+          sort_order: (focusTasks?.length || 0) + 1 // Add at the end
         });
         message.success(`已将"${taskTitle}"设为今日主要任务`);
         onToggleComplete?.(true);
@@ -82,7 +82,7 @@ const DailyFocusTaskToggle: React.FC<DailyFocusTaskToggleProps> = ({
     taskId, 
     taskTitle, 
     initialPriority, 
-    focusTasks.length,
+    focusTasks?.length,
     addFocusTask, 
     removeFocusTask, 
     onToggleComplete

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF导出测试页面</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background: #40a9ff;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        .error {
+            background: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
+        }
+        .info {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            color: #1890ff;
+        }
+        #logs {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF导出功能测试</h1>
+        <p>这个页面用于测试PDF导出的关键修复是否生效。</p>
+        
+        <div>
+            <button class="test-button" onclick="testBasicPdfExport()">测试基础PDF导出</button>
+            <button class="test-button" onclick="testWithContent()">测试包含内容的PDF导出</button>
+            <button class="test-button" onclick="clearLogs()">清除日志</button>
+        </div>
+        
+        <div id="status-area"></div>
+        
+        <h3>详细日志</h3>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logs.innerHTML += `<div style="color: ${type === 'error' ? '#ff4d4f' : type === 'success' ? '#52c41a' : '#1890ff'};">[${timestamp}] ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function showStatus(message, type = 'info') {
+            const statusArea = document.getElementById('status-area');
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            statusArea.appendChild(statusDiv);
+            
+            setTimeout(() => {
+                statusDiv.remove();
+            }, 5000);
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            document.getElementById('status-area').innerHTML = '';
+        }
+
+        async function testBasicPdfExport() {
+            log('🔄 开始基础PDF导出测试...', 'info');
+            
+            try {
+                // 检查html2pdf是否可用
+                if (typeof html2pdf === 'undefined') {
+                    throw new Error('html2pdf库未加载');
+                }
+                
+                log('✅ html2pdf库已加载', 'success');
+                
+                // 创建测试内容
+                const testContent = `
+                    <h2>基础PDF导出测试</h2>
+                    <p>这是一个基础测试页面。</p>
+                    <p>生成时间：${new Date().toLocaleString()}</p>
+                    <ul>
+                        <li>如果您看到这个内容，说明PDF导出功能正常工作</li>
+                        <li>这是一个成功的基础测试</li>
+                    </ul>
+                `;
+                
+                // 创建PDF元素容器 - 应用修复
+                const pdfElement = document.createElement('div');
+                pdfElement.innerHTML = `
+                    <div style="
+                        padding: 30px;
+                        background: white;
+                        font-family: Arial, sans-serif;
+                        color: #333;
+                        line-height: 1.6;
+                        max-width: 100%;
+                        word-wrap: break-word;
+                    ">
+                        <h1 style="
+                            color: #333;
+                            border-bottom: 2px solid #1890ff;
+                            padding-bottom: 10px;
+                            margin-bottom: 20px;
+                            font-size: 24px;
+                            font-weight: 600;
+                        ">基础测试文档</h1>
+                        <div style="
+                            margin: 20px 0;
+                            color: #666;
+                            font-size: 12px;
+                            border-bottom: 1px solid #eee;
+                            padding-bottom: 10px;
+                        ">
+                            导出时间: ${new Date().toLocaleString('zh-CN')}
+                        </div>
+                        <div style="
+                            margin-top: 30px;
+                            color: #333;
+                            line-height: 1.6;
+                            min-height: 50px;
+                        ">
+                            ${testContent}
+                        </div>
+                    </div>
+                `;
+
+                // 关键修复：使用opacity而不是visibility:hidden
+                pdfElement.style.position = 'fixed';
+                pdfElement.style.top = '-9999px';
+                pdfElement.style.left = '0';
+                pdfElement.style.backgroundColor = '#ffffff';
+                pdfElement.style.color = '#333333';
+                pdfElement.style.fontFamily = 'Arial, sans-serif';
+                pdfElement.style.lineHeight = '1.6';
+                pdfElement.style.width = '800px';
+                pdfElement.style.maxWidth = '800px';
+                pdfElement.style.wordWrap = 'break-word';
+                pdfElement.style.overflow = 'visible';
+                pdfElement.style.zIndex = '-9999';
+                pdfElement.style.opacity = '0.01'; // 关键修复点
+
+                // 临时添加到DOM中
+                document.body.appendChild(pdfElement);
+                log('✅ PDF元素已添加到DOM', 'success');
+                
+                // 等待元素渲染
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // 检查元素状态
+                log(`ℹ️ 元素状态: 宽度=${pdfElement.offsetWidth}, 高度=${pdfElement.offsetHeight}`, 'info');
+                
+                if (pdfElement.offsetWidth === 0 || pdfElement.offsetHeight === 0) {
+                    log('❌ 元素尺寸为0，这会导致空白PDF!', 'error');
+                    // 强制设置尺寸
+                    pdfElement.style.width = '800px';
+                    pdfElement.style.minHeight = '600px';
+                    pdfElement.style.display = 'block';
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    log(`🔧 强制尺寸后: 宽度=${pdfElement.offsetWidth}, 高度=${pdfElement.offsetHeight}`, 'info');
+                }
+
+                // 配置PDF选项
+                const opt = {
+                    margin: 1,
+                    filename: `test-basic-${Date.now()}.pdf`,
+                    image: { 
+                        type: 'jpeg', 
+                        quality: 0.98
+                    },
+                    html2canvas: { 
+                        scale: 1,
+                        backgroundColor: '#ffffff',
+                        logging: false,
+                        useCORS: true,
+                        allowTaint: true
+                    },
+                    jsPDF: { 
+                        unit: 'mm', 
+                        format: 'a4', 
+                        orientation: 'portrait'
+                    }
+                };
+
+                log('🔄 开始生成PDF...', 'info');
+                
+                try {
+                    await html2pdf().set(opt).from(pdfElement).save();
+                    log('✅ PDF生成成功！', 'success');
+                    showStatus('PDF导出成功！请检查下载文件夹。', 'success');
+                } finally {
+                    // 清理DOM
+                    if (document.body.contains(pdfElement)) {
+                        document.body.removeChild(pdfElement);
+                        log('✅ PDF元素已从DOM中移除', 'success');
+                    }
+                }
+
+            } catch (error) {
+                log(`❌ PDF导出失败: ${error.message}`, 'error');
+                showStatus(`PDF导出失败：${error.message}`, 'error');
+            }
+        }
+
+        async function testWithContent() {
+            log('🔄 开始包含丰富内容的PDF导出测试...', 'info');
+            
+            try {
+                if (typeof html2pdf === 'undefined') {
+                    throw new Error('html2pdf库未加载');
+                }
+                
+                // 创建丰富的测试内容
+                const richContent = `
+                    <h2>丰富内容测试</h2>
+                    <p><strong>粗体文本</strong> 和 <em>斜体文本</em></p>
+                    <p>这是一个包含各种元素的测试：</p>
+                    
+                    <h3>列表测试</h3>
+                    <ul>
+                        <li>列表项 1</li>
+                        <li>列表项 2</li>
+                        <li>列表项 3</li>
+                    </ul>
+                    
+                    <h3>代码测试</h3>
+                    <p>内联代码：<code style="background: #f1f3f4; padding: 2px 4px; border-radius: 3px;">console.log('hello')</code></p>
+                    
+                    <h3>表格测试</h3>
+                    <table style="border-collapse: collapse; width: 100%; margin: 10px 0;">
+                        <tr>
+                            <th style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5;">列1</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5;">列2</th>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ddd; padding: 8px;">数据1</td>
+                            <td style="border: 1px solid #ddd; padding: 8px;">数据2</td>
+                        </tr>
+                    </table>
+                    
+                    <h3>长文本测试</h3>
+                    <p>这是一段很长的文本，用来测试PDF导出时的文本换行和排版效果。Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+                `;
+                
+                const pdfElement = document.createElement('div');
+                pdfElement.innerHTML = `
+                    <div style="
+                        padding: 30px;
+                        background: white;
+                        font-family: Arial, sans-serif;
+                        color: #333;
+                        line-height: 1.6;
+                        max-width: 100%;
+                        word-wrap: break-word;
+                    ">
+                        <h1 style="
+                            color: #333;
+                            border-bottom: 2px solid #1890ff;
+                            padding-bottom: 10px;
+                            margin-bottom: 20px;
+                            font-size: 24px;
+                            font-weight: 600;
+                        ">丰富内容测试文档</h1>
+                        <div style="
+                            margin: 20px 0;
+                            color: #666;
+                            font-size: 12px;
+                            border-bottom: 1px solid #eee;
+                            padding-bottom: 10px;
+                        ">
+                            导出时间: ${new Date().toLocaleString('zh-CN')} | 内容长度: ${richContent.length} 字符
+                        </div>
+                        <div style="
+                            margin-top: 30px;
+                            color: #333;
+                            line-height: 1.6;
+                            min-height: 50px;
+                        ">
+                            ${richContent}
+                        </div>
+                        <div style="
+                            margin-top: 50px;
+                            color: #999;
+                            font-size: 10px;
+                            text-align: center;
+                        ">
+                            由 PDF导出测试系统生成
+                        </div>
+                    </div>
+                `;
+
+                // 应用相同的修复
+                pdfElement.style.position = 'fixed';
+                pdfElement.style.top = '-9999px';
+                pdfElement.style.left = '0';
+                pdfElement.style.backgroundColor = '#ffffff';
+                pdfElement.style.color = '#333333';
+                pdfElement.style.fontFamily = 'Arial, sans-serif';
+                pdfElement.style.lineHeight = '1.6';
+                pdfElement.style.width = '800px';
+                pdfElement.style.maxWidth = '800px';
+                pdfElement.style.wordWrap = 'break-word';
+                pdfElement.style.overflow = 'visible';
+                pdfElement.style.zIndex = '-9999';
+                pdfElement.style.opacity = '0.01'; // 关键修复
+
+                document.body.appendChild(pdfElement);
+                log('✅ 丰富内容PDF元素已添加到DOM', 'success');
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                log(`ℹ️ 元素状态: 宽度=${pdfElement.offsetWidth}, 高度=${pdfElement.offsetHeight}`, 'info');
+                
+                if (pdfElement.offsetWidth === 0 || pdfElement.offsetHeight === 0) {
+                    pdfElement.style.width = '800px';
+                    pdfElement.style.minHeight = '600px';
+                    pdfElement.style.display = 'block';
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+
+                const opt = {
+                    margin: 1,
+                    filename: `test-rich-content-${Date.now()}.pdf`,
+                    image: { 
+                        type: 'jpeg', 
+                        quality: 0.98
+                    },
+                    html2canvas: { 
+                        scale: 1,
+                        backgroundColor: '#ffffff',
+                        logging: false,
+                        useCORS: true,
+                        allowTaint: true
+                    },
+                    jsPDF: { 
+                        unit: 'mm', 
+                        format: 'a4', 
+                        orientation: 'portrait'
+                    }
+                };
+
+                log('🔄 开始生成丰富内容PDF...', 'info');
+                
+                try {
+                    await html2pdf().set(opt).from(pdfElement).save();
+                    log('✅ 丰富内容PDF生成成功！', 'success');
+                    showStatus('丰富内容PDF导出成功！请检查下载文件夹。', 'success');
+                } finally {
+                    if (document.body.contains(pdfElement)) {
+                        document.body.removeChild(pdfElement);
+                        log('✅ PDF元素已从DOM中移除', 'success');
+                    }
+                }
+
+            } catch (error) {
+                log(`❌ 丰富内容PDF导出失败: ${error.message}`, 'error');
+                showStatus(`丰富内容PDF导出失败：${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时的初始化
+        window.addEventListener('load', () => {
+            log('📄 PDF导出测试页面已加载', 'success');
+            if (typeof html2pdf !== 'undefined') {
+                log('✅ html2pdf库已成功加载', 'success');
+            } else {
+                log('❌ html2pdf库未加载，请检查网络连接', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

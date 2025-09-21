@@ -53,17 +53,18 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   }, []);
 
   if (loading) {
-    // 使用包装容器以满足 antd Spin 对 tip 的要求
     return (
       <div style={{ 
         display: 'flex', 
+        flexDirection: 'column',
         justifyContent: 'center', 
         alignItems: 'center', 
         height: '100vh' 
       }}>
-        <Spin size="large" tip="正在验证身份...">
-          <div style={{ padding: 50 }} />
-        </Spin>
+        <Spin size="large" />
+        <div style={{ marginTop: '16px', color: '#666', fontSize: '14px' }}>
+          正在验证身份...
+        </div>
       </div>
     );
   }

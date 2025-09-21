@@ -36,11 +36,8 @@ type ArchiveTaskRequest struct {
 // ArchivedTask represents an archived task with additional metadata
 type ArchivedTask struct {
 	models.Task
-	ArchivedAt         *time.Time `json:"archived_at" db:"archived_at"`
-	ArchivedBy         *int       `json:"archived_by" db:"archived_by"`
-	ArchivedByUsername *string    `json:"archived_by_username" db:"archived_by_username"`
-	ArchiveReason      *string    `json:"archive_reason" db:"archive_reason"`
-	ProjectName        string     `json:"project_name" db:"project_name"`
+	ArchivedByUsername *string `json:"archived_by_username" db:"archived_by_username"`
+	ProjectName        string  `json:"project_name" db:"project_name"`
 }
 
 // ArchiveTask archives a single task
@@ -108,9 +105,12 @@ func (h *ArchiveHandler) ArchiveTask(c *gin.Context) {
 		return
 	}
 
-	// Archive the task using simple UPDATE
-	archiveQuery := `UPDATE tasks SET archived_at = NOW() WHERE id = $1 AND archived_at IS NULL`
-	result, err := sqlDB.Exec(archiveQuery, taskID)
+	// Get user ID from context for archived_by field
+	userID, _ := c.Get("user_id")
+	
+	// Archive the task using simple UPDATE with metadata
+	archiveQuery := `UPDATE tasks SET archived_at = NOW(), archived_by = $2, archive_reason = $3, status = 'archived' WHERE id = $1 AND archived_at IS NULL`
+	result, err := sqlDB.Exec(archiveQuery, taskID, userID, req.Reason)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -185,8 +185,8 @@ func (h *ArchiveHandler) UnarchiveTask(c *gin.Context) {
 		return
 	}
 
-	// Unarchive the task using simple UPDATE
-	unarchiveQuery := `UPDATE tasks SET archived_at = NULL WHERE id = $1 AND archived_at IS NOT NULL`
+	// Unarchive the task using simple UPDATE - clear all archive metadata
+	unarchiveQuery := `UPDATE tasks SET archived_at = NULL, archived_by = NULL, archive_reason = NULL, status = 'todo' WHERE id = $1 AND archived_at IS NOT NULL`
 	result, err := sqlDB.Exec(unarchiveQuery, taskID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -282,9 +282,12 @@ func (h *ArchiveHandler) BulkArchiveTasks(c *gin.Context) {
 		return
 	}
 
-	// Archive tasks using batch UPDATE
-	batchArchiveQuery := `UPDATE tasks SET archived_at = NOW() WHERE id = ANY($1) AND archived_at IS NULL`
-	result, err := sqlDB.Exec(batchArchiveQuery, pq.Array(req.TaskIDs))
+	// Get user ID from context for archived_by field
+	userID, _ := c.Get("user_id")
+	
+	// Archive tasks using batch UPDATE with metadata
+	batchArchiveQuery := `UPDATE tasks SET archived_at = NOW(), archived_by = $2, archive_reason = $3, status = 'archived' WHERE id = ANY($1) AND archived_at IS NULL`
+	result, err := sqlDB.Exec(batchArchiveQuery, pq.Array(req.TaskIDs), userID, req.Reason)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -342,15 +345,17 @@ func (h *ArchiveHandler) GetArchivedTasks(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	// Get archived tasks - note: archived_by and archive_reason fields don't exist in current table
+	// Get archived tasks with all archive metadata
 	query := `
 		SELECT 
 			t.id, t.project_id, t.title, t.description, t.status,
 			t.assignee_id, t.due_date, t.custom_fields, t.created_at,
-			t.archived_at, 
+			t.archived_at, t.archived_by, t.archive_reason,
+			u.username as archived_by_username,
 			p.name as project_name
 		FROM tasks t
 		JOIN projects p ON t.project_id = p.id
+		LEFT JOIN users u ON t.archived_by = u.id
 		WHERE t.project_id = $1 AND t.archived_at IS NOT NULL
 		ORDER BY t.archived_at DESC
 		LIMIT $2 OFFSET $3
@@ -374,7 +379,8 @@ func (h *ArchiveHandler) GetArchivedTasks(c *gin.Context) {
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description, &task.Status,
 			&task.AssigneeID, &task.DueDate, &task.CustomFields, &task.CreatedAt,
-			&task.ArchivedAt, &task.ProjectName,
+			&task.ArchivedAt, &task.ArchivedBy, &task.ArchiveReason,
+			&task.ArchivedByUsername, &task.ProjectName,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{

@@ -272,10 +272,12 @@ const NavigationPreview: React.FC<NavigationPreviewProps> = ({
           maxWidth: isMobile ? '375px' : '100%',
           margin: isMobile ? '0 auto' : undefined,
         }}
-        bodyStyle={{
-          padding: 0,
-          height: '500px',
-          overflow: 'hidden'
+        styles={{
+          body: {
+            padding: 0,
+            height: '500px',
+            overflow: 'hidden'
+          }
         }}
       >
         <Layout style={{ height: '100%' }}>

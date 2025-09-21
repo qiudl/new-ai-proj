@@ -37,6 +37,7 @@ interface UseDailyFocusTasksReturn {
   refreshFocusTasks: () => Promise<void>;
   loadRecommendations: () => Promise<void>;
   clearCompleted: () => Promise<void>;
+  autoCarryOverTasks: () => Promise<{ success: boolean; count: number; message: string }>;
   
   // Computed values
   totalCount: number;
@@ -82,7 +83,7 @@ export const useDailyFocusTasks = (options: UseDailyFocusTasksOptions = {}): Use
       }
       
       const response = await dailyFocusTasksService.getDailyFocusTasks(filters);
-      setFocusTasks(response.tasks);
+      setFocusTasks(response.tasks || []);
       setStats(response.stats);
       if (suppressError) {
         setError(null); // Clear error if background retry succeeds
@@ -129,9 +130,9 @@ export const useDailyFocusTasks = (options: UseDailyFocusTasksOptions = {}): Use
   }, [loadFocusTasks]);
 
   // Load recommendations
-  const loadRecommendations = useCallback(async () => {
+  const loadRecommendations = useCallback(async (searchKeyword?: string) => {
     try {
-      const recommendations = await dailyFocusTasksService.getRecommendations();
+      const recommendations = await dailyFocusTasksService.getRecommendations(searchKeyword);
       setRecommendations(recommendations);
     } catch (err) {
       console.error('Failed to load recommendations:', err);
@@ -230,7 +231,7 @@ export const useDailyFocusTasks = (options: UseDailyFocusTasksOptions = {}): Use
   // Clear completed tasks
   const clearCompleted = useCallback(async () => {
     try {
-      const completedTasks = focusTasks.filter(task => task.completed_at);
+      const completedTasks = focusTasks?.filter(task => task.completed_at) || [];
       if (completedTasks.length === 0) {
         message.info('没有已完成的任务需要清理');
         return;
@@ -249,6 +250,31 @@ export const useDailyFocusTasks = (options: UseDailyFocusTasksOptions = {}): Use
     }
   }, [focusTasks, refreshFocusTasks]);
 
+  // Auto carry-over yesterday's tasks
+  const autoCarryOverTasks = useCallback(async () => {
+    try {
+      const result = await dailyFocusTasksService.autoCarryOverYesterdayTasks();
+      
+      if (result.success && result.count > 0) {
+        message.success(result.message);
+        await refreshFocusTasks(); // Refresh tasks after carry-over
+        await loadRecommendations(); // Refresh recommendations too
+      } else if (result.success && result.count === 0) {
+        console.info('No tasks to carry over from yesterday');
+      }
+      
+      return result;
+    } catch (err) {
+      console.error('Failed to carry over tasks:', err);
+      const result = {
+        success: false,
+        count: 0,
+        message: err instanceof Error ? err.message : '自动延续任务失败'
+      };
+      return result;
+    }
+  }, [refreshFocusTasks, loadRecommendations]);
+
   // Computed values
   const computedStats = {
     totalCount: stats?.total_count || 0,
@@ -260,7 +286,26 @@ export const useDailyFocusTasks = (options: UseDailyFocusTasksOptions = {}): Use
   // Initial load - only run once
   useEffect(() => {
     if (!isInitializedRef.current) {
-      loadFocusTasks();
+      const initializeApp = async () => {
+        // First load existing tasks
+        await loadFocusTasks();
+        
+        // Try to auto carry-over tasks from yesterday (silent, no UI interruption)
+        try {
+          await autoCarryOverTasks();
+        } catch (err) {
+          console.warn('Auto carry-over failed on initialization:', err);
+        }
+        
+        // Load recommendations after carry-over
+        try {
+          await loadRecommendations();
+        } catch (err) {
+          console.warn('Loading recommendations failed on initialization:', err);
+        }
+      };
+      
+      initializeApp();
       isInitializedRef.current = true;
     }
   }, []); // Empty dependency array for true one-time execution
@@ -269,20 +314,42 @@ export const useDailyFocusTasks = (options: UseDailyFocusTasksOptions = {}): Use
   useEffect(() => {
     if (!autoRefresh || !isInitializedRef.current) return;
 
-    const interval = setInterval(() => {
-      loadFocusTasks(true); // Suppress error/loading for background refresh
+    const interval = setInterval(async () => {
+      await loadFocusTasks(true); // Suppress error/loading for background refresh
+      
+      // Also refresh recommendations periodically (every 10 minutes)
+      const now = Date.now();
+      const lastRecommendationRefresh = window.localStorage.getItem('last_recommendation_refresh');
+      const shouldRefreshRecommendations = !lastRecommendationRefresh || 
+        (now - parseInt(lastRecommendationRefresh)) > 10 * 60 * 1000; // 10 minutes
+      
+      if (shouldRefreshRecommendations) {
+        try {
+          await loadRecommendations();
+          window.localStorage.setItem('last_recommendation_refresh', now.toString());
+        } catch (err) {
+          console.warn('Background recommendation refresh failed:', err);
+        }
+      }
     }, refreshInterval);
 
     return () => clearInterval(interval);
-  }, [autoRefresh, refreshInterval, loadFocusTasks]);
+  }, [autoRefresh, refreshInterval, loadFocusTasks, loadRecommendations]);
 
   // Page visibility refresh - only when coming back from hidden
   useEffect(() => {
     if (!isInitializedRef.current) return;
     
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (!document.hidden && isInitializedRef.current) {
-        loadFocusTasks(true); // Suppress error for background visibility refresh
+        await loadFocusTasks(true); // Suppress error for background visibility refresh
+        
+        // Also refresh recommendations when coming back
+        try {
+          await loadRecommendations();
+        } catch (err) {
+          console.warn('Recommendation refresh on visibility change failed:', err);
+        }
       }
     };
 
@@ -290,15 +357,20 @@ export const useDailyFocusTasks = (options: UseDailyFocusTasksOptions = {}): Use
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [loadFocusTasks]);
+  }, [loadFocusTasks, loadRecommendations]);
 
   // Listen for login state changes
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
+    const handleStorageChange = async (e: StorageEvent) => {
       if (e.key === 'access_token' || e.key === 'currentUser') {
-        // User logged in/out, refresh tasks
+        // User logged in/out, refresh tasks and recommendations
         if (isInitializedRef.current) {
-          loadFocusTasks();
+          await loadFocusTasks();
+          try {
+            await loadRecommendations();
+          } catch (err) {
+            console.warn('Recommendation refresh on login state change failed:', err);
+          }
         }
       }
     };
@@ -307,7 +379,7 @@ export const useDailyFocusTasks = (options: UseDailyFocusTasksOptions = {}): Use
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [loadFocusTasks]);
+  }, [loadFocusTasks, loadRecommendations]);
 
   return {
     // Data state
@@ -329,6 +401,7 @@ export const useDailyFocusTasks = (options: UseDailyFocusTasksOptions = {}): Use
     refreshFocusTasks,
     loadRecommendations,
     clearCompleted,
+    autoCarryOverTasks,
     
     // Computed values
     ...computedStats

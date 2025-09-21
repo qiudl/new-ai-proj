@@ -4,7 +4,6 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"context"
-	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -210,10 +209,10 @@ func (h *OKRHandler) UpdateObjective(c *gin.Context) {
 		objective.Progress = *req.Progress
 	}
 	if req.StartDate != nil {
-		objective.StartDate = *req.StartDate
+		objective.StartDate = req.StartDate.Time
 	}
 	if req.EndDate != nil {
-		objective.EndDate = *req.EndDate
+		objective.EndDate = req.EndDate.Time
 	}
 
 	err = h.db.OKR().UpdateObjective(ctx, objective)

@@ -31,7 +31,7 @@ export const archiveTask = async (
   taskId: number, 
   reason?: string
 ): Promise<void> => {
-  await api.post(`/projects/${projectId}/tasks/${taskId}/archive`, {
+  await api.post(`/tasks/${taskId}/archive`, {
     reason
   });
   // API 拦截器已自动解包 { success, data } 为 data，无需再检查 success
@@ -40,9 +40,12 @@ export const archiveTask = async (
 // 取消归档单个任务
 export const unarchiveTask = async (
   projectId: number,
-  taskId: number
+  taskId: number,
+  status?: string
 ): Promise<void> => {
-  await api.post(`/projects/${projectId}/tasks/${taskId}/unarchive`);
+  await api.post(`/tasks/${taskId}/unarchive`, {
+    status: status || 'todo'
+  });
   // API 拦截器已自动解包 { success, data } 为 data
 };
 
@@ -51,21 +54,23 @@ export const archiveTasks = async (
   projectId: number,
   taskIds: number[],
   reason?: string
-): Promise<{ archived_count: number; requested_count: number }> => {
-  if (!projectId || projectId <= 0) {
-    // 全局模式：使用已注册的批量操作归档端点
-    const data = await api.post(`/batch/operations/archive`, {
-      task_ids: taskIds,
-      archive_children: false,
-      reason
-    });
-    return data; // API 拦截器已解包
-  }
-
-  // 项目模式：使用项目作用域的归档接口
-  const data = await api.post(`/projects/${projectId}/tasks/archive/bulk`, {
+): Promise<{ success_count: number; failed_count: number; skipped_count?: number }> => {
+  const data = await api.post(`/tasks/bulk/archive`, {
     task_ids: taskIds,
     reason
+  });
+  
+  return data; // API 拦截器已解包
+};
+
+// 批量取消归档任务
+export const unarchiveTasks = async (
+  taskIds: number[],
+  status?: string
+): Promise<{ success_count: number; failed_count: number; skipped_count?: number }> => {
+  const data = await api.post(`/tasks/bulk/unarchive`, {
+    task_ids: taskIds,
+    status: status || 'todo'
   });
   
   return data; // API 拦截器已解包

@@ -129,6 +129,7 @@ type TaskTimeEntryData struct {
 	Date        string  `json:"date"`
 	Status      string  `json:"status"`
 	Priority    string  `json:"priority"`
+	StartTime   string  `json:"start_time"`
 }
 
 // ProjectStatsData represents project time statistics

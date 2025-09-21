@@ -1,5 +1,11 @@
 /* Global CSS reset and base styles */
 
+/* Import modal height manager styles */
+@import './styles/modalHeightManager.css';
+
+/* Import emergency modal fix to prevent ant-modal-wrap conflicts */
+/* @import './styles/emergency-modal-fix.css'; */
+
 * {
   box-sizing: border-box;
   margin: 0;

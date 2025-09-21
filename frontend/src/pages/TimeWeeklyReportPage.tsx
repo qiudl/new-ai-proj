@@ -12,8 +12,7 @@ import {
   message,
   DatePicker,
   Table,
-  Tabs,
-  Timeline
+  Tabs
 } from 'antd';
 import {
   CalendarOutlined,
@@ -48,8 +47,8 @@ import TaskStatsTab from '../components/TaskStatsTab';
 import DailyWorkDetail from '../components/DailyWorkDetail';
 // 导入最近7天工作详情组件
 import RecentWeekWorkDetail from '../components/RecentWeekWorkDetail';
-// 导入OKR目标管理组件
-import OKRModule from '../components/OKRModule';
+// 导入简化版任务时间轴组件（临时修复卡死问题）
+import SimpleTaskTimeline from '../components/SimpleTaskTimeline';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -273,27 +272,6 @@ const TimeWeeklyReportPage: React.FC = () => {
     loadWeeklyReport(true); // 强制跳过缓存，获取最新数据
   };
 
-  // 时间轴数据
-  const timelineData = useMemo(() => {
-    return taskTimeEntries.map(entry => ({
-      color: entry.status === 'completed' ? 'green' : entry.status === 'in_progress' ? 'blue' : 'gray',
-      children: (
-        <div>
-          <Space direction="vertical" >
-            <Text strong>{entry.taskTitle}</Text>
-            <Text type="secondary">{entry.projectName}</Text>
-            <Space>
-              <Tag color={getPriorityColor(entry.priority)}>
-                {entry.priority === 'high' ? '高' : entry.priority === 'medium' ? '中' : '低'}优先级
-              </Tag>
-              {getStatusTag(entry.status)}
-              <Text>{entry.duration.toFixed(2)}小时</Text>
-            </Space>
-          </Space>
-        </div>
-      )
-    }));
-  }, [taskTimeEntries]);
 
 
   return (
@@ -498,9 +476,13 @@ const TimeWeeklyReportPage: React.FC = () => {
               key: 'timeline',
               label: (<span><LineChartOutlined />任务时间轴</span>),
               children: (
-                <Card title="任务执行时间轴" >
-                  <Timeline items={timelineData} />
-                </Card>
+                <SimpleTaskTimeline 
+                  taskTimeEntries={taskTimeEntries}
+                  dateRange={selectedDateRange}
+                  onDateRangeChange={setSelectedDateRange}
+                  projectId={1}
+                  taskIds={taskTimeEntries.map(entry => parseInt(entry.id)).filter(id => !isNaN(id))}
+                />
               )
             },
             {
@@ -517,8 +499,6 @@ const TimeWeeklyReportPage: React.FC = () => {
         />
       </Card>
 
-      {/* OKR目标管理模块 */}
-      <OKRModule style={{ marginTop: '16px' }} />
 
       {/* 🔧 [任务#714] 打印预览模态框 */}
       {exportData && (

@@ -27,6 +27,7 @@ export interface TaskTimeEntry {
   date: string;
   status: 'completed' | 'in_progress' | 'todo';
   priority: 'high' | 'medium' | 'low';
+  startTime: string;
 }
 
 export interface ProjectTimeStats {
@@ -212,6 +213,7 @@ class WeeklyReportService {
               date: entry?.date || '',
               status: this.mapTaskStatus(entry?.status),
               priority: this.mapTaskPriority(entry?.priority),
+              startTime: entry?.start_time || '',
             }))
           : [],
         projectStats: Array.isArray(backendData.project_stats)

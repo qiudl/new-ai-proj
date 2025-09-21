@@ -153,6 +153,8 @@ const UserDetailPage: React.FC = () => {
   const handleEditUser = async (values: UserUpdateRequest) => {
     try {
       setEditLoading(true);
+      console.log('🐛 [UserDetailPage] Form values before submit:', values);
+      console.log('🐛 [UserDetailPage] User type:', user?.user_type);
       await userManagementService.updateUser(Number(userId), values);
       message.success('用户信息更新成功');
       setEditModalVisible(false);
@@ -512,6 +514,9 @@ const UserDetailPage: React.FC = () => {
         onCancel={() => setEditModalVisible(false)}
         footer={null}
         width={600}
+        destroyOnClose={true}
+        maskClosable={false}
+        wrapClassName="user-edit-modal"
       >
         <Form
           form={editForm}
@@ -549,7 +554,7 @@ const UserDetailPage: React.FC = () => {
                 name="role"
                 rules={[{ required: true, message: '请选择角色' }]}
               >
-                <Select>
+                <Select getPopupContainer={(triggerNode) => triggerNode.parentElement}>
                   {Object.entries(USER_ROLE_CONFIG).map(([key, config]) => (
                     <Select.Option key={key} value={key}>
                       {config.label}
@@ -564,7 +569,7 @@ const UserDetailPage: React.FC = () => {
                 name="status"
                 rules={[{ required: true, message: '请选择状态' }]}
               >
-                <Select>
+                <Select getPopupContainer={(triggerNode) => triggerNode.parentElement}>
                   {Object.entries(USER_STATUS_CONFIG).map(([key, config]) => (
                     <Select.Option key={key} value={key}>
                       {config.label}
@@ -575,30 +580,26 @@ const UserDetailPage: React.FC = () => {
             </Col>
           </Row>
 
-          {user?.user_type === 'company' && (
-            <>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item label="联系人姓名" name="contact_person_name">
-                    <Input />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item label="联系电话" name="contact_phone">
-                    <Input prefix={<PhoneOutlined />} />
-                  </Form.Item>
-                </Col>
-              </Row>
-              
-              <Form.Item label="部门职位" name="department_title">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="联系人姓名" name="contact_person_name">
                 <Input />
               </Form.Item>
-              
-              <Form.Item label="备注" name="notes">
-                <Input.TextArea rows={3} />
+            </Col>
+            <Col span={12}>
+              <Form.Item label="联系电话" name="contact_phone">
+                <Input prefix={<PhoneOutlined />} />
               </Form.Item>
-            </>
-          )}
+            </Col>
+          </Row>
+          
+          <Form.Item label="部门职位" name="department_title">
+            <Input />
+          </Form.Item>
+          
+          <Form.Item label="备注" name="notes">
+            <Input.TextArea rows={3} />
+          </Form.Item>
 
           <Form.Item style={{ marginBottom: 0 }}>
             <Space>
@@ -619,6 +620,9 @@ const UserDetailPage: React.FC = () => {
         open={resetPasswordModalVisible}
         onCancel={() => setResetPasswordModalVisible(false)}
         footer={null}
+        destroyOnClose={true}
+        maskClosable={false}
+        wrapClassName="user-reset-password-modal"
       >
         <Form
           form={resetPasswordForm}

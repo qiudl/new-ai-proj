@@ -50,6 +50,7 @@ import {
 // 导入现有组件
 import TaskDocumentEditor from './TaskDocumentEditor';
 import TaskDocumentManager from './TaskDocumentManager';
+import TaskDocumentVersionHistoryButton from './TaskDocumentVersionHistoryButton';
 import { documentService, UnifiedDocument } from '../services/documentService';
 import { taskDocumentService } from '../services/taskDocumentService';
 import { TaskService } from '../services/taskService';
@@ -211,6 +212,17 @@ const DocumentListItem: React.FC<{
               />
             </Tooltip>
           ] : []),
+          <Tooltip title="版本历史">
+            <TaskDocumentVersionHistoryButton
+              projectId={document.project_id}
+              taskId={document.task_id}
+              selectedDocument={document}
+              size="small"
+              type="text"
+              style={{ padding: 0, width: '24px', height: '24px' }}
+              onVersionUpdate={() => {/* 处理版本更新 */}}
+            />
+          </Tooltip>,
           <Tooltip title="下载">
             <Button
               type="text"
@@ -906,6 +918,15 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                       </Text>
                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                         {doc.is_template && <Tag color="purple" style={{ margin: 0, fontSize: '10px' }}>模板</Tag>}
+                        <TaskDocumentVersionHistoryButton
+                          projectId={doc.project_id}
+                          taskId={doc.task_id}
+                          selectedDocument={doc}
+                          size="small"
+                          type="text"
+                          style={{ width: '20px', height: '20px', fontSize: '10px', padding: 0 }}
+                          onVersionUpdate={() => {/* 处理版本更新 */}}
+                        />
                         <Button
                           type="text"
                           icon={<EditOutlined />}
@@ -986,15 +1007,26 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                       {new Date(doc.updated_at).toLocaleDateString()} {new Date(doc.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {Math.round(doc.file_size / 1024)}KB
                     </div>
                   </div>
-                  <Button
-                    type="text"
-                    icon={<EditOutlined />}
-                    
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDocumentEdit(doc);
-                    }}
-                  />
+                  <Space>
+                    <TaskDocumentVersionHistoryButton
+                      projectId={doc.project_id}
+                      taskId={doc.task_id}
+                      selectedDocument={doc}
+                      size="small"
+                      type="text"
+                      style={{ padding: 0, width: '20px', height: '20px' }}
+                      onVersionUpdate={() => {/* 处理版本更新 */}}
+                    />
+                    <Button
+                      type="text"
+                      icon={<EditOutlined />}
+                      
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDocumentEdit(doc);
+                      }}
+                    />
+                  </Space>
                 </div>
               ))}
           </div>
@@ -1058,8 +1090,27 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     }
   }, [documents, selectedDocument, documentListView, handleDocumentSelect, handleDocumentEdit, handleDocumentDelete, handleDocumentDownload, handleDocumentView, handleQuickCreateDocument]);
 
-  // 工具栏按钮 - 移除了新建文档、上传文件等按钮，保留核心功能
+  // 切换全屏模式
+  const toggleFullscreen = useCallback(() => {
+    const newFullscreenState = !isFullscreen;
+    setIsFullscreen(newFullscreenState);
+    
+    // 全屏模式下默认切换到预览模式
+    if (newFullscreenState && selectedDocument && selectedDocument.type === 'markdown') {
+      setViewMode('preview');
+      onViewModeChange?.('preview');
+    }
+  }, [isFullscreen, selectedDocument, onViewModeChange]);
+
+  // 工具栏按钮 - 添加全屏按钮
   const toolbarItems: MenuProps['items'] = [
+    {
+      key: 'fullscreen',
+      label: isFullscreen ? '退出全屏' : '全屏查看',
+      icon: isFullscreen ? <ShrinkOutlined /> : <ArrowsAltOutlined />,
+      onClick: toggleFullscreen
+    },
+    { type: 'divider' },
     {
       key: 'sort-options',
       label: '排序选项',
@@ -1133,6 +1184,34 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     });
   }, [documentSortBy, documentSortOrder]);
 
+  // 简单的Markdown渲染函数
+  const renderMarkdownContent = useCallback((content: string) => {
+    if (!content) return '';
+    
+    return content
+      // 标题
+      .replace(/^### (.*$)/gm, '<h3 style="color: #1890ff; margin: 16px 0 8px 0; font-size: 18px;">$1</h3>')
+      .replace(/^## (.*$)/gm, '<h2 style="color: #1890ff; margin: 20px 0 10px 0; font-size: 22px;">$1</h2>')
+      .replace(/^# (.*$)/gm, '<h1 style="color: #1890ff; margin: 24px 0 12px 0; font-size: 28px;">$1</h1>')
+      // 粗体
+      .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #333; font-weight: 600;">$1</strong>')
+      // 斜体
+      .replace(/\*(.*?)\*/g, '<em style="font-style: italic; color: #666;">$1</em>')
+      // 代码块
+      .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre style="background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin: 16px 0; overflow-x: auto; font-family: Consolas, Monaco, monospace; font-size: 14px;"><code>$2</code></pre>')
+      // 行内代码
+      .replace(/`([^`]+)`/g, '<code style="background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: Consolas, Monaco, monospace; font-size: 13px; color: #d73a49;">$1</code>')
+      // 链接
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #1890ff; text-decoration: none;" target="_blank">$1</a>')
+      // 列表
+      .replace(/^\* (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
+      .replace(/^- (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
+      // 分割线
+      .replace(/^---$/gm, '<hr style="border: none; border-top: 1px solid #e8e8e8; margin: 20px 0;">')
+      // 换行
+      .replace(/\n/g, '<br/>');
+  }, []);
+
   // 过滤后的文档
   const filteredDocuments = useMemo(() => {
     let filtered: DocumentItem[];
@@ -1176,16 +1255,70 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         
       case 'preview':
         return selectedDocument ? (
-          <Card>
-            <Title level={3}>{selectedDocument.title}</Title>
-            <Divider />
-            <div style={{ 
-              whiteSpace: 'pre-wrap', 
-              lineHeight: '1.6',
-              wordBreak: 'break-word'
-            }}>
-              {selectedDocument.content}
+          <Card 
+            style={{ 
+              height: isFullscreen ? 'calc(100vh - 120px)' : 'auto',
+              overflow: isFullscreen ? 'auto' : 'visible'
+            }}
+            bodyStyle={{
+              padding: isFullscreen ? '32px' : '16px',
+              height: isFullscreen ? 'calc(100vh - 180px)' : 'auto',
+              overflow: isFullscreen ? 'auto' : 'visible'
+            }}
+          >
+            <div style={{ marginBottom: '16px', textAlign: 'center' }}>
+              <Title level={isFullscreen ? 2 : 3} style={{ color: '#1890ff' }}>
+                {selectedDocument.title}
+              </Title>
+              {isFullscreen && (
+                <div style={{ 
+                  fontSize: '14px', 
+                  color: '#666', 
+                  marginTop: '8px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '16px'
+                }}>
+                  <span>📄 {selectedDocument.type?.toUpperCase()} 文档</span>
+                  <span>📅 {new Date(selectedDocument.updated_at).toLocaleDateString()}</span>
+                  <span>📊 {selectedDocument.content?.length || 0} 字符</span>
+                </div>
+              )}
             </div>
+            <Divider />
+            <div 
+              className={`document-preview-content ${isFullscreen ? 'fullscreen-preview' : ''}`}
+              style={{ 
+                whiteSpace: 'pre-wrap', 
+                lineHeight: '1.8',
+                wordBreak: 'break-word',
+                fontSize: isFullscreen ? '16px' : '14px',
+                maxWidth: isFullscreen ? '900px' : '100%',
+                margin: isFullscreen ? '0 auto' : '0',
+                padding: isFullscreen ? '20px' : '0',
+                backgroundColor: isFullscreen ? '#fafafa' : 'transparent',
+                borderRadius: isFullscreen ? '8px' : '0',
+                minHeight: isFullscreen ? '400px' : 'auto'
+              }}
+              dangerouslySetInnerHTML={{
+                __html: selectedDocument.type === 'markdown' 
+                  ? renderMarkdownContent(selectedDocument.content)
+                  : selectedDocument.content?.replace(/\n/g, '<br/>')
+              }}
+            />
+            {isFullscreen && (
+              <div style={{ 
+                marginTop: '32px', 
+                textAlign: 'center', 
+                color: '#999',
+                fontSize: '12px',
+                borderTop: '1px solid #e8e8e8',
+                paddingTop: '16px'
+              }}>
+                💡 提示：按 ESC 键退出全屏预览
+              </div>
+            )}
           </Card>
         ) : (
           <Empty
@@ -1451,6 +1584,20 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                     >
                       分享链接
                     </Button>
+                    <TaskDocumentVersionHistoryButton
+                      projectId={projectId}
+                      taskId={taskId}
+                      selectedDocument={selectedDocument}
+                      size="middle"
+                      type="default"
+                      style={{ width: '100%' }}
+                      onVersionUpdate={(result) => {
+                        // 当版本更新时，刷新文档列表
+                        if (result.type === 'rollback' && result.result.success) {
+                          loadDocuments();
+                        }
+                      }}
+                    />
                     <Button 
                       danger 
                       icon={<DeleteOutlined />} 
@@ -1474,13 +1621,33 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                 {/* 版本历史 */}
                 <Card 
                    
-                  title="📚 版本历史" 
+                  title={
+                    <Space>
+                      <HistoryOutlined />
+                      <span>📚 版本历史</span>
+                    </Space>
+                  } 
                   bodyStyle={{ padding: '12px' }}
                 >
-                  <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
-                    <HistoryOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />
-                    <div>版本历史功能开发中</div>
-                  </div>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div style={{ marginBottom: '12px', fontSize: '12px', color: '#666' }}>
+                      当前版本: v{selectedDocument.version || 1}
+                    </div>
+                    <TaskDocumentVersionHistoryButton
+                      projectId={projectId}
+                      taskId={taskId}
+                      selectedDocument={selectedDocument}
+                      size="middle"
+                      type="primary"
+                      style={{ width: '100%' }}
+                      onVersionUpdate={(result) => {
+                        // 当版本更新时，刷新文档列表
+                        if (result.type === 'rollback' && result.result.success) {
+                          loadDocuments();
+                        }
+                      }}
+                    />
+                  </Space>
                 </Card>
               </div>
             </Col>

@@ -2,9 +2,54 @@ package models
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
+
+// FlexibleDate handles multiple date formats in JSON
+type FlexibleDate struct {
+	time.Time
+}
+
+// UnmarshalJSON implements json.Unmarshaler for flexible date parsing
+func (fd *FlexibleDate) UnmarshalJSON(data []byte) error {
+	str := strings.Trim(string(data), `"`)
+	fmt.Printf("FlexibleDate.UnmarshalJSON: trying to parse '%s'\n", str)
+	
+	if str == "null" || str == "" {
+		fd.Time = time.Time{}
+		return nil
+	}
+	
+	// Try different date formats
+	dateFormats := []string{
+		"2006-01-02",
+		"2006-01-02T15:04:05Z",
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+	}
+	
+	for _, format := range dateFormats {
+		if t, err := time.Parse(format, str); err == nil {
+			fd.Time = t
+			fmt.Printf("FlexibleDate: successfully parsed '%s' with format '%s'\n", str, format)
+			return nil
+		}
+	}
+	
+	fmt.Printf("FlexibleDate: failed to parse '%s'\n", str)
+	return fmt.Errorf("unable to parse date: %s", str)
+}
+
+// MarshalJSON implements json.Marshaler
+func (fd FlexibleDate) MarshalJSON() ([]byte, error) {
+	if fd.Time.IsZero() {
+		return []byte("null"), nil
+	}
+	return json.Marshal(fd.Time.Format(time.RFC3339))
+}
 
 // OKRObjectiveStatus represents the status of an OKR objective
 type OKRObjectiveStatus string
@@ -148,8 +193,8 @@ type UpdateOKRObjectiveRequest struct {
 	Description *string               `json:"description,omitempty"`
 	Status      *OKRObjectiveStatus   `json:"status,omitempty"`
 	Progress    *int                  `json:"progress,omitempty"`
-	StartDate   *time.Time            `json:"startDate,omitempty"`
-	EndDate     *time.Time            `json:"endDate,omitempty"`
+	StartDate   *FlexibleDate         `json:"startDate,omitempty"`
+	EndDate     *FlexibleDate         `json:"endDate,omitempty"`
 }
 
 type UpdateKeyResultRequest struct {

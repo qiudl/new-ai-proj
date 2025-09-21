@@ -624,7 +624,8 @@ func (r *PostgresTimerRepository) getTaskTimeEntries(ctx context.Context, userID
 			GREATEST(utl.duration_seconds, 0) as duration_seconds,
 			DATE(utl.start_time) as date,
 			t.status,
-			COALESCE(t.custom_fields->>'priority', 'medium') as priority
+			COALESCE(t.custom_fields->>'priority', 'medium') as priority,
+			utl.start_time
 		FROM unified_timer_logs utl
 		JOIN tasks t ON utl.target_type = 'project_task' AND utl.target_id = t.id
 		JOIN projects p ON t.project_id = p.id
@@ -648,8 +649,9 @@ func (r *PostgresTimerRepository) getTaskTimeEntries(ctx context.Context, userID
 		var taskTitle, projectName, status, priority string
 		var durationSeconds int
 		var date time.Time
+		var startTime time.Time
 
-		err := rows.Scan(&id, &taskTitle, &projectName, &durationSeconds, &date, &status, &priority)
+		err := rows.Scan(&id, &taskTitle, &projectName, &durationSeconds, &date, &status, &priority, &startTime)
 		if err != nil {
 			return nil, err
 		}
@@ -664,6 +666,7 @@ func (r *PostgresTimerRepository) getTaskTimeEntries(ctx context.Context, userID
 			Date:        date.Format("2006-01-02"),
 			Status:      status,
 			Priority:    priority,
+			StartTime:   startTime.Format("2006-01-02 15:04:05"),
 		})
 	}
 

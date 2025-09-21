@@ -206,7 +206,7 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: 'white'
           }}
-          bodyStyle={{ padding: '24px' }}
+          styles={{ body: { padding: '24px' } }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
@@ -257,7 +257,7 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
                 background: '#fafafa',
                 border: '1px solid #f0f0f0'
               }}
-              bodyStyle={{ padding: 24 }}
+              styles={{ body: { padding: 24 } }}
             >
               <div style={{
                 whiteSpace: 'pre-wrap',
@@ -279,7 +279,7 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
                 border: '1px dashed #d9d9d9',
                 textAlign: 'center'
               }}
-              bodyStyle={{ padding: 48 }}
+              styles={{ body: { padding: 48 } }}
             >
               <FileMarkdownOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
               <Text type="secondary" style={{ fontSize: 16 }}>
@@ -302,7 +302,7 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
            
           title="笔记统计" 
           style={{ margin: '0 24px 24px 24px', borderRadius: 8 }}
-          bodyStyle={{ padding: 16 }}
+          styles={{ body: { padding: 16 } }}
         >
           <Row gutter={16}>
             <Col span={8}>

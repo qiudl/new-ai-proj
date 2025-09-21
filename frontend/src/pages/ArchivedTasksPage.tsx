@@ -31,7 +31,7 @@ import {
   FileTextOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { getArchivedTasks, unarchiveTask, getArchiveStatistics, ArchivedTask, ArchiveStatistics } from '../services/archiveService';
+import { getArchivedTasks, unarchiveTask, unarchiveTasks, getArchiveStatistics, ArchivedTask, ArchiveStatistics } from '../services/archiveService';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -45,6 +45,8 @@ const ArchivedTasksPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [unarchivingTasks, setUnarchivingTasks] = useState<Set<number>>(new Set());
   const [statistics, setStatistics] = useState<ArchiveStatistics | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
+  const [bulkUnarchiveLoading, setBulkUnarchiveLoading] = useState(false);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 20,
@@ -109,6 +111,32 @@ const ArchivedTasksPage: React.FC = () => {
         newSet.delete(taskId);
         return newSet;
       });
+    }
+  };
+
+  // 批量取消归档
+  const handleBulkUnarchive = async () => {
+    if (selectedTaskIds.length === 0) {
+      message.warning('请先选择要恢复的任务');
+      return;
+    }
+
+    try {
+      setBulkUnarchiveLoading(true);
+      const result = await unarchiveTasks(selectedTaskIds, 'todo');
+      message.success(`成功恢复 ${result.success_count} 个任务`);
+      
+      if (result.failed_count > 0) {
+        message.warning(`${result.failed_count} 个任务恢复失败`);
+      }
+      
+      setSelectedTaskIds([]);
+      fetchArchivedTasks(pagination.current, pagination.pageSize);
+      fetchStatistics();
+    } catch (error: Error | unknown) {
+      message.error((error as any).message || '批量取消归档失败');
+    } finally {
+      setBulkUnarchiveLoading(false);
     }
   };
 
@@ -359,6 +387,25 @@ const ArchivedTasksPage: React.FC = () => {
         </Row>
       </Card>
 
+      {/* 批量操作栏 */}
+      {selectedTaskIds.length > 0 && (
+        <Card style={{ marginBottom: '16px', marginTop: '16px' }}>
+          <Space>
+            <Button
+              type="primary"
+              icon={<UndoOutlined />}
+              onClick={handleBulkUnarchive}
+              loading={bulkUnarchiveLoading}
+            >
+              批量恢复 ({selectedTaskIds.length})
+            </Button>
+            <Button onClick={() => setSelectedTaskIds([])}>
+              取消选择
+            </Button>
+          </Space>
+        </Card>
+      )}
+      
       {/* 归档任务表格 */}
       <Card>
         <Table
@@ -366,6 +413,12 @@ const ArchivedTasksPage: React.FC = () => {
           dataSource={tasks}
           rowKey="id"
           loading={loading}
+          rowSelection={{
+            selectedRowKeys: selectedTaskIds,
+            onChange: (selectedRowKeys: React.Key[]) => {
+              setSelectedTaskIds(selectedRowKeys as number[]);
+            },
+          }}
           pagination={{
             ...pagination,
             showSizeChanger: true,

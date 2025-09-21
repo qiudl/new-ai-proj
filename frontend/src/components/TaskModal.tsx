@@ -23,6 +23,7 @@ import TaskMarkdownEditor from './TaskMarkdownEditor';
 import TimeInput from './TimeInput';
 import dayjs from 'dayjs';
 import { TASK_STATUS_OPTIONS } from '../utils/bulkSubTaskConfig';
+import { useUnifiedModal } from '../hooks/useUnifiedModal';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -64,10 +65,16 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md; // md以下认为是移动端 (< 768px)
   
-  // 使用统一Modal配置
+  // 使用统一Modal配置，启用高度管理
   const modalConfig = useUnifiedModal({ 
-    width: 600,
-    centered: true 
+    width: isMobile ? '95vw' : 600,
+    centered: true,
+    enableHeightManagement: true,
+    heightConfig: {
+      maxHeightRatio: 0.9,
+      topMargin: isMobile ? 10 : 20,
+      bottomMargin: isMobile ? 10 : 20
+    }
   });
 
   // Load parent task information when we have parent_id but no parent_title
@@ -375,8 +382,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
       open={visible}
       footer={renderFooter()}
       onCancel={handleCancel}
-      width={isMobile ? '95vw' : 600}
-      centered
+      width={modalConfig.width}
+      className={modalConfig.className}
+      styles={modalConfig.styles}
+      centered={modalConfig.centered}
       destroyOnClose
     >
       <Form

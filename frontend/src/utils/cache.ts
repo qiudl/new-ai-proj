@@ -55,6 +55,22 @@ class CacheManager {
   }
 
   /**
+   * 根据模式删除缓存
+   * @param pattern 匹配模式
+   */
+  deletePattern(pattern: string): void {
+    const keysToDelete: string[] = [];
+    
+    this.cache.forEach((_, key) => {
+      if (key.includes(pattern)) {
+        keysToDelete.push(key);
+      }
+    });
+    
+    keysToDelete.forEach(key => this.cache.delete(key));
+  }
+
+  /**
    * 清空所有缓存
    */
   clear(): void {
@@ -165,6 +181,16 @@ export const CACHE_KEYS = {
     `weekly:stats:${userId}:${startDate}:${endDate}`,
   EFFICIENCY_TREND: (userId: number, startDate: string, endDate: string) => 
     `weekly:efficiency:${userId}:${startDate}:${endDate}`,
+  
+  // 时间轴相关
+  TASK_TIMELINE: (taskId: number, filter?: any) => 
+    `timeline:task:${taskId}:${JSON.stringify(filter || {})}`,
+  TASKS_TIMELINE: (taskIds: number[], filter?: any) => 
+    `timeline:tasks:${taskIds.join(',').slice(0, 100)}:${JSON.stringify(filter || {})}`,
+  PROJECT_TIMELINE: (projectId: number, filter?: any) => 
+    `timeline:project:${projectId}:${JSON.stringify(filter || {})}`,
+  TIMELINE_STATS: (taskId?: number, filter?: any) => 
+    `timeline:stats:${taskId || 'all'}:${JSON.stringify(filter || {})}`,
 } as const;
 
 // 标准化TTL配置

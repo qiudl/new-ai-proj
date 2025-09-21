@@ -6,7 +6,7 @@ import {
   UserOutlined,
   RobotOutlined,
   ThunderboltOutlined,
-  BulkOutlined,
+  GroupOutlined,
   TeamOutlined,
   ClockCircleOutlined,
   TrophyOutlined,
@@ -353,7 +353,7 @@ export class IntelligentEventGrouper {
         ...this.calculateGroupMetadata(batchEvents, GroupingStrategy.BY_BATCH),
         priority: 6,
         color: '#13c2c2',
-        icon: <BulkOutlined />,
+        icon: <GroupOutlined />,
         tags: ['批量操作']
       }
     }));
@@ -692,7 +692,7 @@ export class IntelligentEventGrouper {
       'mention_added': { category: '协作', priority: 5, color: '#eb2f96', icon: <TeamOutlined /> },
       'review_requested': { category: '协作', priority: 6, color: '#fa8c16', icon: <TeamOutlined /> },
       'approval_given': { category: '协作', priority: 7, color: '#52c41a', icon: <TrophyOutlined /> },
-      'bulk_updated': { category: '系统', priority: 5, color: '#8c8c8c', icon: <BulkOutlined /> },
+      'bulk_updated': { category: '系统', priority: 5, color: '#8c8c8c', icon: <GroupOutlined /> },
       'imported': { category: '系统', priority: 5, color: '#1890ff', icon: <RocketOutlined /> },
       'exported': { category: '系统', priority: 4, color: '#13c2c2', icon: <RocketOutlined /> },
       'archived': { category: '系统', priority: 5, color: '#8c8c8c', icon: <ClusterOutlined /> },

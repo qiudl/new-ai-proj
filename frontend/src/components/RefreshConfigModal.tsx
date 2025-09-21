@@ -38,12 +38,12 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 interface RefreshConfigModalProps {
-  visible: boolean;
+  open: boolean;
   onCancel: () => void;
 }
 
 export const RefreshConfigModal: React.FC<RefreshConfigModalProps> = ({
-  visible,
+  open,
   onCancel
 }) => {
   const { config, updateConfig, resetConfig } = useRefreshConfig();
@@ -101,7 +101,7 @@ export const RefreshConfigModal: React.FC<RefreshConfigModalProps> = ({
           刷新配置设置
         </Space>
       }
-      visible={visible}
+      open={open}
       onCancel={onCancel}
       width={800}
       footer={[
@@ -385,7 +385,7 @@ export const RefreshConfigButton: React.FC = () => {
       </Tooltip>
       
       <RefreshConfigModal
-        visible={modalVisible}
+        open={modalVisible}
         onCancel={() => setModalVisible(false)}
       />
     </>

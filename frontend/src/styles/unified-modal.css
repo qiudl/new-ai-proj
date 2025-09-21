@@ -1,0 +1,29 @@
+/*
+ * 简化的Modal样式解决方案
+ * 基于Ant Design默认样式，只解决高度溢出问题
+ */
+
+/* 防止Modal内容溢出屏幕 */
+.unified-modal .ant-modal-body,
+.unified-modal-large .ant-modal-body,
+.unified-modal-mobile .ant-modal-body {
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .unified-modal,
+  .unified-modal-large,
+  .unified-modal-mobile {
+    margin: 16px;
+    max-width: calc(100vw - 32px);
+  }
+  
+  .unified-modal .ant-modal-body,
+  .unified-modal-large .ant-modal-body,
+  .unified-modal-mobile .ant-modal-body {
+    max-height: calc(100vh - 160px);
+    overflow-y: auto;
+  }
+}

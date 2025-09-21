@@ -203,9 +203,15 @@ func (dvs *DocumentVersionService) CreateVersion(ctx context.Context, documentID
 // GetVersionHistory retrieves the version history of a document
 func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, documentID uint64, userID uint64) ([]DocumentVersionInfo, error) {
 	// Check if user can access the document (simplified permission check)
-	var document models.TaskDocument
-	if err := dvs.db.Where("id = ?", documentID).First(&document).Error; err != nil {
-		return nil, fmt.Errorf("failed to get document: %w", err)
+	// Use raw SQL to avoid CustomFields parsing issues
+	var documentExists bool
+	var documentVersion int
+	err := dvs.db.Raw("SELECT EXISTS(SELECT 1 FROM documents WHERE id = ?), COALESCE((SELECT version FROM documents WHERE id = ?), 1)", documentID, documentID).Row().Scan(&documentExists, &documentVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check document: %w", err)
+	}
+	if !documentExists {
+		return nil, fmt.Errorf("document not found")
 	}
 
 	// Query versions with user information
@@ -215,7 +221,10 @@ func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, docume
 	}
 
 	query := `
-		SELECT v.*, u.username as created_by_name
+		SELECT v.id, v.document_id, v.version_number, v.title, v.content, 
+		       v.changes_summary as change_summary, v.metadata, v.created_by, v.created_at,
+		       false as is_major_version, null as tags, 0 as label_count, 0 as comment_count,
+		       u.username as created_by_name
 		FROM document_versions v
 		LEFT JOIN users u ON v.created_by = u.id
 		WHERE v.document_id = ?
@@ -250,7 +259,7 @@ func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, docume
 			CreatedByName: v.CreatedByName,
 			CreatedAt:     v.CreatedAt,
 			Metadata:      map[string]interface{}(v.Metadata),
-			IsCurrent:     v.VersionNumber == document.Version,
+			IsCurrent:     v.VersionNumber == documentVersion,
 		})
 	}
 
@@ -260,9 +269,14 @@ func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, docume
 // GetVersion retrieves a specific version of a document
 func (dvs *DocumentVersionService) GetVersion(ctx context.Context, documentID uint64, versionNumber int, userID uint64) (*DocumentVersionInfo, error) {
 	// Check if user can access the document (simplified permission check)
-	var document models.TaskDocument
-	if err := dvs.db.Where("id = ?", documentID).First(&document).Error; err != nil {
-		return nil, fmt.Errorf("failed to get document: %w", err)
+	// Use raw SQL to avoid CustomFields parsing issues
+	var documentExists bool
+	err := dvs.db.Raw("SELECT EXISTS(SELECT 1 FROM documents WHERE id = ?)", documentID).Row().Scan(&documentExists)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check document: %w", err)
+	}
+	if !documentExists {
+		return nil, fmt.Errorf("document not found")
 	}
 
 	// Query the specific version
@@ -273,8 +287,11 @@ func (dvs *DocumentVersionService) GetVersion(ctx context.Context, documentID ui
 	}
 
 	query := `
-		SELECT v.*, u.username as created_by_name,
-		       (v.version_number = d.current_version) as is_current
+		SELECT v.id, v.document_id, v.version_number, v.title, v.content, 
+		       v.changes_summary as change_summary, v.metadata, v.created_by, v.created_at,
+		       false as is_major_version, null as tags, 0 as label_count, 0 as comment_count,
+		       u.username as created_by_name,
+		       (v.version_number = d.version) as is_current
 		FROM document_versions v
 		LEFT JOIN users u ON v.created_by = u.id
 		LEFT JOIN documents d ON v.document_id = d.id

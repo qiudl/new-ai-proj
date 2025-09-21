@@ -951,6 +951,251 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
       
+      // 🎯 Daily Focus Tasks 功能
+      {
+        name: 'get_daily_focus_tasks',
+        description: '获取今日主要任务列表',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            date: {
+              type: 'string',
+              description: '日期（可选，格式：YYYY-MM-DD）'
+            },
+            status: {
+              type: 'string',
+              enum: ['active', 'completed', 'removed'],
+              description: '任务状态过滤（可选）'
+            },
+            priority: {
+              type: 'string',
+              enum: ['critical', 'high', 'medium', 'low'],
+              description: '优先级过滤（可选）'
+            },
+            include_suggestions: {
+              type: 'boolean',
+              description: '是否包含智能推荐（可选）'
+            }
+          }
+        }
+      },
+      
+      {
+        name: 'add_daily_focus_task',
+        description: '添加任务到今日主要任务',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: {
+              type: 'number',
+              description: '任务ID'
+            },
+            priority: {
+              type: 'string',
+              enum: ['critical', 'high', 'medium', 'low'],
+              description: '优先级（可选，默认medium）'
+            },
+            notes: {
+              type: 'string',
+              description: '备注（可选）'
+            },
+            estimated_duration_minutes: {
+              type: 'number',
+              description: '预估时长（分钟，可选）'
+            },
+            focus_date: {
+              type: 'string',
+              description: '聚焦日期（可选，格式：YYYY-MM-DD）'
+            }
+          },
+          required: ['task_id']
+        }
+      },
+
+      {
+        name: 'update_daily_focus_task',
+        description: '更新今日主要任务信息',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: 'Daily Focus任务ID'
+            },
+            priority: {
+              type: 'string',
+              enum: ['critical', 'high', 'medium', 'low'],
+              description: '新优先级（可选）'
+            },
+            notes: {
+              type: 'string',
+              description: '新备注（可选）'
+            },
+            estimated_duration_minutes: {
+              type: 'number',
+              description: '新预估时长（分钟，可选）'
+            }
+          },
+          required: ['id']
+        }
+      },
+
+      {
+        name: 'remove_daily_focus_task',
+        description: '从今日主要任务中移除',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: 'Daily Focus任务ID'
+            }
+          },
+          required: ['id']
+        }
+      },
+
+      {
+        name: 'complete_daily_focus_task',
+        description: '标记今日主要任务完成',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: 'Daily Focus任务ID'
+            }
+          },
+          required: ['id']
+        }
+      },
+
+      {
+        name: 'get_daily_focus_stats',
+        description: '获取今日主要任务统计信息',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            date: {
+              type: 'string',
+              description: '日期（可选，格式：YYYY-MM-DD）'
+            },
+            period: {
+              type: 'string',
+              enum: ['daily', 'weekly', 'monthly'],
+              description: '统计周期（可选）'
+            }
+          }
+        }
+      },
+
+      {
+        name: 'get_task_recommendations',
+        description: '获取智能任务推荐',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            limit: {
+              type: 'number',
+              description: '推荐数量限制（可选）'
+            },
+            date: {
+              type: 'string',
+              description: '日期（可选，格式：YYYY-MM-DD）'
+            },
+            exclude_existing: {
+              type: 'boolean',
+              description: '是否排除已存在的任务（可选）'
+            }
+          }
+        }
+      },
+
+      {
+        name: 'batch_add_daily_focus_tasks',
+        description: '批量添加任务到今日主要任务',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_ids: {
+              type: 'array',
+              items: { type: 'number' },
+              description: '任务ID列表'
+            },
+            priority: {
+              type: 'string',
+              enum: ['critical', 'high', 'medium', 'low'],
+              description: '统一优先级（可选，默认medium）'
+            },
+            notes: {
+              type: 'string',
+              description: '统一备注（可选）'
+            },
+            focus_date: {
+              type: 'string',
+              description: '聚焦日期（可选，格式：YYYY-MM-DD）'
+            }
+          },
+          required: ['task_ids']
+        }
+      },
+
+      {
+        name: 'clear_completed_tasks',
+        description: '清理已完成的今日主要任务',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            date: {
+              type: 'string',
+              description: '日期（可选，格式：YYYY-MM-DD）'
+            },
+            confirm: {
+              type: 'boolean',
+              description: '确认清理（必须设为true）'
+            }
+          }
+        }
+      },
+
+      {
+        name: 'quick_add_current_task',
+        description: '快速添加当前正在进行的任务到今日主要任务',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            priority: {
+              type: 'string',
+              enum: ['critical', 'high', 'medium', 'low'],
+              description: '优先级（可选，默认high）'
+            },
+            notes: {
+              type: 'string',
+              description: '备注（可选）'
+            }
+          }
+        }
+      },
+
+      {
+        name: 'focus_task_with_timer',
+        description: '聚焦任务并开始计时',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            daily_focus_task_id: {
+              type: 'number',
+              description: 'Daily Focus任务ID'
+            },
+            timer_description: {
+              type: 'string',
+              description: '计时器描述（可选）'
+            }
+          },
+          required: ['daily_focus_task_id']
+        }
+      },
+
       {
         name: 'dev_quick_login',
         description: '开发环境快速登录，自动获取 JWT（仅 APP_ENV=development/dev 有效）',
@@ -1369,6 +1614,87 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'get_task_timeline':
         console.error(`[MCP] 收到 get_task_timeline 调用，任务ID: ${args.taskId}`);
         result = await taskServer.getTaskTimeline(args.taskId as number, args.projectId as number, args.limit as number, args.offset as number);
+        break;
+
+      // 🎯 Daily Focus Tasks 处理
+      case 'get_daily_focus_tasks':
+        result = await taskServer.getDailyFocusTasks({
+          date: args.date,
+          status: args.status,
+          priority: args.priority,
+          include_suggestions: args.include_suggestions
+        });
+        break;
+
+      case 'add_daily_focus_task':
+        result = await taskServer.addDailyFocusTask({
+          task_id: args.task_id,
+          priority: args.priority,
+          notes: args.notes,
+          estimated_duration_minutes: args.estimated_duration_minutes,
+          focus_date: args.focus_date
+        });
+        break;
+
+      case 'update_daily_focus_task':
+        result = await taskServer.updateDailyFocusTask(args.id, {
+          priority: args.priority,
+          notes: args.notes,
+          estimated_duration_minutes: args.estimated_duration_minutes
+        });
+        break;
+
+      case 'remove_daily_focus_task':
+        result = await taskServer.removeDailyFocusTask(args.id);
+        break;
+
+      case 'complete_daily_focus_task':
+        result = await taskServer.completeDailyFocusTask(args.id);
+        break;
+
+      case 'get_daily_focus_stats':
+        result = await taskServer.getDailyFocusStats({
+          date: args.date,
+          period: args.period
+        });
+        break;
+
+      case 'get_task_recommendations':
+        result = await taskServer.getTaskRecommendations({
+          limit: args.limit,
+          date: args.date,
+          exclude_existing: args.exclude_existing
+        });
+        break;
+
+      case 'batch_add_daily_focus_tasks':
+        result = await taskServer.batchAddDailyFocusTasks({
+          task_ids: args.task_ids,
+          priority: args.priority,
+          notes: args.notes,
+          focus_date: args.focus_date
+        });
+        break;
+
+      case 'clear_completed_tasks':
+        result = await taskServer.clearCompletedTasks({
+          date: args.date,
+          confirm: args.confirm
+        });
+        break;
+
+      case 'quick_add_current_task':
+        result = await taskServer.quickAddCurrentTask({
+          priority: args.priority,
+          notes: args.notes
+        });
+        break;
+
+      case 'focus_task_with_timer':
+        result = await taskServer.focusTaskWithTimer({
+          daily_focus_task_id: args.daily_focus_task_id,
+          timer_description: args.timer_description
+        });
         break;
 
       case 'dev_quick_login':

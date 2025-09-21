@@ -58,6 +58,7 @@ import { TaskDetailDescendantsTreeV2 } from '../components/TaskDetailDescendants
 import { projectService } from '../services/projectService';
 import api from '../services/api';
 import { documentService } from '../services/documentService';
+import { unarchiveTask } from '../services/archiveService';
 import { Task, TaskUpdate, TimelineEvent } from '../types/task';
 import { TaskTimelineEvent } from '../types/timeline';
 import TaskModal from '../components/TaskModal';
@@ -632,6 +633,12 @@ const TaskDetailPageNew: React.FC = () => {
         text: '已取消', 
         icon: <StopOutlined />,
         bgColor: '#fff2f0'
+      },
+      archived: { 
+        color: '#8c8c8c', 
+        text: '已归档', 
+        icon: <InboxOutlined />,
+        bgColor: '#f0f0f0'
       }
     };
     return configs[status as keyof typeof configs] || configs.todo;
@@ -762,6 +769,22 @@ const TaskDetailPageNew: React.FC = () => {
     message.success('任务已归档');
     // 返回到任务列表
     navigate(`/projects/${projectId}/tasks`);
+  };
+
+  // 取消归档处理
+  const handleUnarchiveTask = async () => {
+    if (!taskState.task || !projectId) return;
+    
+    try {
+      updateUIState({ modalLoading: true });
+      await unarchiveTask(parseInt(projectId), taskState.task.id, 'todo');
+      message.success('任务已恢复到活跃状态');
+      loadTask(); // 重新加载任务数据
+    } catch (error: Error | unknown) {
+      message.error((error as any).message || '取消归档失败');
+    } finally {
+      updateUIState({ modalLoading: false });
+    }
   };
 
   // 手工批量创建子任务处理函数
@@ -1032,7 +1055,9 @@ const TaskDetailPageNew: React.FC = () => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <TagOutlined style={{ color: '#666' }} />
-                    <Text>ID: #{task.id} | 优先级:</Text>
+                    <Text>ID: #{task.id} | 状态:</Text>
+                    <Tag color={statusConfig.color} icon={statusConfig.icon}>{statusConfig.text}</Tag>
+                    <Text>| 优先级:</Text>
                     <Tag color={priorityConfig.color}>{priorityConfig.text}</Tag>
                   </div>
                   
@@ -1067,30 +1092,57 @@ const TaskDetailPageNew: React.FC = () => {
                 />
               </div>
               
+              {/* 归档状态提示 */}
+              {task.status === 'archived' && (
+                <Alert
+                  message="任务已归档"
+                  description="此任务已被归档，不能进行编辑操作。如需恢复，请点击'恢复任务'按钮。"
+                  type="warning"
+                  showIcon
+                  icon={<InboxOutlined />}
+                  style={{ marginBottom: '16px' }}
+                />
+              )}
+              
               {/* 操作按钮组 */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <DailyFocusTaskToggle
-                  taskId={task.id}
-                  taskTitle={task.title}
-                  initialPriority="high"
-                  onToggleComplete={(isInFocus) => {
-                    console.log(`Task ${task.id} daily focus status changed to:`, isInFocus);
-                  }}
-                />
-                <Button 
-                  type="primary"
-                  icon={<EditOutlined />}
-                  onClick={handleEditTask}
-                >
-                  编辑任务
-                </Button>
-                <Button 
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={handleDeleteTask}
-                >
-                  删除
-                </Button>
+                {task.status !== 'archived' && (
+                  <DailyFocusTaskToggle
+                    taskId={task.id}
+                    taskTitle={task.title}
+                    initialPriority="high"
+                    onToggleComplete={(isInFocus) => {
+                      console.log(`Task ${task.id} daily focus status changed to:`, isInFocus);
+                    }}
+                  />
+                )}
+                {task.status === 'archived' ? (
+                  <Button 
+                    type="primary"
+                    icon={<ReloadOutlined />}
+                    onClick={handleUnarchiveTask}
+                    loading={uiState.modalLoading}
+                  >
+                    恢复任务
+                  </Button>
+                ) : (
+                  <>
+                    <Button 
+                      type="primary"
+                      icon={<EditOutlined />}
+                      onClick={handleEditTask}
+                    >
+                      编辑任务
+                    </Button>
+                    <Button 
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={handleDeleteTask}
+                    >
+                      删除
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </Card>
@@ -1108,20 +1160,36 @@ const TaskDetailPageNew: React.FC = () => {
                 borderRadius: '6px',
                 margin: 0 
               }}>
-                <TaskSummaryEditor
-                  summary={task.custom_fields?.task_summary || ''}
-                  description={task.description || ''}
-                  onUpdate={async (summary) => {
-                    const updateData = {
-                      custom_fields: {
-                        ...task.custom_fields,
-                        task_summary: summary
-                      }
-                    };
-                    await handleUpdateTask(updateData);
-                  }}
-                  loading={uiState.modalLoading}
-                />
+                {task.status === 'archived' ? (
+                  <div style={{ 
+                    padding: '8px 12px', 
+                    background: '#f5f5f5', 
+                    borderRadius: '4px', 
+                    color: '#666',
+                    fontStyle: 'italic' 
+                  }}>
+                    {task.custom_fields?.task_summary || '暂无任务摘要'}
+                    <br />
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      任务已归档，无法编辑摘要
+                    </Text>
+                  </div>
+                ) : (
+                  <TaskSummaryEditor
+                    summary={task.custom_fields?.task_summary || ''}
+                    description={task.description || ''}
+                    onUpdate={async (summary) => {
+                      const updateData = {
+                        custom_fields: {
+                          ...task.custom_fields,
+                          task_summary: summary
+                        }
+                      };
+                      await handleUpdateTask(updateData);
+                    }}
+                    loading={uiState.modalLoading}
+                  />
+                )}
               </div>
             </Card>
           )}
@@ -1317,7 +1385,34 @@ const TaskDetailPageNew: React.FC = () => {
                       <span>任务信息</span>
                     </Space>
                   ),
-                  children: (
+                  children: task.status === 'archived' ? (
+                    <div>
+                      <Alert
+                        message="任务已归档"
+                        description="已归档的任务无法编辑，如需修改请先恢复任务。"
+                        type="info"
+                        showIcon
+                        style={{ marginBottom: '16px' }}
+                      />
+                      <div style={{ 
+                        padding: '12px', 
+                        background: '#f9f9f9', 
+                        borderRadius: '4px',
+                        border: '1px solid #d9d9d9'
+                      }}>
+                        <Text strong>任务描述：</Text>
+                        <div style={{ marginTop: '8px' }}>
+                          {task.description ? (
+                            <MarkdownRenderer content={task.description} />
+                          ) : (
+                            <Text type="secondary" style={{ fontStyle: 'italic' }}>
+                              暂无任务描述
+                            </Text>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
                     <TaskInfoEditor
                       task={taskState.task}
                       onUpdate={handleUpdateTask}
