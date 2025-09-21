@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker, Checkbox, Tooltip, Alert } from 'antd';
-import { PlusOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined, CloseOutlined, InboxOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined, CloseOutlined, InboxOutlined, SearchOutlined, ProjectOutlined } from '@ant-design/icons';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Task, TaskRequest, TaskStatus } from '../types/task';
 import { useTaskListUrlState, TaskListFilters } from '../hooks/useUrlState';
@@ -150,12 +150,23 @@ const TasksPage: React.FC = () => {
       visible: true,
       required: true,
       description: '任务标题和描述',
-      width: effectiveProjectId ? 400 : 350,
+      width: effectiveProjectId ? 400 : 300,
       minWidth: 200,
       maxWidth: 600,
       resizable: true
     },
-    
+    // 全局任务列表：在状态前增加项目列
+    ...(!effectiveProjectId ? [{
+      key: 'project_name',
+      title: '所属项目',
+      visible: true,
+      required: false,
+      description: '任务所属的项目',
+      width: 160,
+      minWidth: 120,
+      maxWidth: 220,
+      resizable: true
+    }] : []),
     {
       key: 'status',
       title: '状态',
@@ -1590,6 +1601,34 @@ const TasksPage: React.FC = () => {
             },
           };
           
+        case 'project_name':
+          return {
+            title: createResizableTitle(config, '所属项目'),
+            dataIndex: 'project_name',
+            key: 'project_name',
+            width: config.width,
+            ellipsis: true,
+            render: (projectName: string, record: Task) => {
+              const displayName = projectName || record.custom_fields?.project_name || `项目${record.project_id}`;
+              return (
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ 
+                    padding: 0,
+                    height: 'auto',
+                    fontSize: '13px',
+                    color: '#1890ff'
+                  }}
+                  onClick={() => navigate(`/projects/${record.project_id}`)}
+                  title={`查看项目: ${displayName}`}
+                >
+                  <ProjectOutlined style={{ marginRight: 4, fontSize: '12px' }} />
+                  {displayName}
+                </Button>
+              );
+            },
+          };
           
         case 'status':
           return {
