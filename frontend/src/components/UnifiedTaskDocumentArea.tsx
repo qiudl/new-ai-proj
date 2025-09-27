@@ -274,8 +274,8 @@ const DocumentListItem: React.FC<{
   );
 };
 
-// 主组件
-const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
+// 主组件 - 使用React.memo优化重渲染
+const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.memo(({
   projectId,
   taskId,
   height = 'auto',
@@ -320,18 +320,35 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
   // 快速过滤：全部 / 仅本任务 / 仅子任务
   const [filterMode, setFilterMode] = useState<'all' | 'root' | 'desc'>('all');
 
-  // 加载文档列表
+  // 加载文档列表 - 优化版本，减少重渲染
   const loadDocuments = useCallback(async () => {
     setLoading(true);
+    // 清空当前文档避免渲染旧数据
+    setDocuments([]);
+    setSelectedDocument(null);
     try {
-      // 获取当前任务文档
-      const response = await documentService.getTaskDocuments(projectId, taskId);
-      let docs: DocumentItem[] = response.documents.map((doc: UnifiedDocument) => ({ ...doc, selected: false, sourceTaskId: taskId }));
+      // 并行获取两种类型的文档，避免串行等待
+      const [documentsResult, uploadedResult] = await Promise.allSettled([
+        documentService.getTaskDocuments(projectId, taskId),
+        taskDocumentService.getTaskDocuments(projectId, taskId)
+      ]);
       
-      // 也获取上传的文档（通过TaskDocumentHandler）
-      try {
-        const uploadedResponse = await taskDocumentService.getTaskDocuments(projectId, taskId);
-        const uploadedDocs: DocumentItem[] = uploadedResponse.documents.map((doc: any) => ({
+      let docs: DocumentItem[] = [];
+      
+      // 处理文档服务的响应
+      if (documentsResult.status === 'fulfilled') {
+        docs = documentsResult.value.documents.map((doc: UnifiedDocument) => ({ 
+          ...doc, 
+          selected: false, 
+          sourceTaskId: taskId 
+        }));
+      } else {
+        console.warn('获取任务文档失败:', documentsResult.reason);
+      }
+      
+      // 处理上传文档服务的响应
+      if (uploadedResult.status === 'fulfilled') {
+        const uploadedDocs: DocumentItem[] = uploadedResult.value.documents.map((doc: any) => ({
           id: doc.id,
           title: doc.original_name || doc.file_name,
           content: '', // 上传的文件内容需要单独获取
@@ -360,18 +377,21 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
           can_share: true
         }));
         docs = [...docs, ...uploadedDocs];
-      } catch (uploadError) {
-        console.warn('获取上传文档失败:', uploadError);
-        // 继续处理，不影响原有文档加载
+      } else {
+        console.warn('获取上传文档失败:', uploadedResult.reason);
       }
 
-      // 可选：合并所有下级任务文档（递归）
-      if (includeDescendants) {
+      // 禁用自动递归加载以提升性能 - 改为手动触发
+      if (false && includeDescendants && docs.length > 0) { // 临时禁用自动递归加载
         try {
           const getAllDescendantTaskIds = async (pid: number, rootTaskId: number): Promise<number[]> => {
             const result: number[] = [];
             const queue: number[] = [rootTaskId];
             const visited = new Set<number>();
+            let depth = 0;
+            const MAX_DEPTH = 3; // 限制递归深度，防止性能问题
+            const MAX_TOTAL_TASKS = 50; // 限制总任务数，防止过多API调用
+            
             // 出队根本身以获取其子任务，不计入自身ID
             queue.shift();
             // 首先入队根的直接子任务
@@ -379,20 +399,26 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
             const initialChildren = Array.isArray(firstLevel) ? firstLevel : [];
             initialChildren.forEach((t: any) => queue.push(t.id));
 
-            while (queue.length) {
-              const currentId = queue.shift() as number;
-              if (visited.has(currentId)) continue;
-              visited.add(currentId);
-              result.push(currentId);
-              try {
-                const children = await TaskService.getTaskChildren(pid, currentId);
-                const arr = Array.isArray(children) ? children : [];
-                arr.forEach((t: any) => {
-                  if (!visited.has(t.id)) queue.push(t.id);
-                });
-              } catch (e) {
-                // 忽略单个节点失败
+            while (queue.length && depth < MAX_DEPTH && result.length < MAX_TOTAL_TASKS) {
+              const currentLevelSize = queue.length;
+              
+              for (let i = 0; i < currentLevelSize && result.length < MAX_TOTAL_TASKS; i++) {
+                const currentId = queue.shift() as number;
+                if (visited.has(currentId)) continue;
+                visited.add(currentId);
+                result.push(currentId);
+                
+                try {
+                  const children = await TaskService.getTaskChildren(pid, currentId);
+                  const arr = Array.isArray(children) ? children : [];
+                  arr.forEach((t: any) => {
+                    if (!visited.has(t.id)) queue.push(t.id);
+                  });
+                } catch (e) {
+                  // 忽略单个节点失败
+                }
               }
+              depth++;
             }
             return result;
           };
@@ -418,21 +444,20 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
         }
       }
 
+      // 批量更新状态减少重渲染
       setDocuments(docs);
       
       // 如果没有选中文档且有文档列表，选中第一个
-      if (!selectedDocument && docs.length > 0) {
+      if (docs.length > 0) {
         setSelectedDocument(docs[0]);
       }
-      
-      onDocumentChange?.(docs);
     } catch (error) {
       console.error('加载文档失败:', error);
       message.error('加载文档列表失败');
     } finally {
       setLoading(false);
     }
-  }, [projectId, taskId, includeDescendants, selectedDocument, onDocumentChange]);
+  }, [projectId, taskId, includeDescendants]);
 
   // 快捷键回调函数
   const shortcutCallbacks = useMemo(() => ({
@@ -605,6 +630,11 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
   useEffect(() => {
     loadDocuments();
   }, [loadDocuments]);
+
+  // 文档变化通知（独立的useEffect避免重复加载）
+  useEffect(() => {
+    onDocumentChange?.(documents);
+  }, [documents, onDocumentChange]);
 
   // 监听 ESC 键退出全屏
   useEffect(() => {
@@ -1387,6 +1417,20 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     </div>
   );
 
+  // 早期返回加载状态，避免渲染复杂组件
+  if (loading && documents.length === 0) {
+    return (
+      <div className={`unified-task-document-area loading ${className}`} style={style}>
+        <Card>
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin size="large" />
+            <div style={{ marginTop: '16px', color: '#666' }}>正在加载任务文档...</div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   const __content = (
     <div className={`unified-task-document-area ${viewMode}-mode ${className} ${isFullscreen ? 'fullscreen' : ''}`} style={isFullscreen ? {} : style}>
       <Card
@@ -1743,6 +1787,17 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     return createPortal(__content, document.body);
   }
   return __content;
-};
+}, (prevProps, nextProps) => {
+  // 自定义比较函数 - 只有关键props变化才重渲染
+  return (
+    prevProps.projectId === nextProps.projectId &&
+    prevProps.taskId === nextProps.taskId &&
+    prevProps.defaultViewMode === nextProps.defaultViewMode &&
+    prevProps.includeSubtaskDocuments === nextProps.includeSubtaskDocuments &&
+    prevProps.compactMode === nextProps.compactMode &&
+    prevProps.showToolbar === nextProps.showToolbar &&
+    prevProps.showDocumentList === nextProps.showDocumentList
+  );
+});
 
 export default UnifiedTaskDocumentArea;
