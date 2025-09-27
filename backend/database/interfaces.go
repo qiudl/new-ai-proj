@@ -526,6 +526,9 @@ type TimerRepository interface {
 
 	// Weekly report
 	GetWeeklyReport(ctx context.Context, userID int, startDate, endDate string) (*models.WeeklyReportResponse, error)
+	
+	// Daily comparison for efficiency analysis
+	GetDailyComparisonData(ctx context.Context, userID int) (*models.DailyComparisonResponse, error)
 }
 
 // UserTimerRepository defines the interface for user timer task operations

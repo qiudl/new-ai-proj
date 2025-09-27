@@ -590,3 +590,50 @@ func (h *UnifiedTimerHandler) GetRecentTasks(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+
+// GetDailyComparison handles GET /api/v1/timer/daily-comparison
+func (h *UnifiedTimerHandler) GetDailyComparison(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uid := userID.(int)
+	ctx := c.Request.Context()
+
+	// Add timeout to prevent hanging requests
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	// Get comprehensive 3-day comparison data
+	comparisonData, err := h.db.Timer().GetDailyComparisonData(ctx, uid)
+	if err != nil {
+		// Handle context timeout gracefully
+		if ctx.Err() == context.DeadlineExceeded {
+			c.JSON(http.StatusRequestTimeout, gin.H{
+				"error": "Request timeout",
+				"details": "分析数据量较大，请稍后重试",
+			})
+			return
+		}
+		
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get daily comparison data",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Add response metadata
+	response := gin.H{
+		"data": comparisonData,
+		"meta": gin.H{
+			"generated_at": time.Now().Format(time.RFC3339),
+			"timezone": "Asia/Shanghai",
+			"algorithm_version": "2.0",
+		},
+	}
+
+	c.JSON(http.StatusOK, response)
+}

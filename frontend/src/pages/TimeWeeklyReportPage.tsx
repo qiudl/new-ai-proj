@@ -21,7 +21,8 @@ import {
   DownloadOutlined,
   PrinterOutlined,
   LineChartOutlined,
-  ProjectOutlined
+  ProjectOutlined,
+  RiseOutlined
 } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
@@ -49,6 +50,8 @@ import DailyWorkDetail from '../components/DailyWorkDetail';
 import RecentWeekWorkDetail from '../components/RecentWeekWorkDetail';
 // 导入简化版任务时间轴组件（临时修复卡死问题）
 import SimpleTaskTimeline from '../components/SimpleTaskTimeline';
+// 导入日效率对比分析组件
+import DailyComparisonView from '../components/DailyComparisonView';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -492,6 +495,15 @@ const TimeWeeklyReportPage: React.FC = () => {
                 <TaskStatsTab 
                   dateRange={selectedDateRange}
                   projectId={1}
+                />
+              )
+            },
+            {
+              key: 'efficiency-analysis',
+              label: (<span><RiseOutlined />效率分析</span>),
+              children: (
+                <DailyComparisonView 
+                  style={{ padding: 0 }}
                 />
               )
             }

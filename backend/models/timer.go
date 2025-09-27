@@ -177,3 +177,69 @@ func IsValidTimingStatus(status string) bool {
 	}
 	return false
 }
+
+// DailyComparisonResponse represents the 3-day comparison data response
+type DailyComparisonResponse struct {
+	Today     DayEfficiencyData   `json:"today"`
+	Yesterday DayEfficiencyData   `json:"yesterday"`
+	DayBefore DayEfficiencyData   `json:"day_before"`
+	Trends    EfficiencyTrends    `json:"trends"`
+	Insights  []EfficiencyInsight `json:"insights"`
+	UpdatedAt string              `json:"updated_at"`
+}
+
+// DayEfficiencyData represents comprehensive efficiency data for a single day
+type DayEfficiencyData struct {
+	Date                 string                     `json:"date"`
+	TotalHours           float64                    `json:"total_hours"`
+	TotalSeconds         int                        `json:"total_seconds"`
+	CompletedTasks       int                        `json:"completed_tasks"`
+	UniqueTasksWorked    int                        `json:"unique_tasks_worked"`
+	TimerSessions        int                        `json:"timer_sessions"`
+	AvgSessionDuration   int                        `json:"avg_session_duration"`
+	EfficiencyIndex      float64                    `json:"efficiency_index"`
+	TopTaskTitle         string                     `json:"top_task_title"`
+	TopTaskHours         float64                    `json:"top_task_hours"`
+	TaskBreakdown        []TaskBreakdownItem        `json:"task_breakdown"`
+	HourlyDistribution   []HourlyDistributionItem   `json:"hourly_distribution"`
+	FormattedTotalTime   string                     `json:"formatted_total_time"`
+	FormattedAvgSession  string                     `json:"formatted_avg_session"`
+}
+
+// TaskBreakdownItem represents time breakdown for a specific task in a day
+type TaskBreakdownItem struct {
+	TaskID        int     `json:"task_id"`
+	TaskTitle     string  `json:"task_title"`
+	ProjectName   string  `json:"project_name"`
+	Priority      string  `json:"priority"`
+	Status        string  `json:"status"`
+	TotalHours    float64 `json:"total_hours"`
+	TotalSeconds  int     `json:"total_seconds"`
+	Sessions      int     `json:"sessions"`
+	FormattedTime string  `json:"formatted_time"`
+}
+
+// HourlyDistributionItem represents work distribution for a specific hour
+type HourlyDistributionItem struct {
+	Hour         int     `json:"hour"`
+	TotalHours   float64 `json:"total_hours"`
+	TotalSeconds int     `json:"total_seconds"`
+	Sessions     int     `json:"sessions"`
+}
+
+// EfficiencyTrends represents trends and changes between days
+type EfficiencyTrends struct {
+	EfficiencyIndexChange   float64 `json:"efficiency_index_change"`
+	TotalHoursChange        float64 `json:"total_hours_change"`
+	CompletedTasksChange    float64 `json:"completed_tasks_change"`
+	AvgSessionChange        float64 `json:"avg_session_change"`
+	WeekTrendDirection      string  `json:"week_trend_direction"` // "improving", "declining", "stable"
+}
+
+// EfficiencyInsight represents AI-generated insights about work efficiency
+type EfficiencyInsight struct {
+	Type        string `json:"type"`        // "positive", "warning", "suggestion", "info"
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Priority    string `json:"priority"`    // "high", "medium", "low"
+}
