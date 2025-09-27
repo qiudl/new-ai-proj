@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { 
   Card, 
   Row, 
@@ -54,7 +54,8 @@ import {
 } from '@ant-design/icons';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
-import { TaskDetailDescendantsTreeV2 } from '../components/TaskDetailDescendantsTreeV2';
+import { TaskDetailDescendantsTreeV2, TaskDetailDescendantsTreeRef } from '../components/TaskDetailDescendantsTreeV2';
+import UnifiedTaskRefresh from '../components/UnifiedTaskRefresh';
 import { projectService } from '../services/projectService';
 import api from '../services/api';
 import { documentService } from '../services/documentService';
@@ -134,6 +135,9 @@ const TaskDetailPageNew: React.FC = () => {
   
   // 使用内存管理器钩子（解构需要的稳定函数，避免对象引用变化导致的重复副作用）
   const { addCleanupFunction, cleanupAll } = useMemoryManager();
+  
+  // 子任务组件的引用
+  const subtasksRef = useRef<TaskDetailDescendantsTreeRef>(null);
   
   // 使用默认配置，避免条件性调用Hooks
   const defaultRefreshConfig = {
@@ -247,6 +251,13 @@ const TaskDetailPageNew: React.FC = () => {
       setIsCompletionStatsRefreshing(false);
     }
   }, [projectId, task?.id, relationState.subtasks, completionState, updateRelationState, updateCompletionState]);
+
+  // 刷新子任务的函数
+  const refreshSubtasks = useCallback(async () => {
+    if (subtasksRef.current) {
+      await subtasksRef.current.refresh();
+    }
+  }, []);
 
   // 暂时禁用自动刷新以调试无限渲染问题
   // useEffect(() => {
@@ -1201,11 +1212,12 @@ const TaskDetailPageNew: React.FC = () => {
                 title={
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>任务完成情况</span>
-                    <TaskCompletionRefresh 
+                    <UnifiedTaskRefresh 
                       onRefreshCompletionStats={() => refreshCompletionStats()}
-                      
+                      onRefreshSubtasks={refreshSubtasks}
                       showProgress={true}
                       disabled={isCompletionStatsRefreshing}
+                      tooltip="任务完成情况和子任务自动刷新"
                     />
                     <RefreshConfigButton />
                     {completionStatsStats && completionStatsStats.totalRefreshes > 0 && (
@@ -1350,6 +1362,7 @@ const TaskDetailPageNew: React.FC = () => {
           >
             <div style={{ padding: '4px 0' }}>
               <TaskDetailDescendantsTreeV2 
+                ref={subtasksRef}
                 projectId={parseInt(projectId || '0')} 
                 rootTaskId={taskState.task.id} 
                 limit={200} 

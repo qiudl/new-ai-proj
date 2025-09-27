@@ -3,7 +3,7 @@
  * 使用统一的 useTaskHierarchy Hook 重构的任务后代树组件
  */
 
-import React from 'react';
+import React, { forwardRef, useImperativeHandle } from 'react';
 import { Tag, Tooltip, Avatar, Dropdown, Button, Spin } from 'antd';
 import { 
   PauseCircleOutlined, 
@@ -29,6 +29,10 @@ import { useRefreshConfig } from '../contexts/RefreshConfigContext';
 import { UnifiedTaskNode } from '../types/UnifiedTaskNode';
 import { useTaskHierarchy } from '../hooks/useTaskHierarchy';
 import { TaskHierarchyDisplayMode, NodeRenderConfig } from '../types/TaskHierarchy';
+
+export interface TaskDetailDescendantsTreeRef {
+  refresh: () => Promise<void>;
+}
 
 interface Props {
   projectId: number;
@@ -152,7 +156,7 @@ const createRenderConfig = (navigate: (path: string) => void): NodeRenderConfig 
   )
 });
 
-export const TaskDetailDescendantsTreeV2: React.FC<Props> = ({
+export const TaskDetailDescendantsTreeV2 = forwardRef<TaskDetailDescendantsTreeRef, Props>(({
   projectId,
   rootTaskId,
   limit = 200,
@@ -161,7 +165,7 @@ export const TaskDetailDescendantsTreeV2: React.FC<Props> = ({
   enableCache = true,
   onNodeClick,
   onNodeDoubleClick
-}) => {
+}, ref) => {
   const navigate = useNavigate();
   const { config: refreshConfig } = useRefreshConfig();
   
@@ -209,6 +213,11 @@ export const TaskDetailDescendantsTreeV2: React.FC<Props> = ({
     () => createRenderConfig(navigate),
     [navigate]
   );
+
+  // 向外暴露刷新方法
+  useImperativeHandle(ref, () => ({
+    refresh
+  }), [refresh]);
 
   // 处理节点点击
   const handleNodeClick = React.useCallback((node: UnifiedTaskNode, event: React.MouseEvent) => {
@@ -427,6 +436,6 @@ export const TaskDetailDescendantsTreeV2: React.FC<Props> = ({
       </UpdateAnimation>
     </div>
   );
-};
+});
 
 export default TaskDetailDescendantsTreeV2;
