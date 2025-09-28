@@ -78,7 +78,7 @@ export const MENU_VISIBILITY_CONFIG: MenuVisibilityConfig = {
     userType: UserType.BOTH,
     description: '文档管理菜单组 - 所有用户' 
   },
-  '/document-manager': { 
+  '/work-note': { 
     userType: UserType.BOTH,
     description: '工作笔记 - 所有用户' 
   },

@@ -79,7 +79,7 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
   // 处理分享
   const handleShare = () => {
     // 复制链接到剪贴板
-    const url = `${window.location.origin}/document-manager?note=${note.id}`;
+    const url = `${window.location.origin}/work-note?note=${note.id}`;
     navigator.clipboard.writeText(url).then(() => {
       message.success('链接已复制到剪贴板');
     });

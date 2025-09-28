@@ -486,6 +486,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   };
 
 
+
+
   // 过滤后的数据
 
   // 表格列定义
@@ -517,7 +519,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       title: '笔记标题',
       dataIndex: 'title',
       key: 'title',
-      width: 350,
+      width: 400,
       sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => 
         a.title.localeCompare(b.title),
       render: (title: string, record: WorkNoteWithTask) => (
@@ -527,11 +529,14 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
             {record.categoryName}
+            {record.associatedTasks && record.associatedTasks.length > 0 && (
+              <span style={{ marginLeft: 8 }}>
+                · 关联 {record.associatedTasks.length} 个任务
+              </span>
+            )}
             {record.tags && record.tags.length > 0 && (
               <span style={{ marginLeft: 8 }}>
-                {record.tags.slice(0, 2).map(tag => (
-                  <Tag key={tag} size="small" style={{ fontSize: 10, margin: '0 2px' }}>#{tag}</Tag>
-                ))}
+                · {record.tags.slice(0, 2).map(tag => `#${tag}`).join(' ')}
               </span>
             )}
           </Text>
@@ -539,27 +544,38 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       ),
     },
     {
-      title: '关联任务',
-      dataIndex: 'associatedTasks',
-      key: 'associatedTasks',
-      width: 200,
-      render: (tasks: AssociatedTask[] | undefined) => (
-        <div>
-          {tasks && tasks.length > 0 ? (
-            tasks.map(task => (
-              <div key={task.id} style={{ marginBottom: 2 }}>
-                <Button type="link" size="small" style={{ padding: 0, height: 'auto', fontSize: 12 }}>
-                  任务#{task.id} {task.title}
-                </Button>
-                <div style={{ fontSize: 10, color: '#999' }}>
-                  {task.project_name}
-                </div>
-              </div>
-            ))
+      title: '关联状态',
+      key: 'associationStatus',
+      width: 140,
+      sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => {
+        const aAssociated = a.associatedTasks && a.associatedTasks.length > 0;
+        const bAssociated = b.associatedTasks && b.associatedTasks.length > 0;
+        if (aAssociated && !bAssociated) return -1;
+        if (!aAssociated && bAssociated) return 1;
+        return 0;
+      },
+      filters: [
+        { text: '已关联任务', value: 'associated' },
+        { text: '未关联任务', value: 'unassociated' },
+      ],
+      onFilter: (value: any, record: WorkNoteWithTask) => {
+        if (value === 'associated') return record.associatedTasks && record.associatedTasks.length > 0;
+        if (value === 'unassociated') return !record.associatedTasks || record.associatedTasks.length === 0;
+        return true;
+      },
+      render: (_, record: WorkNoteWithTask) => (
+        <Space direction="vertical" size={2}>
+          {record.associatedTasks && record.associatedTasks.length > 0 ? (
+            <Badge status="success" text="已关联任务" />
           ) : (
-            <Text type="secondary">--</Text>
+            <Badge status="default" text="未关联任务" />
           )}
-        </div>
+          {record.associatedTasks && record.associatedTasks.length > 0 && (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {record.associatedTasks.length} 个任务
+            </Text>
+          )}
+        </Space>
       ),
     },
     {
@@ -568,6 +584,12 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       key: 'status',
       width: 100,
       sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => a.status.localeCompare(b.status),
+      filters: [
+        { text: '草稿', value: 'draft' },
+        { text: '已发布', value: 'published' },
+        { text: '已归档', value: 'archived' },
+      ],
+      onFilter: (value: any, record: WorkNoteWithTask) => record.status === value,
       render: (status: string) => {
         const getStatusConfig = (status: string) => {
           switch (status) {
@@ -588,7 +610,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       width: 150,
       sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => 
         dayjs(a.updated_at).unix() - dayjs(b.updated_at).unix(),
-      render: (date: string) => dayjs(date).format('MM-DD HH:mm'),
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
     {
       title: '操作',
@@ -675,22 +697,10 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
                 allowClear
                 style={{ width: '100%' }}
               >
+                <Option value="all">全部状态</Option>
                 <Option value="draft">草稿</Option>
                 <Option value="published">已发布</Option>
                 <Option value="archived">已归档</Option>
-              </Select>
-            </Col>
-            <Col flex="120px">
-              <Select
-                placeholder="类型筛选"
-                value={typeFilter}
-                onChange={setTypeFilter}
-                allowClear
-                style={{ width: '100%' }}
-              >
-                <Option value="markdown">Markdown</Option>
-                <Option value="html">HTML</Option>
-                <Option value="txt">文本</Option>
               </Select>
             </Col>
             <Col>
@@ -699,15 +709,6 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
                 onClick={resetFilters}
               >
                 清空筛选
-              </Button>
-            </Col>
-            <Col>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setModalVisible(true)}
-              >
-                新建笔记
               </Button>
             </Col>
           </Row>
@@ -732,6 +733,181 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
         </Card>
       </WorkNotesLayout>
 
+      {/* 查看笔记对话框 */}
+      <Modal
+        title={`查看笔记 - ${currentWorkNote?.title || ''}`}
+        open={viewModalVisible}
+        onCancel={() => {
+          setViewModalVisible(false);
+          setCurrentWorkNote(null);
+        }}
+        footer={[
+          <Button key="edit" type="primary" onClick={() => {
+            setViewModalVisible(false);
+            openEditModal(currentWorkNote!);
+          }}>
+            编辑
+          </Button>,
+          <Button key="close" onClick={() => setViewModalVisible(false)}>
+            关闭
+          </Button>,
+        ]}
+        width={800}
+      >
+        {currentWorkNote && (
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <Space>
+                <Tag color="blue">#{currentWorkNote.id}</Tag>
+                <Tag color={currentWorkNote.status === 'published' ? 'success' : 'warning'}>
+                  {currentWorkNote.status === 'published' ? '已发布' : '草稿'}
+                </Tag>
+                <Text type="secondary">
+                  更新时间: {dayjs(currentWorkNote.updated_at).format('YYYY-MM-DD HH:mm')}
+                </Text>
+              </Space>
+            </div>
+            
+            {currentWorkNote.description && (
+              <div style={{ marginBottom: 16 }}>
+                <Text strong>描述：</Text>
+                <div style={{ marginTop: 8, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
+                  {currentWorkNote.description}
+                </div>
+              </div>
+            )}
+            
+            <div style={{ marginBottom: 16 }}>
+              <Text strong>内容：</Text>
+              <div style={{ 
+                marginTop: 8, 
+                padding: 16, 
+                background: '#fafafa', 
+                borderRadius: 4,
+                maxHeight: 400,
+                overflow: 'auto',
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'monospace'
+              }}>
+                {currentWorkNote.content}
+              </div>
+            </div>
+            
+            {currentWorkNote.tags && currentWorkNote.tags.length > 0 && (
+              <div>
+                <Text strong>标签：</Text>
+                <div style={{ marginTop: 8 }}>
+                  {currentWorkNote.tags.map(tag => (
+                    <Tag key={tag} color="blue">#{tag}</Tag>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* 编辑笔记对话框 */}
+      <Modal
+        title={`编辑笔记 - ${currentWorkNote?.title || ''}`}
+        open={editModalVisible}
+        onOk={() => editForm.submit()}
+        onCancel={() => {
+          setEditModalVisible(false);
+          setCurrentWorkNote(null);
+          editForm.resetFields();
+        }}
+        width={800}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={handleUpdate}
+        >
+          <Form.Item
+            name="title"
+            label="标题"
+            rules={[{ required: true, message: '请输入标题' }]}
+          >
+            <Input placeholder="请输入笔记标题" />
+          </Form.Item>
+          
+          <Form.Item
+            name="description"
+            label="描述"
+          >
+            <Input placeholder="请输入笔记描述（可选）" />
+          </Form.Item>
+          
+          <Form.Item
+            name="content"
+            label="内容"
+            rules={[{ required: true, message: '请输入内容' }]}
+          >
+            <TextArea
+              rows={12}
+              placeholder="请输入笔记内容"
+              style={{ fontFamily: 'monospace' }}
+            />
+          </Form.Item>
+          
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="status"
+                label="状态"
+                rules={[{ required: true, message: '请选择状态' }]}
+              >
+                <Select>
+                  <Option value="draft">草稿</Option>
+                  <Option value="published">已发布</Option>
+                  <Option value="archived">已归档</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="type"
+                label="类型"
+                rules={[{ required: true, message: '请选择类型' }]}
+              >
+                <Select>
+                  <Option value="markdown">Markdown</Option>
+                  <Option value="html">HTML</Option>
+                  <Option value="text">文本</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="visibility"
+                label="可见性"
+                rules={[{ required: true, message: '请选择可见性' }]}
+              >
+                <Select>
+                  <Option value="private">私有</Option>
+                  <Option value="team">团队</Option>
+                  <Option value="public">公开</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Form.Item
+            name="tags"
+            label="标签"
+          >
+            <Select
+              mode="tags"
+              placeholder="请输入标签（支持多个）"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
       {/* 转换为任务文档对话框 */}
       <WorkNoteConversionModal
         visible={conversionModalVisible}
@@ -742,7 +918,6 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
         }}
         onConversionSuccess={handleConversionSuccess}
       />
-
 
     </div>
   );

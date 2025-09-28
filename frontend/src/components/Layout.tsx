@@ -242,7 +242,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/bulk-import')) return ['/bulk-import'];
     if (path === '/projects') return ['/projects'];
     if (path.includes('/enterprises')) return ['/enterprises'];
-    if (path.includes('/document-manager')) return ['/document-manager'];
+    if (path.includes('/work-note')) return ['/work-note'];
     if (path.includes('/task-documents')) return ['/task-documents'];
     if (path.includes('/api-keys')) return ['/api-keys'];
     if (path.includes('/organization-structure')) return ['/organization-structure'];
@@ -267,7 +267,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/projects') || path.includes('/enterprises') || path.includes('/tasks')) {
       return ['/project-customer-management'];
     }
-    if (path.includes('/document-manager') || path.includes('/task-documents')) {
+    if (path.includes('/work-note') || path.includes('/task-documents')) {
       return ['/document-management'];
     }
     if (path.includes('/organization-structure') || path.includes('/position-management') || path.includes('/enterprise-roles') || path.includes('/enterprise-users')) {
@@ -354,7 +354,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: '文档管理',
       children: [
         {
-          key: '/document-manager',
+          key: '/work-note',
           icon: <FolderOutlined />,
           label: '工作笔记',
         },
