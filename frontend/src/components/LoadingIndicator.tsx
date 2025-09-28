@@ -167,9 +167,13 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
       <Spin 
         indicator={getLoadingIcon()} 
         size={size}
-        tip={getLoadingTip()}
+        spinning={loading}
         className={`loading-indicator loading-indicator--spin loading-indicator--${type}`}
-      />
+      >
+        <div style={{ minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {getLoadingTip()}
+        </div>
+      </Spin>
     );
   };
 

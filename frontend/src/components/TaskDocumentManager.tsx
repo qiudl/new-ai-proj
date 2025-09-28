@@ -1201,7 +1201,12 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
                           okText: '确认删除',
                           okType: 'danger',
                           cancelText: '取消',
-                          onOk: handleBatchDelete,
+                          onOk: () => {
+                            // 延迟显示进度弹窗，确保确认弹窗完全关闭
+                            setTimeout(() => {
+                              handleBatchDelete();
+                            }, 200);
+                          },
                         });
                       }
                     }
@@ -1337,14 +1342,22 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
               />
             </Tooltip>
             <Tooltip title="删除">
-              <Button
-                type="text"
-                
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => handleDelete(record)}
-                aria-label={`删除文档 ${record.original_name}`}
-              />
+              <Popconfirm
+                title="确认删除文档"
+                description={`您确定要删除文档 "${record.original_name}" 吗？这个操作不可撤销。`}
+                onConfirm={() => handleDelete(record)}
+                okText="确认删除"
+                cancelText="取消"
+                okType="danger"
+                placement="topRight"
+              >
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                  aria-label={`删除文档 ${record.original_name}`}
+                />
+              </Popconfirm>
             </Tooltip>
           </Space>
         ),
