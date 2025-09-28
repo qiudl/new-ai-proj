@@ -46,6 +46,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// API routes with authentication
 	api := router.Group("/api/v1")
 
+	// Add API health check endpoint (no auth required)
+	api.GET("/health", app.GetHealthHandler())
+
 	// Add global OPTIONS handler for CORS preflight requests
 	router.OPTIONS("/*path", func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
