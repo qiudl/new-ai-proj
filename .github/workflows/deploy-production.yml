@@ -6,7 +6,12 @@ permissions:
 on:
   push:
     branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+    types: [ closed ]  # 只在PR合并后触发
   workflow_dispatch:  # 允许手动触发
+  release:
+    types: [ published ]  # 发布新版本时触发
 
 env:
   REGISTRY: docker.io  # 使用Docker Hub

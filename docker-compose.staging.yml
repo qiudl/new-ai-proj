@@ -1,0 +1,228 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 测试数据库
+  postgres-staging:
+    image: postgres:16
+    container_name: ai_postgres_staging
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "127.0.0.1:5433:5432"  # 使用不同端口避免冲突
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+      - ./backups:/backups
+      - ./infrastructure/docker/postgres/init-staging.sql:/docker-entrypoint-initdb.d/01-init.sql
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ai_staging_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Go 后端服务 (Staging)
+  backend-staging:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: ai_backend_staging
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+    environment:
+      ENV: staging
+      NODE_ENV: staging
+      APP_ENV: staging
+      DB_HOST: postgres-staging
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SSL_MODE: disable
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: 24h
+      GIN_MODE: debug  # staging环境启用debug模式
+      LOG_LEVEL: debug
+      CORS_ORIGIN: https://${STAGING_DOMAIN_NAME}
+      # 清除开发环境代理设置
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+    ports:
+      - "127.0.0.1:8081:8080"  # 使用不同端口
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+      - ./config:/app/config
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ai_staging_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # React 前端服务 (Staging)
+  frontend-staging:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: ai_frontend_staging
+    environment:
+      REACT_APP_API_URL: https://${STAGING_DOMAIN_NAME}/api/v1
+      REACT_APP_API_BASE_URL: https://${STAGING_DOMAIN_NAME}/api/v1
+      REACT_APP_ENV: staging
+      REACT_APP_ENVIRONMENT: staging
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:3001:80"  # 使用不同端口
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 120s
+    networks:
+      - ai_staging_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis 缓存 (Staging)
+  redis-staging:
+    image: redis:7-alpine
+    container_name: ai_redis_staging
+    ports:
+      - "127.0.0.1:6380:6379"  # 使用不同端口
+    volumes:
+      - redis_staging_data:/data
+      - ./config/redis/redis-staging.conf:/etc/redis/redis.conf
+    command: ["redis-server", "/etc/redis/redis.conf"]
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - ai_staging_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # Nginx 反向代理 (Staging)
+  nginx-staging:
+    image: nginx:alpine
+    container_name: ai_nginx_staging
+    depends_on:
+      backend-staging:
+        condition: service_healthy
+      frontend-staging:
+        condition: service_healthy
+    ports:
+      - "8080:80"      # staging环境使用8080端口
+      - "8443:443"     # staging环境使用8443端口
+    volumes:
+      - ./nginx/nginx-staging.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/sites-staging:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+      - ./static:/var/www/static:ro
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai_staging_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # MCP服务器 (Staging)
+  mcp-server-staging:
+    build:
+      context: ./mcp-task-bridge
+      dockerfile: Dockerfile
+    container_name: ai_mcp_server_staging
+    depends_on:
+      backend-staging:
+        condition: service_healthy
+    environment:
+      API_BASE_URL: http://backend-staging:8080/api/v1
+      TASK_API_BASE: http://backend-staging:8080/api/v1
+      NODE_ENV: staging
+      HTTP_PORT: 3100
+      PORT: 3100
+      MCP_DEBUG: true  # staging环境启用debug
+    ports:
+      - "127.0.0.1:3101:3100"  # 使用不同端口
+    restart: always
+    networks:
+      - ai_staging_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # E2E测试服务 (仅staging环境)
+  e2e-tests:
+    build:
+      context: ./tests/e2e
+      dockerfile: Dockerfile
+    container_name: ai_e2e_tests
+    depends_on:
+      nginx-staging:
+        condition: service_healthy
+    environment:
+      BASE_URL: http://nginx-staging
+      TEST_ENV: staging
+    volumes:
+      - ./tests/e2e/results:/app/results
+    profiles:
+      - testing  # 只在需要时启动
+    networks:
+      - ai_staging_network
+
+networks:
+  ai_staging_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/16
+
+volumes:
+  postgres_staging_data:
+    driver: local
+  redis_staging_data:
+    driver: local

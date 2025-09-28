@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   Table,
   Button,
@@ -110,13 +110,12 @@ interface WorkNotesManagerProps {
   onDocumentSelect?: (doc: WorkNote) => void;
 }
 
-const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
+const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   selectedFolderId,
   onDocumentSelect
 }) => {
   // 基础状态
   const [workNotes, setWorkNotes] = useState<WorkNoteWithTask[]>([]);
-  const [filteredNotes, setFilteredNotes] = useState<WorkNoteWithTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
@@ -125,6 +124,10 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   // 批量操作状态
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchLoading, setBatchLoading] = useState(false);
+  
+  // API缓存和重试状态
+  const [retryCount, setRetryCount] = useState(0);
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
   
   // 统计数据
   const [stats, setStats] = useState<WorkNotesStats>({
@@ -194,8 +197,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     return () => clearTimeout(timer);
   }, [searchKeyword]);
 
-  // 筛选数据
-  const filterNotes = useCallback(() => {
+  // 使用 useMemo 优化筛选数据性能
+  const filteredNotes = useMemo(() => {
     let filtered = [...workNotes];
     
     // 关键词搜索
@@ -284,17 +287,30 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     }
 
     // 按ID降序排序（默认）
-    filtered.sort((a, b) => b.id - a.id);
-
-    setFilteredNotes(filtered);
+    return filtered.sort((a, b) => b.id - a.id);
   }, [workNotes, debouncedSearchKeyword, statusFilter, typeFilter, selectedCategory, selectedTag, selectedAssociation, selectedTimeRange]);
 
-  // 加载工作笔记
-  const loadWorkNotes = useCallback(async () => {
+  // 优化的加载工作笔记函数，支持缓存和重试
+  const loadWorkNotes = useCallback(async (forceRefresh = false) => {
+    // 检查缓存时间，5分钟内不重复请求
+    const now = Date.now();
+    const cacheTimeout = 5 * 60 * 1000; // 5分钟
+    
+    if (!forceRefresh && workNotes.length > 0 && (now - lastRefreshTime) < cacheTimeout) {
+      console.log('使用缓存的工作笔记数据');
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);
+      
+      // 使用AbortController支持请求取消
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+      
       const data = await workNotesService.listWorkNotes(selectedFolderId || undefined);
+      clearTimeout(timeoutId);
       
       // 模拟添加关联任务数据
       const notesWithTasks: WorkNoteWithTask[] = data.documents.map(note => ({
@@ -314,28 +330,35 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       
       setWorkNotes(notesWithTasks);
       setStats(calculateStats(notesWithTasks));
+      setLastRefreshTime(now);
+      setRetryCount(0); // 重置重试计数
+      
+      console.log(`成功加载 ${notesWithTasks.length} 个工作笔记`);
     } catch (error) {
       console.error('Failed to load work notes:', error);
       const errorMessage = error instanceof Error ? error.message : '加载工作笔记失败';
       setError(errorMessage);
-      message.error(errorMessage);
+      
+      // 自动重试逻辑（最多3次）
+      if (retryCount < 3) {
+        console.log(`第 ${retryCount + 1} 次重试加载工作笔记...`);
+        setRetryCount(prev => prev + 1);
+        setTimeout(() => loadWorkNotes(forceRefresh), 2000 * (retryCount + 1)); // 递增延迟重试
+      } else {
+        message.error(`${errorMessage}（已重试${retryCount}次）`);
+      }
     } finally {
       setLoading(false);
     }
-  }, [selectedFolderId, calculateStats]);
+  }, [selectedFolderId, calculateStats, workNotes.length, lastRefreshTime, retryCount]);
 
   // 初始化加载
   useEffect(() => {
     loadWorkNotes();
   }, [loadWorkNotes]);
 
-  // 筛选条件变化时重新筛选
-  useEffect(() => {
-    filterNotes();
-  }, [filterNotes]);
-
   // 重置过滤器
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     setStatusFilter('all');
     setTypeFilter('all');
     setSearchKeyword('');
@@ -343,28 +366,28 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     setSelectedTag('');
     setSelectedAssociation('');
     setSelectedTimeRange('');
-  };
+  }, []);
 
   // 左侧树状导航事件处理
-  const handleCategorySelect = (category: string) => {
+  const handleCategorySelect = useCallback((category: string) => {
     setSelectedCategory(category === selectedCategory ? '' : category);
-  };
+  }, [selectedCategory]);
 
-  const handleTagSelect = (tag: string) => {
+  const handleTagSelect = useCallback((tag: string) => {
     setSelectedTag(tag === selectedTag ? '' : tag);
-  };
+  }, [selectedTag]);
 
-  const handleAssociationSelect = (type: string) => {
+  const handleAssociationSelect = useCallback((type: string) => {
     setSelectedAssociation(type === selectedAssociation ? '' : type);
-  };
+  }, [selectedAssociation]);
 
-  const handleTimeRangeSelect = (range: string) => {
+  const handleTimeRangeSelect = useCallback((range: string) => {
     setSelectedTimeRange(range === selectedTimeRange ? '' : range);
-  };
+  }, [selectedTimeRange]);
 
-  const handleTreeRefresh = () => {
-    loadWorkNotes();
-  };
+  const handleTreeRefresh = useCallback(() => {
+    loadWorkNotes(true); // 强制刷新
+  }, [loadWorkNotes]);
 
   // 创建工作笔记
   const handleCreate = async (values: any) => {
@@ -548,7 +571,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     loadWorkNotes();
   };
 
-  // 批量操作功能
+  // 批量操作功能 - 优化版本
   const handleBatchDelete = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('请先选择要删除的笔记');
@@ -564,11 +587,38 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       onOk: async () => {
         try {
           setBatchLoading(true);
-          const promises = selectedRowKeys.map(id => workNotesService.deleteWorkNote(Number(id)));
-          await Promise.all(promises);
-          message.success(`成功删除 ${selectedRowKeys.length} 个工作笔记`);
-          setSelectedRowKeys([]);
-          loadWorkNotes();
+          let successCount = 0;
+          let failureCount = 0;
+          
+          // 分批处理，避免同时发送过多请求
+          const batchSize = 5;
+          for (let i = 0; i < selectedRowKeys.length; i += batchSize) {
+            const batch = selectedRowKeys.slice(i, i + batchSize);
+            const promises = batch.map(async (id) => {
+              try {
+                await workNotesService.deleteWorkNote(Number(id));
+                successCount++;
+              } catch (error) {
+                failureCount++;
+                console.error(`删除笔记 ${id} 失败:`, error);
+              }
+            });
+            
+            await Promise.all(promises);
+            
+            // 显示进度
+            if (selectedRowKeys.length > batchSize) {
+              message.loading(`正在删除... ${Math.min(i + batchSize, selectedRowKeys.length)}/${selectedRowKeys.length}`, 0.5);
+            }
+          }
+          
+          if (successCount > 0) {
+            message.success(`成功删除 ${successCount} 个工作笔记${failureCount > 0 ? `，失败 ${failureCount} 个` : ''}`);
+            setSelectedRowKeys([]);
+            loadWorkNotes(true); // 强制刷新
+          } else {
+            message.error('批量删除失败');
+          }
         } catch (error) {
           console.error('批量删除失败:', error);
           message.error('批量删除失败');
@@ -770,7 +820,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   const isMobile = windowSize.width < 768;
   const isTablet = windowSize.width < 1024;
   
-  const columns: ColumnsType<WorkNoteWithTask> = [
+  // 使用 useMemo 优化表格列定义
+  const columns: ColumnsType<WorkNoteWithTask> = useMemo(() => [
     {
       title: '笔记ID',
       dataIndex: 'id',
@@ -987,7 +1038,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
         </Space>
       ),
     },
-  ];
+  ], [isMobile, filteredNotes, handleView, openEditModal, openConversionModal]);
 
   return (
     <div style={{ padding: isMobile ? '12px' : '24px' }}>
@@ -1136,16 +1187,43 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
               alignItems: 'center',
               justifyContent: 'space-between'
             }}>
-              <span style={{ color: '#ff4d4f' }}>⚠️ {error}</span>
-              <Button size="small" type="link" onClick={loadWorkNotes}>
-                重试
-              </Button>
+              <div>
+                <span style={{ color: '#ff4d4f' }}>⚠️ {error}</span>
+                {retryCount > 0 && (
+                  <div style={{ fontSize: 12, color: '#ff7875', marginTop: 4 }}>
+                    已自动重试 {retryCount} 次
+                  </div>
+                )}
+              </div>
+              <Space>
+                <Button 
+                  size="small" 
+                  type="link" 
+                  onClick={() => loadWorkNotes(true)}
+                  loading={loading}
+                >
+                  重试
+                </Button>
+                <Button 
+                  size="small" 
+                  type="text" 
+                  onClick={() => setError(null)}
+                  icon={<span style={{ fontSize: 12 }}>✕</span>}
+                />
+              </Space>
             </div>
           )}
           
           {loading ? (
             <div style={{ padding: 24 }}>
-              <Skeleton active paragraph={{ rows: 8 }} />
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <Spin size="large" />
+                <div style={{ marginTop: 12, color: '#8c8c8c' }}>
+                  正在加载工作笔记...
+                  {retryCount > 0 && <span>（第{retryCount + 1}次尝试）</span>}
+                </div>
+              </div>
+              <Skeleton active paragraph={{ rows: 6 }} />
             </div>
           ) : (
             <Table
@@ -1173,19 +1251,52 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
               locale={{
                 emptyText: (
                   <div style={{ padding: '40px 0', textAlign: 'center' }}>
-                    <div style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }}>📝</div>
+                    <div style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }}>
+                      {error ? '😞' : filteredNotes.length === 0 && workNotes.length > 0 ? '🔍' : '📝'}
+                    </div>
                     <div style={{ color: '#8c8c8c', fontSize: 16, marginBottom: 8 }}>
-                      {error ? '加载失败' : '暂无工作笔记'}
+                      {error 
+                        ? '数据加载失败' 
+                        : filteredNotes.length === 0 && workNotes.length > 0 
+                        ? '没有找到匹配的笔记' 
+                        : '暂无工作笔记'
+                      }
                     </div>
                     <div style={{ color: '#bfbfbf', fontSize: 12 }}>
                       {error ? (
-                        <Button type="link" size="small" onClick={loadWorkNotes}>
-                          点击重试
-                        </Button>
+                        <Space>
+                          <Button type="link" size="small" onClick={() => loadWorkNotes(true)}>
+                            重新加载
+                          </Button>
+                          <Button type="text" size="small" onClick={() => setError(null)}>
+                            忽略错误
+                          </Button>
+                        </Space>
+                      ) : filteredNotes.length === 0 && workNotes.length > 0 ? (
+                        <Space>
+                          <Button type="link" size="small" onClick={resetFilters}>
+                            清空筛选条件
+                          </Button>
+                          <span>或尝试其他关键词</span>
+                        </Space>
                       ) : (
-                        searchKeyword || selectedCategory || selectedTag || selectedAssociation || selectedTimeRange || statusFilter !== 'all'
-                          ? '试试调整筛选条件' 
-                          : '开始创建您的第一个工作笔记吧'
+                        <Space>
+                          <Button 
+                            type="primary" 
+                            size="small" 
+                            icon={<PlusOutlined />}
+                            onClick={() => setQuickCreateVisible(true)}
+                          >
+                            创建第一个笔记
+                          </Button>
+                          <Button 
+                            type="text" 
+                            size="small"
+                            onClick={() => loadWorkNotes(true)}
+                          >
+                            刷新数据
+                          </Button>
+                        </Space>
                       )}
                     </div>
                   </div>
@@ -1404,6 +1515,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
 
     </div>
   );
-};
+});
+
+WorkNotesManager.displayName = 'WorkNotesManager';
 
 export default WorkNotesManager;

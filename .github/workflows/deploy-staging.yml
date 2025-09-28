@@ -1,0 +1,188 @@
+name: Deploy to Staging Environment
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_dispatch:  # 允许手动触发
+
+env:
+  REGISTRY: docker.io  # 使用Docker Hub
+  NAMESPACE: your-dockerhub-username  # 替换为您的Docker Hub用户名
+  IMAGE_NAME: ai-project-app
+  REGION: ap-beijing  # 根据您的腾讯云地域调整
+
+jobs:
+  build-and-deploy-staging:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix=staging-
+          type=raw,value=staging-latest,enable={{is_default_branch}}
+
+    - name: Build and push Backend Docker image (Staging)
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile.prod
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-backend:staging-latest,${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-backend:staging-${{ github.sha }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push Frontend Docker image (Staging)
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        file: ./frontend/Dockerfile.prod
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-frontend:staging-latest,${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-frontend:staging-${{ github.sha }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push MCP Server Docker image (Staging)
+      uses: docker/build-push-action@v5
+      with:
+        context: ./ai-proj-mcp
+        file: ./ai-proj-mcp/Dockerfile.prod
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-mcp:staging-latest,${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-mcp:staging-${{ github.sha }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Install psql client
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends postgresql-client
+
+    - name: Run DB migrations (Staging)
+      env:
+        AI_TASKS_DB_URL: ${{ secrets.AI_TASKS_STAGING_DB_URL }}
+      run: |
+        test -n "$AI_TASKS_DB_URL" || (echo "AI_TASKS_STAGING_DB_URL secret is required for staging migrations" && exit 1)
+        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1500__create_dictionaries.sql
+        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1501__seed_dictionaries.sql
+        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1502__create_task_dependencies.sql
+        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1503__extend_task_dependencies.sql
+
+    - name: Deploy to Staging Server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.STAGING_HOST }}
+        username: ${{ secrets.STAGING_USERNAME }}
+        key: ${{ secrets.STAGING_SSH_KEY }}
+        port: ${{ secrets.STAGING_PORT }}
+        script: |
+          # 设置变量
+          export REGISTRY="${{ env.REGISTRY }}"
+          export NAMESPACE="${{ env.NAMESPACE }}"
+          export IMAGE_NAME="${{ env.IMAGE_NAME }}"
+          export COMMIT_SHA="${{ github.sha }}"
+          
+          # 创建部署目录
+          mkdir -p /opt/ai-project-staging
+          cd /opt/ai-project-staging
+          
+          # 登录Docker Hub
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+          
+          # 下载最新的配置文件
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3.raw" \
+               -o docker-compose.staging.yml \
+               "https://api.github.com/repos/${{ github.repository }}/contents/docker-compose.staging.yml"
+          
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3.raw" \
+               -o .env.staging \
+               "https://api.github.com/repos/${{ github.repository }}/contents/.env.staging"
+          
+          # 拉取最新镜像
+          docker pull ${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}-backend:staging-latest
+          docker pull ${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}-frontend:staging-latest
+          docker pull ${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}-mcp:staging-latest
+          
+          # 备份当前运行的容器（如果存在）
+          if docker-compose -f docker-compose.staging.yml ps -q | grep -q .; then
+            echo "Creating backup of current staging deployment..."
+            docker-compose -f docker-compose.staging.yml down
+          fi
+          
+          # 启动新的部署
+          docker-compose -f docker-compose.staging.yml up -d
+          
+          # 清理旧镜像
+          docker image prune -f
+          
+          # 健康检查
+          echo "Waiting for staging services to be healthy..."
+          sleep 30
+          
+          # 检查服务状态
+          docker-compose -f docker-compose.staging.yml ps
+          
+          # 检查应用是否正常响应
+          if curl -f http://localhost:8080/health; then
+            echo "✅ Staging deployment successful! Application is responding."
+          else
+            echo "❌ Staging deployment may have issues."
+            docker-compose -f docker-compose.staging.yml logs --tail=50 || true
+            exit 1
+          fi
+
+    - name: Run Integration Tests
+      env:
+        STAGING_URL: ${{ secrets.STAGING_URL }}
+      run: |
+        # 运行集成测试
+        if [ -f "tests/integration/staging-tests.sh" ]; then
+          chmod +x tests/integration/staging-tests.sh
+          ./tests/integration/staging-tests.sh "$STAGING_URL"
+        else
+          echo "No integration tests found, skipping..."
+        fi
+
+    - name: Notify staging deployment status
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: |
+          🚧 Staging deployment ${{ job.status }}!
+          
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          
+          Backend Image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-backend:staging-${{ github.sha }}
+          Frontend Image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-frontend:staging-${{ github.sha }}
+          MCP Image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-mcp:staging-${{ github.sha }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      if: ${{ secrets.SLACK_WEBHOOK_URL }}
