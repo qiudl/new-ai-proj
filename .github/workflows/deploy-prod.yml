@@ -108,6 +108,12 @@ jobs:
             main Dockerfile.prod migrations/ config/ templates/
       
       # Upload artifacts
+      # Upload docker-compose configuration
+      - name: Create docker-compose deployment package
+        run: |
+          tar -czf "docker-compose-prod.tar.gz" \
+            docker-compose.prod.yml
+      
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -115,6 +121,7 @@ jobs:
           path: |
             frontend-${{ steps.version.outputs.frontend-version }}.tar.gz
             backend-${{ steps.version.outputs.backend-version }}.tar.gz
+            docker-compose-prod.tar.gz
           retention-days: 7
 
   deploy:
@@ -171,6 +178,7 @@ jobs:
           scp -i ~/.ssh/deploy_key \
             frontend-${{ needs.build-and-test.outputs.frontend-version }}.tar.gz \
             backend-${{ needs.build-and-test.outputs.backend-version }}.tar.gz \
+            docker-compose-prod.tar.gz \
             ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:~/
       
       - name: Deploy application
@@ -194,6 +202,12 @@ jobs:
             if [ -f ~/backend-${{ needs.build-and-test.outputs.backend-version }}.tar.gz ]; then
               echo "Extracting backend package..."
               tar -xzf ~/backend-${{ needs.build-and-test.outputs.backend-version }}.tar.gz -C $RELEASE_DIR/
+            fi
+            
+            # Extract docker-compose configuration
+            if [ -f ~/docker-compose-prod.tar.gz ]; then
+              echo "Extracting docker-compose configuration..."
+              tar -xzf ~/docker-compose-prod.tar.gz -C $RELEASE_DIR/
             fi
             
             # Copy environment configuration
@@ -254,7 +268,7 @@ jobs:
               echo "Health check attempt $i/30..."
               
               # Check backend health
-              if curl -f -s http://localhost:8080/health > /dev/null 2>&1; then
+              if curl -f -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then
                 echo "✅ Backend health check passed"
                 BACKEND_HEALTHY=true
                 break
@@ -286,7 +300,7 @@ jobs:
                 mv temp previous
                 docker-compose up -d --build
                 sleep 20
-                if curl -f -s http://localhost:8080/health > /dev/null 2>&1; then
+                if curl -f -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then
                   echo "✅ Rollback successful"
                 else
                   echo "❌ Rollback failed, manual intervention required"
