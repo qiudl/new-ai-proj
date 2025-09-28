@@ -136,3 +136,4 @@ openapi-generator generate -i docs/api/openapi.yaml -g [language] -o ./generated
 - 执行完任务，请用create-and-attach (MCP)将任务执行过程和总结创建为本任务的任务文档。注意保存文档标题。
 - 本项目后端只能用8081端口
 - 本项目请不用用go build这样本地构建的方式，而是用docker-compose进行build。
+- 记住本项目用的是docker compose，不要用npm run build的方式

@@ -197,7 +197,7 @@ const TaskDetailPageNew: React.FC = () => {
         stackTrace: new Error().stack?.slice(0, 300)
       });
     }
-  });
+  }, [renderCount, projectId, taskId, uiState.activeTab, taskState.loading, taskState.task, documentState.loading]);
 
   // 🆕 Timer hook for refreshing timer state when task completes
   const { refreshTimer } = useTimer();
@@ -1369,32 +1369,9 @@ const TaskDetailPageNew: React.FC = () => {
             />
           </div>
         ) : (
-          <Row gutter={[24, 24]}>
-            <Col span={24}>
-              {statusConfig && priorityConfig ? (
-                <TaskBasicInfo 
-                  task={task} 
-                  projectInfo={projectState.projectInfo}
-                  onEdit={handleEditTask}
-                  onDelete={handleDeleteTask}
-                  statusConfig={statusConfig}
-                  priorityConfig={priorityConfig}
-                  timeRemaining={timeRemaining}
-                />
-              ) : (
-                <Card loading style={{ marginBottom: '16px' }}>
-                  <div style={{ height: '200px' }} />
-                </Card>
-              )}
-            </Col>
-            <Col span={24}>
-              <TaskDetailInfo 
-                task={task} 
-                projectInfo={projectState.projectInfo}
-                parentTask={relationState.parent}
-              />
-            </Col>
-          </Row>
+          <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+            <p>任务详细信息请查看右侧边栏</p>
+          </div>
         )
       },
       {
@@ -1951,7 +1928,6 @@ const TaskDetailPageNew: React.FC = () => {
         {/* 右侧信息卡片 */}
         <Col xs={24} sm={24} md={24} lg={8} xl={8} className="info-sidebar">
 
-          
           {/* 任务计时器 */}
           <MVPTaskDetailTimer
             taskId={taskState.task.id}
@@ -1960,6 +1936,14 @@ const TaskDetailPageNew: React.FC = () => {
             projectId={projectId ? parseInt(projectId) : undefined}
             style={{ marginBottom: '16px' }}
           />
+          
+          {/* 任务基本信息 */}
+          <TaskDetailInfo 
+            task={taskState.task} 
+            projectInfo={projectState.projectInfo}
+            parentTask={relationState.parent}
+          />
+          
           
           {/* 任务文档小部件 - 兼容性保留 */}
           <div style={{ marginBottom: '16px' }}>

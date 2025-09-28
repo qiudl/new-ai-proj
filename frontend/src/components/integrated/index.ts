@@ -31,15 +31,12 @@ export * from '../../contexts';
  * const MyLazyComponent = React.lazy(() => import('./MyComponent'));
  * 
  * function App() {
- *   return (
- *     <LazyComponentLoader
- *       componentName="MyComponent"
- *       retry={true}
- *       maxRetries={3}
- *     >
- *       <MyLazyComponent />
- *     </LazyComponentLoader>
- *   );
+ *   return LazyComponentLoader({
+ *     componentName: "MyComponent",
+ *     retry: true,
+ *     maxRetries: 3,
+ *     children: MyLazyComponent()
+ *   });
  * }
  * ```
  * 
@@ -49,16 +46,14 @@ export * from '../../contexts';
  * 
  * function MyComponent() {
  *   return (
- *     <PerformanceMonitor
- *       componentName="MyComponent"
- *       enableDevMode={true}
- *       thresholds={{
+ *     PerformanceMonitor({
+ *       componentName: "MyComponent",
+ *       enableDevMode: true,
+ *       thresholds: {
  *         renderTime: 16,
  *         reRenderCount: 10
- *       }}
- *     >
- *       {/* 组件内容 */}
- *     </PerformanceMonitor>
+ *       }
+ *     })
  *   );
  * }
  * ```
@@ -68,12 +63,10 @@ export * from '../../contexts';
  * import { EnhancedTaskDetailPage } from '@/components/integrated';
  * 
  * function TaskPage() {
- *   return (
- *     <EnhancedTaskDetailPage
- *       taskId={taskId}
- *       mode="page"
- *     />
- *   );
+ *   return EnhancedTaskDetailPage({
+ *     taskId: taskId,
+ *     mode: "page"
+ *   });
  * }
  * ```
  * 
@@ -129,11 +122,11 @@ export * from '../../contexts';
  * import { TaskInfoEditor } from '@/components/integrated';
  * 
  * // 使用增强功能
- * <TaskInfoEditor
- *   task={task}
- *   onUpdate={handleUpdate}
- *   readOnly={false}
- *   showEditHistory={true} // 新功能
- * />
+ * TaskInfoEditor({
+ *   task: task,
+ *   onUpdate: handleUpdate,
+ *   readOnly: false,
+ *   showEditHistory: true // 新功能
+ * })
  * ```
  */

@@ -1,0 +1,54 @@
+.view-switcher {
+  margin-bottom: 24px;
+  padding: 0;
+}
+
+.view-switcher-buttons {
+  display: inline-flex;
+  border-radius: 6px;
+  background: #f5f5f5;
+  padding: 4px;
+  gap: 4px;
+}
+
+.view-button {
+  border: none !important;
+  border-radius: 4px !important;
+  height: 36px;
+  padding: 0 16px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: none !important;
+}
+
+.view-button:not(.active) {
+  background: transparent !important;
+  color: #666 !important;
+}
+
+.view-button:not(.active):hover {
+  background: #e6f4ff !important;
+  color: #1890ff !important;
+}
+
+.view-button.active {
+  background: #1890ff !important;
+  color: white !important;
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.2) !important;
+}
+
+.view-button .anticon {
+  margin-right: 6px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .view-switcher-buttons {
+    width: 100%;
+  }
+  
+  .view-button {
+    flex: 1;
+    justify-content: center;
+  }
+}

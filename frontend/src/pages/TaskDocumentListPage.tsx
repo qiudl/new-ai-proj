@@ -25,12 +25,16 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  SyncOutlined
+  SyncOutlined,
+  UnorderedListOutlined
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
 import { Task } from '../types/task';
+import ViewSwitcher, { ViewType } from '../components/ViewSwitcher';
+import HierarchicalTaskTable, { HierarchicalTaskWithDocument } from '../components/HierarchicalTaskTable';
+import { useHierarchicalTasks } from '../hooks/useHierarchicalTasks';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -56,6 +60,14 @@ interface Project {
 
 const TaskDocumentListPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // 视图状态管理
+  const [currentView, setCurrentView] = useState<ViewType>(() => {
+    const viewParam = searchParams.get('view');
+    return (viewParam === 'task' || viewParam === 'document') ? viewParam : 'document';
+  });
+  
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<TaskDocumentInfo[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -64,6 +76,18 @@ const TaskDocumentListPage: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<number | undefined>();
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [documentFilter, setDocumentFilter] = useState<string | undefined>();
+
+  // 层级任务Hook
+  const hierarchicalTasks = useHierarchicalTasks();
+
+  // 视图切换处理
+  const handleViewChange = useCallback((view: ViewType) => {
+    setCurrentView(view);
+    // 更新URL参数，保持其他参数不变
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set('view', view);
+    setSearchParams(newSearchParams);
+  }, [searchParams, setSearchParams]);
 
   // 加载项目列表
   const loadProjects = useCallback(async () => {
@@ -244,6 +268,36 @@ const TaskDocumentListPage: React.FC = () => {
   useEffect(() => {
     filterTasks();
   }, [filterTasks]);
+
+  // 加载层级任务数据
+  useEffect(() => {
+    if (projects.length > 0 && currentView === 'task') {
+      const projectIds = projects.map(p => p.id);
+      hierarchicalTasks.loadTasks(projectIds);
+    }
+  }, [projects, currentView, hierarchicalTasks]);
+
+  // 层级任务事件处理
+  const handleTaskClick = useCallback((task: HierarchicalTaskWithDocument) => {
+    navigate(`/projects/${task.project_id}/tasks/${task.id}`);
+  }, [navigate]);
+
+  const handleDocumentView = useCallback((task: HierarchicalTaskWithDocument) => {
+    const previewUrl = `/projects/${task.project_id}/tasks/${task.id}/document-preview?title=${encodeURIComponent(task.title)}`;
+    window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+  }, []);
+
+  const handleDocumentEdit = useCallback((task: HierarchicalTaskWithDocument) => {
+    if (task.documentCount > 0) {
+      navigate(`/projects/${task.project_id}/tasks/${task.id}?tab=document`);
+    } else {
+      navigate(`/projects/${task.project_id}/tasks/${task.id}?action=create-document`);
+    }
+  }, [navigate]);
+
+  const handleProjectView = useCallback((task: HierarchicalTaskWithDocument) => {
+    navigate(`/projects/${task.project_id}`);
+  }, [navigate]);
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -449,9 +503,15 @@ const TaskDocumentListPage: React.FC = () => {
           任务文档管理
         </Title>
         <Text type="secondary">
-          管理和查看所有任务的文档，点击文档ID或查看图标进入全屏预览
+          管理和查看所有任务的文档，支持任务视图和文档视图切换
         </Text>
       </div>
+
+      {/* 视图切换器 */}
+      <ViewSwitcher 
+        currentView={currentView}
+        onViewChange={handleViewChange}
+      />
 
       {/* 统计卡片 */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
@@ -557,22 +617,35 @@ const TaskDocumentListPage: React.FC = () => {
         </Row>
       </Card>
 
-      {/* 任务列表 */}
+      {/* 任务列表/文档列表 */}
       <Card>
-        <Table
-          columns={columns}
-          dataSource={filteredTasks}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            total: filteredTasks.length,
-            pageSize: 20,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 个任务`,
-          }}
-          scroll={{ x: 1000 }}
-        />
+        {currentView === 'document' ? (
+          <Table
+            columns={columns}
+            dataSource={filteredTasks}
+            rowKey="id"
+            loading={loading}
+            pagination={{
+              total: filteredTasks.length,
+              pageSize: 20,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 个任务`,
+            }}
+            scroll={{ x: 1000 }}
+          />
+        ) : (
+          <HierarchicalTaskTable
+            tasks={hierarchicalTasks.tasks}
+            loading={hierarchicalTasks.loading}
+            onExpand={hierarchicalTasks.expandNode}
+            onCollapse={hierarchicalTasks.collapseNode}
+            onTaskClick={handleTaskClick}
+            onDocumentView={handleDocumentView}
+            onDocumentEdit={handleDocumentEdit}
+            onProjectView={handleProjectView}
+          />
+        )}
       </Card>
     </div>
   );
