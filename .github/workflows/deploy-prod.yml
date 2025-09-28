@@ -99,13 +99,11 @@ jobs:
         run: |
           tar -czf "../backend-${{ steps.version.outputs.backend-version }}.tar.gz" \
             --exclude=*.go \
-            --exclude=go.mod \
-            --exclude=go.sum \
             --exclude=tests \
             --exclude=coverage.out \
             --exclude=tmp \
             --exclude=.env \
-            main Dockerfile.prod migrations/ config/ templates/
+            main Dockerfile.prod go.mod go.sum migrations/ config/ templates/
       
       # Upload artifacts
       # Upload docker-compose configuration
@@ -243,10 +241,10 @@ jobs:
             fi
             
             echo "=== Stopping current services ==="
-            docker-compose down --remove-orphans || true
+            docker compose down --remove-orphans || true
             
             echo "=== Starting new services ==="
-            docker-compose up -d --build
+            docker compose up -d --build
             
             echo "=== Waiting for services to start ==="
             sleep 30
@@ -260,7 +258,7 @@ jobs:
             echo "=== Health Check ==="
             
             # Check if containers are running
-            RUNNING_CONTAINERS=$(docker-compose ps -q | wc -l)
+            RUNNING_CONTAINERS=$(docker compose ps -q | wc -l)
             echo "Running containers: $RUNNING_CONTAINERS"
             
             # Health check attempts
@@ -290,7 +288,7 @@ jobs:
             
             if [ "$BACKEND_HEALTHY" = true ] && [ "$FRONTEND_HEALTHY" = true ]; then
               echo "🎉 Deployment successful!"
-              docker-compose ps
+              docker compose ps
             else
               echo "❌ Health check failed, initiating rollback..."
               if [ -L previous ]; then
@@ -298,7 +296,7 @@ jobs:
                 mv current temp
                 mv previous current
                 mv temp previous
-                docker-compose up -d --build
+                docker compose up -d --build
                 sleep 20
                 if curl -f -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then
                   echo "✅ Rollback successful"
