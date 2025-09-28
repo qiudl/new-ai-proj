@@ -74,7 +74,7 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	reportHandler := app.GetReportHandler()
 
 	// 任务文档相关路由
-	mcp.POST("/create-and-attach", createAndAttachTaskDocument(documentHandler))
+	mcp.POST("/create-and-attach", createAndAttachTaskDocument(documentHandler, app))
 	mcp.POST("/create-and-attach-work-note", createAndAttachWorkNote(workNoteHandler))
 	mcp.POST("/create-batch-documents", createBatchDocuments(documentHandler))
 	mcp.POST("/create-task-docs", createTaskDocs(documentHandler))
@@ -99,7 +99,7 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 }
 
 // createAndAttachTaskDocument MCP专用：创建并关联任务文档
-func createAndAttachTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
+func createAndAttachTaskDocument(h *handlers.DocumentHandler, app ApplicationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
 			TaskID    int    `json:"taskId"`
@@ -122,10 +122,17 @@ func createAndAttachTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 			return
 		}
 
-		// 设置默认项目ID为1
+		// 项目ID推导逻辑：优先使用提供的项目ID，否则从任务中查询
 		projectID := 1
 		if req.ProjectID != nil {
 			projectID = *req.ProjectID
+		} else {
+			// 从任务中获取项目ID
+			if taskRepo := app.GetDB().Tasks(); taskRepo != nil {
+				if task, err := taskRepo.GetByID(c.Request.Context(), req.TaskID); err == nil && task != nil {
+					projectID = task.ProjectID
+				}
+			}
 		}
 
 		// 生成默认标题（如果没有提供）

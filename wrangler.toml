@@ -1,0 +1,26 @@
+name = "ai-project-frontend"
+compatibility_date = "2024-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+name = "ai-project-frontend"
+
+[env.preview]  
+name = "ai-project-frontend-preview"
+
+# Pages 配置
+pages_build_output_dir = "frontend/build"
+
+# 环境变量配置
+[env.production.vars]
+NODE_ENV = "production"
+GENERATE_SOURCEMAP = "false"
+
+[env.preview.vars]
+NODE_ENV = "development"
+GENERATE_SOURCEMAP = "true"
+
+# 自定义域名配置 (需要在 Cloudflare Pages 控制台中设置)
+# routes = [
+#   { pattern = "ai-project.yourdomain.com", zone_name = "yourdomain.com" }
+# ]

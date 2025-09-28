@@ -374,7 +374,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({
                       placeholder="选择或输入组件名称"
                       showSearch
                       allowClear
-                      optionFilterProp="children"
+                      
                     >
                       {['DashboardPage', 'ProjectsPage', 'TasksPage', 'UserManagementPage', 'CompanyListPage'].map(component => (
                         <Option key={component} value={component}>

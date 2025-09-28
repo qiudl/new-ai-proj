@@ -772,7 +772,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
             <Select
               placeholder="选择具体实体"
               showSearch
-              optionFilterProp="children"
+              
               filterOption={(input, option) =>
                 option?.children?.toString().toLowerCase().includes(input.toLowerCase()) || false
               }

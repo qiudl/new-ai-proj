@@ -257,7 +257,7 @@ const TaskSelectionModal: React.FC<TaskSelectionModalProps> = ({
             loading={projectsLoading}
             value={selectedProjectId}
             onChange={handleProjectSelect}
-            optionFilterProp="children"
+            
             showSearch
           >
             {projects.map(project => (

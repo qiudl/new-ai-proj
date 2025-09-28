@@ -10,11 +10,12 @@ export class TimerService extends BaseClient {
     try {
       const payload: any = { 
         task_id: taskId,  // 修正参数名：taskId -> task_id
-        title: description || `计时器-任务${taskId}`
+        title: description || `计时器-任务${taskId}`,  // 后端必需的title字段
+        context: "dashboard"  // 添加必需的context字段
       };
       if (description) {
-        // 将描述作为上下文来源，后端会根据需要回退为默认上下文
-        payload.context = description;
+        // 将描述作为计时器的描述信息，而不是覆盖context
+        payload.description = description;
       }
 
       const response = await this.makeRequest<{

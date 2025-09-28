@@ -27,6 +27,7 @@ import remarkBreaks from 'remark-breaks';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import dayjs from 'dayjs';
+import SelectableText from './SelectableText';
 import 'highlight.js/styles/github.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -221,17 +222,29 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     switch (docDetail.file_type) {
       case 'markdown':
         return (
-          <div className="markdown-content">
+          <div 
+            className="markdown-content"
+            onMouseDown={(e) => {
+              // 确保文本选择事件不被阻止
+              e.stopPropagation();
+            }}
+            onSelectStart={(e) => {
+              // 确保选择开始事件不被阻止
+              e.stopPropagation();
+            }}
+          >
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkBreaks]}
               rehypePlugins={[rehypeHighlight, rehypeRaw]}
               components={{
-                // 自定义组件渲染
-                h1: ({children}) => <Title level={1}>{children}</Title>,
-                h2: ({children}) => <Title level={2}>{children}</Title>,
-                h3: ({children}) => <Title level={3}>{children}</Title>,
-                h4: ({children}) => <Title level={4}>{children}</Title>,
-                p: ({children}) => <Paragraph>{children}</Paragraph>,
+                // 使用SelectableText组件，避免Typography的文本选择问题
+                h1: ({children}) => <SelectableText as="h1" level={1}>{children}</SelectableText>,
+                h2: ({children}) => <SelectableText as="h2" level={2}>{children}</SelectableText>,
+                h3: ({children}) => <SelectableText as="h3" level={3}>{children}</SelectableText>,
+                h4: ({children}) => <SelectableText as="h4" level={4}>{children}</SelectableText>,
+                h5: ({children}) => <SelectableText as="h5" level={5}>{children}</SelectableText>,
+                h6: ({children}) => <SelectableText as="h6" level={6}>{children}</SelectableText>,
+                p: ({children}) => <SelectableText as="p">{children}</SelectableText>,
                 blockquote: ({children}) => (
                   <div style={{
                     borderLeft: '4px solid #1890ff',

@@ -1,0 +1,136 @@
+.swimlane-board-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sb-toolbar {
+  background: #fff;
+  border-radius: 8px;
+}
+
+.swimlane-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1200px) {
+  .swimlane-board {
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .swimlane-board {
+    grid-template-columns: repeat(1, minmax(240px, 1fr));
+  }
+}
+
+.sb-lane {
+  display: flex;
+  flex-direction: column;
+  min-height: 360px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  overflow: hidden;
+}
+
+.sb-lane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #fff;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.sb-lane-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.sb-lane-body {
+  padding: 8px;
+  min-height: 300px;
+}
+
+.sb-task-card {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+  cursor: grab;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.sb-task-card.updating {
+  opacity: 0.6;
+}
+
+.sb-task-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.sb-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.sb-title-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-task-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.sb-assignee {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #595959;
+  font-size: 12px;
+}
+
+.sb-task-dates {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.sb-due.none {
+  color: #bfbfbf;
+}
+
+.sb-empty {
+  color: #bfbfbf;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.sb-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+}

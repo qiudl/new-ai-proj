@@ -276,7 +276,7 @@ const TaskDocumentVersionHistoryButton: React.FC<TaskDocumentVersionHistoryButto
         width="95%"
         style={{ maxWidth: 1400, top: 20 }}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ 
           minHeight: 600,

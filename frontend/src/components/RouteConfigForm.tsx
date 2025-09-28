@@ -193,7 +193,7 @@ const RouteConfigForm: React.FC<RouteConfigFormProps> = ({
                   placeholder="选择或输入组件名称"
                   showSearch
                   allowClear
-                  optionFilterProp="children"
+                  
                   dropdownRender={menu => (
                     <>
                       {menu}
@@ -232,7 +232,7 @@ const RouteConfigForm: React.FC<RouteConfigFormProps> = ({
                   placeholder="选择关联的菜单项"
                   allowClear
                   showSearch
-                  optionFilterProp="children"
+                  
                 >
                   {menuItems.map(item => (
                     <Option key={item.id} value={item.id}>

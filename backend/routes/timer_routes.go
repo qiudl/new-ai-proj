@@ -53,5 +53,11 @@ func RegisterTimerRoutes(authorized *gin.RouterGroup, app ApplicationInterface) 
 	{
 		timer.GET("/recent-tasks", timerHandler.GetRecentTasks) // 添加最近任务接口
 		timer.GET("/weekly", userTimerHandler.GetWeeklyReport)  // 添加周报功能
+		timer.GET("/daily-comparison", timerHandler.GetDailyComparison) // 添加3日效率对比分析
+		
+		// SSE (Server-Sent Events) 路由
+		timer.GET("/sse", timerHandler.TimerSSE)                    // SSE 连接端点 (需要Authorization header)
+		timer.GET("/sse/test", timerHandler.SSEConnectionTest)      // SSE 连接测试
+		timer.GET("/sse/health", timerHandler.SSEHealthCheck)      // SSE 健康检查
 	}
 }

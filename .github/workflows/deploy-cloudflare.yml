@@ -1,0 +1,116 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-cloudflare.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Cloudflare Pages
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci --production=false
+
+      - name: Run tests
+        run: |
+          cd frontend
+          npm run test -- --coverage --watchAll=false
+
+      - name: Build application
+        run: |
+          cd frontend
+          npm run build:cloudflare
+        env:
+          GENERATE_SOURCEMAP: false
+          REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL }}
+          REACT_APP_APP_NAME: "AI项目管理系统"
+          REACT_APP_VERSION: ${{ github.sha }}
+
+      - name: Deploy to Cloudflare Pages (Preview)
+        if: github.event_name == 'pull_request'
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ai-project-frontend
+          directory: frontend/build
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy to Cloudflare Pages (Production)
+        if: github.ref == 'refs/heads/main'
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ai-project-frontend
+          directory: frontend/build
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          wranglerVersion: '3'
+
+      - name: Deploy to Cloudflare Pages (Staging)
+        if: github.ref == 'refs/heads/develop'
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ai-project-frontend-staging
+          directory: frontend/build
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment PR with deployment URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentUrl = `https://ai-project-frontend.pages.dev`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **部署完成!**\n\n预览地址: ${deploymentUrl}\n\n构建信息:\n- 提交: ${context.sha.substring(0, 7)}\n- 分支: ${context.ref}\n- 工作流: ${context.workflow}`
+            });
+
+  lighthouse:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    name: Lighthouse Performance Audit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          urls: |
+            https://ai-project-frontend.pages.dev
+          uploadArtifacts: true
+          temporaryPublicStorage: true

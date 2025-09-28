@@ -420,7 +420,6 @@ const UserDetailPage: React.FC = () => {
                       message="主要联系人"
                       type="info"
                       showIcon
-                      size="small"
                     />
                   )}
                 </>
@@ -514,7 +513,7 @@ const UserDetailPage: React.FC = () => {
         onCancel={() => setEditModalVisible(false)}
         footer={null}
         width={600}
-        destroyOnClose={true}
+        destroyOnHidden={true}
         maskClosable={false}
         wrapClassName="user-edit-modal"
       >
@@ -620,7 +619,7 @@ const UserDetailPage: React.FC = () => {
         open={resetPasswordModalVisible}
         onCancel={() => setResetPasswordModalVisible(false)}
         footer={null}
-        destroyOnClose={true}
+        destroyOnHidden={true}
         maskClosable={false}
         wrapClassName="user-reset-password-modal"
       >

@@ -1,0 +1,167 @@
+/**
+ * Modal Fix CSS
+ * 修复 .ant-modal-wrap 遮挡屏幕的问题
+ * 
+ * 这个文件专门用来解决 Ant Design Modal 组件的样式问题
+ */
+
+/* 确保 Modal 背景遮罩层不会阻止用户交互 */
+.ant-modal-wrap {
+  /* 确保正确的显示方式 */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  
+  /* 确保正确的定位 */
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  
+  /* 确保正确的层级，但不能太高 */
+  z-index: 550 !important;
+  
+  /* 确保可以接收事件 */
+  pointer-events: auto !important;
+  
+  /* 确保在正确的时候显示 */
+  visibility: visible !important;
+  opacity: 1 !important;
+  
+  /* 过渡效果 */
+  transition: opacity 0.2s ease !important;
+}
+
+/* 当 Modal 应该隐藏时 */
+.ant-modal-wrap:not(.ant-modal-wrap-open) {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Modal 背景遮罩 */
+.ant-modal-mask {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 549 !important; /* 比 wrap 稍低一层 */
+  background-color: rgba(0, 0, 0, 0.45) !important;
+  pointer-events: auto !important;
+  
+  /* 过渡效果 */
+  transition: opacity 0.2s ease !important;
+}
+
+/* Modal 容器 */
+.ant-modal {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  margin: 0 auto !important;
+  
+  /* 确保 Modal 可见且可交互 */
+  pointer-events: auto !important;
+  z-index: 551 !important; /* 比 wrap 稍高一层 */
+  
+  /* 最大尺寸限制 */
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  
+  /* 过渡效果 */
+  transition: transform 0.2s ease !important;
+}
+
+/* Modal 内容区域 */
+.ant-modal-content {
+  position: relative !important;
+  background: #fff !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  pointer-events: auto !important;
+  
+  /* 确保内容可以滚动 */
+  overflow: hidden !important;
+}
+
+/* Modal body 的滚动处理 */
+.ant-modal-body {
+  max-height: 70vh !important;
+  overflow-y: auto !important;
+  pointer-events: auto !important;
+}
+
+/* 确保 Modal 中的按钮和表单元素可以正常交互 */
+.ant-modal * {
+  pointer-events: auto !important;
+}
+
+/* 修复可能的层级冲突 */
+.ant-modal-wrap > * {
+  pointer-events: auto !important;
+}
+
+/* 特殊情况：确保 Modal 在移动设备上也能正常显示 */
+@media (max-width: 768px) {
+  .ant-modal-wrap {
+    padding: 16px !important;
+  }
+  
+  .ant-modal {
+    margin: 0 !important;
+    max-width: calc(100vw - 32px) !important;
+    width: calc(100vw - 32px) !important;
+  }
+  
+  .ant-modal-body {
+    max-height: calc(100vh - 200px) !important;
+  }
+}
+
+/* Debug: 如果需要调试，可以临时启用这些样式 */
+/*
+.ant-modal-wrap {
+  border: 2px solid red !important;
+}
+
+.ant-modal-mask {
+  border: 2px solid blue !important;
+}
+
+.ant-modal {
+  border: 2px solid green !important;
+}
+*/
+
+/* 确保与其他组件的兼容性 */
+.ant-modal-wrap:not(.ant-modal-wrap-open) {
+  display: none !important;
+}
+
+/* 防止 body 滚动当 Modal 开启时 */
+body.ant-scrolling-effect {
+  overflow: hidden !important;
+}
+
+/* 确保 ESC 键和点击遮罩可以关闭 Modal */
+.ant-modal-mask {
+  cursor: pointer !important;
+}
+
+.ant-modal {
+  cursor: default !important;
+}
+
+/* 特定的修复：如果 Modal 完全不显示 */
+.ant-modal-wrap[style*="display: none"] {
+  display: none !important;
+}
+
+.ant-modal-wrap:not([style*="display: none"]) {
+  display: flex !important;
+}

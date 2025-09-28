@@ -118,6 +118,15 @@ services:
       DISABLE_ESLINT_PLUGIN: true
       SKIP_PREFLIGHT_CHECK: true
       FAST_REFRESH: false
+      # TypeScript性能优化
+      FORK_TS_CHECKER_WEBPACK_PLUGIN_MEMENTO: false
+      DISABLE_NEW_JSX_TRANSFORM: false
+      # 减少内存使用
+      NODE_OPTIONS: "--max-old-space-size=1024"
+      # 禁用类型检查以提高性能
+      REACT_APP_TYPESCRIPT_CHECK: false
+      # webpack优化
+      WEBPACK_CACHE: false
     ports:
       - "3001:3000"
     volumes:

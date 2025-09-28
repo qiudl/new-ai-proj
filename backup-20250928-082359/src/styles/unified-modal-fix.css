@@ -1,0 +1,332 @@
+/**
+ * Unified Modal Fix CSS
+ * 统一的Modal遮罩层修复方案
+ * 
+ * 此文件替代之前分散的Modal修复方案，提供一致的Modal显示逻辑
+ */
+
+/* 清除之前可能的样式冲突 */
+.ant-modal-wrap,
+.ant-modal-mask,
+.ant-modal {
+  /* 重置可能造成问题的样式 */
+  all: unset;
+}
+
+/* === 基础Modal层级系统 === */
+/* 遮罩层：最底层 */
+.ant-modal-mask {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  z-index: 549 !important; /* 遮罩层 */
+  pointer-events: auto !important;
+  
+  /* 过渡效果 */
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  
+  /* 默认隐藏，只在Modal打开时显示 */
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* Modal容器：中间层 */
+.ant-modal-wrap {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 550 !important; /* 容器层 */
+  
+  /* Flexbox居中 */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  
+  /* 交互处理 */
+  pointer-events: auto !important;
+  
+  /* 过渡效果 */
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  
+  /* Ant Design 5.x 不再默认隐藏，而是通过内容判断 */
+  /* opacity: 0 !important; */
+  /* visibility: hidden !important; */
+  
+  /* 防止页面滚动穿透 */
+  overflow: hidden !important;
+}
+
+/* Modal内容：最上层 */
+.ant-modal {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+  
+  z-index: 551 !important; /* Modal内容层 */
+  pointer-events: auto !important;
+  
+  /* 尺寸限制 */
+  max-width: min(90vw, 800px) !important;
+  max-height: 90vh !important;
+  
+  /* 过渡效果 */
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  
+  /* 初始状态：稍微缩放 */
+  transform: scale(0.95) !important;
+}
+
+/* === Modal打开状态 === */
+/* 当Modal真正打开时显示遮罩和容器 */
+/* Ant Design 5.x 使用 ant-modal-wrap 但可能没有 ant-modal-wrap-open 类 */
+.ant-modal-wrap {
+  /* 默认样式已经在上面定义 */
+}
+
+/* 有内容的Modal应该显示 */
+.ant-modal-wrap:has(.ant-modal) {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.ant-modal-wrap:has(.ant-modal) .ant-modal-mask {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.ant-modal-wrap:has(.ant-modal) .ant-modal {
+  transform: scale(1) !important;
+}
+
+/* 兼容旧版本的 ant-modal-wrap-open 类 */
+.ant-modal-wrap.ant-modal-wrap-open {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.ant-modal-wrap.ant-modal-wrap-open .ant-modal-mask {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.ant-modal-wrap.ant-modal-wrap-open .ant-modal {
+  transform: scale(1) !important;
+}
+
+/* === Modal内容样式 === */
+.ant-modal-content {
+  position: relative !important;
+  background: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+  pointer-events: auto !important;
+  overflow: hidden !important;
+}
+
+.ant-modal-header {
+  position: relative !important;
+  padding: 16px 24px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  background: #ffffff !important;
+}
+
+.ant-modal-body {
+  position: relative !important;
+  padding: 24px !important;
+  max-height: 60vh !important;
+  overflow-y: auto !important;
+  pointer-events: auto !important;
+  
+  /* 滚动条样式 */
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(0, 0, 0, 0.3) transparent !important;
+}
+
+.ant-modal-body::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.ant-modal-body::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.ant-modal-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3) !important;
+  border-radius: 3px !important;
+}
+
+.ant-modal-footer {
+  position: relative !important;
+  padding: 12px 24px 16px !important;
+  border-top: 1px solid #f0f0f0 !important;
+  background: #ffffff !important;
+  text-align: right !important;
+}
+
+/* === 特殊类型Modal的z-index === */
+.ant-modal-wrap.critical-modal,
+.ant-modal-wrap[data-critical="true"] {
+  z-index: 580 !important;
+}
+
+.ant-modal-wrap.important-modal,
+.ant-modal-wrap[data-important="true"] {
+  z-index: 570 !important;
+}
+
+.ant-modal-wrap.confirmation-modal {
+  z-index: 575 !important;
+}
+
+/* === 移动端适配 === */
+@media (max-width: 768px) {
+  .ant-modal-wrap {
+    padding: 16px !important;
+  }
+  
+  .ant-modal {
+    max-width: calc(100vw - 32px) !important;
+    margin: 0 !important;
+  }
+  
+  .ant-modal-body {
+    max-height: calc(100vh - 200px) !important;
+  }
+  
+  .ant-modal-header,
+  .ant-modal-footer {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  
+  .ant-modal-body {
+    padding: 16px !important;
+  }
+}
+
+/* === 辅助功能 === */
+/* 确保Modal中的所有元素都可以交互 */
+.ant-modal * {
+  pointer-events: auto !important;
+}
+
+/* 防止页面滚动 */
+body:has(.ant-modal-wrap.ant-modal-wrap-open) {
+  overflow: hidden !important;
+}
+
+/* 支持旧版浏览器的页面滚动防护 */
+.modal-open {
+  overflow: hidden !important;
+}
+
+/* === 调试模式 === */
+.debug-modal .ant-modal-wrap {
+  border: 2px solid red !important;
+}
+
+.debug-modal .ant-modal-mask {
+  border: 2px solid blue !important;
+}
+
+.debug-modal .ant-modal {
+  border: 2px solid green !important;
+}
+
+/* === 修复特定问题 === */
+/* 修复可能的层级覆盖问题 - 但保护确认对话框和有内容的Modal */
+/* 只隐藏没有内容且不是确认对话框的Modal容器 */
+.ant-modal-wrap:not(:has(.ant-modal)):not(.ant-modal-wrap-open):not(.ant-modal-confirm-wrap):not([class*="confirm"]) {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+/* 确认对话框和Modal.confirm特殊处理 */
+.ant-modal-confirm-wrap,
+.ant-modal-wrap:has(.ant-modal-confirm),
+.ant-modal-wrap[class*="confirm"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+  pointer-events: auto !important;
+}
+
+/* 确认对话框的遮罩层 */
+.ant-modal-confirm-wrap .ant-modal-mask,
+.ant-modal-wrap:has(.ant-modal-confirm) .ant-modal-mask,
+.ant-modal-wrap[class*="confirm"] .ant-modal-mask {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* 直接包含ant-modal-confirm的容器 */
+.ant-modal-confirm {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* 确保关闭动画正常工作 */
+.ant-modal-wrap.ant-modal-wrap-open.ant-modal-closing {
+  opacity: 0 !important;
+  
+  .ant-modal {
+    transform: scale(0.95) !important;
+  }
+}
+
+/* 修复潜在的overflow问题 */
+.ant-modal-wrap.ant-modal-wrap-open {
+  overflow: hidden !important;
+}
+
+/* 确保点击遮罩可以关闭Modal */
+.ant-modal-mask {
+  cursor: pointer !important;
+}
+
+.ant-modal {
+  cursor: default !important;
+}
+
+/* 防止Modal内容区域关闭Modal */
+.ant-modal-content {
+  cursor: default !important;
+}
+
+/* === 性能优化 === */
+.ant-modal-wrap {
+  /* 启用硬件加速 */
+  transform: translateZ(0) !important;
+  will-change: opacity, visibility !important;
+}
+
+.ant-modal {
+  will-change: transform !important;
+}
+
+/* === 确保与Ant Design其他组件的兼容性 === */
+/* Dropdown等组件的z-index不应该超过Modal */
+.ant-modal-wrap.ant-modal-wrap-open ~ * .ant-dropdown,
+.ant-modal-wrap.ant-modal-wrap-open ~ * .ant-select-dropdown,
+.ant-modal-wrap.ant-modal-wrap-open ~ * .ant-picker-dropdown {
+  z-index: 540 !important;
+}
+
+/* 确保Modal内的Dropdown等组件可以正常显示 */
+.ant-modal .ant-dropdown,
+.ant-modal .ant-select-dropdown,
+.ant-modal .ant-picker-dropdown {
+  z-index: 560 !important;
+}

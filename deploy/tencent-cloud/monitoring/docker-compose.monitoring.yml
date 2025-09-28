@@ -1,0 +1,251 @@
+version: '3.8'
+
+services:
+  # Prometheus 监控服务
+  prometheus:
+    image: prom/prometheus:v2.47.2
+    container_name: ai-project-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/rules:/etc/prometheus/rules
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - monitoring
+    restart: unless-stopped
+    labels:
+      - "com.ai-project.service=prometheus"
+      - "com.ai-project.description=Prometheus metrics server"
+
+  # Grafana 可视化服务
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: ai-project-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - monitoring
+    restart: unless-stopped
+    labels:
+      - "com.ai-project.service=grafana"
+      - "com.ai-project.description=Grafana visualization"
+    depends_on:
+      - prometheus
+
+  # Node Exporter - 系统指标收集
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: ai-project-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - monitoring
+    restart: unless-stopped
+    labels:
+      - "com.ai-project.service=node-exporter"
+      - "com.ai-project.description=System metrics exporter"
+
+  # cAdvisor - 容器指标收集
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: ai-project-cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    networks:
+      - monitoring
+    restart: unless-stopped
+    privileged: true
+    labels:
+      - "com.ai-project.service=cadvisor"
+      - "com.ai-project.description=Container metrics exporter"
+
+  # AlertManager - 告警管理
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: ai-project-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    networks:
+      - monitoring
+    restart: unless-stopped
+    labels:
+      - "com.ai-project.service=alertmanager"
+      - "com.ai-project.description=Alert management"
+
+  # Nginx Exporter - Nginx指标收集
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:0.11.0
+    container_name: ai-project-nginx-exporter
+    ports:
+      - "9113:9113"
+    environment:
+      - SCRAPE_URI=http://nginx:8080/nginx_status
+      - TELEMETRY_PATH=/metrics
+      - NGINX_RETRIES=10
+    networks:
+      - monitoring
+    restart: unless-stopped
+    labels:
+      - "com.ai-project.service=nginx-exporter"
+      - "com.ai-project.description=Nginx metrics exporter"
+    depends_on:
+      - nginx
+
+  # Redis Exporter - Redis指标收集
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0
+    container_name: ai-project-redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    networks:
+      - monitoring
+    restart: unless-stopped
+    labels:
+      - "com.ai-project.service=redis-exporter"
+      - "com.ai-project.description=Redis metrics exporter"
+
+  # PostgreSQL Exporter - 数据库指标收集
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: ai-project-postgres-exporter
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER:-aiproject}:${POSTGRES_PASSWORD:-aiproject123}@postgres:5432/${POSTGRES_DB:-aiproject}?sslmode=disable
+    networks:
+      - monitoring
+    restart: unless-stopped
+    labels:
+      - "com.ai-project.service=postgres-exporter"
+      - "com.ai-project.description=PostgreSQL metrics exporter"
+
+  # Loki - 日志聚合
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: ai-project-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring
+    restart: unless-stopped
+    labels:
+      - "com.ai-project.service=loki"
+      - "com.ai-project.description=Log aggregation system"
+
+  # Promtail - 日志收集器
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: ai-project-promtail
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - monitoring
+    restart: unless-stopped
+    labels:
+      - "com.ai-project.service=promtail"
+      - "com.ai-project.description=Log collector"
+    depends_on:
+      - loki
+
+  # Jaeger - 分布式追踪
+  jaeger:
+    image: jaegertracing/all-in-one:1.50
+    container_name: ai-project-jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # HTTP collector
+      - "14250:14250"  # gRPC collector
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=memory
+    networks:
+      - monitoring
+    restart: unless-stopped
+    labels:
+      - "com.ai-project.service=jaeger"
+      - "com.ai-project.description=Distributed tracing"
+
+volumes:
+  prometheus_data:
+    driver: local
+    labels:
+      - "com.ai-project.volume=prometheus"
+  
+  grafana_data:
+    driver: local
+    labels:
+      - "com.ai-project.volume=grafana"
+  
+  alertmanager_data:
+    driver: local
+    labels:
+      - "com.ai-project.volume=alertmanager"
+  
+  loki_data:
+    driver: local
+    labels:
+      - "com.ai-project.volume=loki"
+
+networks:
+  monitoring:
+    driver: bridge
+    name: ai-project-monitoring
+    labels:
+      - "com.ai-project.network=monitoring"
+  
+  # 连接到主应用网络
+  default:
+    external: true
+    name: ai-project-network

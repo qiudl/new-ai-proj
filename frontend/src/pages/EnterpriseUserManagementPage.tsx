@@ -600,7 +600,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
         width={600}
         footer={null}
         destroyOnHidden={true}
-        getContainer={false}
+        getContainer={() => document.body}
       >
         <Form
           form={form}
@@ -687,7 +687,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
                   loading={departmentsLoading}
                   disabled={!departmentsLoading && (!departments || departments.length === 0)}
                   showSearch
-                  optionFilterProp="label"
+                  
                   filterOption={(input, option) =>
                     option?.label?.toString().toLowerCase().includes(input.toLowerCase())
                   }

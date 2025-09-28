@@ -1,0 +1,416 @@
+/* 全字段任务列表页面样式 */
+
+.all-fields-task-list {
+  padding: 24px;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+/* 表格样式优化 */
+.all-fields-table .ant-table {
+  font-size: 12px;
+}
+
+.all-fields-table .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.all-fields-table .ant-table-tbody > tr > td {
+  padding: 6px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.all-fields-table .ant-table-tbody > tr:hover > td {
+  background-color: #f8f9fa;
+}
+
+/* 固定列样式 */
+.all-fields-table .ant-table-fixed-left {
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.1);
+}
+
+.all-fields-table .ant-table-fixed-right {
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.1);
+}
+
+/* 自定义字段列样式 */
+.custom-field-column {
+  background-color: #f0f9ff;
+  border-left: 2px solid #1890ff;
+}
+
+.custom-field-column .ant-table-thead > tr > th {
+  background-color: #e6f7ff;
+  position: relative;
+}
+
+.custom-field-column .ant-table-thead > tr > th::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #1890ff;
+}
+
+/* 列拖拽指示器 */
+.column-drag-indicator {
+  cursor: move;
+  padding: 4px;
+  color: #8c8c8c;
+  transition: color 0.2s;
+}
+
+.column-drag-indicator:hover {
+  color: #1890ff;
+}
+
+/* 拖拽中的列样式 */
+.dragging-column {
+  opacity: 0.5;
+  transform: rotate(5deg);
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 拖拽目标位置指示器 */
+.drag-over-indicator {
+  border-left: 2px solid #1890ff;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* 可拖拽列头样式 */
+.sortable-column-header {
+  position: relative;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sortable-column-header:hover {
+  background-color: rgba(24, 144, 255, 0.05);
+}
+
+.sortable-column-header::after {
+  content: '⋮⋮';
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #d9d9d9;
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.sortable-column-header:hover::after {
+  opacity: 1;
+}
+
+/* 列设置下拉菜单 */
+.column-settings-menu {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.column-settings-menu .ant-dropdown-menu-item {
+  padding: 8px 12px;
+}
+
+.column-settings-menu .column-setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-width: 200px;
+}
+
+/* 过滤器区域 */
+.filters-card {
+  margin-bottom: 16px;
+}
+
+.filters-card .ant-space-item {
+  margin-bottom: 8px;
+}
+
+/* 批量操作栏 */
+.batch-actions-card {
+  background-color: #f0f9ff;
+  border: 1px solid #bae7ff;
+  margin-bottom: 16px;
+}
+
+/* 表格滚动区域优化 */
+.all-fields-table .ant-table-body {
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 #f0f0f0;
+}
+
+.all-fields-table .ant-table-body::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.all-fields-table .ant-table-body::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.all-fields-table .ant-table-body::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 4px;
+}
+
+.all-fields-table .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+/* 状态标签样式 */
+.status-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* 优先级标签样式 */
+.priority-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* 进度条样式 */
+.progress-mini .ant-progress-text {
+  font-size: 10px;
+}
+
+/* 用户头像样式 */
+.user-avatar-mini {
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+}
+
+/* 项目链接样式 */
+.project-link {
+  color: #1890ff;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.project-link:hover {
+  color: #40a9ff;
+  text-decoration: underline;
+}
+
+/* 任务标题链接样式 */
+.task-title-link {
+  color: #262626;
+  text-decoration: none;
+  font-weight: 500;
+  max-width: 280px;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.task-title-link:hover {
+  color: #1890ff;
+  text-decoration: underline;
+}
+
+/* 层级任务缩进 */
+.task-hierarchy-indent {
+  padding-left: 16px;
+  position: relative;
+}
+
+.task-hierarchy-indent::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background-color: #d9d9d9;
+}
+
+/* 操作按钮组 */
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.action-buttons .ant-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 日期显示样式 */
+.date-display {
+  font-size: 11px;
+  color: #666;
+}
+
+.date-overdue {
+  color: #ff4d4f;
+  font-weight: 500;
+}
+
+.date-today {
+  color: #fa8c16;
+  font-weight: 500;
+}
+
+.date-soon {
+  color: #fa541c;
+  font-weight: 500;
+}
+
+/* 标签组样式 */
+.tags-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 140px;
+}
+
+.tags-group .ant-tag {
+  margin: 0;
+  font-size: 10px;
+  padding: 1px 4px;
+  line-height: 1.2;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .all-fields-task-list {
+    padding: 16px;
+  }
+  
+  .all-fields-table .ant-table-thead > tr > th,
+  .all-fields-table .ant-table-tbody > tr > td {
+    padding: 4px 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .all-fields-task-list {
+    padding: 12px;
+  }
+  
+  .filters-card .ant-space {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .filters-card .ant-space-item {
+    width: 100%;
+  }
+  
+  .filters-card .ant-input,
+  .filters-card .ant-select,
+  .filters-card .ant-picker {
+    width: 100% !important;
+  }
+}
+
+/* 加载状态优化 */
+.table-loading-overlay {
+  position: relative;
+}
+
+.table-loading-overlay .ant-spin-container {
+  min-height: 400px;
+}
+
+/* 空状态样式 */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #8c8c8c;
+}
+
+.empty-state .ant-empty-description {
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+/* 导出按钮样式 */
+.export-button {
+  background-color: #52c41a;
+  border-color: #52c41a;
+}
+
+.export-button:hover {
+  background-color: #73d13d;
+  border-color: #73d13d;
+}
+
+/* 列宽度调整指示器 */
+.column-resizer {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.2s;
+}
+
+.column-resizer:hover {
+  background-color: #1890ff;
+}
+
+/* 表格性能优化 */
+.all-fields-table .ant-table-tbody {
+  transform: translateZ(0); /* 启用硬件加速 */
+}
+
+/* 打印样式 */
+@media print {
+  .all-fields-task-list {
+    padding: 0;
+    background-color: white;
+  }
+  
+  .filters-card,
+  .batch-actions-card,
+  .ant-pagination {
+    display: none;
+  }
+  
+  .all-fields-table .ant-table {
+    font-size: 10px;
+  }
+  
+  .action-buttons {
+    display: none;
+  }
+}

@@ -1,0 +1,14 @@
+# SPA 路由重定向 - 所有非文件请求都重定向到 index.html
+/*    /index.html   200
+
+# API 代理重定向到后端服务
+/api/*  https://your-backend-api.com/api/:splat  200
+
+# 静态资源缓存优化
+/static/*  /static/:splat  200  Cache-Control: public, max-age=31536000, immutable
+
+# 健康检查重定向
+/health  /api/health  200
+
+# 文档页面
+/docs/*  https://your-backend-api.com/docs/:splat  200

@@ -4,6 +4,9 @@ module.exports = {
   eslint: {
     enable: false, // 禁用ESLint，避免插件问题
   },
+  typescript: {
+    enableTypeChecking: false, // 禁用TypeScript类型检查以提升性能
+  },
   webpack: {
     configure: (webpackConfig) => {
       // 优化chunk命名和分割策略

@@ -55,6 +55,10 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 		c.Status(204)
 	})
 
+	// 注册SSE token端点（在认证中间件之前）
+	timerHandler := app.GetUnifiedTimerHandler()
+	api.GET("/timer/sse-token", timerHandler.TimerSSEWithToken) // SSE with token auth (no middleware)
+	
 	// 注册认证路由并获取授权路由组
 	authorized := RegisterAuthRoutes(api, app)
 	// 使企业模拟中间件在所有受保护路由上生效
@@ -125,6 +129,15 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
 	// 注册MCP专用路由
 	RegisterMCPRoutes(authorized, app)
+
+	// 注册测试数据生成路由
+	RegisterTestDataRoutes(authorized, app)
+
+	// 注册数据验证路由
+	RegisterDataValidationRoutes(authorized, app)
+
+	// 注册管理员路由
+	RegisterAdminRoutes(authorized, app)
 
 	// 注册修复的任务文档路由（优先级更高，会覆盖之前的路由）
 	// 获取数据库连接用于修复

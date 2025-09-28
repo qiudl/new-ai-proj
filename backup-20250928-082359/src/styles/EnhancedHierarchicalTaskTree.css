@@ -1,0 +1,228 @@
+/* 简洁层级任务树样式 */
+
+.enhanced-hierarchical-task-tree .ant-tree {
+  background: transparent !important;
+}
+
+/* 防止图标和文字换行 */
+.enhanced-hierarchical-task-tree .ant-tree-node-content-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-node-content-wrapper:hover {
+  background-color: #f5f5f5;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-title {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+/* 树节点样式 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode {
+  padding: 2px 0;
+}
+
+/* 树节点包装器样式 */
+.tree-node-wrapper {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+/* 展开/折叠图标 */
+.enhanced-hierarchical-task-tree .ant-tree-switcher {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 16px !important;
+  height: 24px !important;
+  margin-right: 4px !important;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-switcher .ant-tree-switcher-icon {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-switcher-noop {
+  width: 16px !important;
+  height: 24px !important;
+}
+
+/* 计时器状态指示器 */
+.enhanced-hierarchical-task-tree .timer-status-indicator {
+  display: flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .enhanced-hierarchical-task-tree .ant-tree-node-content-wrapper {
+    padding: 4px 6px !important;
+  }
+  
+  .enhanced-hierarchical-task-tree .ant-tag {
+    font-size: 10px !important;
+    padding: 0 4px !important;
+    line-height: 16px !important;
+  }
+  
+  .enhanced-hierarchical-task-tree .ant-btn {
+    padding: 0 4px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* 紧凑模式样式 */
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-treenode {
+  padding: 1px 0 !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-node-content-wrapper {
+  padding: 2px 4px !important;
+  height: 24px !important;
+  line-height: 20px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-title {
+  font-size: 12px !important;
+  line-height: 20px !important;
+  height: 20px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-iconEle {
+  width: 16px !important;
+  height: 16px !important;
+  line-height: 16px !important;
+  margin-right: 4px !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* 紧凑模式下的层级缩进 */
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-indent-unit {
+  width: 16px !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-indent-unit::before {
+  left: 8px;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-indent-unit::after {
+  left: 8px;
+  top: 12px;
+  width: 8px;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-switcher {
+  width: 16px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-switcher-icon {
+  font-size: 10px !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-switcher-noop {
+  width: 16px !important;
+  height: 24px !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-switcher-noop::before {
+  left: 8px;
+  top: 12px;
+  width: 8px;
+}
+
+/* 任务一行显示样式 */
+.task-compact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 20px;
+  font-size: 12px;
+  line-height: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* 状态指示器样式 */
+.task-status-indicators {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.priority-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.subtask-counter {
+  font-size: 10px;
+  color: #8c8c8c;
+  background: #f5f5f5;
+  padding: 1px 4px;
+  border-radius: 2px;
+  line-height: 1;
+}
+
+
+/* 加载状态样式 */
+.hierarchical-task-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+}
+
+.hierarchical-task-loading .ant-spin-dot {
+  font-size: 24px;
+}
+
+.hierarchical-task-loading .loading-text {
+  margin-top: 16px;
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+/* 空状态样式 */
+.hierarchical-task-empty .ant-empty .ant-empty-description {
+  color: #8c8c8c;
+  font-size: 14px;
+}

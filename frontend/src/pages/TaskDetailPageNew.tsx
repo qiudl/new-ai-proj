@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
   Card, 
   Row, 
@@ -55,7 +55,10 @@ import {
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { TaskDetailDescendantsTreeV2, TaskDetailDescendantsTreeRef } from '../components/TaskDetailDescendantsTreeV2';
-import UnifiedTaskRefresh from '../components/UnifiedTaskRefresh';
+import { UnifiedTaskRefresh, CacheConfig, RefreshContext, RefreshResults } from '../components/UnifiedTaskRefresh';
+import { useSmartCache } from '../hooks/useSmartCache';
+import { CacheKeyBuilder } from '../utils/cacheKeyBuilder';
+import { useCacheState } from '../hooks/useCacheState';
 import { projectService } from '../services/projectService';
 import api from '../services/api';
 import { documentService } from '../services/documentService';
@@ -82,7 +85,6 @@ import { useMemoryManager } from '../hooks/useMemoryManager';
 import { TaskBasicInfo, TaskDetailInfo } from '../components/TaskDetailBasicInfo';
 import TaskRelationsPanel from '../components/TaskDetailRelations';
 import AnimatedContainer, { UpdateAnimation } from '../components/AnimatedContainer';
-import { RefreshConfigProvider } from '../contexts/RefreshConfigContext';
 import { RefreshConfigButton } from '../components/RefreshConfigModal';
 import TaskCompletionRefresh from '../components/TaskCompletionRefresh';
 import dayjs from 'dayjs';
@@ -93,6 +95,8 @@ import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import PerformanceMonitor from '../components/PerformanceMonitor';
 import type { DocumentItem } from '../components/UnifiedTaskDocumentArea';
 import DailyFocusTaskToggle from '../components/DailyFocusTaskToggle';
+import { taskAPIOptimizer, apiOptimizer } from '../utils/apiPerformanceOptimizer';
+import { taskDetailPerformanceMonitor, useComponentPerformanceMonitor } from '../utils/taskDetailPerformanceMonitor';
 
 // 懒加载非关键组件
 const TaskGanttChart = lazy(() => import('../components/TaskGanttChart'));
@@ -132,6 +136,9 @@ const TaskDetailPageNew: React.FC = () => {
   const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // 使用性能监控hook
+  useComponentPerformanceMonitor('TaskDetailPageNew');
   
   // 使用内存管理器钩子（解构需要的稳定函数，避免对象引用变化导致的重复副作用）
   const { addCleanupFunction, cleanupAll } = useMemoryManager();
@@ -186,6 +193,50 @@ const TaskDetailPageNew: React.FC = () => {
     const activeTab = getActiveTabFromURL();
     updateUIState({ activeTab });
   }, [location.search, updateUIState]); // 恢复updateUIState依赖
+
+  // 智能缓存集成
+  const { data: smartTaskData, loading: smartLoading, refresh: refreshSmartTask } = useSmartCache(
+    { projectId: Number(projectId), taskId: Number(taskId) },
+    {
+      keyBuilder: (params) => CacheKeyBuilder.task(params.projectId, params.taskId),
+      fetcher: async ({ projectId, taskId }) => {
+        const response = await TaskService.getTask(projectId, taskId);
+        return response;
+      },
+      dependencies: {
+        entityType: 'task',
+        entityId: Number(taskId!),
+        projectId: Number(projectId!)
+      },
+      smartInvalidation: {
+        trigger: ['update', 'delete'],
+        cascade: true
+      },
+      strategy: {
+        ttl: 5 * 60 * 1000, // 5分钟
+        priority: 'high',
+        tags: [`project:${projectId}`, `task:${taskId}`]
+      }
+    }
+  );
+
+  // 全局缓存状态监控
+  const { stats: cacheStats, realtimeMetrics, anomalies, actions: cacheActions } = useCacheState();
+
+  // 构建统一刷新配置
+  const refreshContext = useMemo((): CacheConfig => ({
+    smartInvalidation: {
+      entityType: 'task',
+      entityId: Number(taskId!),
+      projectId: Number(projectId!),
+      changeType: 'update'
+    },
+    batchRefresh: {
+      tags: [`project:${projectId}`, `task:${taskId}`],
+      patterns: [`task_*:${projectId}:${taskId}*`]
+    },
+    enableMetrics: true
+  }), [projectId, taskId]);
 
   // 简化版自动刷新 - 避免复杂的Hook依赖
   const [isCompletionStatsRefreshing, setIsCompletionStatsRefreshing] = useState(false);
@@ -259,6 +310,48 @@ const TaskDetailPageNew: React.FC = () => {
     }
   }, []);
 
+  // 增强刷新回调处理
+  const handleRefreshStart = useCallback((context: RefreshContext) => {
+    console.log('Enhanced refresh started:', context);
+    // 可以在这里触发加载状态更新
+    setIsCompletionStatsRefreshing(true);
+  }, []);
+
+  const handleRefreshComplete = useCallback((results: RefreshResults) => {
+    console.log('Enhanced refresh completed:', {
+      success: results.success,
+      duration: results.duration,
+      cacheEvents: results.cacheEvents?.length
+    });
+    
+    // 刷新智能缓存数据
+    if (results.success) {
+      refreshSmartTask();
+    }
+    
+    setIsCompletionStatsRefreshing(false);
+  }, [refreshSmartTask]);
+
+  const handleRefreshError = useCallback((error: Error, context: RefreshContext) => {
+    console.error('Enhanced refresh failed:', error, context);
+    setCompletionStatsError(error);
+    setIsCompletionStatsRefreshing(false);
+    
+    // 显示错误通知
+    message.error(`刷新失败: ${error.message}`);
+  }, []);
+
+  const handleCacheEvent = useCallback((event: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Cache event:', event);
+    }
+    
+    // 监控缓存异常
+    if (anomalies.highMissRate || anomalies.errorSpikes) {
+      console.warn('Cache performance issue detected:', anomalies);
+    }
+  }, [anomalies]);
+
   // 暂时禁用自动刷新以调试无限渲染问题
   // useEffect(() => {
   //   if (!projectId || !task?.id) return;
@@ -326,7 +419,7 @@ const TaskDetailPageNew: React.FC = () => {
     await checkDocumentExistsForTask(taskState.task);
   }, [taskState.task, projectId, checkDocumentExistsForTask]);
 
-  // 加载任务基本信息
+  // 优化的任务加载函数 - 使用API优化器
   const loadTask = useCallback(async () => {
     if (!projectId || !taskId) return;
     
@@ -335,33 +428,83 @@ const TaskDetailPageNew: React.FC = () => {
     const parsedTaskId = parseInt(taskId);
     
     if (isNaN(parsedProjectId) || isNaN(parsedTaskId)) {
-      message.error('无效的任务ID或项目ID');
+      message.error('无效的任务ID或项目id');
       navigate('/task-documents');
       return;
     }
     
     try {
       updateTaskState({ loading: true, error: null });
-      const taskData = await TaskService.getTask(parsedProjectId, parsedTaskId);
-      updateTaskState({ task: taskData, loading: false });
-      // 并行加载其他数据，直接传递taskData
-      loadAllTaskDataWithTask(taskData);
+      
+      // 使用API优化器并行加载所有数据
+      const optimizedData = await taskAPIOptimizer.getTaskDetails(
+        parsedProjectId, 
+        parsedTaskId, 
+        {
+          includeRelations: true,
+          includeTimeline: true,
+          includeDocuments: false // 文档按需加载
+        }
+      );
+      
+      // 更新任务状态
+      updateTaskState({ task: optimizedData.task, loading: false });
+      
+      // 记录任务详情页面加载完成性能指标
+      taskDetailPerformanceMonitor.recordComponentMetric('task-detail', 'load', {
+        taskId: parsedTaskId,
+        projectId: parsedProjectId,
+        dataSource: optimizedData._cacheHit ? 'cache' : 'api'
+      });
+      
+      // 更新关系数据
+      if (optimizedData.children) {
+        updateRelationState({ 
+          subtasks: Array.isArray(optimizedData.children) ? optimizedData.children : []
+        });
+        
+        // 计算统计数据
+        const stats = {
+          totalSubtasks: optimizedData.children.length,
+          completedSubtasks: optimizedData.children.filter((t: any) => t.status === 'completed').length,
+          inProgressSubtasks: optimizedData.children.filter((t: any) => t.status === 'in_progress').length,
+          todoSubtasks: optimizedData.children.filter((t: any) => t.status === 'todo').length,
+          completionRate: 0,
+          loading: false
+        };
+        
+        if (stats.totalSubtasks > 0) {
+          stats.completionRate = Math.round((stats.completedSubtasks / stats.totalSubtasks) * 100);
+        }
+        
+        updateCompletionState(stats);
+      }
+      
+      // 更新时间线数据
+      if (optimizedData.timeline) {
+        const timelineEvents = Array.isArray(optimizedData.timeline) 
+          ? optimizedData.timeline 
+          : optimizedData.timeline.data || [];
+        
+        updateHistoryState({ timelineEvents });
+      }
+      
+      // 预加载相关数据
+      taskAPIOptimizer.preloadTaskRelatedData(parsedProjectId, parsedTaskId);
+      
     } catch (error: any) {
       console.error('Error loading task:', error);
       
       // Check if it's a 404 error
       const status = error?.status || error?.response?.status || error?.statusCode;
       if (status === 404) {
-        // Don't show error message for 404, just set task to null
-        // The component will render the "task not found" UI
         updateTaskState({ task: null, loading: false });
       } else {
-        // For other errors, show the error message
         message.error('获取任务详情失败');
         updateTaskState({ error: '获取任务详情失败', loading: false });
       }
     }
-  }, [projectId, taskId, navigate, updateTaskState]);
+  }, [projectId, taskId, navigate, updateTaskState, updateRelationState, updateCompletionState, updateHistoryState]);
 
   // 并行加载所有任务数据（使用当前task状态）
   const loadAllTaskData = useCallback(async () => {
@@ -588,6 +731,22 @@ const TaskDetailPageNew: React.FC = () => {
       resetAllState();
     };
   }, [cleanupAll, resetAllState]);
+  
+  // 开发环境下的性能监控定时器
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && task) {
+      const performanceTimer = setInterval(() => {
+        const metrics = taskDetailPerformanceMonitor.getMetrics();
+        if (Object.keys(metrics).length > 0) {
+          console.group('📊 任务详情页性能监控');
+          console.log('性能指标:', metrics);
+          console.groupEnd();
+        }
+      }, 30000); // 每30秒输出一次报告
+      
+      return () => clearInterval(performanceTimer);
+    }
+  }, [task]);
 
   useEffect(() => {
     if (projectId && taskId) {
@@ -609,6 +768,16 @@ const TaskDetailPageNew: React.FC = () => {
       checkDocumentExists();
     }
   }, [uiState.activeTab, documentState.loading, documentState.exists]); // 移除checkDocumentExists依赖
+  
+  // 文档Tab性能监控
+  useEffect(() => {
+    if (uiState.activeTab === 'document' && task) {
+      taskDetailPerformanceMonitor.recordComponentMetric('document-tab', 'render', {
+        taskId: task.id,
+        documentCount: documentState.count
+      });
+    }
+  }, [uiState.activeTab, task?.id, documentState.count]);
 
   // 使用稳定回调避免子组件因回调变动触发重复加载导致的渲染循环
   const handleDocsChange = useCallback((docs: DocumentItem[]) => {
@@ -618,55 +787,58 @@ const TaskDetailPageNew: React.FC = () => {
     });
   }, [updateDocumentState]);
 
-  // 状态颜色映射
-  const getStatusConfig = (status: string) => {
-    const configs = {
-      todo: { 
-        color: '#d9d9d9', 
-        text: '待开始', 
-        icon: <PauseCircleOutlined />,
-        bgColor: '#fafafa'
-      },
-      in_progress: { 
-        color: '#1890ff', 
-        text: '进行中', 
-        icon: <PlayCircleOutlined />,
-        bgColor: '#e6f7ff'
-      },
-      completed: { 
-        color: '#52c41a', 
-        text: '已完成', 
-        icon: <CheckCircleOutlined />,
-        bgColor: '#f6ffed'
-      },
-      cancelled: { 
-        color: '#ff4d4f', 
-        text: '已取消', 
-        icon: <StopOutlined />,
-        bgColor: '#fff2f0'
-      },
-      archived: { 
-        color: '#8c8c8c', 
-        text: '已归档', 
-        icon: <InboxOutlined />,
-        bgColor: '#f0f0f0'
-      }
-    };
-    return configs[status as keyof typeof configs] || configs.todo;
-  };
+  // 使用useMemo优化状态配置映射
+  const statusConfigs = useMemo(() => ({
+    todo: { 
+      color: '#d9d9d9', 
+      text: '待开始', 
+      icon: <PauseCircleOutlined />,
+      bgColor: '#fafafa'
+    },
+    in_progress: { 
+      color: '#1890ff', 
+      text: '进行中', 
+      icon: <PlayCircleOutlined />,
+      bgColor: '#e6f7ff'
+    },
+    completed: { 
+      color: '#52c41a', 
+      text: '已完成', 
+      icon: <CheckCircleOutlined />,
+      bgColor: '#f6ffed'
+    },
+    cancelled: { 
+      color: '#ff4d4f', 
+      text: '已取消', 
+      icon: <StopOutlined />,
+      bgColor: '#fff2f0'
+    },
+    archived: { 
+      color: '#8c8c8c', 
+      text: '已归档', 
+      icon: <InboxOutlined />,
+      bgColor: '#f0f0f0'
+    }
+  }), []);
+  
+  const getStatusConfig = useCallback((status: string) => {
+    return statusConfigs[status as keyof typeof statusConfigs] || statusConfigs.todo;
+  }, [statusConfigs]);
 
-  // 优先级颜色
-  const getPriorityConfig = (priority: string) => {
-    const configs = {
-      high: { color: '#ff4d4f', text: '高' },
-      medium: { color: '#fa8c16', text: '中' },
-      low: { color: '#52c41a', text: '低' }
-    };
-    return configs[priority as keyof typeof configs] || { color: '#d9d9d9', text: '未知' };
-  };
+  // 使用useMemo优化优先级配置
+  const priorityConfigs = useMemo(() => ({
+    high: { color: '#ff4d4f', text: '高' },
+    medium: { color: '#fa8c16', text: '中' },
+    low: { color: '#52c41a', text: '低' },
+    default: { color: '#d9d9d9', text: '未知' }
+  }), []);
+  
+  const getPriorityConfig = useCallback((priority: string) => {
+    return priorityConfigs[priority as keyof typeof priorityConfigs] || priorityConfigs.default;
+  }, [priorityConfigs]);
 
-  // 计算剩余时间
-  const getTimeRemaining = () => {
+// 使用useMemo优化计算剩余时间
+  const timeRemaining = useMemo(() => {
     if (!task?.due_date) return null;
     
     const now = dayjs();
@@ -682,11 +854,11 @@ const TaskDetailPageNew: React.FC = () => {
     } else {
       return { text: `${diffDays} 天后到期`, type: 'normal' };
     }
-  };
+  }, [task?.due_date]);
 
-  const handleEditTask = () => {
+  const handleEditTask = useCallback(() => {
     updateUIState({ taskModalMode: 'edit', taskModalVisible: true });
-  };
+  }, [updateUIState]);
 
   const handleUpdateTask = async (taskData: unknown) => {
     if (!taskState.task || !projectId) return;
@@ -750,13 +922,35 @@ const TaskDetailPageNew: React.FC = () => {
     });
   };
 
-  const handleCreateSubtask = () => {
+  const handleCreateSubtask = useCallback(() => {
     updateUIState({ taskModalMode: 'createSubtask', taskModalVisible: true });
-  };
+  }, [updateUIState]);
 
-  const handleCreateSibling = () => {
+  const handleCreateSibling = useCallback(() => {
     updateUIState({ taskModalMode: 'createSibling', taskModalVisible: true });
-  };
+  }, [updateUIState]);
+
+  // 优化Tab切换处理函数
+  const handleTabChange = useCallback((key: string) => {
+    // 记录Tab切换性能指标
+    taskDetailPerformanceMonitor.recordComponentMetric('tab-switch', 'render', {
+      fromTab: uiState.activeTab,
+      toTab: key,
+      taskId: task?.id
+    });
+    
+    updateUIState({ activeTab: key });
+    // 更新URL但不刷新页面
+    const searchParams = new URLSearchParams(location.search);
+    if (key === 'info') {
+      searchParams.delete('tab');
+    } else {
+      searchParams.set('tab', key);
+    }
+    const newSearch = searchParams.toString();
+    const newUrl = `${location.pathname}${newSearch ? `?${newSearch}` : ''}`;
+    window.history.replaceState(null, '', newUrl);
+  }, [updateUIState, location.search, location.pathname, uiState.activeTab, task?.id]);
 
   // 批量导入子任务处理函数
   const handleBulkImportSubtasks = () => {
@@ -920,7 +1114,6 @@ const TaskDetailPageNew: React.FC = () => {
 
   const statusConfig = getStatusConfig(task.status);
   const priorityConfig = getPriorityConfig(task.custom_fields?.priority as string || 'medium');
-  const timeRemaining = getTimeRemaining();
 
   // 渲染面包屑的辅助数据
   const breadcrumbItems = [
@@ -1217,7 +1410,12 @@ const TaskDetailPageNew: React.FC = () => {
                       onRefreshSubtasks={refreshSubtasks}
                       showProgress={true}
                       disabled={isCompletionStatsRefreshing}
-                      tooltip="任务完成情况和子任务自动刷新"
+                      tooltip="任务完成情况和子任务智能刷新"
+                      cacheConfig={refreshContext}
+                      onRefreshStart={handleRefreshStart}
+                      onRefreshComplete={handleRefreshComplete}
+                      onRefreshError={handleRefreshError}
+                      onCacheEvent={handleCacheEvent}
                     />
                     <RefreshConfigButton />
                     {completionStatsStats && completionStatsStats.totalRefreshes > 0 && (
@@ -1374,19 +1572,7 @@ const TaskDetailPageNew: React.FC = () => {
           <Card style={{ marginBottom: '24px' }}>
             <Tabs
               activeKey={uiState.activeTab}
-              onChange={(key) => {
-                updateUIState({ activeTab: key });
-                // 更新URL但不刷新页面
-                const searchParams = new URLSearchParams(location.search);
-                if (key === 'info') {
-                  searchParams.delete('tab');
-                } else {
-                  searchParams.set('tab', key);
-                }
-                const newSearch = searchParams.toString();
-                const newUrl = `${location.pathname}${newSearch ? `?${newSearch}` : ''}`;
-                window.history.replaceState(null, '', newUrl);
-              }}
+              onChange={handleTabChange}
               type="card"
               size="large"
               items={[
@@ -1442,8 +1628,9 @@ const TaskDetailPageNew: React.FC = () => {
                       <Badge count={documentState.count}  />
                     </Space>
                   ),
-                  children: (
+                  children: uiState.activeTab === 'document' ? (
                     <div>
+                      {/* 记录文档标签页激活时间 - 在useEffect中处理 */}
                       <UnifiedTaskDocumentArea
                         taskId={taskState.task.id}
                         projectId={parseInt(projectId || '0')}
@@ -1452,12 +1639,12 @@ const TaskDetailPageNew: React.FC = () => {
                         showDocumentList={true}
                         compactMode={false}
                         headerVisible={false}
-                        includeSubtaskDocuments={true}
+                        includeSubtaskDocuments={false}
                         onDocumentChange={handleDocsChange}
                         onViewModeChange={undefined}
                       />
                     </div>
-                  )
+                  ) : null
                 },
                 {
                   key: 'progress',
@@ -1489,7 +1676,7 @@ const TaskDetailPageNew: React.FC = () => {
                       )}
                     </Space>
                   ),
-                  children: (
+                  children: uiState.activeTab === 'gantt' ? (
                     <div style={{ minHeight: '500px' }}>
                       <Suspense fallback={<Spin size="large" />}>
                         <TaskGanttChart
@@ -1498,6 +1685,10 @@ const TaskDetailPageNew: React.FC = () => {
                           style={{ border: 'none', boxShadow: 'none' }}
                         />
                       </Suspense>
+                    </div>
+                  ) : (
+                    <div style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Spin size="large" />
                     </div>
                   )
                 }
@@ -1848,10 +2039,17 @@ const TaskDetailPageNew: React.FC = () => {
   );
 };
 
-export default function WrappedTaskDetailPageNew() {
-  return (
-    <RefreshConfigProvider>
-      <TaskDetailPageNew />
-    </RefreshConfigProvider>
-  );
+// 在组件外部添加性能报告函数
+export const generateTaskDetailPerformanceReport = () => {
+  const metrics = taskDetailPerformanceMonitor.getMetrics();
+  console.log('=== 任务详情页面性能报告 ===');
+  console.log(metrics);
+  return metrics;
+};
+
+// 在开发环境下将函数暴露到全局供调试使用
+if (process.env.NODE_ENV === 'development') {
+  (window as any).generateTaskDetailPerformanceReport = generateTaskDetailPerformanceReport;
 }
+
+export default TaskDetailPageNew;

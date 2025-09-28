@@ -13,11 +13,15 @@ import (
 )
 
 type TimerHandler struct {
-	db database.DB
+	db         database.DB
+	sseManager *SSEManager
 }
 
 func NewTimerHandler(db database.DB) *TimerHandler {
-	return &TimerHandler{db: db}
+	return &TimerHandler{
+		db:         db,
+		sseManager: NewSSEManager(),
+	}
 }
 
 // StartTimer handles POST /api/timer/start with improved error handling and validation
@@ -102,6 +106,17 @@ func (h *TimerHandler) StartTimer(c *gin.Context) {
 		Message:   "Timer started successfully",
 	}
 
+	// Broadcast SSE event for timer start
+	currentTimerResponse := &models.TimerCurrentResponse{
+		IsRunning:      true,
+		TaskID:         &req.TaskID,
+		TaskTitle:      &task.Title,
+		StartTime:      &now,
+		ElapsedSeconds: 0,
+		FormattedTime:  "00:00:00",
+	}
+	h.broadcastTimerEvent(uid, models.SSEEventTimerStart, currentTimerResponse)
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -181,6 +196,17 @@ func (h *TimerHandler) StopTimer(c *gin.Context) {
 		Status:          "stopped",
 		Message:         "Timer stopped successfully",
 	}
+
+	// Broadcast SSE event for timer stop
+	currentTimerResponse := &models.TimerCurrentResponse{
+		IsRunning:      false,
+		TaskID:         nil,
+		TaskTitle:      nil,
+		StartTime:      nil,
+		ElapsedSeconds: 0,
+		FormattedTime:  "00:00:00",
+	}
+	h.broadcastTimerEvent(uid, models.SSEEventTimerStop, currentTimerResponse)
 
 	c.JSON(http.StatusOK, response)
 }
@@ -370,5 +396,135 @@ func (h *TimerHandler) stopCurrentTimer(ctx context.Context, user *models.User) 
 		}
 	}
 
+	// Broadcast SSE event for timer stop (task switching)
+	currentTimerResponse := &models.TimerCurrentResponse{
+		IsRunning:      false,
+		TaskID:         nil,
+		TaskTitle:      nil,
+		StartTime:      nil,
+		ElapsedSeconds: 0,
+		FormattedTime:  "00:00:00",
+	}
+	h.broadcastTimerEvent(user.ID, models.SSEEventTimerStop, currentTimerResponse)
+
 	return nil
+}
+
+// GetDailyComparison handles GET /api/v1/timer/daily-comparison
+func (h *TimerHandler) GetDailyComparison(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uid := userID.(int)
+	ctx := c.Request.Context()
+
+	// Add timeout to prevent hanging requests
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	// Get comprehensive 3-day comparison data
+	comparisonData, err := h.db.Timer().GetDailyComparisonData(ctx, uid)
+	if err != nil {
+		// Handle context timeout gracefully
+		if ctx.Err() == context.DeadlineExceeded {
+			c.JSON(http.StatusRequestTimeout, gin.H{
+				"error": "Request timeout",
+				"details": "分析数据量较大，请稍后重试",
+			})
+			return
+		}
+		
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get daily comparison data",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Add response metadata
+	response := gin.H{
+		"data": comparisonData,
+		"meta": gin.H{
+			"generated_at": time.Now().Format(time.RFC3339),
+			"timezone": "Asia/Shanghai",
+			"algorithm_version": "2.0",
+		},
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// ===== SSE Endpoints =====
+
+// TimerSSE handles Server-Sent Events for timer updates
+func (h *TimerHandler) TimerSSE(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	
+	uid := userID.(int)
+	
+	// Handle SSE connection
+	h.sseManager.HandleSSEConnection(c, uid)
+}
+
+// SSEConnectionTest handles SSE connection testing
+func (h *TimerHandler) SSEConnectionTest(c *gin.Context) {
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+	
+	// Send test message
+	testData := fmt.Sprintf(`{"type": "test", "message": "SSE connection successful", "timestamp": %d}`, time.Now().Unix())
+	c.Writer.WriteString(fmt.Sprintf("data: %s\n\n", testData))
+	c.Writer.Flush()
+	
+	// Wait a second then close
+	time.Sleep(1 * time.Second)
+	
+	closeData := `{"type": "close", "message": "Test completed"}`
+	c.Writer.WriteString(fmt.Sprintf("data: %s\n\n", closeData))
+	c.Writer.Flush()
+}
+
+// SSEHealthCheck provides health check for SSE functionality
+func (h *TimerHandler) SSEHealthCheck(c *gin.Context) {
+	metrics := h.sseManager.GetMetrics()
+	
+	health := gin.H{
+		"status":             "ok",
+		"timestamp":          time.Now().Unix(),
+		"active_connections": metrics.ActiveConnections,
+		"total_connections":  metrics.TotalConnections,
+		"messages_sent":      metrics.MessagesSent,
+		"connection_errors":  metrics.ConnectionErrors,
+		"message_errors":     metrics.MessageErrors,
+		"last_update":        metrics.LastUpdate.Unix(),
+	}
+	
+	// Determine health status
+	if metrics.ConnectionErrors > 0 && metrics.TotalConnections > 0 {
+		errorRate := float64(metrics.ConnectionErrors) / float64(metrics.TotalConnections)
+		if errorRate > 0.1 { // 10% error rate
+			health["status"] = "warning"
+		}
+	}
+	
+	if metrics.ActiveConnections > 1000 {
+		health["status"] = "warning"
+	}
+	
+	c.JSON(http.StatusOK, health)
+}
+
+// broadcastTimerEvent broadcasts a timer event to the user
+func (h *TimerHandler) broadcastTimerEvent(userID int, eventType string, timerResponse *models.TimerCurrentResponse) {
+	event := h.sseManager.CreateTimerEventFromCurrentResponse(userID, eventType, timerResponse)
+	h.sseManager.BroadcastToUser(userID, event)
 }

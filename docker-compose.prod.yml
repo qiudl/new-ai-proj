@@ -1,0 +1,210 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 生产数据库
+  postgres-prod:
+    image: postgres:16
+    container_name: ai_postgres_prod
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+      # 生产环境配置
+      POSTGRES_SHARED_PRELOAD_LIBRARIES: pg_stat_statements
+    ports:
+      - "127.0.0.1:5432:5432"  # 仅本地访问
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./backups:/backups
+      - ./infrastructure/docker/postgres/init-prod.sql:/docker-entrypoint-initdb.d/01-init.sql
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ai_prod_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Go 后端服务
+  backend-prod:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: ai_backend_prod
+    depends_on:
+      postgres-prod:
+        condition: service_healthy
+    environment:
+      ENV: production
+      NODE_ENV: production
+      APP_ENV: production
+      DB_HOST: postgres-prod
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SSL_MODE: disable
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: 24h
+      GIN_MODE: release
+      LOG_LEVEL: info
+      CORS_ORIGIN: https://${DOMAIN_NAME}
+      # 清除开发环境代理设置
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+    ports:
+      - "127.0.0.1:8080:8080"  # 仅本地访问
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+      - ./config:/app/config
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ai_prod_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # React 前端服务
+  frontend-prod:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: ai_frontend_prod
+    environment:
+      REACT_APP_API_URL: https://${DOMAIN_NAME}/api/v1
+      REACT_APP_API_BASE_URL: https://${DOMAIN_NAME}/api/v1
+      REACT_APP_ENV: production
+      REACT_APP_ENVIRONMENT: production
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:3000:80"  # 仅本地访问
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 120s
+    networks:
+      - ai_prod_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis 缓存
+  redis-prod:
+    image: redis:7-alpine
+    container_name: ai_redis_prod
+    ports:
+      - "127.0.0.1:6379:6379"  # 仅本地访问
+    volumes:
+      - redis_prod_data:/data
+      - ./config/redis/redis-prod.conf:/etc/redis/redis.conf
+    command: ["redis-server", "/etc/redis/redis.conf"]
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - ai_prod_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: ai_nginx
+    depends_on:
+      backend-prod:
+        condition: service_healthy
+      frontend-prod:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/sites:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+      - ./static:/var/www/static:ro
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai_prod_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # MCP服务器 (生产环境)
+  mcp-server-prod:
+    build:
+      context: ./mcp-task-bridge
+      dockerfile: Dockerfile
+    container_name: ai_mcp_server_prod
+    depends_on:
+      backend-prod:
+        condition: service_healthy
+    environment:
+      API_BASE_URL: http://backend-prod:8080/api/v1
+      TASK_API_BASE: http://backend-prod:8080/api/v1
+      NODE_ENV: production
+      HTTP_PORT: 3100
+      PORT: 3100
+    ports:
+       - "127.0.0.1:3100:3100"  # 仅本地访问
+    restart: always
+    networks:
+      - ai_prod_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+networks:
+  ai_prod_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+
+volumes:
+  postgres_prod_data:
+    driver: local
+  redis_prod_data:
+    driver: local

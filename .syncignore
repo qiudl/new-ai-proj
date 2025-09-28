@@ -1,0 +1,70 @@
+# rsync 排除规则文件
+# 版本控制
+.git/
+.gitignore
+.github/
+
+# 依赖和缓存
+node_modules/
+backend/vendor/
+frontend/node_modules/
+mcp-task-bridge/node_modules/
+
+# 构建产物
+build/
+dist/
+coverage/
+tmp/
+backend/ai-project-backend
+backend/main
+backend/new-ai-proj
+backend/test-build
+frontend/build/
+
+# 日志文件
+*.log
+logs/
+backend/logs/
+frontend/logs/
+
+# 临时文件
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+.vscode/
+.idea/
+
+# 测试和开发文件
+test-reports/
+*.test
+*.spec
+.nyc_output/
+
+# 环境配置（敏感信息）
+.env
+.env.local
+.env.development
+.env.test
+backend/.env
+frontend/.env
+
+# 备份文件
+*.bak
+*.backup
+*.sql.backup
+timeline_backup_*.sql
+
+# PDF和测试文件
+*.pdf
+*test*.html
+debug*.html
+simulate_*.js
+mock-*.json
+
+# 缓存目录
+cache/
+backend/cache/
+.next/
+.nuxt/

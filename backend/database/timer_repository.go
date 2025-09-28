@@ -893,9 +893,10 @@ func (r *PostgresTimerRepository) getDayEfficiencyData(ctx context.Context, user
 	// Calculate efficiency metrics
 	totalHours := float64(totalSeconds) / 3600.0
 	
-	// Enhanced efficiency index calculation
-	efficiencyIndex := r.calculateComprehensiveEfficiencyIndex(
+	// Enhanced efficiency index calculation with optional details
+	efficiencyIndex, calculationDetails := r.calculateComprehensiveEfficiencyIndexWithDetails(
 		totalHours, completedTasks, timerSessions, avgSessionDuration, topTaskSeconds, totalSeconds)
+	
 
 	// Get task breakdown
 	taskBreakdown, err := r.getDayTaskBreakdown(ctx, userID, date, endDate)
@@ -929,6 +930,7 @@ func (r *PostgresTimerRepository) getDayEfficiencyData(ctx context.Context, user
 		HourlyDistribution:   hourlyDistribution,
 		FormattedTotalTime:   models.FormatDuration(totalSeconds),
 		FormattedAvgSession:  models.FormatDuration(avgSessionDuration),
+		CalculationDetails:   calculationDetails,  // 添加计算详情
 	}, nil
 }
 
@@ -965,6 +967,110 @@ func (r *PostgresTimerRepository) calculateComprehensiveEfficiencyIndex(
 
 	// Cap at 100 and round
 	return math.Min(math.Round(totalIndex*10)/10, 100.0)
+}
+
+// calculateComprehensiveEfficiencyIndexWithDetails calculates efficiency index and returns detailed breakdown
+func (r *PostgresTimerRepository) calculateComprehensiveEfficiencyIndexWithDetails(
+	totalHours float64, completedTasks, timerSessions, avgSessionDuration, topTaskSeconds, totalSeconds int) (float64, *models.EfficiencyCalculationDetails) {
+	
+	if totalHours == 0 {
+		return 0, &models.EfficiencyCalculationDetails{
+			BaseScore: models.ScoreDetail{
+				Score:       0,
+				MaxScore:    30,
+				Description: "无工作时间记录",
+				Factors:     map[string]interface{}{"work_hours": 0},
+			},
+			TimeEfficiency: models.ScoreDetail{
+				Score:       0,
+				MaxScore:    25,
+				Description: "无专注时间数据",
+				Factors:     map[string]interface{}{"sessions": 0},
+			},
+			TaskEfficiency: models.ScoreDetail{
+				Score:       0,
+				MaxScore:    25,
+				Description: "无任务完成数据",
+				Factors:     map[string]interface{}{"completed_tasks": 0},
+			},
+			QualityFactor: models.ScoreDetail{
+				Score:       0,
+				MaxScore:    20,
+				Description: "无质量评估数据",
+				Factors:     map[string]interface{}{"work_pattern": "inactive"},
+			},
+			DynamicWeights: models.WeightDetails{
+				Base:    1.0,
+				Time:    1.0,
+				Task:    1.0,
+				Quality: 1.0,
+				Reason:  "默认权重（无工作数据）",
+			},
+			Suggestions: []string{"开始记录工作时间以获得效率分析"},
+		}
+	}
+
+	// Get algorithm configuration
+	config := r.getEfficiencyConfig()
+
+	// Dynamic weight adjustment based on work pattern
+	weights := r.calculateDynamicWeights(totalHours, timerSessions, completedTasks)
+	weightReason := r.getWeightAdjustmentReason(totalHours, timerSessions, completedTasks)
+
+	// Calculate individual scores with detailed factors
+	baseScore, baseFactors := r.calculateBaseScoreWithDetails(totalHours, weights.Base, config)
+	timeEfficiency, timeFactors := r.calculateTimeEfficiencyWithDetails(timerSessions, avgSessionDuration, totalHours, weights.Time, config)
+	taskEfficiency, taskFactors := r.calculateTaskEfficiencyWithDetails(completedTasks, topTaskSeconds, totalSeconds, timerSessions, weights.Task, config)
+	qualityFactor, qualityFactors := r.calculateQualityFactorWithDetails(totalHours, timerSessions, completedTasks, avgSessionDuration, weights.Quality, config)
+
+	totalIndex := baseScore + timeEfficiency + taskEfficiency + qualityFactor
+	
+	// Apply final adjustments for edge cases
+	totalIndex = r.applyFinalAdjustments(totalIndex, totalHours, timerSessions, completedTasks)
+
+	// Cap at 100 and round
+	finalScore := math.Min(math.Round(totalIndex*10)/10, 100.0)
+
+	// Generate improvement suggestions
+	suggestions := r.generateImprovementSuggestions(baseScore, timeEfficiency, taskEfficiency, qualityFactor, totalHours, timerSessions, completedTasks)
+
+	// Build detailed response
+	details := &models.EfficiencyCalculationDetails{
+		BaseScore: models.ScoreDetail{
+			Score:       math.Round(baseScore*10) / 10,
+			MaxScore:    config.MaxBaseScore,
+			Description: r.getBaseScoreDescription(totalHours, baseScore),
+			Factors:     baseFactors,
+		},
+		TimeEfficiency: models.ScoreDetail{
+			Score:       math.Round(timeEfficiency*10) / 10,
+			MaxScore:    config.MaxTimeEfficiency,
+			Description: r.getTimeEfficiencyDescription(timerSessions, avgSessionDuration, timeEfficiency),
+			Factors:     timeFactors,
+		},
+		TaskEfficiency: models.ScoreDetail{
+			Score:       math.Round(taskEfficiency*10) / 10,
+			MaxScore:    config.MaxTaskEfficiency,
+			Description: r.getTaskEfficiencyDescription(completedTasks, taskEfficiency),
+			Factors:     taskFactors,
+		},
+		QualityFactor: models.ScoreDetail{
+			Score:       math.Round(qualityFactor*10) / 10,
+			MaxScore:    config.MaxQualityFactor,
+			Description: r.getQualityFactorDescription(totalHours, timerSessions, qualityFactor),
+			Factors:     qualityFactors,
+		},
+		DynamicWeights: models.WeightDetails{
+			Base:    math.Round(weights.Base*100) / 100,
+			Time:    math.Round(weights.Time*100) / 100,
+			Task:    math.Round(weights.Task*100) / 100,
+			Quality: math.Round(weights.Quality*100) / 100,
+			Reason:  weightReason,
+		},
+		Suggestions: suggestions,
+	}
+
+	return finalScore, details
 }
 
 // getEfficiencyConfig returns the current algorithm configuration
@@ -1057,6 +1163,354 @@ func (r *PostgresTimerRepository) calculateDynamicWeights(totalHours float64, ti
 	}
 
 	return weights
+}
+
+// getWeightAdjustmentReason explains why weights were adjusted
+func (r *PostgresTimerRepository) getWeightAdjustmentReason(totalHours float64, timerSessions, completedTasks int) string {
+	if totalHours < 2 {
+		return "短时工作模式：强调任务完成效率"
+	} else if totalHours > 10 {
+		return "长时工作模式：强调工作质量和健康度"
+	} else if timerSessions > 15 {
+		return "多次短时专注：强调专注力管理"
+	} else if timerSessions < 3 && totalHours > 4 {
+		return "深度工作模式：奖励长时间专注"
+	}
+	return "标准工作模式：使用默认权重平衡"
+}
+
+// calculateBaseScoreWithDetails computes base score with detailed factors
+func (r *PostgresTimerRepository) calculateBaseScoreWithDetails(totalHours, weight float64, config EfficiencyConfig) (float64, map[string]interface{}) {
+	var score float64
+	var scoreRange string
+	var efficiency string
+
+	if totalHours <= 1 {
+		score = totalHours * 15 * weight
+		scoreRange = "0-1小时：线性计分"
+		efficiency = "起步阶段"
+	} else if totalHours <= 4 {
+		score = (15 + (totalHours-1)*5) * weight
+		scoreRange = "1-4小时：快速提升"
+		efficiency = "建设阶段"
+	} else if totalHours <= 8 {
+		score = math.Min(30*weight, 30)
+		scoreRange = "4-8小时：接近最优"
+		efficiency = "高效阶段"
+	} else {
+		score = math.Max(30*weight*0.9, 25)
+		scoreRange = "8+小时：过度工作惩罚"
+		efficiency = "需要平衡"
+	}
+
+	factors := map[string]interface{}{
+		"work_hours":      totalHours,
+		"optimal_hours":   config.OptimalWorkHours,
+		"weight_applied":  weight,
+		"score_range":     scoreRange,
+		"efficiency_zone": efficiency,
+		"raw_score":       math.Round(score*10) / 10,
+	}
+
+	return score, factors
+}
+
+// calculateTimeEfficiencyWithDetails computes time efficiency with detailed factors
+func (r *PostgresTimerRepository) calculateTimeEfficiencyWithDetails(timerSessions, avgSessionDuration int, totalHours, weight float64, config EfficiencyConfig) (float64, map[string]interface{}) {
+	if timerSessions == 0 {
+		return 0, map[string]interface{}{
+			"sessions":        0,
+			"avg_session_min": 0,
+			"focus_pattern":   "无专注记录",
+			"efficiency_note": "需要开始计时工作",
+		}
+	}
+
+	avgSessionMinutes := avgSessionDuration / 60
+	optimalMin := config.OptimalSessionMin / 60
+	optimalMax := config.OptimalSessionMax / 60
+
+	var score float64
+	var focusPattern string
+	var efficiencyNote string
+
+	// Session length scoring
+	sessionScore := 0.0
+	if avgSessionDuration >= config.OptimalSessionMin && avgSessionDuration <= config.OptimalSessionMax {
+		sessionScore = 15.0 // Optimal session length
+		focusPattern = "最佳专注时长"
+	} else if avgSessionDuration < config.OptimalSessionMin {
+		sessionScore = float64(avgSessionDuration) / float64(config.OptimalSessionMin) * 15.0
+		focusPattern = "短时专注模式"
+	} else {
+		sessionScore = 15.0 - math.Min((float64(avgSessionDuration-config.OptimalSessionMax)/1800.0)*3.0, 5.0)
+		focusPattern = "长时专注模式"
+	}
+
+	// Session frequency scoring
+	sessionsPerHour := float64(timerSessions) / totalHours
+	frequencyScore := 0.0
+	if sessionsPerHour >= 1.0 && sessionsPerHour <= 3.0 {
+		frequencyScore = 10.0
+		efficiencyNote = "专注频率良好"
+	} else if sessionsPerHour < 1.0 {
+		frequencyScore = sessionsPerHour * 10.0
+		efficiencyNote = "可增加专注频率"
+	} else {
+		frequencyScore = 10.0 - math.Min((sessionsPerHour-3.0)*2.0, 5.0)
+		efficiencyNote = "专注频率过高，建议适当休息"
+	}
+
+	score = (sessionScore + frequencyScore) * weight
+
+	factors := map[string]interface{}{
+		"sessions":           timerSessions,
+		"avg_session_min":    avgSessionMinutes,
+		"optimal_range_min":  fmt.Sprintf("%d-%d分钟", optimalMin, optimalMax),
+		"sessions_per_hour":  math.Round(sessionsPerHour*100) / 100,
+		"session_score":      math.Round(sessionScore*10) / 10,
+		"frequency_score":    math.Round(frequencyScore*10) / 10,
+		"focus_pattern":      focusPattern,
+		"efficiency_note":    efficiencyNote,
+		"weight_applied":     weight,
+	}
+
+	return score, factors
+}
+
+// calculateTaskEfficiencyWithDetails computes task efficiency with detailed factors
+func (r *PostgresTimerRepository) calculateTaskEfficiencyWithDetails(completedTasks, topTaskSeconds, totalSeconds, timerSessions int, weight float64, config EfficiencyConfig) (float64, map[string]interface{}) {
+	if completedTasks == 0 && totalSeconds == 0 {
+		return 0, map[string]interface{}{
+			"completed_tasks":    0,
+			"task_completion":    "无任务完成记录",
+			"work_distribution":  "无数据",
+			"productivity_level": "需要开始完成任务",
+		}
+	}
+
+	// Task completion scoring
+	completionScore := math.Min(float64(completedTasks)*config.TaskCompletionWeight, 20.0)
+	
+	// Work distribution scoring (top task vs total work balance)
+	distributionScore := 0.0
+	var workDistribution string
+	var productivityLevel string
+
+	if totalSeconds > 0 {
+		topTaskRatio := float64(topTaskSeconds) / float64(totalSeconds)
+		if topTaskRatio >= 0.3 && topTaskRatio <= 0.7 {
+			distributionScore = 5.0
+			workDistribution = "工作分布均衡"
+		} else if topTaskRatio < 0.3 {
+			distributionScore = topTaskRatio / 0.3 * 5.0
+			workDistribution = "工作过于分散"
+		} else {
+			distributionScore = (1.0 - (topTaskRatio - 0.7) / 0.3) * 5.0
+			workDistribution = "过度集中单一任务"
+		}
+	}
+
+	// Productivity assessment
+	if completedTasks >= 3 {
+		productivityLevel = "高产能"
+	} else if completedTasks >= 1 {
+		productivityLevel = "中等产能"
+	} else {
+		productivityLevel = "低产能"
+	}
+
+	score := (completionScore + distributionScore) * weight
+
+	factors := map[string]interface{}{
+		"completed_tasks":       completedTasks,
+		"task_completion_score": math.Round(completionScore*10) / 10,
+		"distribution_score":    math.Round(distributionScore*10) / 10,
+		"top_task_ratio":        math.Round(float64(topTaskSeconds)/float64(totalSeconds)*100*10) / 10,
+		"work_distribution":     workDistribution,
+		"productivity_level":    productivityLevel,
+		"weight_applied":        weight,
+	}
+
+	return score, factors
+}
+
+// calculateQualityFactorWithDetails computes quality factor with detailed factors
+func (r *PostgresTimerRepository) calculateQualityFactorWithDetails(totalHours float64, timerSessions, completedTasks, avgSessionDuration int, weight float64, config EfficiencyConfig) (float64, map[string]interface{}) {
+	// Work-life balance scoring
+	balanceScore := 0.0
+	var balanceAssessment string
+	if totalHours >= config.HealthyWorkHoursMin && totalHours <= config.HealthyWorkHoursMax {
+		balanceScore = 10.0
+		balanceAssessment = "工作时长健康"
+	} else if totalHours < config.HealthyWorkHoursMin {
+		balanceScore = (totalHours / config.HealthyWorkHoursMin) * 10.0
+		balanceAssessment = "工作时长偏少"
+	} else {
+		excessHours := totalHours - config.HealthyWorkHoursMax
+		balanceScore = math.Max(10.0-excessHours*1.5, 3.0)
+		balanceAssessment = "工作时长过长，注意休息"
+	}
+
+	// Consistency scoring
+	consistencyScore := 0.0
+	var consistencyPattern string
+	if timerSessions > 0 {
+		avgSessionHours := float64(avgSessionDuration) / 3600.0
+		if avgSessionHours >= 0.5 && avgSessionHours <= 2.0 {
+			consistencyScore = 10.0
+			consistencyPattern = "专注时长稳定"
+		} else if avgSessionHours < 0.5 {
+			consistencyScore = avgSessionHours / 0.5 * 10.0
+			consistencyPattern = "专注时间较短"
+		} else {
+			consistencyScore = math.Max(10.0-(avgSessionHours-2.0)*2.0, 5.0)
+			consistencyPattern = "单次专注时间过长"
+		}
+	}
+
+	score := (balanceScore + consistencyScore) * weight
+
+	// Overall work pattern assessment
+	var workPattern string
+	if balanceScore >= 8 && consistencyScore >= 8 {
+		workPattern = "优秀的工作模式"
+	} else if balanceScore >= 6 && consistencyScore >= 6 {
+		workPattern = "良好的工作模式"
+	} else if balanceScore < 5 || consistencyScore < 5 {
+		workPattern = "需要改进的工作模式"
+	} else {
+		workPattern = "一般的工作模式"
+	}
+
+	factors := map[string]interface{}{
+		"total_hours":          totalHours,
+		"healthy_range":        fmt.Sprintf("%.1f-%.1f小时", config.HealthyWorkHoursMin, config.HealthyWorkHoursMax),
+		"balance_score":        math.Round(balanceScore*10) / 10,
+		"consistency_score":    math.Round(consistencyScore*10) / 10,
+		"balance_assessment":   balanceAssessment,
+		"consistency_pattern":  consistencyPattern,
+		"work_pattern":         workPattern,
+		"avg_session_hours":    math.Round(float64(avgSessionDuration)/3600.0*100) / 100,
+		"weight_applied":       weight,
+	}
+
+	return score, factors
+}
+
+// getBaseScoreDescription generates description for base score
+func (r *PostgresTimerRepository) getBaseScoreDescription(totalHours, score float64) string {
+	if totalHours == 0 {
+		return "今日未记录工作时间"
+	} else if totalHours <= 1 {
+		return fmt.Sprintf("工作时长%.1f小时，处于起步阶段，得分%.1f/30", totalHours, score)
+	} else if totalHours <= 4 {
+		return fmt.Sprintf("工作时长%.1f小时，处于建设阶段，得分%.1f/30", totalHours, score)
+	} else if totalHours <= 8 {
+		return fmt.Sprintf("工作时长%.1f小时，处于高效阶段，得分%.1f/30", totalHours, score)
+	} else {
+		return fmt.Sprintf("工作时长%.1f小时，超出推荐范围，得分%.1f/30", totalHours, score)
+	}
+}
+
+// getTimeEfficiencyDescription generates description for time efficiency
+func (r *PostgresTimerRepository) getTimeEfficiencyDescription(timerSessions, avgSessionDuration int, score float64) string {
+	if timerSessions == 0 {
+		return "无专注时间记录，得分0/25"
+	}
+	avgMinutes := avgSessionDuration / 60
+	return fmt.Sprintf("%d次专注，平均%d分钟/次，专注效率得分%.1f/25", timerSessions, avgMinutes, score)
+}
+
+// getTaskEfficiencyDescription generates description for task efficiency
+func (r *PostgresTimerRepository) getTaskEfficiencyDescription(completedTasks int, score float64) string {
+	if completedTasks == 0 {
+		return "未完成任务，得分0/25"
+	}
+	return fmt.Sprintf("完成%d个任务，任务效率得分%.1f/25", completedTasks, score)
+}
+
+// getQualityFactorDescription generates description for quality factor
+func (r *PostgresTimerRepository) getQualityFactorDescription(totalHours float64, timerSessions int, score float64) string {
+	if totalHours == 0 {
+		return "无工作质量数据，得分0/20"
+	}
+	return fmt.Sprintf("工作%.1f小时，%d次专注，工作质量得分%.1f/20", totalHours, timerSessions, score)
+}
+
+// generateImprovementSuggestions generates personalized improvement suggestions
+func (r *PostgresTimerRepository) generateImprovementSuggestions(baseScore, timeEfficiency, taskEfficiency, qualityFactor, totalHours float64, timerSessions, completedTasks int) []string {
+	var suggestions []string
+
+	// Base score suggestions
+	if baseScore < 15 {
+		if totalHours < 2 {
+			suggestions = append(suggestions, "增加每日工作时间，建议达到4-6小时")
+		} else if totalHours > 10 {
+			suggestions = append(suggestions, "工作时间过长，注意劳逸结合，建议控制在8小时内")
+		}
+	}
+
+	// Time efficiency suggestions
+	if timeEfficiency < 12 {
+		if timerSessions == 0 {
+			suggestions = append(suggestions, "开始使用计时器记录工作时间，建立专注习惯")
+		} else if timerSessions > 0 {
+			avgSessionMinutes := 0
+			if timerSessions > 0 {
+				avgSessionMinutes = (int(totalHours) * 3600) / timerSessions / 60
+			}
+			if avgSessionMinutes < 30 {
+				suggestions = append(suggestions, "延长单次专注时间，建议每次专注30-60分钟")
+			} else if avgSessionMinutes > 90 {
+				suggestions = append(suggestions, "适当缩短单次专注时间，每60-90分钟休息一次")
+			}
+			if float64(timerSessions)/totalHours > 4 {
+				suggestions = append(suggestions, "减少任务切换频率，提高专注深度")
+			}
+		}
+	}
+
+	// Task efficiency suggestions
+	if taskEfficiency < 12 {
+		if completedTasks == 0 {
+			suggestions = append(suggestions, "设定明确的任务目标，专注于任务完成")
+		} else if completedTasks < 3 {
+			suggestions = append(suggestions, "提高任务完成率，建议每日完成3-5个任务")
+		}
+	}
+
+	// Quality factor suggestions
+	if qualityFactor < 10 {
+		if totalHours < 4 {
+			suggestions = append(suggestions, "适当增加工作时间，保持工作连续性")
+		} else if totalHours > 9 {
+			suggestions = append(suggestions, "避免过度工作，适当休息有助于提高效率")
+		}
+		if timerSessions > 0 {
+			avgSessionHours := totalHours / float64(timerSessions)
+			if avgSessionHours < 0.5 {
+				suggestions = append(suggestions, "提高专注时长的稳定性，避免频繁切换")
+			}
+		}
+	}
+
+	// General suggestions based on overall performance
+	totalScore := baseScore + timeEfficiency + taskEfficiency + qualityFactor
+	if totalScore < 40 {
+		suggestions = append(suggestions, "建议制定明确的工作计划，使用番茄工作法提高专注度")
+	} else if totalScore >= 80 {
+		suggestions = append(suggestions, "工作效率很高！继续保持当前的工作节奏")
+	} else if totalScore >= 60 {
+		suggestions = append(suggestions, "工作效率良好，可以尝试优化工作流程进一步提升")
+	}
+
+	// If no specific suggestions, provide general advice
+	if len(suggestions) == 0 {
+		suggestions = append(suggestions, "保持当前的工作状态，定期回顾和调整工作方法")
+	}
+
+	return suggestions
 }
 
 // calculateBaseScore computes work time foundation score

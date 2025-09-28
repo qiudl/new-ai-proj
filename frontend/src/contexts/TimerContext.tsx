@@ -4,18 +4,28 @@ import TimerService from '../services/timerService';
 import { personalTimerService, PersonalTimerCurrent } from '../services/personalTimerService';
 import { TimerCurrentResponse } from '../types/timer';
 import { AppError, ErrorType } from '../utils/errorTypes';
+import useSSETimer, { SSETimerState } from '../hooks/useSSETimer';
+import { SSEConnectionStatus } from '../services/sseTimerService';
 
-// 🆕 计时器刷新配置常量
+// 🎯 SSE计时器配置常量 - 大幅简化轮询配置
 const TIMER_REFRESH_CONFIG = {
-  ACTIVE_TIMER_INTERVAL: 10000,    // 有活跃计时器时10秒刷新
-  INACTIVE_TIMER_INTERVAL: 30000,  // 无计时器时30秒刷新
-  NETWORK_ERROR_INTERVAL: 15000,   // 网络错误时15秒重试
+  // 🔧 SSE降级轮询配置（仅SSE失败时使用）
+  FALLBACK_POLL_INTERVAL: 30000,   // SSE失败后的降级轮询间隔（30秒）
   VISIBILITY_CHANGE_DELAY: 2000,   // 页面可见性变化后2秒刷新
   MAX_RETRY_ATTEMPTS: 3,            // 最大重试次数
-  // 🆕 阶段4：准实时推送配置
-  REALTIME_SIMULATION_INTERVAL: 5000,  // 准实时模拟间隔（5秒）
-  CROSS_TAB_SYNC_INTERVAL: 2000,       // 跨标签页同步间隔（2秒）
-  EVENT_DRIVEN_REFRESH_DELAY: 1000     // 事件驱动刷新延迟（1秒）
+  
+  // 🆕 SSE特定配置
+  SSE_ENABLED: true,               // 是否启用SSE
+  SSE_DEBUG: process.env.NODE_ENV === 'development', // SSE调试模式
+  
+  // 🔧 保留最小必要的跨标签页同步配置
+  CROSS_TAB_SYNC_INTERVAL: 5000,  // 跨标签页状态同步间隔（增加到5秒）
+  
+  // 🆕 添加缺失的刷新间隔常量
+  ACTIVE_TIMER_INTERVAL: 5000,    // 活动计时器刷新间隔（5秒）
+  INACTIVE_TIMER_INTERVAL: 30000, // 非活动计时器刷新间隔（30秒）
+  NETWORK_ERROR_INTERVAL: 15000,  // 网络错误时的刷新间隔（15秒）
+  REALTIME_SIMULATION_INTERVAL: 1000, // 准实时模拟间隔（1秒）
 };
 
 interface TimerState {
@@ -36,6 +46,11 @@ interface TimerContextType {
   isLoading: boolean;
   connectionStatus: 'connected' | 'disconnected' | 'checking';
   
+  // 🎯 SSE连接状态
+  sseConnectionStatus: SSEConnectionStatus;
+  sseEnabled: boolean;
+  sseError: string | null;
+  
   // 🎯 新增：模式配置
   mode: 'full' | 'simplified';
   setMode: (mode: 'full' | 'simplified') => void;
@@ -53,9 +68,9 @@ startTimer: (taskId: number, taskTitle: string, taskType?: 'personal' | 'project
   optimisticPauseTimer: () => void;
   optimisticResumeTimer: () => void;
   
-  // 🆕 阶段4：准实时推送方法
-  enableRealtimeSimulation: () => void;
-  disableRealtimeSimulation: () => void;
+  // 🎯 SSE控制方法
+  toggleSSE: (enabled: boolean) => void;
+  reconnectSSE: () => void;
   triggerEventDrivenRefresh: () => void;
   
   // 🎯 新增：任务计时判断工具函数
@@ -98,20 +113,31 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
   
-  // 🆕 刷新间隔状态管理
-  const [currentRefreshInterval, setCurrentRefreshInterval] = useState(TIMER_REFRESH_CONFIG.INACTIVE_TIMER_INTERVAL);
+  // 🎯 SSE状态管理 - 替代复杂轮询逻辑
+  const [sseEnabled, setSSEEnabled] = useState(TIMER_REFRESH_CONFIG.SSE_ENABLED);
+  const [fallbackMode, setFallbackMode] = useState(false); // 是否处于降级模式
+  
+  // 🔧 保留最小必要的轮询状态（仅SSE失败时使用）
   const [retryAttempts, setRetryAttempts] = useState(0);
+  
+  // 🆕 动态刷新间隔状态管理
+  const [currentRefreshInterval, setCurrentRefreshInterval] = useState(TIMER_REFRESH_CONFIG.FALLBACK_POLL_INTERVAL);
+  
+  // 🆕 准实时模拟状态管理
+  const [realtimeEnabled, setRealtimeEnabled] = useState(false);
   
   // 🆕 乐观更新状态管理
   const [optimisticState, setOptimisticState] = useState<Partial<TimerState> | null>(null);
   const optimisticTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // 🆕 阶段4：准实时推送状态管理
-  const [realtimeEnabled, setRealtimeEnabled] = useState(true); // 默认启用
-  const realtimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // 🔧 简化的跨标签页同步（保留基本功能）
   const crossTabSyncRef = useRef<NodeJS.Timeout | null>(null);
-  const eventDrivenTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  
+  // 🔧 降级轮询相关 refs（仅SSE失败时使用）
+  const fallbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const eventDrivenTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const realtimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // 🎯 新增：模式状态管理
   const [currentMode, setCurrentMode] = useState<'full' | 'simplified'>(mode);
@@ -123,7 +149,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
   const onTimerUpdateRef = useRef(onTimerUpdate);
   onTimerUpdateRef.current = onTimerUpdate;
 
-  // 本地计时器更新
+  // 本地计时器更新 - moved to the very beginning to prevent hoisting issues
   const startLocalTimer = useCallback((startTime: Date) => {
     if (localTimerRef.current) {
       clearInterval(localTimerRef.current);
@@ -150,6 +176,190 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       localTimerRef.current = null;
     }
   }, []);
+
+  // 🆕 乐观更新工具函数
+  const clearOptimisticState = useCallback(() => {
+    if (optimisticTimeoutRef.current) {
+      clearTimeout(optimisticTimeoutRef.current);
+      optimisticTimeoutRef.current = null;
+    }
+    setOptimisticState(null);
+  }, []);
+
+  // 广播计时器状态变化到其他标签页
+  const broadcastTimerChange = useCallback((action: string, data?: any) => {
+    try {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: 'timer-state-change',
+          action,
+          data,
+          timestamp: Date.now()
+        });
+        console.log('📡 Broadcasted timer change:', action);
+      }
+    } catch (error) {
+      console.warn('Failed to broadcast timer change:', error);
+    }
+  }, []);
+
+  // 🎯 降级轮询管理 - early declaration to prevent hoisting issues
+  const startFallbackPolling = useCallback(() => {
+    if (fallbackIntervalRef.current) return; // 避免重复启动
+    
+    console.log('TimerContext: Starting fallback polling');
+    
+    const performFallbackRequest = async () => {
+      if (!isMountedRef.current || !fallbackMode) return;
+      
+      try {
+        // This will be resolved when refreshTimer is available via effect
+        console.log('TimerContext: Fallback polling - placeholder for refresh call');
+      } catch (error) {
+        console.warn('TimerContext: Fallback polling request failed', error);
+      }
+    };
+    
+    // 立即执行一次
+    performFallbackRequest();
+    
+    // 设置定期轮询
+    fallbackIntervalRef.current = setInterval(
+      performFallbackRequest, 
+      TIMER_REFRESH_CONFIG.FALLBACK_POLL_INTERVAL
+    );
+  }, [fallbackMode]);
+  
+  const stopFallbackPolling = useCallback(() => {
+    if (fallbackIntervalRef.current) {
+      clearInterval(fallbackIntervalRef.current);
+      fallbackIntervalRef.current = null;
+      
+      if (TIMER_REFRESH_CONFIG.SSE_DEBUG) {
+        console.log('TimerContext: Stopped fallback polling');
+      }
+    }
+  }, []);
+  
+  // 🎯 SSE集成 - 处理SSE事件更新
+  const handleSSETimerUpdate = useCallback((sseTimerState: SSETimerState) => {
+    if (!isMountedRef.current) return;
+    
+    if (TIMER_REFRESH_CONFIG.SSE_DEBUG) {
+      console.log('TimerContext: Received SSE timer update', sseTimerState);
+    }
+    
+    // 转换SSE状态为TimerState
+    const newTimerState: TimerState = {
+      isRunning: sseTimerState.isRunning,
+      isPaused: sseTimerState.isPaused,
+      taskId: sseTimerState.taskId,
+      taskTitle: sseTimerState.taskTitle,
+      taskType: sseTimerState.taskType,
+      projectId: sseTimerState.projectId,
+      startTime: sseTimerState.startTime,
+      elapsedSeconds: sseTimerState.elapsedSeconds,
+      formattedTime: sseTimerState.formattedTime,
+    };
+    
+    // 更新状态
+    setTimerState(newTimerState);
+    setConnectionStatus('connected');
+    setFallbackMode(false);
+    
+    // 通知回调
+    if (onTimerUpdateRef.current) {
+      onTimerUpdateRef.current(newTimerState.isRunning, newTimerState.taskTitle);
+    }
+    
+    // 管理本地计时器
+    if (newTimerState.isRunning && newTimerState.startTime && !newTimerState.isPaused) {
+      startLocalTimer(newTimerState.startTime);
+    } else {
+      stopLocalTimer();
+    }
+    
+    // 保存到localStorage
+    try {
+      localStorage.setItem('globalTimerState', JSON.stringify({
+        ...newTimerState,
+        startTime: newTimerState.startTime?.toISOString(),
+        lastSync: new Date().toISOString()
+      }));
+    } catch (error) {
+      console.warn('Failed to save timer state:', error);
+    }
+    
+    // 清除乐观更新状态
+    clearOptimisticState();
+    
+    // 🔧 跨标签页同步
+    broadcastTimerChange('sse-update', { 
+      taskId: newTimerState.taskId, 
+      taskTitle: newTimerState.taskTitle,
+      isRunning: newTimerState.isRunning 
+    });
+    
+  }, [startLocalTimer, stopLocalTimer, clearOptimisticState, broadcastTimerChange]);
+  
+  // 🎯 SSE连接状态处理
+  const handleSSEConnectionStatus = useCallback((status: SSEConnectionStatus, error?: string) => {
+    if (!isMountedRef.current) return;
+    
+    if (TIMER_REFRESH_CONFIG.SSE_DEBUG) {
+      console.log('TimerContext: SSE connection status changed', status, error);
+    }
+    
+    switch (status) {
+      case 'connected':
+        setConnectionStatus('connected');
+        setFallbackMode(false);
+        stopFallbackPolling();
+        break;
+        
+      case 'disconnected':
+      case 'error':
+        setConnectionStatus('disconnected');
+        break;
+        
+      case 'connecting':
+      case 'reconnecting':
+        setConnectionStatus('checking');
+        break;
+    }
+  }, [stopFallbackPolling]);
+  
+  // 🎯 SSE降级处理
+  const handleSSEFallback = useCallback(() => {
+    if (!isMountedRef.current) return;
+    
+    console.warn('TimerContext: SSE failed, falling back to polling');
+    setFallbackMode(true);
+    setConnectionStatus('disconnected');
+    
+    // 启动降级轮询
+    startFallbackPolling();
+  }, [startFallbackPolling]);
+  
+
+  // 🎯 使用SSE Hook
+  const {
+    connectionStatus: sseConnectionStatus,
+    lastError: sseError,
+    isConnected: sseConnected,
+    isEnabled: sseHookEnabled,
+    connect: connectSSE,
+    disconnect: disconnectSSE,
+    reconnect: reconnectSSE,
+    setEnabled: setSSEHookEnabled,
+    updateAuthToken: updateSSEAuthToken,
+  } = useSSETimer({
+    autoConnect: sseEnabled,
+    debug: TIMER_REFRESH_CONFIG.SSE_DEBUG,
+    onTimerUpdate: handleSSETimerUpdate,
+    onConnectionStatusChange: handleSSEConnectionStatus,
+    onFallbackToPolling: handleSSEFallback,
+  });
 
   // 更新定时器状态从API响应
   const updateTimerFromResponse = useCallback((response: TimerCurrentResponse) => {
@@ -245,14 +455,6 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     }
   }, [currentRefreshInterval, calculateRefreshInterval]);
 
-  // 🆕 乐观更新工具函数
-  const clearOptimisticState = useCallback(() => {
-    if (optimisticTimeoutRef.current) {
-      clearTimeout(optimisticTimeoutRef.current);
-      optimisticTimeoutRef.current = null;
-    }
-    setOptimisticState(null);
-  }, []);
 
   // 🆕 应用乐观更新
   const applyOptimisticUpdate = useCallback((updates: Partial<TimerState>, revertAfterMs: number = 10000) => {
@@ -309,22 +511,6 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     }
   }, []);
 
-  // 广播计时器状态变化到其他标签页
-  const broadcastTimerChange = useCallback((action: string, data?: any) => {
-    try {
-      if (broadcastChannelRef.current) {
-        broadcastChannelRef.current.postMessage({
-          type: 'timer-state-change',
-          action,
-          data,
-          timestamp: Date.now()
-        });
-        console.log('📡 Broadcasted timer change:', action);
-      }
-    } catch (error) {
-      console.warn('Failed to broadcast timer change:', error);
-    }
-  }, []);
 
   // 启用准实时模拟 - 🔧 移除refreshTimer依赖避免循环  
   const enableRealtimeSimulation = useCallback(() => {
@@ -357,25 +543,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     
   }, []);
 
-  // 触发事件驱动的刷新 - 🔧 移除refreshTimer依赖避免循环
-  const triggerEventDrivenRefresh = useCallback(() => {
-    // 清除现有的延迟刷新
-    if (eventDrivenTimeoutRef.current) {
-      clearTimeout(eventDrivenTimeoutRef.current);
-    }
-    
-    // 延迟执行刷新，避免频繁调用
-    eventDrivenTimeoutRef.current = setTimeout(() => {
-      // 异步调用refreshTimer
-      if (isMountedRef.current) {
-        refreshTimer();
-      }
-      // 广播给其他标签页
-      broadcastTimerChange('event-driven-refresh');
-    }, TIMER_REFRESH_CONFIG.EVENT_DRIVEN_REFRESH_DELAY);
-  }, [broadcastTimerChange]);
-
-  // 从服务器加载当前定时器状态 - 🆕 集成智能刷新间隔
+  // 从服务器加载当前定时器状态 - moved before first use
   const refreshTimer = useCallback(async () => {
     if (!isMountedRef.current) return;
     
@@ -465,6 +633,36 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       restoreFromLocalStorage();
     }
   }, [updateTimerFromResponse, startLocalTimer, restoreFromLocalStorage, updateRefreshInterval, retryAttempts, clearOptimisticState]);
+
+  // 🎯 SSE增强的事件驱动刷新
+  const triggerEventDrivenRefresh = useCallback(() => {
+    // 如果SSE已连接，不需要手动刷新
+    if (sseConnected) {
+      if (TIMER_REFRESH_CONFIG.SSE_DEBUG) {
+        console.log('TimerContext: SSE connected, skipping manual refresh');
+      }
+      // 仍然广播给其他标签页
+      broadcastTimerChange('event-driven-refresh');
+      return;
+    }
+    
+    // SSE未连接时才使用轮询刷新
+    if (fallbackMode) {
+      // 清除现有的延迟刷新
+      if (eventDrivenTimeoutRef.current) {
+        clearTimeout(eventDrivenTimeoutRef.current);
+      }
+      
+      // 延迟执行刷新，避免频繁调用
+      eventDrivenTimeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          refreshTimer();
+        }
+        // 广播给其他标签页
+        broadcastTimerChange('event-driven-refresh');
+      }, TIMER_REFRESH_CONFIG.VISIBILITY_CHANGE_DELAY);
+    }
+  }, [sseConnected, fallbackMode, refreshTimer, broadcastTimerChange]);
 
   // 🎯 新增：调试信息获取 (兼容SimplifiedTimer)
   const getDebugInfo = useCallback(() => {
@@ -766,6 +964,28 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
       normalize(finalTimerState.taskType) === normalize(taskType)
     );
   }, [finalTimerState.isRunning, finalTimerState.isPaused, finalTimerState.taskId, finalTimerState.taskType]);
+  
+  // 🎯 SSE控制方法
+  const toggleSSE = useCallback((enabled: boolean) => {
+    setSSEEnabled(enabled);
+    setSSEHookEnabled(enabled);
+    
+    if (enabled && !sseConnected) {
+      connectSSE();
+    } else if (!enabled && sseConnected) {
+      disconnectSSE();
+      // 启动降级轮询
+      setFallbackMode(true);
+      startFallbackPolling();
+    }
+  }, [setSSEHookEnabled, sseConnected, connectSSE, disconnectSSE, startFallbackPolling]);
+  
+  const reconnectSSEHandler = useCallback(() => {
+    if (sseEnabled) {
+      reconnectSSE();
+    }
+  }, [sseEnabled, reconnectSSE]);
+  
 
   // 💡 修复：分离初始化和状态恢复
   useEffect(() => {
@@ -1057,6 +1277,12 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
     isLoading,
     // 🎯 简化模式下优化连接状态 (减少网络检查)
     connectionStatus: currentMode === 'simplified' ? 'connected' : connectionStatus,
+    
+    // 🎯 SSE连接状态
+    sseConnectionStatus,
+    sseEnabled,
+    sseError,
+    
     // 🎯 新增：模式配置
     mode: currentMode,
     setMode: setCurrentMode,
@@ -1070,10 +1296,12 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
     optimisticStopTimer,
     optimisticPauseTimer,
     optimisticResumeTimer,
-    // 🆕 阶段4：准实时推送方法
-    enableRealtimeSimulation,
-    disableRealtimeSimulation,
+    
+    // 🎯 SSE控制方法
+    toggleSSE,
+    reconnectSSE: reconnectSSEHandler,
     triggerEventDrivenRefresh,
+    
     // 🎯 新增：任务计时判断工具函数
     isTaskTiming,
     // 🎯 新增：调试功能
@@ -1083,6 +1311,10 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
     finalTimerState, // 🆕 使用最终状态
     isLoading,
     connectionStatus,
+    // 🎯 SSE状态依赖
+    sseConnectionStatus,
+    sseEnabled,
+    sseError,
     currentMode,
     startTimer,
     stopTimer,
@@ -1094,9 +1326,9 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
     optimisticStopTimer,
     optimisticPauseTimer,
     optimisticResumeTimer,
-    // 🆕 阶段4：准实时推送方法依赖
-    enableRealtimeSimulation,
-    disableRealtimeSimulation,
+    // 🎯 SSE控制方法依赖
+    toggleSSE,
+    reconnectSSEHandler,
     triggerEventDrivenRefresh,
     isTaskTiming,
     getDebugInfo,

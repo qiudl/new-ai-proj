@@ -287,7 +287,7 @@ const EnterpriseImpersonation: React.FC = () => {
               value={selectedEnterpriseId}
               onChange={setSelectedEnterpriseId}
               showSearch
-              optionFilterProp="children"
+              
               filterOption={(input, option) =>
                 (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
               }

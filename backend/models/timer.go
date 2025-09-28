@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -190,20 +191,21 @@ type DailyComparisonResponse struct {
 
 // DayEfficiencyData represents comprehensive efficiency data for a single day
 type DayEfficiencyData struct {
-	Date                 string                     `json:"date"`
-	TotalHours           float64                    `json:"total_hours"`
-	TotalSeconds         int                        `json:"total_seconds"`
-	CompletedTasks       int                        `json:"completed_tasks"`
-	UniqueTasksWorked    int                        `json:"unique_tasks_worked"`
-	TimerSessions        int                        `json:"timer_sessions"`
-	AvgSessionDuration   int                        `json:"avg_session_duration"`
-	EfficiencyIndex      float64                    `json:"efficiency_index"`
-	TopTaskTitle         string                     `json:"top_task_title"`
-	TopTaskHours         float64                    `json:"top_task_hours"`
-	TaskBreakdown        []TaskBreakdownItem        `json:"task_breakdown"`
-	HourlyDistribution   []HourlyDistributionItem   `json:"hourly_distribution"`
-	FormattedTotalTime   string                     `json:"formatted_total_time"`
-	FormattedAvgSession  string                     `json:"formatted_avg_session"`
+	Date                 string                        `json:"date"`
+	TotalHours           float64                       `json:"total_hours"`
+	TotalSeconds         int                           `json:"total_seconds"`
+	CompletedTasks       int                           `json:"completed_tasks"`
+	UniqueTasksWorked    int                           `json:"unique_tasks_worked"`
+	TimerSessions        int                           `json:"timer_sessions"`
+	AvgSessionDuration   int                           `json:"avg_session_duration"`
+	EfficiencyIndex      float64                       `json:"efficiency_index"`
+	TopTaskTitle         string                        `json:"top_task_title"`
+	TopTaskHours         float64                       `json:"top_task_hours"`
+	TaskBreakdown        []TaskBreakdownItem           `json:"task_breakdown"`
+	HourlyDistribution   []HourlyDistributionItem      `json:"hourly_distribution"`
+	FormattedTotalTime   string                        `json:"formatted_total_time"`
+	FormattedAvgSession  string                        `json:"formatted_avg_session"`
+	CalculationDetails   *EfficiencyCalculationDetails `json:"calculation_details"`
 }
 
 // TaskBreakdownItem represents time breakdown for a specific task in a day
@@ -242,4 +244,90 @@ type EfficiencyInsight struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Priority    string `json:"priority"`    // "high", "medium", "low"
+}
+
+// EfficiencyCalculationDetails represents detailed breakdown of efficiency index calculation
+type EfficiencyCalculationDetails struct {
+	BaseScore      ScoreDetail     `json:"base_score"`
+	TimeEfficiency ScoreDetail     `json:"time_efficiency"`
+	TaskEfficiency ScoreDetail     `json:"task_efficiency"`
+	QualityFactor  ScoreDetail     `json:"quality_factor"`
+	DynamicWeights WeightDetails   `json:"dynamic_weights"`
+	Suggestions    []string        `json:"improvement_suggestions"`
+}
+
+// ScoreDetail represents detailed information about a score component
+type ScoreDetail struct {
+	Score       float64                `json:"score"`
+	MaxScore    float64                `json:"max_score"`
+	Description string                 `json:"description"`
+	Factors     map[string]interface{} `json:"factors"`
+}
+
+// WeightDetails represents dynamic weight adjustment information
+type WeightDetails struct {
+	Base    float64 `json:"base"`
+	Time    float64 `json:"time"`
+	Task    float64 `json:"task"`
+	Quality float64 `json:"quality"`
+	Reason  string  `json:"reason"`
+}
+
+// SSE Event Types
+const (
+	SSEEventTimerStart   = "timer_start"
+	SSEEventTimerStop    = "timer_stop"
+	SSEEventTimerPause   = "timer_pause"
+	SSEEventTimerResume  = "timer_resume"
+	SSEEventTimerUpdate  = "timer_update"
+	SSEEventConnection   = "connection_status"
+	SSEEventHeartbeat    = "heartbeat"
+)
+
+// TimerEvent represents an SSE event for timer updates
+type TimerEvent struct {
+	Type      string      `json:"type"`
+	Data      interface{} `json:"data"`
+	UserID    int         `json:"user_id"`
+	Timestamp time.Time   `json:"timestamp"`
+	EventID   string      `json:"event_id,omitempty"`
+}
+
+// SSETimerData represents timer data sent via SSE
+type SSETimerData struct {
+	ID             int        `json:"id,omitempty"`
+	UserID         int        `json:"user_id"`
+	TargetType     string     `json:"target_type"`
+	TargetID       int        `json:"target_id"`
+	TargetTitle    string     `json:"target_title"`
+	Status         string     `json:"status"`
+	StartTime      *time.Time `json:"start_time,omitempty"`
+	ElapsedSeconds int        `json:"elapsed_seconds"`
+	IsRunning      bool       `json:"is_running"`
+	IsPaused       bool       `json:"is_paused"`
+	ProjectID      *int       `json:"project_id,omitempty"`
+	FormattedTime  string     `json:"formatted_time"`
+}
+
+// SSEConnectionData represents connection status data
+type SSEConnectionData struct {
+	Status    string    `json:"status"`
+	UserID    int       `json:"user_id"`
+	Timestamp time.Time `json:"timestamp"`
+	Message   string    `json:"message,omitempty"`
+}
+
+// ToJSON converts TimerEvent to JSON string for SSE transmission
+func (e *TimerEvent) ToJSON() string {
+	data, _ := json.Marshal(e)
+	return string(data)
+}
+
+// ToSSEFormat converts TimerEvent to SSE format
+func (e *TimerEvent) ToSSEFormat() string {
+	jsonData := e.ToJSON()
+	if e.EventID != "" {
+		return fmt.Sprintf("id: %s\nevent: %s\ndata: %s\n\n", e.EventID, e.Type, jsonData)
+	}
+	return fmt.Sprintf("event: %s\ndata: %s\n\n", e.Type, jsonData)
 }

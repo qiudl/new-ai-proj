@@ -1,0 +1,277 @@
+groups:
+  # 系统资源告警
+  - name: system_alerts
+    rules:
+      # CPU 使用率过高
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}"
+          value: "{{ $value }}%"
+
+      # 内存使用率过高
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 85% for more than 5 minutes on {{ $labels.instance }}"
+          value: "{{ $value }}%"
+
+      # 磁盘空间不足
+      - alert: DiskSpaceRunningOut
+        expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "Disk space running out"
+          description: "Disk usage is above 85% on {{ $labels.instance }} (mount: {{ $labels.mountpoint }})"
+          value: "{{ $value }}%"
+
+      # 磁盘空间严重不足
+      - alert: DiskSpaceCritical
+        expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Critical disk space shortage"
+          description: "Disk usage is above 95% on {{ $labels.instance }} (mount: {{ $labels.mountpoint }})"
+          value: "{{ $value }}%"
+
+      # 系统负载过高
+      - alert: HighSystemLoad
+        expr: node_load15 > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High system load"
+          description: "15-minute load average is above 2.0 on {{ $labels.instance }}"
+          value: "{{ $value }}"
+
+      # 磁盘IO等待时间过高
+      - alert: HighIOWait
+        expr: rate(node_cpu_seconds_total{mode="iowait"}[5m]) * 100 > 50
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High I/O wait time"
+          description: "I/O wait time is above 50% for more than 5 minutes on {{ $labels.instance }}"
+          value: "{{ $value }}%"
+
+  # 容器和应用告警
+  - name: container_alerts
+    rules:
+      # 容器停止运行
+      - alert: ContainerDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: container
+        annotations:
+          summary: "Container is down"
+          description: "Container {{ $labels.job }} on {{ $labels.instance }} is down"
+
+      # 容器内存使用率过高
+      - alert: ContainerHighMemoryUsage
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: container
+        annotations:
+          summary: "Container high memory usage"
+          description: "Container {{ $labels.name }} memory usage is above 90%"
+          value: "{{ $value }}%"
+
+      # 容器CPU使用率过高
+      - alert: ContainerHighCPUUsage
+        expr: (rate(container_cpu_usage_seconds_total[5m]) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: container
+        annotations:
+          summary: "Container high CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is above 80%"
+          value: "{{ $value }}%"
+
+      # 容器重启频繁
+      - alert: ContainerRestartingFrequently
+        expr: rate(container_last_seen[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: container
+        annotations:
+          summary: "Container restarting frequently"
+          description: "Container {{ $labels.name }} is restarting frequently"
+
+  # 数据库告警
+  - name: database_alerts
+    rules:
+      # PostgreSQL 连接数过多
+      - alert: PostgreSQLTooManyConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "PostgreSQL too many connections"
+          description: "PostgreSQL connection usage is above 80%"
+          value: "{{ $value }}%"
+
+      # PostgreSQL 死锁检测
+      - alert: PostgreSQLDeadlocks
+        expr: rate(pg_stat_database_deadlocks[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "PostgreSQL deadlocks detected"
+          description: "Deadlocks detected in PostgreSQL database {{ $labels.datname }}"
+
+      # Redis 内存使用率过高
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is above 90%"
+          value: "{{ $value }}%"
+
+      # Redis 连接数过多
+      - alert: RedisTooManyConnections
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Redis too many connections"
+          description: "Redis has too many client connections"
+          value: "{{ $value }}"
+
+  # 网络和服务告警
+  - name: network_alerts
+    rules:
+      # Nginx 错误率过高
+      - alert: NginxHighErrorRate
+        expr: rate(nginx_http_requests_total{status=~"5.."}[5m]) / rate(nginx_http_requests_total[5m]) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: web
+        annotations:
+          summary: "Nginx high error rate"
+          description: "Nginx 5xx error rate is above 5%"
+          value: "{{ $value }}%"
+
+      # 响应时间过长
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(nginx_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: web
+        annotations:
+          summary: "High response time"
+          description: "95th percentile response time is above 2 seconds"
+          value: "{{ $value }}s"
+
+      # TLS 证书即将过期
+      - alert: TLSCertExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 604800  # 7 days
+        for: 1h
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "TLS certificate expiring soon"
+          description: "TLS certificate for {{ $labels.instance }} expires in less than 7 days"
+
+  # 应用程序特定告警
+  - name: application_alerts
+    rules:
+      # 应用健康检查失败
+      - alert: ApplicationHealthCheckFailed
+        expr: probe_success{job="ai-project-app"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          service: application
+        annotations:
+          summary: "Application health check failed"
+          description: "Health check failed for {{ $labels.instance }}"
+
+      # API 错误率过高
+      - alert: APIHighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: "API high error rate"
+          description: "API 5xx error rate is above 5%"
+          value: "{{ $value }}%"
+
+      # 队列积压过多
+      - alert: HighQueueBacklog
+        expr: queue_size > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: queue
+        annotations:
+          summary: "High queue backlog"
+          description: "Queue {{ $labels.queue }} has high backlog"
+          value: "{{ $value }} items"
+
+  # 安全告警
+  - name: security_alerts
+    rules:
+      # 异常登录尝试
+      - alert: HighFailedLogins
+        expr: rate(auth_failed_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "High number of failed login attempts"
+          description: "High number of failed login attempts detected"
+          value: "{{ $value }} attempts/sec"
+
+      # 不寻常的网络活动
+      - alert: UnusualNetworkActivity
+        expr: rate(node_network_receive_bytes_total[5m]) > 100000000  # 100MB/s
+        for: 5m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "Unusual network activity"
+          description: "High network traffic detected on {{ $labels.instance }}"
+          value: "{{ $value }} bytes/sec"

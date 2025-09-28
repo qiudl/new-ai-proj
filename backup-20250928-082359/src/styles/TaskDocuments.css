@@ -1,0 +1,313 @@
+/* Task 307: Task Document Upload/Download Styles */
+
+.task-document-uploader {
+  margin: 16px 0;
+}
+
+.task-document-uploader .ant-upload-drag {
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.task-document-uploader .ant-upload-drag:hover {
+  border-color: #1890ff;
+  background: #f0f8ff;
+}
+
+.task-document-uploader .ant-upload-drag-icon {
+  font-size: 48px;
+  color: #1890ff;
+}
+
+.task-document-uploader .ant-upload-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin: 8px 0;
+}
+
+.task-document-uploader .ant-upload-hint {
+  font-size: 14px;
+  color: #666;
+}
+
+.task-document-manager {
+  padding: 16px 0;
+}
+
+.task-document-manager .ant-tabs-tab {
+  font-weight: 500;
+}
+
+.task-document-manager .ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.task-document-manager .ant-list-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.3s ease;
+}
+
+.task-document-manager .ant-list-item:hover {
+  background-color: #fafafa;
+}
+
+.task-document-manager .ant-list-item-meta-avatar {
+  font-size: 20px;
+}
+
+.task-document-manager .ant-progress {
+  margin: 8px 0;
+}
+
+.task-document-widget {
+  margin: 8px 0;
+}
+
+.task-document-widget .ant-card-head {
+  padding: 0 16px;
+  min-height: 40px;
+}
+
+.task-document-widget .ant-card-head-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.task-document-widget .ant-card-extra {
+  font-size: 14px;
+}
+
+.task-document-widget .ant-badge {
+  line-height: 1;
+}
+
+.task-document-widget .ant-badge-count {
+  box-shadow: 0 0 0 1px #fff;
+}
+
+/* Upload progress styling */
+.upload-progress-container {
+  margin: 16px 0;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.upload-progress-item {
+  margin-bottom: 8px;
+}
+
+.upload-progress-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Document stats styling */
+.document-stats {
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  color: white;
+}
+
+.document-stats .stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.document-stats .stat-item:last-child {
+  margin-bottom: 0;
+}
+
+.document-stats .stat-label {
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.document-stats .stat-value {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+/* File type icons */
+.file-icon-markdown {
+  color: #1890ff;
+}
+
+.file-icon-pdf {
+  color: #ff4d4f;
+}
+
+.file-icon-text {
+  color: #52c41a;
+}
+
+.file-icon-default {
+  color: #8c8c8c;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .task-document-uploader .ant-upload-drag {
+    padding: 20px 10px;
+  }
+  
+  .task-document-uploader .ant-upload-drag-icon {
+    font-size: 36px;
+  }
+  
+  .task-document-manager .ant-tabs-tab {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  
+  .task-document-widget .ant-card-head {
+    padding: 0 12px;
+  }
+  
+  .task-document-widget .ant-card-body {
+    padding: 12px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .task-document-uploader .ant-upload-drag {
+    background: #1a1a1a;
+    border-color: #424242;
+  }
+  
+  .task-document-uploader .ant-upload-drag:hover {
+    background: #2a2a2a;
+    border-color: #1890ff;
+  }
+  
+  .task-document-manager .ant-list-item:hover {
+    background-color: #1a1a1a;
+  }
+  
+  .upload-progress-container {
+    background: #1a1a1a;
+    border-color: #424242;
+  }
+}
+
+/* Animation and transitions */
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading states */
+.loading-overlay {
+  position: relative;
+}
+
+.loading-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  z-index: 1;
+}
+
+.loading-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+/* Success states */
+.upload-success {
+  border: 2px solid #52c41a;
+  background: #f6ffed;
+}
+
+.upload-success .ant-upload-drag-icon {
+  color: #52c41a;
+}
+
+/* Error states */
+.upload-error {
+  border: 2px solid #ff4d4f;
+  background: #fff2f0;
+}
+
+.upload-error .ant-upload-drag-icon {
+  color: #ff4d4f;
+}
+
+/* Utility classes */
+.mb-4 {
+  margin-bottom: 16px;
+}
+
+.mt-2 {
+  margin-top: 8px;
+}
+
+.mt-3 {
+  margin-top: 12px;
+}
+
+.mr-2 {
+  margin-right: 8px;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}

@@ -61,8 +61,8 @@ func (h *OKRHandler) CreateObjective(c *gin.Context) {
 		Progress:     0,
 		AssigneeID:   &uid,
 		EnterpriseID: user.CompanyID, // Use user's company_id (mapped to enterprise)
-		StartDate:    req.StartDate,
-		EndDate:      req.EndDate,
+		StartDate:    req.StartDate.Time,
+		EndDate:      req.EndDate.Time,
 		CreatedBy:    &uid,
 	}
 

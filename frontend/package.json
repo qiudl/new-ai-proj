@@ -65,6 +65,12 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "build:cloudflare": "GENERATE_SOURCEMAP=false npm run build && npm run optimize:build",
+    "optimize:build": "npm run compress:build && npm run copy:cf-files",
+    "compress:build": "find build -name '*.js' -o -name '*.css' | xargs gzip -k",
+    "copy:cf-files": "cp -f public/_redirects build/ && cp -f public/_headers build/",
+    "deploy:cf": "npm run build:cloudflare && npx wrangler pages deploy build --project-name=ai-project-frontend",
+    "preview:cf": "npm run build:cloudflare && npx wrangler pages deploy build --project-name=ai-project-frontend --env=preview",
     "test": "react-scripts test",
     "start:legacy": "react-scripts start",
     "build:legacy": "react-scripts build",
@@ -142,7 +148,8 @@
     "prettier": "^2.8.8",
     "ts-node": "^10.9.2",
     "uuid": "^13.0.0",
-    "webpack-bundle-analyzer": "^4.10.2"
+    "webpack-bundle-analyzer": "^4.10.2",
+    "wrangler": "^3.78.0"
   },
   "overrides": {
     "typescript": "^5.3.3"

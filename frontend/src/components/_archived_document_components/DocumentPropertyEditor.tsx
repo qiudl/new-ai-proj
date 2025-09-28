@@ -376,7 +376,7 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
                 allowClear
                 loading={loadingProjects}
                 showSearch
-                optionFilterProp="children"
+                
                 notFoundContent={loadingProjects ? '加载中...' : '暂无项目数据'}
               >
                 {projects.map(project => (
@@ -401,7 +401,7 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
                 allowClear
                 loading={loadingCustomers}
                 showSearch
-                optionFilterProp="children"
+                
                 notFoundContent={loadingCustomers ? '加载中...' : '暂无客户数据'}
               >
                 {customers.map(customer => (

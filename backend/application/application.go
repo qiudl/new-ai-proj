@@ -46,9 +46,10 @@ type Application struct {
 	enterpriseHandler     *handlers.EnterpriseHandler     // Enterprise handler instance
 	projectHandler        *handlers.ProjectHandler        // Project handler instance
 	taskHandler           *handlers.TaskHandler           // Task handler instance
-	taskHierarchyHandler  *handlers.TaskHierarchyHandler  // Task hierarchy handler instance
-	reportHandler         *handlers.ReportHandler         // Report handler instance
-	mirrorWritable        bool
+	taskHierarchyHandler     *handlers.TaskHierarchyHandler     // Task hierarchy handler instance
+	reportHandler            *handlers.ReportHandler            // Report handler instance
+	testDataGeneratorService *services.TestDataGeneratorService // Test data generator service instance
+	mirrorWritable           bool
 }
 
 // NewApplication creates a new application instance
@@ -125,6 +126,15 @@ func NewApplication() (*Application, error) {
 
 	// Initialize Report Handler
 	reportHandler := handlers.NewReportHandler(db)
+	
+	// Initialize Test Data Generator Service
+	var testDataGeneratorService *services.TestDataGeneratorService
+	if sqlDB, ok := db.GetDB().(*sql.DB); ok {
+		// Get repositories from the database interface
+		taskRepo := db.Tasks()
+		timerRepo := db.Timer()
+		testDataGeneratorService = services.NewTestDataGeneratorService(sqlDB, taskRepo, timerRepo)
+	}
 
 	// Initialize Router Document Handler with DocumentRouter
 	services.InitDocumentRouterFactory(db)
@@ -185,9 +195,10 @@ func NewApplication() (*Application, error) {
 		companyHandler:        companyHandler,
 		enterpriseHandler:     enterpriseHandler,
 		projectHandler:        projectHandler,
-		taskHandler:           taskHandler,
-		taskHierarchyHandler:  taskHierarchyHandler,
-		reportHandler:         reportHandler,
+		taskHandler:              taskHandler,
+		taskHierarchyHandler:     taskHierarchyHandler,
+		reportHandler:            reportHandler,
+		testDataGeneratorService: testDataGeneratorService,
 	}
 
 	// Perform startup permission/volume checks
@@ -206,6 +217,19 @@ func NewApplication() (*Application, error) {
 			}
 		}
 	*/
+
+	// Initialize Timer Cleanup Service
+	if sqlDB, ok := db.GetDB().(*sql.DB); ok {
+		timerCleanupService := services.NewTimerCleanupService(sqlDB, logger)
+		// Start automatic cleanup (1 hour max, check every 5 minutes)
+		config := timerCleanupService.GetDefaultConfig()
+		config.MaxRunDurationHours = 1   // Auto-pause timers after 1 hour
+		config.CheckIntervalMinutes = 5  // Check every 5 minutes
+		config.PauseInsteadOfStop = true // Pause instead of stop
+		timerCleanupService.StartAutomaticCleanup(config)
+		logger.Printf("Timer cleanup service started: max duration=%dh, check interval=%dm",
+			config.MaxRunDurationHours, config.CheckIntervalMinutes)
+	}
 
 	return app, nil
 }
@@ -630,6 +654,11 @@ func (app *Application) GetAIConfigHandler() *handlers.AIConfigHandler {
 // 		c.JSON(503, gin.H{"error": "WebSocket service temporarily unavailable"})
 // 	}
 // }
+
+// GetTestDataGeneratorService returns the test data generator service
+func (app *Application) GetTestDataGeneratorService() interface{} {
+	return app.testDataGeneratorService
+}
 
 // GetProgressPusher returns the progress pusher service
 // Temporarily disabled due to missing service

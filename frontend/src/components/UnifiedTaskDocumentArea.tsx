@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy, memo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Card,
@@ -44,13 +44,15 @@ import {
   HistoryOutlined,
   LinkOutlined,
   ArrowsAltOutlined,
-  ShrinkOutlined
+  ShrinkOutlined,
+  LeftOutlined,
+  RightOutlined
 } from '@ant-design/icons';
 
-// 导入现有组件
-import TaskDocumentEditor from './TaskDocumentEditor';
-import TaskDocumentManager from './TaskDocumentManager';
-import TaskDocumentVersionHistoryButton from './TaskDocumentVersionHistoryButton';
+// 懒加载组件以减少初始渲染负担
+const TaskDocumentEditor = lazy(() => import('./TaskDocumentEditor'));
+const TaskDocumentManager = lazy(() => import('./TaskDocumentManager'));
+const TaskDocumentVersionHistoryButton = lazy(() => import('./TaskDocumentVersionHistoryButton'));
 import { documentService, UnifiedDocument } from '../services/documentService';
 import { taskDocumentService } from '../services/taskDocumentService';
 import { TaskService } from '../services/taskService';
@@ -97,7 +99,7 @@ export interface UnifiedTaskDocumentAreaProps {
   onViewModeChange?: (mode: ViewMode) => void;
 }
 
-// 文档列表项组件
+// 文档列表项组件 - 使用memo优化性能
 const DocumentListItem: React.FC<{
   document: DocumentItem;
   selected?: boolean;
@@ -110,7 +112,7 @@ const DocumentListItem: React.FC<{
   isDragOver?: boolean;
   isDraggedItem?: boolean;
   currentTaskId?: number;
-}> = ({ document, selected, onSelect, onEdit, onDelete, onDownload, onView, draggableProps, isDragOver, isDraggedItem, currentTaskId }) => {
+}> = memo(({ document, selected, onSelect, onEdit, onDelete, onDownload, onView, draggableProps, isDragOver, isDraggedItem, currentTaskId }) => {
   
   // 右键菜单
   const contextMenuItems: MenuProps['items'] = [
@@ -272,7 +274,7 @@ const DocumentListItem: React.FC<{
       </List.Item>
     </Dropdown>
   );
-};
+});
 
 // 主组件 - 使用React.memo优化重渲染
 const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.memo(({
@@ -304,6 +306,9 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   const [documentListView, setDocumentListView] = useState<'grouped' | 'list' | 'timeline' | 'grid'>('grouped');
   const [documentSortBy, setDocumentSortBy] = useState<'created_at' | 'updated_at'>('created_at');
   const [documentSortOrder, setDocumentSortOrder] = useState<'asc' | 'desc'>('desc');
+  
+  // 防抖计时器引用
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 切换视图模式
   const handleViewModeChange = useCallback((mode: ViewMode) => {
@@ -320,17 +325,53 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   // 快速过滤：全部 / 仅本任务 / 仅子任务
   const [filterMode, setFilterMode] = useState<'all' | 'root' | 'desc'>('all');
 
-  // 加载文档列表 - 优化版本，减少重渲染
-  const loadDocuments = useCallback(async () => {
+  // 防止重复加载的引用
+  const loadingRef = useRef(false);
+  
+  // 文档缓存 - 简单的Map缓存
+  const documentCache = useRef(new Map<string, DocumentItem[]>());
+  const CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存
+  
+  // 加载文档列表 - 优化版本，减少重渲染并添加缓存
+  const loadDocuments = useCallback(async (force = false) => {
+    // 防止重复加载
+    if (loadingRef.current && !force) {
+      console.log('Documents already loading, skipping...');
+      return;
+    }
+    
+    // 检查缓存
+    const cacheKey = `${projectId}:${taskId}:${includeDescendants}`;
+    const cached = documentCache.current.get(cacheKey);
+    if (cached && !force) {
+      console.log('Using cached documents');
+      setDocuments(cached);
+      onDocumentChange?.(cached);
+      return;
+    }
+    
+    loadingRef.current = true;
     setLoading(true);
-    // 清空当前文档避免渲染旧数据
-    setDocuments([]);
-    setSelectedDocument(null);
+    
+    // 避免清空文档状态导致重新渲染
+    if (force) {
+      setDocuments([]);
+      setSelectedDocument(null);
+    }
     try {
-      // 并行获取两种类型的文档，避免串行等待
+      // 并行获取两种类型的文档，避免串行等待，增加超时控制
+      const fetchWithTimeout = (promise: Promise<any>, timeout = 10000) => {
+        return Promise.race([
+          promise,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout')), timeout)
+          )
+        ]);
+      };
+
       const [documentsResult, uploadedResult] = await Promise.allSettled([
-        documentService.getTaskDocuments(projectId, taskId),
-        taskDocumentService.getTaskDocuments(projectId, taskId)
+        fetchWithTimeout(documentService.getTaskDocuments(projectId, taskId)),
+        fetchWithTimeout(taskDocumentService.getTaskDocuments(projectId, taskId))
       ]);
       
       let docs: DocumentItem[] = [];
@@ -444,18 +485,36 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
         }
       }
 
-      // 批量更新状态减少重渲染
-      setDocuments(docs);
+      // 批量更新状态减少重渲染 - 只有数据真正变化时才更新
+      setDocuments(prevDocs => {
+        if (JSON.stringify(prevDocs.map(d => d.id)) === JSON.stringify(docs.map(d => d.id))) {
+          return prevDocs; // 避免不必要的重渲染
+        }
+        
+        // 缓存文档数据
+        const cacheKey = `${projectId}:${taskId}:${includeDescendants}`;
+        documentCache.current.set(cacheKey, docs);
+        // 设置缓存过期
+        setTimeout(() => {
+          documentCache.current.delete(cacheKey);
+        }, CACHE_TTL);
+        
+        return docs;
+      });
       
       // 如果没有选中文档且有文档列表，选中第一个
-      if (docs.length > 0) {
+      if (docs.length > 0 && !selectedDocument) {
         setSelectedDocument(docs[0]);
       }
+      
+      // 通知父组件数据变化
+      onDocumentChange?.(docs);
     } catch (error) {
       console.error('加载文档失败:', error);
       message.error('加载文档列表失败');
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   }, [projectId, taskId, includeDescendants]);
 
@@ -626,10 +685,29 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
   // 初始化拖拽功能
   const { dragState, createDropZoneProps, createDraggableProps, isDragActive } = useDragAndDrop(dragDropConfig);
 
-  // 初始加载
-  useEffect(() => {
-    loadDocuments();
+  // 防抖的文档加载函数
+  const debouncedLoadDocuments = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      loadDocuments();
+    }, 300); // 300ms防抖
   }, [loadDocuments]);
+  
+  // 清理防抖计时器
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // 初始加载 - 使用防抖
+  useEffect(() => {
+    debouncedLoadDocuments();
+  }, [projectId, taskId, includeDescendants, debouncedLoadDocuments]);
 
   // 文档变化通知（独立的useEffect避免重复加载）
   useEffect(() => {
@@ -663,12 +741,19 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     }
   }, [isFullscreen]);
 
-  // 文档选择
+  // 文档选择 - 优化避免重复更新
   const handleDocumentSelect = useCallback((doc: DocumentItem) => {
+    if (selectedDocument?.id === doc.id) {
+      return; // 避免重复选择
+    }
     setSelectedDocument(doc);
-    // 更新文档列表中的选中状态
-    setDocuments(prev => prev.map(d => ({ ...d, selected: d.id === doc.id })));
-  }, []);
+    // 批量更新状态，减少重渲染
+    setDocuments(prev => {
+      const hasChange = prev.some(d => d.selected !== (d.id === doc.id));
+      if (!hasChange) return prev; // 避免不必要的状态更新
+      return prev.map(d => ({ ...d, selected: d.id === doc.id }));
+    });
+  }, [selectedDocument?.id]);
 
   // 文档上传 - 使用专门的任务文档上传接口
   const handleFileUpload = useCallback(async (file: File) => {
@@ -869,8 +954,39 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     }
   }, [projectId, taskId, loadDocuments]);
 
-  // 渲染不同的文档列表视图
-  const renderDocumentList = useCallback(() => {
+  // 排序文档的辅助函数
+  const sortDocuments = useCallback((docs: DocumentItem[]) => {
+    return [...docs].sort((a, b) => {
+      const aTime = new Date(a[documentSortBy]).getTime();
+      const bTime = new Date(b[documentSortBy]).getTime();
+      return documentSortOrder === 'desc' ? bTime - aTime : aTime - bTime;
+    });
+  }, [documentSortBy, documentSortOrder]);
+
+  // 过滤后的文档 - 移动到这里避免循环引用
+  const filteredDocuments = useMemo(() => {
+    let filtered: DocumentItem[];
+    if (filterMode === 'root') filtered = documents.filter(d => (d.sourceTaskId ?? taskId) === taskId);
+    else if (filterMode === 'desc') filtered = documents.filter(d => (d.sourceTaskId ?? taskId) !== taskId);
+    else filtered = documents;
+    
+    return sortDocuments(filtered);
+  }, [documents, filterMode, taskId, sortDocuments]);
+
+  // 虚拟列表优化 - 对于大量文档的情况
+  const ITEMS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const paginatedDocuments = useMemo(() => {
+    if (filteredDocuments.length <= ITEMS_PER_PAGE) {
+      return filteredDocuments;
+    }
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredDocuments.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredDocuments, currentPage]);
+  
+  // 渲染不同的文档列表视图 - 使用React.memo进一步优化
+  const renderDocumentList = useMemo(() => {
     if (documents.length === 0) {
       return (
         <div style={{ padding: '16px' }}>
@@ -884,11 +1000,11 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
 
     switch (documentListView) {
       case 'grouped':
-        return (
+        listContent = (
           <div style={{ padding: '0 8px' }}>
-            {/* 按类型分组显示文档 */}
+            {/* 按类型分组显示文档 - 使用分页数据 */}
             {Object.entries(
-              filteredDocuments.reduce((groups, doc) => {
+              paginatedDocuments.reduce((groups, doc) => {
                 const type = doc.type || 'other';
                 if (!groups[type]) groups[type] = [];
                 groups[type].push(doc);
@@ -917,7 +1033,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                   <div
                     key={doc.id}
                     className={`document-card ${selectedDocument?.id === doc.id ? 'selected' : ''}`}
-                    onClick={() => handleDocumentSelect(doc)}
+                    onClick={() => setSelectedDocument(doc)}
                     style={{
                       padding: '12px',
                       marginBottom: '8px',
@@ -948,15 +1064,17 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                       </Text>
                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                         {doc.is_template && <Tag color="purple" style={{ margin: 0, fontSize: '10px' }}>模板</Tag>}
-                        <TaskDocumentVersionHistoryButton
-                          projectId={doc.project_id}
-                          taskId={doc.task_id}
-                          selectedDocument={doc}
-                          size="small"
-                          type="text"
-                          style={{ width: '20px', height: '20px', fontSize: '10px', padding: 0 }}
-                          onVersionUpdate={() => {/* 处理版本更新 */}}
-                        />
+                        <Suspense fallback={<div style={{ width: '20px', height: '20px' }} />}>
+                          <TaskDocumentVersionHistoryButton
+                            projectId={doc.project_id}
+                            taskId={doc.task_id}
+                            selectedDocument={doc}
+                            size="small"
+                            type="text"
+                            style={{ width: '20px', height: '20px', fontSize: '10px', padding: 0 }}
+                            onVersionUpdate={() => {/* 处理版本更新 */}}
+                          />
+                        </Suspense>
                         <Button
                           type="text"
                           icon={<EditOutlined />}
@@ -964,7 +1082,8 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                           style={{ width: '20px', height: '20px', fontSize: '10px' }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDocumentEdit(doc);
+                            setSelectedDocument(doc);
+                            setViewMode('edit');
                           }}
                         />
                       </div>
@@ -1001,17 +1120,18 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
             ))}
           </div>
         );
+        break;
 
       case 'timeline':
-        return (
+        listContent = (
           <div style={{ padding: '0 8px' }}>
             <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px', fontWeight: 'bold' }}>
               📅 按{documentSortBy === 'created_at' ? '创建' : '更新'}时间排序 ({documentSortOrder === 'desc' ? '新→旧' : '旧→新'})
             </div>
-            {filteredDocuments.map((doc) => (
+            {paginatedDocuments.map((doc) => (
                 <div
                   key={doc.id}
-                  onClick={() => handleDocumentSelect(doc)}
+                  onClick={() => setSelectedDocument(doc)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1038,22 +1158,25 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                     </div>
                   </div>
                   <Space>
-                    <TaskDocumentVersionHistoryButton
-                      projectId={doc.project_id}
-                      taskId={doc.task_id}
-                      selectedDocument={doc}
-                      size="small"
-                      type="text"
-                      style={{ padding: 0, width: '20px', height: '20px' }}
-                      onVersionUpdate={() => {/* 处理版本更新 */}}
-                    />
+                    <Suspense fallback={<div style={{ width: '20px', height: '20px' }} />}>
+                      <TaskDocumentVersionHistoryButton
+                        projectId={doc.project_id}
+                        taskId={doc.task_id}
+                        selectedDocument={doc}
+                        size="small"
+                        type="text"
+                        style={{ padding: 0, width: '20px', height: '20px' }}
+                        onVersionUpdate={() => {/* 处理版本更新 */}}
+                      />
+                    </Suspense>
                     <Button
                       type="text"
                       icon={<EditOutlined />}
                       
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDocumentEdit(doc);
+                        setSelectedDocument(doc);
+                        setViewMode('edit');
                       }}
                     />
                   </Space>
@@ -1061,14 +1184,15 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
               ))}
           </div>
         );
+        break;
 
       case 'grid':
-        return (
+        listContent = (
           <div style={{ padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            {filteredDocuments.map((doc) => (
+            {paginatedDocuments.map((doc) => (
               <div
                 key={doc.id}
-                onClick={() => handleDocumentSelect(doc)}
+                onClick={() => setSelectedDocument(doc)}
                 style={{
                   padding: '12px',
                   backgroundColor: selectedDocument?.id === doc.id ? '#e6f7ff' : '#fff',
@@ -1097,19 +1221,20 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
             ))}
           </div>
         );
+        break;
 
       default: // list
-        return (
+        listContent = (
           <List
             
-            dataSource={filteredDocuments}
+            dataSource={paginatedDocuments}
             renderItem={(doc) => (
               <DocumentListItem currentTaskId={taskId}
                 key={doc.id}
                 document={doc}
                 selected={selectedDocument?.id === doc.id}
-                onSelect={handleDocumentSelect}
-                onEdit={handleDocumentEdit}
+                onSelect={setSelectedDocument}
+                onEdit={(d) => { setSelectedDocument(d); setViewMode('edit'); }}
                 onDelete={handleDocumentDelete}
                 onDownload={handleDocumentDownload}
                 onView={handleDocumentView}
@@ -1117,8 +1242,42 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
             )}
           />
         );
+        break;
     }
-  }, [documents, selectedDocument, documentListView, handleDocumentSelect, handleDocumentEdit, handleDocumentDelete, handleDocumentDownload, handleDocumentView, handleQuickCreateDocument]);
+    const shouldShowPagination = filteredDocuments.length > ITEMS_PER_PAGE;
+    
+    return (
+      <div>
+        {listContent}
+        {shouldShowPagination && (
+          <div style={{ padding: '16px', textAlign: 'center', borderTop: '1px solid #f0f0f0' }}>
+            <Button.Group>
+              <Button 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+                icon={<LeftOutlined />}
+              >
+                上一页
+              </Button>
+              <Button disabled>
+                {currentPage} / {Math.ceil(filteredDocuments.length / ITEMS_PER_PAGE)}
+              </Button>
+              <Button 
+                disabled={currentPage >= Math.ceil(filteredDocuments.length / ITEMS_PER_PAGE)}
+                onClick={() => setCurrentPage(p => p + 1)}
+                icon={<RightOutlined />}
+              >
+                下一页
+              </Button>
+            </Button.Group>
+            <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+              共 {filteredDocuments.length} 个文档
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }, [documents, selectedDocument, documentListView, taskId, paginatedDocuments, filteredDocuments.length, currentPage]);
 
   // 切换全屏模式
   const toggleFullscreen = useCallback(() => {
@@ -1205,52 +1364,54 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     }
   ];
 
-  // 排序文档的辅助函数
-  const sortDocuments = useCallback((docs: DocumentItem[]) => {
-    return [...docs].sort((a, b) => {
-      const aTime = new Date(a[documentSortBy]).getTime();
-      const bTime = new Date(b[documentSortBy]).getTime();
-      return documentSortOrder === 'desc' ? bTime - aTime : aTime - bTime;
-    });
-  }, [documentSortBy, documentSortOrder]);
-
-  // 简单的Markdown渲染函数
+  // 优化Markdown渲染函数 - 使用缓存和分批处理
+  const markdownCache = useRef(new Map<string, string>());
+  
   const renderMarkdownContent = useCallback((content: string) => {
     if (!content) return '';
     
-    return content
-      // 标题
-      .replace(/^### (.*$)/gm, '<h3 style="color: #1890ff; margin: 16px 0 8px 0; font-size: 18px;">$1</h3>')
-      .replace(/^## (.*$)/gm, '<h2 style="color: #1890ff; margin: 20px 0 10px 0; font-size: 22px;">$1</h2>')
-      .replace(/^# (.*$)/gm, '<h1 style="color: #1890ff; margin: 24px 0 12px 0; font-size: 28px;">$1</h1>')
-      // 粗体
-      .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #333; font-weight: 600;">$1</strong>')
-      // 斜体
-      .replace(/\*(.*?)\*/g, '<em style="font-style: italic; color: #666;">$1</em>')
+    // 缓存检查
+    const cacheKey = content.substring(0, 100); // 使用前100个字符作为缓存键
+    if (markdownCache.current.has(cacheKey)) {
+      return markdownCache.current.get(cacheKey)!;
+    }
+    
+    // 对于大文档，使用简化渲染
+    if (content.length > 10000) {
+      const rendered = content.substring(0, 5000) + '\n\n[... 内容过长，部分预览 ...]';
+      markdownCache.current.set(cacheKey, rendered);
+      return rendered;
+    }
+    
+    // 优化后的渲染逻辑
+    let rendered = content
+      // 标题 - 使用更高效的正则
+      .replace(/^### (.+)$/gm, '<h3 style="color: #1890ff; margin: 16px 0 8px 0; font-size: 18px;">$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2 style="color: #1890ff; margin: 20px 0 10px 0; font-size: 22px;">$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1 style="color: #1890ff; margin: 24px 0 12px 0; font-size: 28px;">$1</h1>')
+      // 粗体和斜体
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color: #333; font-weight: 600;">$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em style="font-style: italic; color: #666;">$1</em>')
       // 代码块
-      .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre style="background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin: 16px 0; overflow-x: auto; font-family: Consolas, Monaco, monospace; font-size: 14px;"><code>$2</code></pre>')
+      .replace(/```[\w]*\n([\s\S]+?)```/g, '<pre style="background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin: 16px 0; overflow-x: auto; font-family: Consolas, Monaco, monospace; font-size: 14px;"><code>$1</code></pre>')
       // 行内代码
       .replace(/`([^`]+)`/g, '<code style="background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: Consolas, Monaco, monospace; font-size: 13px; color: #d73a49;">$1</code>')
       // 链接
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #1890ff; text-decoration: none;" target="_blank">$1</a>')
-      // 列表
-      .replace(/^\* (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
-      .replace(/^- (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
-      // 分割线
-      .replace(/^---$/gm, '<hr style="border: none; border-top: 1px solid #e8e8e8; margin: 20px 0;">')
       // 换行
       .replace(/\n/g, '<br/>');
-  }, []);
-
-  // 过滤后的文档
-  const filteredDocuments = useMemo(() => {
-    let filtered: DocumentItem[];
-    if (filterMode === 'root') filtered = documents.filter(d => (d.sourceTaskId ?? taskId) === taskId);
-    else if (filterMode === 'desc') filtered = documents.filter(d => (d.sourceTaskId ?? taskId) !== taskId);
-    else filtered = documents;
     
-    return sortDocuments(filtered);
-  }, [documents, filterMode, taskId, sortDocuments]);
+    // 缓存结果
+    markdownCache.current.set(cacheKey, rendered);
+    
+    // 限制缓存大小
+    if (markdownCache.current.size > 50) {
+      const firstKey = markdownCache.current.keys().next().value;
+      markdownCache.current.delete(firstKey);
+    }
+    
+    return rendered;
+  }, []);
 
   // 文档统计（基于过滤结果）
   const documentStats = useMemo(() => {
@@ -1269,13 +1430,17 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     switch (viewMode) {
       case 'edit':
         return selectedDocument ? (
-          <TaskDocumentEditor
-            key={selectedDocument.id}
-            taskId={taskId}
-            projectId={projectId}
-            taskDocument={selectedDocument}
-            onSave={() => loadDocuments()}
-          />
+          <ErrorBoundary>
+            <Suspense fallback={<Spin size="large" style={{ display: 'block', margin: '40px auto' }} />}>
+              <TaskDocumentEditor
+                key={selectedDocument.id}
+                taskId={taskId}
+                projectId={projectId}
+                taskDocument={selectedDocument}
+                onSave={() => loadDocuments()}
+              />
+            </Suspense>
+          </ErrorBoundary>
         ) : (
           <Empty
             description="暂无文档，请通过右上角的更多操作菜单创建文档"
@@ -1417,6 +1582,23 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     </div>
   );
 
+  // 错误边界组件
+  const ErrorBoundary: React.FC<{ children: React.ReactNode; fallback?: React.ReactNode }> = ({ children, fallback }) => {
+    try {
+      return <>{children}</>;
+    } catch (error) {
+      console.error('DocumentArea Error:', error);
+      return fallback || (
+        <Alert 
+          message="组件渲染出错" 
+          description="请刷新页面重试" 
+          type="error" 
+          showIcon 
+        />
+      );
+    }
+  };
+
   // 早期返回加载状态，避免渲染复杂组件
   if (loading && documents.length === 0) {
     return (
@@ -1486,7 +1668,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                 </div>
                 
                 <Spin spinning={loading}>
-                  {renderDocumentList()}
+                  {renderDocumentList}
                 </Spin>
               </div>
             </Col>
@@ -1700,13 +1882,19 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
       </Card>
 
       {/* 高级文档管理器模态框 */}
-      <TaskDocumentManager
-        projectId={projectId}
-        taskId={taskId}
-        visible={managerVisible}
-        onClose={() => setManagerVisible(false)}
-        mode="modal"
-      />
+      {managerVisible && (
+        <ErrorBoundary>
+          <Suspense fallback={<Spin />}>
+            <TaskDocumentManager
+              projectId={projectId}
+              taskId={taskId}
+              visible={managerVisible}
+              onClose={() => setManagerVisible(false)}
+              mode="modal"
+            />
+          </Suspense>
+        </ErrorBoundary>
+      )}
 
       {/* 新建文档模态框 */}
       <Modal

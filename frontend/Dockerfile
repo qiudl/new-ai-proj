@@ -123,8 +123,8 @@ RUN apk --no-cache add \
 # Copy built files from builder stage
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
+# Copy site config into conf.d to keep default nginx.conf structure
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Create non-root user
 RUN addgroup -g 1001 -S nginxgroup && \
@@ -143,12 +143,12 @@ RUN mkdir -p /var/run/nginx && \
 # Switch to non-root user
 USER nginxuser
 
-# Expose port
-EXPOSE 3000
+# Expose default nginx port
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000 || exit 1
+    CMD curl -f http://localhost:80 || exit 1
 
 # Production command
 CMD ["nginx", "-g", "daemon off;"]

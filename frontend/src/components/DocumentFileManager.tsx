@@ -1585,7 +1585,7 @@ const handleEditDocument = async (values: any) => {
               placeholder="选择项目（可选）"
               allowClear
               showSearch
-              optionFilterProp="children"
+              
             >
               {/* TODO: 动态加载项目选项 */}
               <Option value={1}>示例项目1</Option>
@@ -1601,7 +1601,7 @@ const handleEditDocument = async (values: any) => {
               placeholder="选择客户（可选）"
               allowClear
               showSearch
-              optionFilterProp="children"
+              
             >
               {/* TODO: 动态加载客户选项 */}
               <Option value={1}>示例客户1</Option>

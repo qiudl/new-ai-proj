@@ -7,15 +7,18 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // UnifiedTimerHandler provides unified timer operations for both personal and project tasks
 type UnifiedTimerHandler struct {
 	db           database.DB
 	timerService services.UnifiedTimerService
+	sseManager   *SSEManager
 }
 
 // UserTimerPreferences minimal struct for response
@@ -42,7 +45,43 @@ func NewUnifiedTimerHandler(db database.DB) *UnifiedTimerHandler {
 	return &UnifiedTimerHandler{
 		db:           db,
 		timerService: services.NewUnifiedTimerService(sqlDB, typeInferenceEngine),
+		sseManager:   NewSSEManager(),
 	}
+}
+
+// validateJWTToken validates a JWT token and returns the user ID
+func (h *UnifiedTimerHandler) validateJWTToken(tokenString string) (int, error) {
+	// Get JWT secret from environment
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		return 0, fmt.Errorf("JWT_SECRET not configured")
+	}
+
+	// Parse and validate token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Validate signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(jwtSecret), nil
+	})
+
+	if err != nil {
+		return 0, fmt.Errorf("invalid token: %v", err)
+	}
+
+	// Extract claims
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		// Get user ID from claims
+		if userID, exists := claims["user_id"]; exists {
+			if uid, ok := userID.(float64); ok {
+				return int(uid), nil
+			}
+		}
+		return 0, fmt.Errorf("user_id not found in token claims")
+	}
+
+	return 0, fmt.Errorf("invalid token claims")
 }
 
 // StartTimer handles POST /api/v1/user/timer/start
@@ -636,4 +675,97 @@ func (h *UnifiedTimerHandler) GetDailyComparison(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// ===== SSE Endpoints =====
+
+// TimerSSE handles Server-Sent Events for timer updates (with header auth)
+func (h *UnifiedTimerHandler) TimerSSE(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	
+	uid := userID.(int)
+	
+	// Handle SSE connection
+	h.sseManager.HandleSSEConnection(c, uid)
+}
+
+// TimerSSEWithToken handles Server-Sent Events for timer updates using URL token
+func (h *UnifiedTimerHandler) TimerSSEWithToken(c *gin.Context) {
+	// Get token from query parameter
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Missing token parameter",
+			"details": "Token must be provided as query parameter: ?token=your_jwt_token",
+		})
+		return
+	}
+	
+	// Validate token and extract user ID
+	// This mimics the JWT validation from the auth middleware
+	userID, err := h.validateJWTToken(token)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Invalid token",
+			"details": err.Error(),
+		})
+		return
+	}
+	
+	// Handle SSE connection
+	h.sseManager.HandleSSEConnection(c, userID)
+}
+
+// SSEConnectionTest handles SSE connection testing
+func (h *UnifiedTimerHandler) SSEConnectionTest(c *gin.Context) {
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+	
+	// Send test message
+	testData := fmt.Sprintf(`{"type": "test", "message": "SSE connection successful", "timestamp": %d}`, time.Now().Unix())
+	c.Writer.WriteString(fmt.Sprintf("data: %s\n\n", testData))
+	c.Writer.Flush()
+	
+	// Wait a second then close
+	time.Sleep(1 * time.Second)
+	
+	closeData := `{"type": "close", "message": "Test completed"}`
+	c.Writer.WriteString(fmt.Sprintf("data: %s\n\n", closeData))
+	c.Writer.Flush()
+}
+
+// SSEHealthCheck provides health check for SSE functionality
+func (h *UnifiedTimerHandler) SSEHealthCheck(c *gin.Context) {
+	metrics := h.sseManager.GetMetrics()
+	
+	health := gin.H{
+		"status":             "ok",
+		"timestamp":          time.Now().Unix(),
+		"active_connections": metrics.ActiveConnections,
+		"total_connections":  metrics.TotalConnections,
+		"messages_sent":      metrics.MessagesSent,
+		"connection_errors":  metrics.ConnectionErrors,
+		"message_errors":     metrics.MessageErrors,
+		"last_update":        metrics.LastUpdate.Unix(),
+	}
+	
+	// Determine health status
+	if metrics.ConnectionErrors > 0 && metrics.TotalConnections > 0 {
+		errorRate := float64(metrics.ConnectionErrors) / float64(metrics.TotalConnections)
+		if errorRate > 0.1 { // 10% error rate
+			health["status"] = "warning"
+		}
+	}
+	
+	if metrics.ActiveConnections > 1000 {
+		health["status"] = "warning"
+	}
+	
+	c.JSON(http.StatusOK, health)
 }

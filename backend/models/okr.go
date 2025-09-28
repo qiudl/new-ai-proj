@@ -175,8 +175,8 @@ type CreateOKRObjectiveRequest struct {
 	Title       string                     `json:"title" validate:"required,max=255"`
 	Description string                     `json:"description"`
 	Quarter     string                     `json:"quarter" validate:"required"`
-	StartDate   time.Time                  `json:"startDate" validate:"required"`
-	EndDate     time.Time                  `json:"endDate" validate:"required"`
+	StartDate   FlexibleDate               `json:"startDate" validate:"required"`
+	EndDate     FlexibleDate               `json:"endDate" validate:"required"`
 	KeyResults  []CreateKeyResultRequest   `json:"keyResults"`
 }
 

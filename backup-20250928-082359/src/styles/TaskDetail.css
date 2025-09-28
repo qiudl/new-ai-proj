@@ -1,0 +1,802 @@
+/* 任务详情页专用样式 */
+
+/* 状态卡片动画 */
+.task-status-card {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.task-status-card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* 完成度进度环 */
+.completion-progress {
+  text-align: center;
+  padding: 20px;
+}
+
+.completion-progress .ant-progress-circle {
+  margin-bottom: 12px;
+}
+
+/* 子任务表格样式 */
+.subtask-table .ant-table-tbody > tr:hover > td {
+  background-color: #e6f7ff !important;
+  cursor: pointer;
+}
+
+.subtask-table .ant-table-tbody > tr {
+  transition: background-color 0.2s ease;
+}
+
+/* 时间线优化 */
+.timeline-compact .ant-timeline-item {
+  padding-bottom: 12px;
+}
+
+.timeline-compact .ant-timeline-item-tail {
+  border-left: 2px solid #e8e8e8;
+}
+
+.timeline-compact .ant-timeline-item-head {
+  width: 8px;
+  height: 8px;
+  margin-left: -1px;
+}
+
+/* 信息面板 */
+.info-panel {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.info-panel .ant-descriptions-item-label {
+  font-weight: 500;
+  color: #666;
+  width: 80px;
+}
+
+/* 快速操作按钮 */
+.quick-actions .ant-btn {
+  height: 40px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.quick-actions .ant-btn + .ant-btn {
+  margin-top: 8px;
+}
+
+/* ========================================
+   统一响应式断点系统 - 基于Ant Design标准
+   ======================================== */
+
+/* XS设备: < 576px (手机竖屏) */
+@media (max-width: 575px) {
+  .task-detail-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px;
+    padding: 12px !important;
+    /* 防止浮层遮盖 */
+    position: relative !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    /* 调试标识已移除 */
+  }
+  
+  .task-detail-container .ant-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px;
+  }
+  
+  .task-detail-container .ant-col {
+    position: static !important; /* 改为static以防止浮层 */
+    float: none !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    margin-bottom: 16px;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    /* 确保自然文档流 */
+    transform: none !important;
+    z-index: auto !important;
+  }
+  
+  .task-status-card {
+    margin-bottom: 16px !important;
+  }
+  
+  .task-status-card .ant-card-body {
+    padding: 12px !important;
+  }
+  
+  .completion-progress {
+    padding: 12px;
+  }
+  
+  .info-panel {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .quick-actions {
+    padding: 12px;
+  }
+  
+  .quick-actions .ant-btn {
+    height: 44px; /* 触摸友好 */
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .action-buttons .ant-btn {
+    height: 44px;
+    width: 100%;
+  }
+}
+
+/* SM设备: 576px - 767px (手机横屏) */
+@media (min-width: 576px) and (max-width: 767px) {
+  .task-detail-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px;
+    padding: 16px !important;
+    /* 防止浮层遮盖 */
+    position: relative !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+  }
+  
+  .task-detail-container .ant-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px;
+  }
+  
+  .task-detail-container .ant-col {
+    position: static !important; /* 改为static以防止浮层 */
+    float: none !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    margin-bottom: 20px;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    /* 确保自然文档流 */
+    transform: none !important;
+    z-index: auto !important;
+  }
+  
+  .task-status-card {
+    margin-bottom: 20px !important;
+  }
+  
+  .task-status-card .ant-card-body {
+    padding: 16px !important;
+  }
+  
+  .completion-progress {
+    padding: 16px;
+  }
+  
+  .info-panel {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .quick-actions .ant-btn {
+    height: 40px;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  
+  .action-buttons .ant-btn {
+    height: 40px;
+    min-width: 120px;
+  }
+}
+
+/* MD设备: 768px - 991px (平板竖屏) - 与Ant Design LG断点对齐 */
+@media (min-width: 768px) and (max-width: 991px) {
+  .task-detail-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px;
+    padding: 20px !important;
+    /* 防止浮层遮盖 */
+    position: relative !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+  }
+  
+  .task-detail-container .ant-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px;
+  }
+  
+  .task-detail-container .ant-col {
+    position: static !important; /* 改为static以防止浮层 */
+    float: none !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    margin-bottom: 24px;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    /* 确保自然文档流 */
+    transform: none !important;
+    z-index: auto !important;
+  }
+  
+  .task-status-card {
+    margin-bottom: 24px !important;
+  }
+  
+  .task-status-card .ant-card-body {
+    padding: 20px !important;
+  }
+  
+  .completion-progress {
+    padding: 20px;
+  }
+  
+  .info-panel {
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .quick-actions .ant-btn {
+    height: 40px;
+    margin-bottom: 8px;
+  }
+  
+  .action-buttons {
+    gap: 12px;
+  }
+  
+  .action-buttons .ant-btn {
+    height: 40px;
+    min-width: 100px;
+  }
+}
+
+
+/* LG+设备: ≥ 992px (大屏设备) - 恢复Ant Design Grid正常工作 */
+@media (min-width: 992px) {
+  .task-detail-container {
+    display: block !important; /* 让Ant Design Grid正常工作 */
+    padding: 24px !important;
+    /* 移除所有强制背景，恢复正常外观 */
+    background: transparent !important;
+    border: none !important;
+  }
+  
+  .task-detail-container .ant-row {
+    display: flex !important; /* 恢复Ant Design Row的flex布局 */
+    flex-wrap: wrap !important;
+    margin-left: -12px !important;
+    margin-right: -12px !important;
+  }
+  
+  .task-detail-container .ant-col {
+    position: relative !important;
+    float: none !important; /* 使用flexbox而不是float */
+    display: block !important;
+    margin-bottom: 0 !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    /* 移除强制背景，恢复正常外观 */
+    background: transparent !important;
+    border: none !important;
+    /* 防止右侧信息区浮层遮盖 */
+    z-index: 1 !important;
+  }
+  
+  .task-status-card {
+    margin-bottom: 24px !important;
+  }
+  
+  .task-status-card .ant-card-body {
+    padding: 24px !important;
+  }
+  
+  .completion-progress {
+    padding: 24px;
+  }
+  
+  .info-panel {
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  
+  .quick-actions .ant-btn {
+    height: 36px;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  
+  .action-buttons {
+    gap: 8px;
+    flex-direction: column;
+  }
+  
+  .action-buttons .ant-btn {
+    height: 36px;
+    width: 100%;
+  }
+}
+
+/* 平滑过渡动画 */
+.task-detail-container,
+.task-detail-container .ant-row,
+.task-detail-container .ant-col {
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+/* 确保所有布局元素遵循新的响应式规则 */
+.task-detail-container .ant-col {
+  box-sizing: border-box;
+}
+
+/* 清除调试样式，恢复正常外观 */
+.task-detail-container {
+  /* 调试样式已移除 */
+}
+
+.task-detail-container .ant-col {
+  /* 调试样式已移除 */
+}
+
+/* 防止内容溢出和水平滚动 */
+.task-detail-container {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+}
+
+.task-detail-container * {
+  box-sizing: border-box;
+}
+
+/* 状态指示器动画 */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.status-indicator.todo {
+  background-color: #fafafa;
+  color: #666;
+  border: 1px solid #d9d9d9;
+}
+
+.status-indicator.in_progress {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+}
+
+.status-indicator.completed {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.status-indicator.cancelled {
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+}
+
+/* 优先级标签 */
+.priority-tag {
+  font-weight: 500;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+/* 时间提醒样式 */
+.time-warning {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 面包屑导航 */
+.task-breadcrumb {
+  margin-bottom: 24px;
+  padding: 8px 0;
+}
+
+.task-breadcrumb .ant-breadcrumb-link {
+  color: #1890ff;
+  text-decoration: none;
+}
+
+.task-breadcrumb .ant-breadcrumb-link:hover {
+  color: #40a9ff;
+}
+
+/* 统计数字动画 */
+.statistic-animate .ant-statistic-content-value {
+  transition: all 0.3s ease;
+}
+
+.statistic-animate:hover .ant-statistic-content-value {
+  transform: scale(1.05);
+}
+
+/* 卡片标题样式 */
+.card-title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.card-title-with-icon .anticon {
+  color: #1890ff;
+}
+
+/* 描述文本样式 */
+.task-description {
+  background: rgba(255, 255, 255, 0.8);
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 4px solid #1890ff;
+  margin: 0;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+/* 标签组样式 */
+.tag-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.tag-group .ant-tag {
+  margin: 0;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* 空状态样式 */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.empty-state .anticon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #d9d9d9;
+}
+
+/* 加载状态优化 */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+/* 操作按钮组 */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-buttons .ant-btn {
+  border-radius: 6px;
+  font-weight: 500;
+  height: 36px;
+  padding: 0 16px;
+}
+
+/* 信息项样式 */
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-item .anticon {
+  color: #666;
+  width: 16px;
+  text-align: center;
+}
+
+/* 成功状态特效 */
+.success-glow {
+  box-shadow: 0 0 0 1px rgba(82, 196, 26, 0.2), 
+              0 2px 4px rgba(82, 196, 26, 0.1);
+}
+
+/* 警告状态特效 */
+.warning-glow {
+  box-shadow: 0 0 0 1px rgba(250, 173, 20, 0.2),
+              0 2px 4px rgba(250, 173, 20, 0.1);
+}
+
+/* 危险状态特效 */
+.danger-glow {
+  box-shadow: 0 0 0 1px rgba(255, 77, 79, 0.2),
+              0 2px 4px rgba(255, 77, 79, 0.1);
+}
+
+/* ========================================
+   Modal组件响应式优化
+   ======================================== */
+
+/* 确保Modal在小屏幕上的行为 */
+@media (max-width: 991px) {
+  .ant-modal {
+    max-width: 95vw !important;
+    margin: 10px auto !important;
+    top: 20px !important;
+  }
+  
+  .ant-modal-content {
+    border-radius: 8px !important;
+  }
+  
+  .ant-modal-body {
+    padding: 16px !important;
+    overflow-y: auto !important;
+  }
+  
+  /* TaskModal特殊处理 */
+  .task-modal .ant-modal {
+    max-width: 100vw !important;
+    margin: 0 !important;
+    top: 0 !important;
+    height: 100vh !important;
+  }
+  
+  .task-modal .ant-modal-content {
+    height: 100vh !important;
+    border-radius: 0 !important;
+  }
+  
+  .task-modal .ant-modal-body {
+    height: calc(100vh - 108px) !important; /* 减去header和footer高度 */
+    padding: 12px !important;
+  }
+}
+
+/* 防止Drawer组件造成浮层问题 */
+@media (max-width: 991px) {
+  .ant-drawer {
+    z-index: 1000 !important;
+  }
+  
+  .ant-drawer-content-wrapper {
+    width: 100vw !important;
+  }
+  
+  .ant-drawer-body {
+    padding: 16px !important;
+  }
+}
+
+/* 防止绝对定位元素造成浮层 */
+@media (max-width: 991px) {
+  .task-detail-container [style*="position: absolute"],
+  .task-detail-container [style*="position: fixed"] {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    z-index: auto !important;
+  }
+  
+  /* 但保留必要的浮层元素 */
+  .ant-tooltip,
+  .ant-popover,
+  .ant-dropdown,
+  .ant-select-dropdown,
+  .ant-picker-dropdown {
+    position: fixed !important; /* 这些元素需要浮层 */
+  }
+}
+
+/* 右侧信息区优化 - 防止浮层遮盖 */
+.task-detail-container .info-sidebar {
+  position: static !important;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  overflow: visible;
+  z-index: auto !important; /* 确保不会产生浮层效果 */
+}
+
+/* 文档Tab所在卡片的Body不应产生局部滚动条，让页面整体滚动接管 */
+.task-detail-container .ant-card .ant-card-body {
+  overflow: visible !important;
+}
+
+/* 如果浏览器支持，进一步限定仅对包含Tabs的卡片生效 */
+.task-detail-container .ant-card:has(.ant-tabs) .ant-card-body {
+  overflow: visible !important;
+}
+
+/* 强化小屏幕下的info-sidebar行为 */
+@media (max-width: 991px) {
+  .task-detail-container .info-sidebar {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    z-index: auto !important;
+    width: 100% !important;
+    margin-top: 24px !important;
+  }
+}
+
+/* 确保卡片组件不会造成浮层问题 */
+.task-detail-container .ant-card {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+}
+
+/* 修复右侧栏在不同分辨率下的显示 */
+@media (min-width: 992px) and (max-width: 1199px) {
+  /* LG屏幕下右侧栏可能太窄，调整间距 */
+  .task-detail-container .info-sidebar .ant-card-body {
+    padding: 16px;
+  }
+  
+  .task-detail-container .info-sidebar .ant-descriptions-item-label {
+    width: auto;
+    min-width: 60px;
+  }
+}
+
+/* XL屏幕优化 */
+@media (min-width: 1200px) {
+  .task-detail-container .info-sidebar {
+    position: sticky;
+    top: 24px;
+    overflow-y: auto;
+  }
+}
+
+/* ========================================
+   TaskDocumentEditor与文档Tab滚动修正
+   ======================================== */
+
+/* 仅在任务详情页内，移除 Ant Tabs 内容容器的滚动，让页面整体滚动接管 */
+.task-detail-container .ant-tabs-content,
+.task-detail-container .ant-tabs-content-holder,
+.task-detail-container .ant-tabs-content-top,
+.task-detail-container .ant-tabs-nav-wrap,
+.task-detail-container .ant-tabs-nav-list {
+  overflow: visible !important;
+}
+
+/* 文档Tab面板内不允许产生横向滚动条 */
+.task-detail-container .ant-tabs-tabpane {
+  overflow-x: hidden !important;
+}
+
+/* 统一文档区域外围容器也不产生局部滚动条 */
+.task-detail-container .task-document-editor,
+.task-detail-container .task-document-editor .task-document-scroll {
+  overflow: visible !important;
+}
+
+/* ========================================
+   TaskDocumentEditor响应式优化
+   ======================================== */
+
+/* 小屏幕下文档编辑器优化 */
+@media (max-width: 991px) {
+  /* 文档编辑器容器 */
+  .ant-tabs-tabpane [style*="minHeight"] {
+    height: auto !important;
+  }
+  
+  /* TaskDocumentEditor组件精确控制 */
+  .task-document-editor-responsive {
+    height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+    z-index: auto !important;
+  }
+  
+  /* 文档编辑器内部元素 */
+  .task-document-editor-responsive .ant-input {
+    font-size: 16px !important; /* 防止iOS缩放 */
+  }
+  
+  .task-document-editor-responsive textarea {
+    height: auto !important;
+    font-size: 16px !important;
+    position: static !important;
+  }
+  
+  /* 确保文档tab内容不会产生浮层 */
+  .ant-tabs-tabpane:has(.task-document-editor-responsive) {
+    position: static !important;
+    overflow: visible !important;
+  }
+  
+  .ant-tabs-tabpane:has(.task-document-editor-responsive) * {
+    position: static !important;
+    z-index: auto !important;
+  }
+}
+
+/* 中等屏幕优化 */
+@media (min-width: 576px) and (max-width: 991px) {
+  .ant-tabs-tabpane [style*="minHeight"] {
+    height: auto !important;
+  }
+  
+  .ant-tabs-tabpane textarea {
+    height: auto !important;
+  }
+}
+
+/* 大屏幕保持原有行为 - 移除高度限制 */
+@media (min-width: 992px) {
+  .ant-tabs-tabpane [style*="minHeight"] {
+    height: auto !important;
+  }
+  
+  .ant-tabs-tabpane textarea {
+    height: auto !important;
+  }
+}

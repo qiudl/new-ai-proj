@@ -9,6 +9,9 @@ ARG REGISTRY_PREFIX=
 # ======================================
 FROM ${REGISTRY_PREFIX}golang:1.23-alpine AS base
 
+# Use faster APK mirror for CN networks (fallback to default if sed fails)
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencent.com/g' /etc/apk/repositories || true
+
 # Install essential packages without problematic ones for now
 RUN apk --no-cache add \
     git \
@@ -102,6 +105,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # ======================================
 FROM ${REGISTRY_PREFIX}alpine:latest AS production
 
+# Use faster APK mirror for CN networks (fallback to default if sed fails)
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencent.com/g' /etc/apk/repositories || true
+
 # Install runtime dependencies
 RUN apk --no-cache add \
     ca-certificates \
@@ -120,8 +126,8 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /app/main .
 
-# Copy configuration files if needed
-COPY --from=builder /app/config ./config 2>/dev/null || true
+# Copy configuration files
+COPY --from=builder /app/config ./config
 
 # Change ownership
 RUN chown -R appuser:appgroup /app
