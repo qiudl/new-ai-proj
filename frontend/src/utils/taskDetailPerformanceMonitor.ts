@@ -153,9 +153,12 @@ class TaskDetailPerformanceMonitor {
    * 记录通用性能指标
    */
   recordMetric(name: string, value: number, metadata?: Record<string, any>): void {
+    // 确保value是数字类型
+    const numericValue = typeof value === 'number' ? value : parseFloat(String(value)) || 0;
+    
     this.metrics.push({
       name,
-      value,
+      value: numericValue,
       timestamp: Date.now(),
       metadata
     });
@@ -167,7 +170,7 @@ class TaskDetailPerformanceMonitor {
 
     // 在开发环境输出关键指标
     if (process.env.NODE_ENV === 'development') {
-      console.log(`📊 Performance: ${name} = ${value.toFixed(2)}ms`, metadata);
+      console.log(`📊 Performance: ${name} = ${numericValue.toFixed(2)}ms`, metadata);
     }
   }
 

@@ -35,7 +35,7 @@ interface UseDailyFocusTasksReturn {
   
   // Utility functions
   refreshFocusTasks: () => Promise<void>;
-  loadRecommendations: () => Promise<void>;
+  loadRecommendations: (searchKeyword?: string) => Promise<void>;
   clearCompleted: () => Promise<void>;
   autoCarryOverTasks: () => Promise<{ success: boolean; count: number; message: string }>;
   

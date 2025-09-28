@@ -115,7 +115,7 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
               currentValue: 0,
               unit: formKR.unit || '',
               progress: 0,
-              status: 'not_started'
+              status: 'not_started' as const
             };
             
             console.log(`🐛 [CreateOKRModal] Creating new key result:`, newKRData);

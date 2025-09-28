@@ -332,7 +332,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   const documentCache = useRef(new Map<string, DocumentItem[]>());
   const CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存
   
-  // 加载文档列表 - 优化版本，减少重渲染并添加缓存
+  // 加载文档列表 - 高度优化版本，支持渐进式加载
   const loadDocuments = useCallback(async (force = false) => {
     // 防止重复加载
     if (loadingRef.current && !force) {
@@ -352,6 +352,10 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
     
     loadingRef.current = true;
     setLoading(true);
+    
+    // 开始性能监控
+    const loadStartTime = performance.now();
+    console.log('📊 Starting document loading...');
     
     // 避免清空文档状态导致重新渲染
     if (force) {
@@ -509,9 +513,23 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
       
       // 通知父组件数据变化
       onDocumentChange?.(docs);
+      
+      // 性能监控 - 记录成功加载时间
+      const loadDuration = performance.now() - loadStartTime;
+      console.log(`✅ Document loading completed in ${loadDuration.toFixed(2)}ms, loaded ${docs.length} documents`);
+      
+      // 如果加载时间过长，记录警告
+      if (loadDuration > 2000) {
+        console.warn(`⚠️ Slow document loading detected: ${loadDuration.toFixed(2)}ms`);
+      }
+      
     } catch (error) {
       console.error('加载文档失败:', error);
       message.error('加载文档列表失败');
+      
+      // 性能监控 - 记录失败时间
+      const loadDuration = performance.now() - loadStartTime;
+      console.log(`❌ Document loading failed after ${loadDuration.toFixed(2)}ms`);
     } finally {
       setLoading(false);
       loadingRef.current = false;

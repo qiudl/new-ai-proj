@@ -63,8 +63,8 @@ import { projectService } from '../services/projectService';
 import api from '../services/api';
 import { documentService } from '../services/documentService';
 import { unarchiveTask } from '../services/archiveService';
-import { Task, TaskUpdate, TimelineEvent } from '../types/task';
-import { TaskTimelineEvent } from '../types/timeline';
+import { Task, TaskUpdate, TimelineEvent, TaskRequest } from '../types/task';
+import { TaskTimelineEvent, TaskTimelineEventType } from '../types/timeline';
 import TaskModal from '../components/TaskModal';
 import TaskArchiveModal from '../components/TaskArchiveModal';
 import TaskTimeline from '../components/TaskTimeline';
@@ -77,7 +77,6 @@ import { useTimer } from '../contexts/TimerContext';
 import TaskDocumentEditor from '../components/TaskDocumentEditor';
 import BulkSubTaskCreator from '../components/BulkSubTaskCreator';
 import TaskDocumentWidget from '../components/TaskDocumentWidget';
-import UnifiedTaskDocumentArea from '../components/UnifiedTaskDocumentArea';
 // import { TaskProgressDisplay } from '../components/TaskProgressDisplay'; // 已删除WebSocket相关组件
 // 导入新的优化组件
 import { useTaskDetailState } from '../hooks/useTaskDetailState';
@@ -97,10 +96,13 @@ import type { DocumentItem } from '../components/UnifiedTaskDocumentArea';
 import DailyFocusTaskToggle from '../components/DailyFocusTaskToggle';
 import { taskAPIOptimizer, apiOptimizer } from '../utils/apiPerformanceOptimizer';
 import { taskDetailPerformanceMonitor, useComponentPerformanceMonitor } from '../utils/taskDetailPerformanceMonitor';
+import { renderingPerformanceMonitor, useRenderTracker } from '../utils/renderingPerformanceMonitor';
+import PerformanceDashboard from '../components/PerformanceDashboard';
 
 // 懒加载非关键组件
 const TaskGanttChart = lazy(() => import('../components/TaskGanttChart'));
 const TaskAnalysisPanel = lazy(() => import('../components/TaskAnalysisPanel'));
+const LazyUnifiedTaskDocumentArea = lazy(() => import('../components/UnifiedTaskDocumentArea'));
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -116,7 +118,7 @@ interface TaskCompletionStats {
 }
 
 // 暂时简化任务进度条，避免复杂的数据加载
-const TaskProgressInline: React.FC<{ taskId: number; status: 'todo'|'in_progress'|'blocked'|'completed'; style?: React.CSSProperties }>= ({ taskId, status, style }) => {
+const TaskProgressInline = React.memo<{ taskId: number; status: 'todo'|'in_progress'|'blocked'|'completed'; style?: React.CSSProperties }>(({ taskId, status, style }) => {
   return (
     <div style={style}>
       <TaskProgressBar
@@ -130,7 +132,7 @@ const TaskProgressInline: React.FC<{ taskId: number; status: 'todo'|'in_progress
       />
     </div>
   )
-}
+});
 
 const TaskDetailPageNew: React.FC = () => {
   const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>();
@@ -175,6 +177,27 @@ const TaskDetailPageNew: React.FC = () => {
     updateProjectState,
     resetAllState
   } = useTaskDetailState();
+  
+  // 使用渲染追踪hook来监控连续渲染问题（减少依赖避免循环）
+  const { renderCount } = useRenderTracker('TaskDetailPageNew', 
+    { projectId, taskId }, 
+    {}
+  );
+  
+  // 开发环境下的详细调试日志
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && renderCount > 10) {
+      console.warn(`😨 TaskDetailPageNew excessive renders: ${renderCount}`, {
+        projectId,
+        taskId,
+        activeTab: uiState.activeTab,
+        taskLoading: taskState.loading,
+        hasTask: !!taskState.task,
+        documentLoading: documentState.loading,
+        stackTrace: new Error().stack?.slice(0, 300)
+      });
+    }
+  });
 
   // 🆕 Timer hook for refreshing timer state when task completes
   const { refreshTimer } = useTimer();
@@ -188,11 +211,11 @@ const TaskDetailPageNew: React.FC = () => {
     return searchParams.get('tab') || 'info';
   };
 
-  // 初始化UI状态
+  // 初始化UI状态 - 仅在 location.search 变化时执行
   useEffect(() => {
     const activeTab = getActiveTabFromURL();
     updateUIState({ activeTab });
-  }, [location.search, updateUIState]); // 恢复updateUIState依赖
+  }, [location.search, updateUIState]); // 使用useCallback的updateUIState是稳定的
 
   // 智能缓存集成
   const { data: smartTaskData, loading: smartLoading, refresh: refreshSmartTask } = useSmartCache(
@@ -262,13 +285,8 @@ const TaskDetailPageNew: React.FC = () => {
         ? subtasksData.data 
         : [];
       
-      // 只有在子任务真正发生变化时才更新状态
-      const currentSubtaskIds = relationState.subtasks.map(t => t.id).sort().join(',');
-      const newSubtaskIds = children.map(t => t.id).sort().join(',');
-      
-      if (currentSubtaskIds !== newSubtaskIds) {
-        updateRelationState({ subtasks: children });
-      }
+      // 直接更新关系状态，避免依赖循环
+      updateRelationState({ subtasks: children });
       
       // 直接计算统计，避免函数依赖
       const stats = {
@@ -284,24 +302,16 @@ const TaskDetailPageNew: React.FC = () => {
         stats.completionRate = Math.round((stats.completedSubtasks / stats.totalSubtasks) * 100);
       }
       
-      // 只有在统计数据真正变化时才更新
-      if (JSON.stringify(stats) !== JSON.stringify({
-        totalSubtasks: completionState.totalSubtasks,
-        completedSubtasks: completionState.completedSubtasks,
-        inProgressSubtasks: completionState.inProgressSubtasks,
-        todoSubtasks: completionState.todoSubtasks,
-        completionRate: completionState.completionRate,
-        loading: false
-      })) {
-        updateCompletionState(stats);
-      }
+      // 直接更新统计状态
+      updateCompletionState(stats);
+      
     } catch (error) {
       console.error('刷新完成统计失败:', error);
       setCompletionStatsError(error as Error);
     } finally {
       setIsCompletionStatsRefreshing(false);
     }
-  }, [projectId, task?.id, relationState.subtasks, completionState, updateRelationState, updateCompletionState]);
+  }, [projectId, task?.id, updateRelationState, updateCompletionState]);
 
   // 刷新子任务的函数
   const refreshSubtasks = useCallback(async () => {
@@ -451,7 +461,7 @@ const TaskDetailPageNew: React.FC = () => {
       updateTaskState({ task: optimizedData.task, loading: false });
       
       // 记录任务详情页面加载完成性能指标
-      taskDetailPerformanceMonitor.recordComponentMetric('task-detail', 'load', {
+      taskDetailPerformanceMonitor.recordMetric('task-detail-load', performance.now(), {
         taskId: parsedTaskId,
         projectId: parsedProjectId,
         dataSource: optimizedData._cacheHit ? 'cache' : 'api'
@@ -644,10 +654,14 @@ const TaskDetailPageNew: React.FC = () => {
         const timelineValue = (timelineData as PromiseFulfilledResult<any>).value;
         const timeline = toArray(timelineValue);
         // 将TimelineEvent转换为TaskTimelineEvent兼容格式
-        const taskTimelineEvents = timeline.map((event: TimelineEvent): TaskTimelineEvent => ({
-          ...event,
-          event_type: event.event_type as any, // 类型断言，因为API返回的字符串应该是有效的事件类型
-        }));
+        const taskTimelineEvents = timeline.map((event: TimelineEvent): TaskTimelineEvent => {
+          // 安全的类型转换，使用默认值防止无效的事件类型
+          const eventType = event.event_type as TaskTimelineEventType;
+          return {
+            ...event,
+            event_type: eventType || 'updated', // 使用默认事件类型作为后备
+          };
+        });
         updateHistoryState({ timelineEvents: taskTimelineEvents });
       } else {
       }
@@ -725,17 +739,29 @@ const TaskDetailPageNew: React.FC = () => {
   // 组件卸载时清理资源
   useEffect(() => {
     return () => {
+      // 清理悬停定时器
+      hoverTimersRef.current.forEach((timer) => clearTimeout(timer));
+      hoverTimersRef.current.clear();
+      
       // 使用内存管理器清理所有资源
       cleanupAll();
+      
       // 重置状态
       resetAllState();
+      
+      // 清理渲染监控器
+      renderingPerformanceMonitor.cleanup();
     };
   }, [cleanupAll, resetAllState]);
   
   // 开发环境下的性能监控定时器
   useEffect(() => {
+    let performanceTimer: NodeJS.Timeout | null = null;
+    let renderingMonitorTimer: NodeJS.Timeout | null = null;
+    
     if (process.env.NODE_ENV === 'development' && task) {
-      const performanceTimer = setInterval(() => {
+      // 性能监控定时器
+      performanceTimer = setInterval(() => {
         const metrics = taskDetailPerformanceMonitor.getMetrics();
         if (Object.keys(metrics).length > 0) {
           console.group('📊 任务详情页性能监控');
@@ -744,15 +770,40 @@ const TaskDetailPageNew: React.FC = () => {
         }
       }, 30000); // 每30秒输出一次报告
       
-      return () => clearInterval(performanceTimer);
+      // 渲染监控定时器
+      renderingMonitorTimer = setInterval(() => {
+        const renderStats = renderingPerformanceMonitor.getPerformanceStats();
+        const alerts = renderingPerformanceMonitor.getContinuousRenderingAlerts();
+        
+        if (alerts.length > 0) {
+          console.group('😨 连续渲染问题报告');
+          alerts.forEach(alert => {
+            console.warn(`${alert.componentName}: ${alert.renderCount}次渲染在${alert.timeWindow/1000}秒内`);
+            console.log('可能原因:', alert.possibleCauses);
+          });
+          console.log('整体统计:', renderStats);
+          console.groupEnd();
+        }
+      }, 10000); // 每10秒检查一次渲染问题
+      
+      // 注册清理函数
+      addCleanupFunction(() => {
+        if (performanceTimer) clearInterval(performanceTimer);
+        if (renderingMonitorTimer) clearInterval(renderingMonitorTimer);
+      });
     }
-  }, [task]);
+    
+    return () => {
+      if (performanceTimer) clearInterval(performanceTimer);
+      if (renderingMonitorTimer) clearInterval(renderingMonitorTimer);
+    };
+  }, [task, addCleanupFunction]);
 
   useEffect(() => {
     if (projectId && taskId) {
       loadTask();
     }
-  }, [projectId, taskId]); // 移除loadTask依赖，避免循环
+  }, [projectId, taskId, loadTask]); // loadTask是useCallback包装的，依赖稳定
 
   // 暂时禁用URL监听以测试tab切换
   // useEffect(() => {
@@ -765,18 +816,43 @@ const TaskDetailPageNew: React.FC = () => {
   // 当切换到文档Tab时再检查文档存在与数量，避免初始加载时的重网络与遍历
   useEffect(() => {
     if (uiState.activeTab === 'document' && !documentState.loading && documentState.exists === null) {
-      checkDocumentExists();
+      // 直接调用避免依赖问题
+      if (taskState.task && projectId) {
+        checkDocumentExistsForTask(taskState.task);
+      }
     }
-  }, [uiState.activeTab, documentState.loading, documentState.exists]); // 移除checkDocumentExists依赖
+  }, [uiState.activeTab, documentState.loading, documentState.exists, taskState.task, projectId]); // 使用稳定依赖
   
   // 文档Tab性能监控
+  const documentTabTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
     if (uiState.activeTab === 'document' && task) {
-      taskDetailPerformanceMonitor.recordComponentMetric('document-tab', 'render', {
-        taskId: task.id,
-        documentCount: documentState.count
-      });
+      const renderStartTime = performance.now();
+      
+      // 清理之前的定时器
+      if (documentTabTimerRef.current) {
+        clearTimeout(documentTabTimerRef.current);
+      }
+      
+      // 使用setTimeout在下一个事件循环中测量渲染时间
+      documentTabTimerRef.current = setTimeout(() => {
+        const renderTime = performance.now() - renderStartTime;
+        taskDetailPerformanceMonitor.recordComponentMetric(
+          'document-tab',
+          undefined, // mountTime
+          renderTime // renderTime
+        );
+        documentTabTimerRef.current = null;
+      }, 0);
     }
+    
+    return () => {
+      if (documentTabTimerRef.current) {
+        clearTimeout(documentTabTimerRef.current);
+        documentTabTimerRef.current = null;
+      }
+    };
   }, [uiState.activeTab, task?.id, documentState.count]);
 
   // 使用稳定回调避免子组件因回调变动触发重复加载导致的渲染循环
@@ -860,7 +936,7 @@ const TaskDetailPageNew: React.FC = () => {
     updateUIState({ taskModalMode: 'edit', taskModalVisible: true });
   }, [updateUIState]);
 
-  const handleUpdateTask = async (taskData: unknown) => {
+  const handleUpdateTask = async (taskData: Partial<TaskRequest>) => {
     if (!taskState.task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
@@ -876,8 +952,7 @@ const TaskDetailPageNew: React.FC = () => {
       updateUIState({ taskModalVisible: false, modalLoading: false });
       
       // 🆕 如果任务状态变更为completed或cancelled，主动刷新计时器
-      const status = (taskData as any)?.status;
-      if (status === 'completed' || status === 'cancelled') {
+      if (taskData.status === 'completed' || taskData.status === 'cancelled') {
         try {
           await refreshTimer();
         } catch (timerError) {
@@ -893,7 +968,7 @@ const TaskDetailPageNew: React.FC = () => {
     }
   };
 
-  const handleDeleteTask = () => {
+  const handleDeleteTask = useCallback(() => {
     if (!taskState.task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
@@ -920,7 +995,7 @@ const TaskDetailPageNew: React.FC = () => {
         }
       },
     });
-  };
+  }, [taskState.task, projectId, navigate]);
 
   const handleCreateSubtask = useCallback(() => {
     updateUIState({ taskModalMode: 'createSubtask', taskModalVisible: true });
@@ -930,27 +1005,122 @@ const TaskDetailPageNew: React.FC = () => {
     updateUIState({ taskModalMode: 'createSibling', taskModalVisible: true });
   }, [updateUIState]);
 
-  // 优化Tab切换处理函数
+  // Tab预加载管理
+  const [preloadedTabs, setPreloadedTabs] = useState(new Set<string>(['info'])); // info tab默认已加载
+  
+  // 性能仪表板状态(仅开发环境)
+  const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(
+    process.env.NODE_ENV === 'development' && new URLSearchParams(window.location.search).has('perf')
+  );
+  
+  // 预加载特定tab的逻辑 - 稳定化版本，避免状态更新导致重渲染
+  const preloadTab = useCallback((tabKey: string) => {
+    // 直接从 ref 读取当前状态，避免依赖
+    const currentPreloaded = preloadedTabs;
+    if (currentPreloaded.has(tabKey)) return;
+    
+    console.log(`🚀 Preloading tab: ${tabKey}`);
+    
+    // 添加到已预加载集合
+    setPreloadedTabs(prev => new Set(prev).add(tabKey));
+    
+    // 针对不同tab做不同的预加载操作
+    switch (tabKey) {
+      case 'document':
+        // 文档tab的预加载 - 仅标记预加载，不触发状态更新
+        // 实际的文档检查将在用户实际切换到该tab时进行
+        console.log(`📄 Document tab marked for preload`);
+        break;
+      case 'gantt':
+        // 甘特图tab可以预加载子任务数据
+        break;
+    }
+  }, []); // 移除所有依赖，使用内部状态
+  
+  // 智能预加载：当用户悬停在tab上时预加载
+  const hoverTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  
+  const handleTabHover = useCallback((tabKey: string) => {
+    // 清理之前的定时器
+    const existingTimer = hoverTimersRef.current.get(tabKey);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+    
+    // 延迟一点时间再预加载，避免无意悬停
+    const timer = setTimeout(() => {
+      // 直接调用preloadTab逻辑而不依赖回调
+      const currentPreloaded = preloadedTabs;
+      if (!currentPreloaded.has(tabKey)) {
+        console.log(`🚀 Hover preloading tab: ${tabKey}`);
+        setPreloadedTabs(prev => new Set(prev).add(tabKey));
+      }
+      hoverTimersRef.current.delete(tabKey);
+    }, 500);
+    
+    hoverTimersRef.current.set(tabKey, timer);
+  }, []); // 移除preloadTab依赖
+  
+  // 优化Tab切换处理函数 - 最小化依赖以防止无限渲染
   const handleTabChange = useCallback((key: string) => {
-    // 记录Tab切换性能指标
-    taskDetailPerformanceMonitor.recordComponentMetric('tab-switch', 'render', {
-      fromTab: uiState.activeTab,
-      toTab: key,
-      taskId: task?.id
+    const switchStartTime = performance.now();
+    
+    // 使用当前值而不是依赖，减少回调重建
+    const currentActiveTab = uiState.activeTab;
+    const currentTaskId = task?.id;
+    const currentDocumentCount = documentState.count;
+    const isPreloaded = preloadedTabs.has(key);
+    
+    console.log(`📊 Tab switching from '${currentActiveTab}' to '${key}', preloaded: ${isPreloaded}`);
+    
+    // 立即预加载目标tab
+    preloadTab(key);
+    
+    // 立即更新状态以获得更快的响应
+    updateUIState({ activeTab: key });
+    
+    // 异步测量性能，避免阻塞UI
+    requestAnimationFrame(() => {
+      const switchTime = performance.now() - switchStartTime;
+      taskDetailPerformanceMonitor.recordComponentMetric(
+        'tab-switch',
+        undefined, // mountTime
+        switchTime // renderTime
+      );
+      
+      // 特别监控文档tab的性能
+      if (key === 'document') {
+        taskDetailPerformanceMonitor.recordMetric(
+          'document-tab-switch', 
+          switchTime, 
+          { 
+            from: currentActiveTab, 
+            to: key,
+            taskId: currentTaskId,
+            documentCount: currentDocumentCount,
+            wasPreloaded: isPreloaded
+          }
+        );
+        
+        if (switchTime > 100) {
+          console.warn(`⚠️ Slow tab switch to document tab: ${switchTime.toFixed(2)}ms`);
+        }
+      }
     });
     
-    updateUIState({ activeTab: key });
-    // 更新URL但不刷新页面
-    const searchParams = new URLSearchParams(location.search);
+    // 更新URL但不刷新页面 - 使用直接访问避免依赖
+    const currentSearch = window.location.search;
+    const currentPathname = window.location.pathname;
+    const searchParams = new URLSearchParams(currentSearch);
     if (key === 'info') {
       searchParams.delete('tab');
     } else {
       searchParams.set('tab', key);
     }
     const newSearch = searchParams.toString();
-    const newUrl = `${location.pathname}${newSearch ? `?${newSearch}` : ''}`;
+    const newUrl = `${currentPathname}${newSearch ? `?${newSearch}` : ''}`;
     window.history.replaceState(null, '', newUrl);
-  }, [updateUIState, location.search, location.pathname, uiState.activeTab, task?.id]);
+  }, [updateUIState]); // updateUIState是useCallback包装的，依赖稳定
 
   // 批量导入子任务处理函数
   const handleBulkImportSubtasks = () => {
@@ -964,9 +1134,9 @@ const TaskDetailPageNew: React.FC = () => {
   };
 
   // 归档任务处理函数
-  const handleArchiveTask = () => {
+  const handleArchiveTask = useCallback(() => {
     updateUIState({ archiveModalVisible: true });
-  };
+  }, [updateUIState]);
 
   // 归档成功处理
   const handleArchiveSuccess = () => {
@@ -985,8 +1155,9 @@ const TaskDetailPageNew: React.FC = () => {
       await unarchiveTask(parseInt(projectId), taskState.task.id, 'todo');
       message.success('任务已恢复到活跃状态');
       loadTask(); // 重新加载任务数据
-    } catch (error: Error | unknown) {
-      message.error((error as any).message || '取消归档失败');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '取消归档失败';
+      message.error(errorMessage);
     } finally {
       updateUIState({ modalLoading: false });
     }
@@ -1016,7 +1187,7 @@ const TaskDetailPageNew: React.FC = () => {
     }
   };
 
-  const handleCreateSubtaskSubmit = async (taskData: unknown) => {
+  const handleCreateSubtaskSubmit = async (taskData: TaskRequest) => {
     if (!taskState.task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
@@ -1029,7 +1200,7 @@ const TaskDetailPageNew: React.FC = () => {
       updateUIState({ modalLoading: true });
       // 添加parent_id到任务数据
       const subtaskData = {
-        ...(taskData as any),
+        ...taskData,
         parent_id: taskState.task.id
       };
       
@@ -1052,7 +1223,7 @@ const TaskDetailPageNew: React.FC = () => {
     }
   };
 
-  const handleCreateSiblingSubmit = async (taskData: unknown) => {
+  const handleCreateSiblingSubmit = async (taskData: TaskRequest) => {
     if (!taskState.task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
@@ -1065,7 +1236,7 @@ const TaskDetailPageNew: React.FC = () => {
       updateUIState({ modalLoading: true });
       // 使用当前任务的parent_id作为兄弟任务的parent_id
       const siblingData = {
-        ...(taskData as any),
+        ...taskData,
         parent_id: taskState.task.parent_id || null // 如果当前任务是根任务，兄弟任务也是根任务
       };
       
@@ -1086,6 +1257,219 @@ const TaskDetailPageNew: React.FC = () => {
     navigate(`/projects/${projectId}/tasks/${taskId}`);
   }, [navigate]);
 
+  // Calculate derived values with memoization
+  const statusConfig = useMemo(() => 
+    task ? getStatusConfig(task.status) : null, 
+    [task?.status, getStatusConfig]
+  );
+  
+  const priorityConfig = useMemo(() => 
+    task ? getPriorityConfig(task.custom_fields?.priority as string || 'medium') : null, 
+    [task?.custom_fields?.priority, getPriorityConfig]
+  );
+  
+
+
+  // 使用useMemo优化面包屑数据，避免不必要的重渲染
+  const breadcrumbItems = useMemo(() => {
+    if (!task) return [];
+    
+    const items = [
+      // 返回按钮和项目任务根节点
+      {
+        key: 'project-root',
+        title: (
+          <span 
+            onClick={() => navigate(`/projects/${projectId}`)}
+            style={{ 
+              color: '#1890ff',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '0',
+              fontSize: '14px',
+              lineHeight: '22px'
+            }}
+          >
+            <ArrowLeftOutlined style={{ fontSize: '12px' }} />
+            项目任务
+          </span>
+        )
+      }
+    ];
+    
+    // 如果有父任务，显示父任务链接
+    if (task.parent_id && relationState.parent) {
+      items.push({
+        key: 'parent-task',
+        title: (
+          <span 
+            onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.parent_id}`)}
+            style={{ 
+              color: '#1890ff',
+              cursor: 'pointer',
+              fontSize: '14px',
+              lineHeight: '22px'
+            }}
+          >
+            {relationState.parent.title}
+          </span>
+        )
+      });
+    }
+    
+    // 当前任务名称
+    items.push({
+      key: 'current-task',
+      title: (
+        <span style={{ 
+          fontSize: '14px', 
+          lineHeight: '22px',
+          color: '#8c8c8c',
+          fontWeight: 500
+        }}>
+          {task.title}
+        </span>
+      )
+    });
+    
+    return items;
+  }, [projectId, task?.parent_id, task?.project_id, task?.title, relationState.parent, navigate]);
+
+  // 优化标签页标签，减少重新计算
+  const documentTabLabel = useMemo(() => (
+    <Space>
+      <EditOutlined />
+      <span>任务文档</span>
+      <Badge count={documentState.count} />
+    </Space>
+  ), [documentState.count]);
+
+  // 使用useMemo优化标签页配置，避免hooks在JSX中被调用
+  const tabItems = useMemo(() => {
+    if (!task) return [];
+    
+    return [
+      {
+        key: 'info',
+        label: (
+          <Space>
+            <FileTextOutlined />
+            <span>任务信息</span>
+          </Space>
+        ),
+        children: task.status === 'archived' ? (
+          <div>
+            <Alert
+              message="任务已归档"
+              description="已归档的任务无法编辑，如需修改请先恢复任务。"
+              type="info"
+              showIcon
+            />
+          </div>
+        ) : (
+          <Row gutter={[24, 24]}>
+            <Col span={24}>
+              <TaskBasicInfo 
+                task={task} 
+                projectInfo={projectState.projectInfo}
+                onEdit={handleEditTask}
+                onDelete={handleDeleteTask}
+                statusConfig={statusConfig!}
+                priorityConfig={priorityConfig!}
+                timeRemaining={timeRemaining}
+              />
+            </Col>
+            <Col span={24}>
+              <TaskDetailInfo 
+                task={task} 
+                projectInfo={projectState.projectInfo}
+                parentTask={relationState.parent}
+              />
+            </Col>
+          </Row>
+        )
+      },
+      {
+        key: 'document',
+        label: documentTabLabel,
+        children: uiState.activeTab === 'document' ? (
+          <div>
+            <Suspense 
+              fallback={
+                <div style={{ padding: '20px', textAlign: 'center' }}>
+                  <Spin size="large" tip="加载文档区域..." />
+                  <div style={{ marginTop: '12px', color: '#8c8c8c' }}>
+                    正在初始化文档组件，请稍候...
+                  </div>
+                </div>
+              }
+            >
+              <LazyUnifiedTaskDocumentArea
+                taskId={task.id}
+                projectId={parseInt(projectId || '0')}
+                defaultViewMode="edit"
+                showToolbar={true}
+                showDocumentList={true}
+                compactMode={false}
+                headerVisible={false}
+                includeSubtaskDocuments={false}
+                onDocumentChange={handleDocsChange}
+                onViewModeChange={undefined}
+              />
+            </Suspense>
+          </div>
+        ) : (
+          <div style={{ 
+            padding: '40px 20px', 
+            textAlign: 'center', 
+            color: '#8c8c8c',
+            background: '#fafafa',
+            border: '1px dashed #d9d9d9',
+            borderRadius: '4px'
+          }}>
+            <EditOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />
+            <div>切换到此标签页以加载文档</div>
+            <div style={{ fontSize: '12px', marginTop: '4px' }}>为了提升性能，文档组件采用懒加载模式</div>
+          </div>
+        )
+      },
+      {
+        key: 'progress',
+        label: (
+          <Space>
+            <BarChartOutlined />
+            <span>进度分析</span>
+          </Space>
+        ),
+        children: uiState.activeTab === 'progress' ? (
+          <div>
+            <Suspense fallback={<Spin size="large" />}>
+              <TaskAnalysisPanel task={task} subtasks={relationState.subtasks} />
+            </Suspense>
+          </div>
+        ) : (
+          <div style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Spin size="large" />
+          </div>
+        )
+      }
+    ];
+  }, [
+    task?.status, 
+    task?.description, 
+    task?.id,
+    uiState.activeTab, 
+    uiState.modalLoading, 
+    relationState.subtasks, 
+    projectId, 
+    handleUpdateTask, 
+    handleDocsChange,
+    documentTabLabel
+  ]);
+
+  // Conditional rendering - moved to end after all hooks
   if (taskState.loading) {
     return (
       <div style={{ 
@@ -1112,65 +1496,38 @@ const TaskDetailPageNew: React.FC = () => {
     );
   }
 
-  const statusConfig = getStatusConfig(task.status);
-  const priorityConfig = getPriorityConfig(task.custom_fields?.priority as string || 'medium');
-
-  // 渲染面包屑的辅助数据
-  const breadcrumbItems = [
-    // 返回按钮和项目任务根节点
-    {
-      title: (
-        <span 
-          onClick={() => navigate(`/projects/${projectId}`)}
-          style={{ 
-            color: '#1890ff',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '0',
-            fontSize: '14px',
-            lineHeight: '22px'
-          }}
-        >
-          <ArrowLeftOutlined style={{ fontSize: '12px' }} />
-          项目任务
-        </span>
-      )
-    },
-    // 如果有父任务，显示父任务链接
-    ...(taskState.task.parent_id && relationState.parent ? [{
-      title: (
-        <span 
-          onClick={() => navigate(`/projects/${taskState.task.project_id}/tasks/${taskState.task.parent_id}`)}
-          style={{ 
-            color: '#1890ff',
-            cursor: 'pointer',
-            fontSize: '14px',
-            lineHeight: '22px'
-          }}
-        >
-          {relationState.parent.title}
-        </span>
-      )
-    }] : []),
-    // 当前任务名称
-    {
-      title: (
-        <span style={{ 
-          fontSize: '14px', 
-          lineHeight: '22px',
-          color: '#8c8c8c',
-          fontWeight: 500
-        }}>
-          {taskState.task.title}
-        </span>
-      )
-    }
-  ];
-
   return (
     <div className="task-detail-container" style={{ padding: '24px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+      {/* 开发环境渲染计数器 */}
+      {process.env.NODE_ENV === 'development' && renderCount > 3 && (
+        <div style={{
+          position: 'fixed',
+          top: '10px',
+          right: showPerformanceDashboard ? '420px' : '10px',
+          background: renderCount > 10 ? '#ff4d4f' : renderCount > 5 ? '#fa8c16' : '#52c41a',
+          color: 'white',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          zIndex: 9999,
+          fontFamily: 'monospace',
+          cursor: 'pointer',
+          transition: 'right 0.3s'
+        }}
+        onClick={() => setShowPerformanceDashboard(!showPerformanceDashboard)}
+        title="点击切换性能仪表板"
+        >
+          🔄 Renders: {renderCount} {showPerformanceDashboard ? '▼' : '▶'}
+        </div>
+      )}
+      
+      {/* 性能仪表板 */}
+      {process.env.NODE_ENV === 'development' && (
+        <PerformanceDashboard 
+          visible={showPerformanceDashboard}
+          onClose={() => setShowPerformanceDashboard(false)}
+        />
+      )}
       {/* 面包屑导航 */}
       <Breadcrumb 
         style={{ 
@@ -1575,124 +1932,7 @@ const TaskDetailPageNew: React.FC = () => {
               onChange={handleTabChange}
               type="card"
               size="large"
-              items={[
-                {
-                  key: 'info',
-                  label: (
-                    <Space>
-                      <FileTextOutlined />
-                      <span>任务信息</span>
-                    </Space>
-                  ),
-                  children: task.status === 'archived' ? (
-                    <div>
-                      <Alert
-                        message="任务已归档"
-                        description="已归档的任务无法编辑，如需修改请先恢复任务。"
-                        type="info"
-                        showIcon
-                        style={{ marginBottom: '16px' }}
-                      />
-                      <div style={{ 
-                        padding: '12px', 
-                        background: '#f9f9f9', 
-                        borderRadius: '4px',
-                        border: '1px solid #d9d9d9'
-                      }}>
-                        <Text strong>任务描述：</Text>
-                        <div style={{ marginTop: '8px' }}>
-                          {task.description ? (
-                            <MarkdownRenderer content={task.description} />
-                          ) : (
-                            <Text type="secondary" style={{ fontStyle: 'italic' }}>
-                              暂无任务描述
-                            </Text>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <TaskInfoEditor
-                      task={taskState.task}
-                      onUpdate={handleUpdateTask}
-                      loading={uiState.modalLoading}
-                    />
-                  )
-                },
-                {
-                  key: 'document',
-                  label: (
-                    <Space>
-                      <EditOutlined />
-                      <span>任务文档</span>
-                      <Badge count={documentState.count}  />
-                    </Space>
-                  ),
-                  children: uiState.activeTab === 'document' ? (
-                    <div>
-                      {/* 记录文档标签页激活时间 - 在useEffect中处理 */}
-                      <UnifiedTaskDocumentArea
-                        taskId={taskState.task.id}
-                        projectId={parseInt(projectId || '0')}
-                        defaultViewMode="edit"
-                        showToolbar={true}
-                        showDocumentList={true}
-                        compactMode={false}
-                        headerVisible={false}
-                        includeSubtaskDocuments={false}
-                        onDocumentChange={handleDocsChange}
-                        onViewModeChange={undefined}
-                      />
-                    </div>
-                  ) : null
-                },
-                {
-                  key: 'progress',
-                  label: (
-                    <Space>
-                      <BarChartOutlined />
-                      <span>进度分析</span>
-                    </Space>
-                  ),
-                  children: (
-                    <div style={{ minHeight: '400px' }}>
-                      <Alert
-                        message="进度功能暂时不可用"
-                        description="WebSocket相关组件已被移除"
-                        type="info"
-                        showIcon
-                      />
-                    </div>
-                  )
-                },
-                {
-                  key: 'gantt',
-                  label: (
-                    <Space>
-                      <BarChartOutlined />
-                      <span>甘特图</span>
-                      {relationState.subtasks && relationState.subtasks.length > 0 && (
-                        <Badge count={relationState.subtasks.length}  style={{ backgroundColor: '#722ed1' }} />
-                      )}
-                    </Space>
-                  ),
-                  children: uiState.activeTab === 'gantt' ? (
-                    <div style={{ minHeight: '500px' }}>
-                      <Suspense fallback={<Spin size="large" />}>
-                        <TaskGanttChart
-                          parentTask={taskState.task}
-                          projectId={parseInt(projectId || '0')}
-                          style={{ border: 'none', boxShadow: 'none' }}
-                        />
-                      </Suspense>
-                    </div>
-                  ) : (
-                    <div style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Spin size="large" />
-                    </div>
-                  )
-                }
-              ]}
+              items={tabItems}
             />
           </Card>
 

@@ -199,11 +199,12 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
         console.log(`[DailyFocusTasks] Response is array, children count: ${childrenArray.length}`);
       } else if (response && typeof response === 'object') {
         // Handle API response: {data: {data: [...], pagination: ...}}
-        if (response.data && Array.isArray(response.data)) {
-          childrenArray = response.data;
+        const responseObj = response as any;
+        if (responseObj.data && Array.isArray(responseObj.data)) {
+          childrenArray = responseObj.data;
           console.log(`[DailyFocusTasks] Found children in response.data, count: ${childrenArray.length}`);
-        } else if (Array.isArray(response.data?.data)) {
-          childrenArray = response.data.data;
+        } else if (Array.isArray(responseObj.data?.data)) {
+          childrenArray = responseObj.data.data;
           console.log(`[DailyFocusTasks] Found children in response.data.data, count: ${childrenArray.length}`);
         } else {
           console.log(`[DailyFocusTasks] No children found in response structure:`, response);
