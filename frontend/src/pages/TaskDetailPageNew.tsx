@@ -1978,13 +1978,6 @@ const TaskDetailPageNew: React.FC = () => {
             </Card>
           </div>
           
-          {/* 基本信息 */}
-          <TaskDetailInfo
-            task={taskState.task}
-            projectInfo={projectState.projectInfo}
-            parentTask={relationState.parent}
-          />
-
           {/* 关系任务组件 */}
           <TaskRelationsPanel
             task={taskState.task}
