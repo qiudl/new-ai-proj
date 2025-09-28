@@ -97,6 +97,7 @@ export interface UnifiedTaskDocumentAreaProps {
   includeSubtaskDocuments?: boolean; // 是否包含子任务的文档
   onDocumentChange?: (documents: DocumentItem[]) => void;
   onViewModeChange?: (mode: ViewMode) => void;
+  onSaveDocument?: () => Promise<void>; // 保存文档回调
 }
 
 // 文档列表项组件 - 使用memo优化性能
@@ -290,7 +291,8 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   headerVisible = true,
   includeSubtaskDocuments = false,
   onDocumentChange,
-  onViewModeChange
+  onViewModeChange,
+  onSaveDocument
 }) => {
   // 状态管理
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
@@ -536,15 +538,31 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
     }
   }, [projectId, taskId, includeDescendants]);
 
+  // 保存文档函数
+  const saveCurrentDocument = useCallback(async () => {
+    if (!selectedDocument || viewMode !== 'edit') {
+      message.warning('请先进入编辑模式选择要保存的文档');
+      return;
+    }
+    
+    try {
+      if (onSaveDocument) {
+        await onSaveDocument();
+      } else {
+        // 默认保存逻辑 - 重新加载文档
+        await loadDocuments();
+        message.success('文档保存成功');
+      }
+    } catch (error: any) {
+      console.error('保存文档失败:', error);
+      message.error(`保存失败: ${error.message || '未知错误'}`);
+    }
+  }, [selectedDocument, viewMode, onSaveDocument, loadDocuments]);
+
   // 快捷键回调函数
   const shortcutCallbacks = useMemo(() => ({
     save: () => {
-      if (selectedDocument && viewMode === 'edit') {
-        // 这里应该调用保存文档的函数
-        message.success('文档保存中...');
-      } else {
-        message.warning('请先选择要保存的文档');
-      }
+      saveCurrentDocument();
     },
     toggleEditMode: () => {
       const modes: ViewMode[] = ['edit', 'preview', 'manage', 'stats'];
@@ -1016,6 +1034,8 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
       );
     }
 
+    let listContent: React.ReactNode;
+    
     switch (documentListView) {
       case 'grouped':
         listContent = (
@@ -1455,7 +1475,12 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                 taskId={taskId}
                 projectId={projectId}
                 taskDocument={selectedDocument}
-                onSave={() => loadDocuments()}
+                onSave={(content) => {
+                  loadDocuments();
+                  if (onSaveDocument) {
+                    onSaveDocument();
+                  }
+                }}
               />
             </Suspense>
           </ErrorBoundary>

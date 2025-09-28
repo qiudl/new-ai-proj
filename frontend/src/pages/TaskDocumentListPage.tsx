@@ -40,6 +40,12 @@ const { Option } = Select;
 interface TaskDocumentInfo extends Task {
   documentExists?: boolean;
   lastModified?: string;
+  // 新增文档信息字段
+  documentId?: number;
+  documentTitle?: string;
+  documentDescription?: string;
+  documentCreatedAt?: string;
+  documentUpdatedAt?: string;
 }
 
 interface Project {
@@ -63,7 +69,7 @@ const TaskDocumentListPage: React.FC = () => {
   const loadProjects = useCallback(async () => {
     try {
       const response = await projectService.getProjects();
-      // projectService.getProjects可能返回分页响应，需要检查结构
+      // projectService.getProjects返回PaginatedResponse<Project>，项目列表在response.data中
       const projectList = Array.isArray(response) ? response : response.data || [];
       setProjects(projectList);
     } catch (error) {
@@ -85,7 +91,7 @@ const TaskDocumentListPage: React.FC = () => {
           const response = await TaskService.getTasks(project.id, { 
             page_size: 1000 // 设置大页面大小以获取所有任务
           });
-          // TaskService.getTasks返回分页响应，需要访问data属性
+          // TaskService.getTasks返回PaginatedResponse，任务数据在response.data中
           const projectTasks = response.data || [];
           // 为每个任务添加项目信息
           const tasksWithProject = projectTasks.map(task => ({
@@ -99,12 +105,12 @@ const TaskDocumentListPage: React.FC = () => {
         }
       }
 
-      // 检查每个任务的文档状态（限流，避免请求风暴导致 504）
-      const CONCURRENCY = 8;
+      // 检查每个任务的文档状态（优化：每个任务只需1个请求，提高并发数）
+      const CONCURRENCY = 16;
       const checkTaskDoc = async (task: TaskDocumentInfo) => {
         try {
-          // 先用“是否存在”端点，响应极小
-          const hasResp = await fetch(`/api/v1/projects/${task.project_id}/tasks/${task.id}/documents/has`, {
+          // 直接获取文档信息，一个请求搞定（如果无文档会返回空数组）
+          const docsResp = await fetch(`/api/v1/projects/${task.project_id}/tasks/${task.id}/documents`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -113,39 +119,40 @@ const TaskDocumentListPage: React.FC = () => {
           });
 
           let documentExists = false;
-          if (hasResp.ok) {
-            try {
-              const hasData = await hasResp.json();
-              documentExists = !!(hasData?.data?.has_document);
-            } catch {}
-          }
-
           let lastModified: string | undefined = undefined;
-          if (documentExists) {
-            // 仅在存在文档时，再取一次列表，拿到最新更新时间（已按更新时间降序）
-            const listResp = await fetch(`/api/v1/projects/${task.project_id}/tasks/${task.id}/documents/list`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                'Content-Type': 'application/json',
-              },
-            });
-            if (listResp.ok) {
-              try {
-                const listData = await listResp.json();
-                const docs = listData?.data?.documents || [];
-                if (Array.isArray(docs) && docs.length > 0) {
-                  // 后端已按 updated_at 降序，取第一个
-                  lastModified = docs[0]?.updated_at;
-                }
-              } catch {}
-            }
+          let documentId: number | undefined = undefined;
+          let documentTitle: string | undefined = undefined;
+          let documentDescription: string | undefined = undefined;
+          let documentCreatedAt: string | undefined = undefined;
+          let documentUpdatedAt: string | undefined = undefined;
+          
+          if (docsResp.ok) {
+            try {
+              const docsData = await docsResp.json();
+              const docs = docsData?.data || [];
+              if (Array.isArray(docs) && docs.length > 0) {
+                documentExists = true;
+                // 取最新的文档（按updated_at排序，取第一个）
+                const latestDoc = docs.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
+                lastModified = latestDoc?.updated_at;
+                documentId = latestDoc?.id;
+                documentTitle = latestDoc?.title;
+                documentDescription = latestDoc?.description;
+                documentCreatedAt = latestDoc?.created_at;
+                documentUpdatedAt = latestDoc?.updated_at;
+              }
+            } catch {}
           }
 
           return {
             ...task,
             documentExists,
             lastModified,
+            documentId,
+            documentTitle,
+            documentDescription,
+            documentCreatedAt,
+            documentUpdatedAt,
           };
         } catch (error) {
           return {
@@ -255,37 +262,66 @@ const TaskDocumentListPage: React.FC = () => {
 
   const columns = [
     {
-      title: '任务ID',
-      dataIndex: 'id',
-      key: 'id',
+      title: '文档ID',
+      dataIndex: 'documentId',
+      key: 'documentId',
       width: 100,
-      sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => a.id - b.id,
-      render: (id: number) => (
-        <Text style={{ 
-          fontFamily: 'monospace', 
-          fontWeight: 'bold',
-          color: '#1890ff'
-        }}>
-          #{id}
-        </Text>
-      ),
+      sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => (a.documentId || 0) - (b.documentId || 0),
+      defaultSortOrder: 'descend' as const,
+      render: (documentId: number | undefined, record: TaskDocumentInfo) => {
+        if (!documentId) {
+          return <Text type="secondary">无文档</Text>;
+        }
+        return (
+          <Button
+            type="link"
+            style={{ 
+              fontFamily: 'monospace', 
+              fontWeight: 'bold',
+              color: '#1890ff',
+              padding: 0,
+              height: 'auto'
+            }}
+            onClick={() => {
+              // 点击文档ID，打开全屏文档预览（与查看图标一致）
+              const previewUrl = `/projects/${record.project_id}/tasks/${record.id}/document-preview?title=${encodeURIComponent(record.documentTitle || record.title)}`;
+              window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+            }}
+          >
+            #{documentId}
+          </Button>
+        );
+      },
     },
     {
-      title: '任务名称',
-      dataIndex: 'title',
-      key: 'title',
-      width: 300,
-      sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => a.title.localeCompare(b.title),
-      render: (text: string, record: TaskDocumentInfo) => (
-        <div>
-          <div style={{ fontWeight: 500, marginBottom: 4 }}>
-            {text}
+      title: '文档名称',
+      dataIndex: 'documentTitle',
+      key: 'documentTitle',
+      width: 350,
+      sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => 
+        (a.documentTitle || '').localeCompare(b.documentTitle || ''),
+      render: (documentTitle: string | undefined, record: TaskDocumentInfo) => {
+        const displayTitle = documentTitle || record.title;
+        const projectName = (record as any).projectName;
+        const taskId = record.id;
+        const taskTitle = record.title;
+        
+        // 如果任务名称和文档名称一致，则不显示任务名称
+        const showTaskTitle = documentTitle && documentTitle !== taskTitle;
+        
+        return (
+          <div>
+            <div style={{ fontWeight: 500, marginBottom: 4 }}>
+              {displayTitle}
+              {!documentTitle && <Text type="secondary" style={{ marginLeft: 8 }}>(无文档)</Text>}
+            </div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {projectName} · 任务#{taskId}
+              {showTaskTitle && <span> · {taskTitle}</span>}
+            </Text>
           </div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {(record as any).projectName}
-          </Text>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: '状态',
@@ -358,12 +394,16 @@ const TaskDocumentListPage: React.FC = () => {
       width: 200,
       render: (_: unknown, record: TaskDocumentInfo) => (
         <Space>
-          <Tooltip title="查看任务详情">
+          <Tooltip title="全屏文档预览">
             <Button
               type="text"
               
               icon={<EyeOutlined />}
-              onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}`)}
+              onClick={() => {
+                // 打开新窗口显示全屏文档预览
+                const previewUrl = `/projects/${record.project_id}/tasks/${record.id}/document-preview?title=${encodeURIComponent(record.title)}`;
+                window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+              }}
             />
           </Tooltip>
           <Tooltip title="编辑任务文档">
@@ -409,7 +449,7 @@ const TaskDocumentListPage: React.FC = () => {
           任务文档管理
         </Title>
         <Text type="secondary">
-          管理和查看所有任务的文档，快速访问任务详情和文档编辑
+          管理和查看所有任务的文档，点击文档ID或查看图标进入全屏预览
         </Text>
       </div>
 

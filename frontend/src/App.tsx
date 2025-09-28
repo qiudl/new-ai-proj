@@ -18,6 +18,7 @@ import { setNavigateFunction } from './services/api';
 import { installPerformanceInterceptors, uninstallPerformanceInterceptors } from './utils/apiInterceptor';
 import { getCurrentPerformanceConfig, memoryMonitor } from './config/performance';
 import { setupModalCleanup } from './utils/modalCleanup';
+import { enableGlobalModalHeightManagement, disableGlobalModalHeightManagement } from './utils/modalHeightManager';
 import {
   ENTERPRISE_PERMISSIONS,
   USER_PERMISSIONS,
@@ -91,6 +92,7 @@ const ModernDocumentManagerPage = React.lazy(() => import('./pages/ModernDocumen
 // const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage')); // 已归档
 const DropdownTestPage = React.lazy(() => import('./pages/DropdownTestPage'));
 const TaskDocumentListPage = React.lazy(() => import('./pages/TaskDocumentListPage'));
+const FullscreenDocumentPreviewPage = React.lazy(() => import('./pages/FullscreenDocumentPreviewPage'));
 const ArchivedTasksPage = React.lazy(() => import('./pages/ArchivedTasksPage'));
 const TestCenter = React.lazy(() => import('./pages/TestCenter'));
 const MCPTestPage = React.lazy(() => import('./pages/MCPTestPage'));
@@ -136,10 +138,23 @@ const AppContent: React.FC = () => {
     setNavigateFunction(navigate);
     }, [navigate]);
 
-  // 初始化Modal清理系统
+  // 初始化Modal清理系统和高度管理
   useEffect(() => {
-    const cleanup = setupModalCleanup();
-    return cleanup;
+    const modalCleanup = setupModalCleanup();
+    
+    // 全局启用Modal高度管理（只启用一次）
+    enableGlobalModalHeightManagement({
+      maxHeightRatio: 0.9,
+      topMargin: 20,
+      bottomMargin: 20,
+      enableAutoScroll: true,
+      debug: false // 关闭调试日志避免循环输出
+    });
+    
+    return () => {
+      modalCleanup();
+      disableGlobalModalHeightManagement();
+    };
   }, []);
 
   const isLoginRoute = location.pathname === '/login';
@@ -328,6 +343,9 @@ const AppContent: React.FC = () => {
 
 
                 <Route path="/task-documents" element={<TaskDocumentListPage />} />
+
+                {/* Fullscreen document preview route */}
+                <Route path="/projects/:projectId/tasks/:taskId/document-preview" element={<FullscreenDocumentPreviewPage />} />
 
                 {/* Version History routes */}
                 <Route path="/version-history" element={<VersionHistoryPage />} />

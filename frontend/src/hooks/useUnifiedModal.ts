@@ -1,9 +1,8 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { Grid } from 'antd';
 import { 
   calculateMaxAvailableHeight, 
-  ModalHeightConfig,
-  setupAutoHeightManagement
+  ModalHeightConfig
 } from '../utils/modalHeightManager';
 
 const { useBreakpoint } = Grid;
@@ -37,21 +36,7 @@ export const useUnifiedModal = (props: UseUnifiedModalProps = {}): UnifiedModalC
     enableHeightManagement = true
   } = props;
 
-  // 设置自动高度管理
-  useEffect(() => {
-    if (enableHeightManagement) {
-      const cleanup = setupAutoHeightManagement({
-        maxHeightRatio: 0.9,
-        topMargin: 20,
-        bottomMargin: 20,
-        enableAutoScroll: true,
-        debug: process.env.NODE_ENV === 'development',
-        ...heightConfig
-      });
-      
-      return cleanup;
-    }
-  }, [enableHeightManagement, heightConfig]);
+  // 移除自动高度管理的初始化 - 改为在App级别全局初始化
 
   return useMemo(() => {
     const isMobile = !screens.md; // < 768px

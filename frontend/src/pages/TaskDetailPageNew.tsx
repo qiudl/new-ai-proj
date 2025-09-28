@@ -1371,15 +1371,21 @@ const TaskDetailPageNew: React.FC = () => {
         ) : (
           <Row gutter={[24, 24]}>
             <Col span={24}>
-              <TaskBasicInfo 
-                task={task} 
-                projectInfo={projectState.projectInfo}
-                onEdit={handleEditTask}
-                onDelete={handleDeleteTask}
-                statusConfig={statusConfig!}
-                priorityConfig={priorityConfig!}
-                timeRemaining={timeRemaining}
-              />
+              {statusConfig && priorityConfig ? (
+                <TaskBasicInfo 
+                  task={task} 
+                  projectInfo={projectState.projectInfo}
+                  onEdit={handleEditTask}
+                  onDelete={handleDeleteTask}
+                  statusConfig={statusConfig}
+                  priorityConfig={priorityConfig}
+                  timeRemaining={timeRemaining}
+                />
+              ) : (
+                <Card loading style={{ marginBottom: '16px' }}>
+                  <div style={{ height: '200px' }} />
+                </Card>
+              )}
             </Col>
             <Col span={24}>
               <TaskDetailInfo 
@@ -1598,15 +1604,15 @@ const TaskDetailPageNew: React.FC = () => {
             className="task-status-card"
             style={{ 
               marginBottom: '24px',
-              background: statusConfig.bgColor,
-              border: `2px solid ${statusConfig.color}`
+              background: statusConfig?.bgColor || '#ffffff',
+              border: `2px solid ${statusConfig?.color || '#d9d9d9'}`
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '24px', color: statusConfig.color }}>
-                    {statusConfig.icon}
+                  <div style={{ fontSize: '24px', color: statusConfig?.color || '#666' }}>
+                    {statusConfig?.icon || <FileTextOutlined />}
                   </div>
                   <Title level={2} style={{ margin: 0, color: '#262626' }}>
                     {task.title}
@@ -1617,9 +1623,13 @@ const TaskDetailPageNew: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <TagOutlined style={{ color: '#666' }} />
                     <Text>ID: #{task.id} | 状态:</Text>
-                    <Tag color={statusConfig.color} icon={statusConfig.icon}>{statusConfig.text}</Tag>
+                    <Tag color={statusConfig?.color || 'default'} icon={statusConfig?.icon}>
+                      {statusConfig?.text || '加载中'}
+                    </Tag>
                     <Text>| 优先级:</Text>
-                    <Tag color={priorityConfig.color}>{priorityConfig.text}</Tag>
+                    <Tag color={priorityConfig?.color || 'default'}>
+                      {priorityConfig?.text || '加载中'}
+                    </Tag>
                   </div>
                   
                   {task.assignee_id && (

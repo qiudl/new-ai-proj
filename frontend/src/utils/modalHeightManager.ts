@@ -322,8 +322,11 @@ let globalCleanup: (() => void) | null = null;
  */
 export const enableGlobalModalHeightManagement = (config: ModalHeightConfig = {}): void => {
   if (globalCleanup) {
-    console.warn('[ModalHeightManager] 全局高度管理已启用，先清理旧实例');
-    globalCleanup();
+    // 如果已经初始化过，直接返回，避免重复初始化
+    if (config.debug) {
+      console.warn('[ModalHeightManager] 全局高度管理已启用，跳过重复初始化');
+    }
+    return;
   }
   
   globalCleanup = setupAutoHeightManagement(config);
@@ -337,7 +340,9 @@ export const enableGlobalModalHeightManagement = (config: ModalHeightConfig = {}
     document.head.appendChild(style);
   }
   
-  console.log('[ModalHeightManager] 全局高度管理已启用');
+  if (config.debug) {
+    console.log('[ModalHeightManager] 全局高度管理已启用');
+  }
 };
 
 /**
@@ -355,5 +360,7 @@ export const disableGlobalModalHeightManagement = (): void => {
     styleElement.remove();
   }
   
-  console.log('[ModalHeightManager] 全局高度管理已禁用');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[ModalHeightManager] 全局高度管理已禁用');
+  }
 };

@@ -67,41 +67,44 @@ export class TimerService extends BaseClient {
   // @requiresPermission('stop_timer')
   async stopTimer(taskId?: number): Promise<ApiResponse<TimerData>> {
     try {
-      const payload: any = {};
-      if (taskId) {
-        payload.taskId = taskId;
-      }
-
+      // Backend StopTimer handler doesn't accept any payload - it just stops the current running timer for the authenticated user
+      // The taskId parameter is ignored as per the backend implementation
       const response = await this.makeRequest<{
         success: boolean;
         timer_id: number;
-        task_id: number;
-        task_title: string;
-        stopped_at: string;
-        duration_seconds: number;
-        duration_formatted: string;
+        timer_type: string;
         message: string;
-      }>('POST', '/user/timer/stop', payload);
-
-      if (response.success && response.data) {
-        const timerData: TimerData = {
-          id: response.data.timer_id,
-          task_id: response.data.task_id,
-          started_at: '', // 这里可能需要从其他地方获取
-          stopped_at: response.data.stopped_at,
-          duration_seconds: response.data.duration_seconds
+        started_at: string;
+        data: {
+          actual_work_duration: number;
+          efficiency: number;
+          pause_count: number;
+          pause_total: number;
+          total_duration: number;
         };
+      }>('POST', '/user/timer/stop', {});
+
+      if (response && response.success) {
+        const timerData: TimerData = {
+          id: response.timer_id || 0,
+          task_id: taskId || 0,
+          started_at: response.started_at || '', 
+          stopped_at: new Date().toISOString(),
+          duration_seconds: response.data?.total_duration || 0
+        };
+
+        const durationFormatted = this.formatDuration(response.data?.total_duration || 0);
 
         return {
           success: true,
           data: timerData,
-          task_id: response.data.task_id,
-          task_title: response.data.task_title,
-          timer_id: response.data.timer_id,
-          stopped_at: response.data.stopped_at,
-          duration_seconds: response.data.duration_seconds,
-          duration_formatted: response.data.duration_formatted,
-          message: `⏹️ 任务 "${response.data.task_title}" 停止计时 (用时: ${response.data.duration_formatted})`
+          task_id: taskId,
+          timer_id: response.timer_id,
+          started_at: response.started_at,
+          stopped_at: new Date().toISOString(),
+          duration_seconds: response.data?.total_duration || 0,
+          duration_formatted: durationFormatted,
+          message: response.message || `⏹️ 计时已停止 (用时: ${durationFormatted})`
         };
       } else {
         // Handle API error responses gracefully

@@ -1,1 +1,0 @@
-export { default as ImpersonationIndicator } from './ImpersonationIndicator';

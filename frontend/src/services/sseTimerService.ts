@@ -80,6 +80,7 @@ class SSETimerService {
   constructor() {
     this.initAuthToken();
     this.setupNetworkListeners();
+    this.setupPageUnloadHandler();
   }
   
   /**
@@ -112,8 +113,10 @@ class SSETimerService {
     }
     
     try {
+      // 使用配置的API基础URL而不是当前页面origin
+      const apiBaseUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'http://localhost:8081/api/v1';
       // 构建SSE URL，包含认证
-      const url = new URL(SSE_CONFIG.ENDPOINT, window.location.origin);
+      const url = new URL(SSE_CONFIG.ENDPOINT, apiBaseUrl);
       // EventSource不支持自定义headers，通过URL参数传递token
       url.searchParams.set('token', this.authToken);
       
@@ -153,6 +156,14 @@ class SSETimerService {
           errorMessage = 'Connection closed by server';
         } else if (this.eventSource?.readyState === EventSource.CONNECTING) {
           errorMessage = 'Connection failed during establishment';
+        }
+        
+        // 检查是否是用户主动中断（页面刷新、导航等）
+        if (event instanceof ErrorEvent && event.message && event.message.includes('interrupted')) {
+          console.log('SSE Timer Service: Connection interrupted by user action (page navigation/refresh)');
+          // 用户主动中断不需要重连，只记录状态
+          this.setConnectionStatus('disconnected', 'User interrupted');
+          return;
         }
         
         console.warn('SSE Timer Service: Connection error', errorMessage, event);
@@ -255,6 +266,13 @@ class SSETimerService {
    * 处理连接错误
    */
   private handleConnectionError(error: string): void {
+    // 如果是用户中断，不进行重连
+    if (error.includes('interrupted') || error.includes('User interrupted')) {
+      this.setConnectionStatus('disconnected', error);
+      this.closeConnection();
+      return;
+    }
+    
     this.setConnectionStatus('error', error);
     this.closeConnection();
     
@@ -315,7 +333,8 @@ class SSETimerService {
    */
   private async performFallbackRequest(): Promise<void> {
     try {
-      const response = await fetch('/api/v1/user/timer/current', {
+      const apiBaseUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'http://localhost:8081/api/v1';
+      const response = await fetch(`${apiBaseUrl}/user/timer/current`, {
         headers: {
           'Authorization': `Bearer ${this.authToken}`,
           'Content-Type': 'application/json',
@@ -456,6 +475,27 @@ class SSETimerService {
     this.disconnect();
     this.reconnectAttempts = 0;
     setTimeout(() => this.connect(), 1000);
+  }
+  
+  /**
+   * 设置页面卸载处理器
+   */
+  private setupPageUnloadHandler(): void {
+    // 页面卸载时优雅关闭连接
+    window.addEventListener('beforeunload', () => {
+      if (this.eventSource) {
+        console.log('SSE Timer Service: Page unloading, closing connection gracefully');
+        this.eventSource.close();
+        this.eventSource = null;
+      }
+    });
+    
+    // 页面隐藏时不立即断开连接，但标记状态
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && this.connectionStatus === 'connected') {
+        console.log('SSE Timer Service: Page hidden, connection may be interrupted');
+      }
+    });
   }
   
   /**

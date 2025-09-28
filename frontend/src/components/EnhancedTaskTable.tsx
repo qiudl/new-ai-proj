@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Table, Tag, Button, Space, Input, Select, DatePicker, Tooltip, Modal, message } from 'antd';
-import { EditOutlined, DeleteOutlined, EyeOutlined, SearchOutlined, FilterOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EyeOutlined, SearchOutlined, FilterOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Task } from '../types/task';
 import dayjs from 'dayjs';
+import FullscreenDocumentModal from './FullscreenDocumentModal';
+import '../styles/FullscreenDocumentModal.css';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -44,6 +46,10 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
     assignee: []
   });
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
+  
+  // 全屏文档预览状态
+  const [fullscreenDocumentVisible, setFullscreenDocumentVisible] = useState(false);
+  const [selectedTaskForDocument, setSelectedTaskForDocument] = useState<Task | null>(null);
 
   React.useEffect(() => {
     applyFilters();
@@ -97,6 +103,18 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
       cancelText: '取消',
       onOk: () => onDelete(task),
     });
+  };
+
+  // 打开全屏文档预览
+  const handleOpenFullscreenDocument = (task: Task) => {
+    setSelectedTaskForDocument(task);
+    setFullscreenDocumentVisible(true);
+  };
+
+  // 关闭全屏文档预览
+  const handleCloseFullscreenDocument = () => {
+    setFullscreenDocumentVisible(false);
+    setSelectedTaskForDocument(null);
   };
 
   const getStatusColor = (status: string) => {
@@ -305,7 +323,7 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
       title: '操作',
       key: 'action',
       fixed: 'right',
-      width: 150,
+      width: 180,
       render: (_, record: Task) => (
         <Space >
           <Tooltip title="查看详情">
@@ -313,6 +331,13 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
               type="text"
               icon={<EyeOutlined />}
               onClick={() => onView(record)}
+            />
+          </Tooltip>
+          <Tooltip title="文档全屏预览">
+            <Button
+              type="text"
+              icon={<FileTextOutlined />}
+              onClick={() => handleOpenFullscreenDocument(record)}
             />
           </Tooltip>
           <Tooltip title="编辑">
@@ -430,6 +455,16 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
           childrenColumnName: 'nonExistentField' // 禁用默认的展开功能
         }}
       />
+      
+      {/* 全屏文档预览Modal */}
+      {selectedTaskForDocument && (
+        <FullscreenDocumentModal
+          visible={fullscreenDocumentVisible}
+          projectId={selectedTaskForDocument.project_id}
+          taskId={selectedTaskForDocument.id}
+          onClose={handleCloseFullscreenDocument}
+        />
+      )}
     </div>
   );
 };
