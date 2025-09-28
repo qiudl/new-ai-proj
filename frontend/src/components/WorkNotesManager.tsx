@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Table,
   Button,
@@ -7,6 +7,7 @@ import {
   Input,
   Select,
   message,
+  Skeleton,
   Popconfirm,
   Tag,
   Space,
@@ -16,7 +17,11 @@ import {
   Typography,
   Row,
   Col,
-  Badge
+  Badge,
+  Checkbox,
+  Dropdown,
+  Divider,
+  FloatButton
 } from 'antd';
 import { ColumnsType } from 'antd/es/table';
 import {
@@ -27,10 +32,18 @@ import {
   SearchOutlined,
   FileMarkdownOutlined,
   FilterOutlined,
-  SwapOutlined
+  SwapOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  DownOutlined,
+  CopyOutlined,
+  BookOutlined,
+  StarOutlined,
+  InboxOutlined
 } from '@ant-design/icons';
 import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest } from '../services/workNotesService';
 import WorkNoteConversionModal from './conversion/WorkNoteConversionModal';
+import ModernWorkNoteViewer from './ModernWorkNoteViewer';
 import { WORK_NOTE_TYPES, WORK_NOTE_PRIORITIES, getWorkNoteTypeConfig, getWorkNotePriorityConfig } from '../constants/workNoteTypes';
 import WorkNotesStatsCards from './WorkNotesStatsCards';
 import WorkNotesLayout from './WorkNotesLayout';
@@ -106,6 +119,12 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   const [filteredNotes, setFilteredNotes] = useState<WorkNoteWithTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // 批量操作状态
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [batchLoading, setBatchLoading] = useState(false);
   
   // 统计数据
   const [stats, setStats] = useState<WorkNotesStats>({
@@ -125,14 +144,16 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>('');
   
   // 对话框状态
-  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [modernViewerVisible, setModernViewerVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [conversionModalVisible, setConversionModalVisible] = useState(false);
   const [currentWorkNote, setCurrentWorkNote] = useState<WorkNote | null>(null);
   
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
+  const [quickCreateForm] = Form.useForm();
   const [modalVisible, setModalVisible] = useState(false);
+  const [quickCreateVisible, setQuickCreateVisible] = useState(false);
 
   // 计算统计数据
   const calculateStats = useCallback((notes: WorkNoteWithTask[]): WorkNotesStats => {
@@ -162,13 +183,24 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   };
 
 
+  // 使用防抖的搜索关键词
+  const [debouncedSearchKeyword, setDebouncedSearchKeyword] = useState('');
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchKeyword(searchKeyword);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchKeyword]);
+
   // 筛选数据
   const filterNotes = useCallback(() => {
     let filtered = [...workNotes];
     
     // 关键词搜索
-    if (searchKeyword.trim()) {
-      const keyword = searchKeyword.trim();
+    if (debouncedSearchKeyword.trim()) {
+      const keyword = debouncedSearchKeyword.trim();
       
       if (isIdSearch(keyword)) {
         // ID搜索 (格式: #123)
@@ -255,12 +287,13 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     filtered.sort((a, b) => b.id - a.id);
 
     setFilteredNotes(filtered);
-  }, [workNotes, searchKeyword, statusFilter, typeFilter, selectedCategory, selectedTag, selectedAssociation, selectedTimeRange]);
+  }, [workNotes, debouncedSearchKeyword, statusFilter, typeFilter, selectedCategory, selectedTag, selectedAssociation, selectedTimeRange]);
 
   // 加载工作笔记
   const loadWorkNotes = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await workNotesService.listWorkNotes(selectedFolderId || undefined);
       
       // 模拟添加关联任务数据
@@ -283,7 +316,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       setStats(calculateStats(notesWithTasks));
     } catch (error) {
       console.error('Failed to load work notes:', error);
-      message.error('加载工作笔记失败');
+      const errorMessage = error instanceof Error ? error.message : '加载工作笔记失败';
+      setError(errorMessage);
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -354,6 +389,34 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     } catch (error) {
       console.error('Failed to create work note:', error);
       message.error('创建失败');
+    }
+  };
+
+  // 快速创建工作笔记
+  const handleQuickCreate = async (values: any) => {
+    try {
+      const createRequest: CreateWorkNoteRequest = {
+        title: values.title,
+        content: values.content || '',
+        type: 'markdown',
+        work_note_type: 'general',
+        priority: 'medium',
+        status: 'draft',
+        visibility: 'private',
+        is_template: false,
+        is_pinned: false,
+        is_bookmarked: false,
+        tags: values.tags || [],
+      };
+
+      await workNotesService.createWorkNote(createRequest);
+      message.success('快速创建成功！');
+      setQuickCreateVisible(false);
+      quickCreateForm.resetFields();
+      loadWorkNotes();
+    } catch (error) {
+      console.error('Failed to quick create work note:', error);
+      message.error('快速创建失败');
     }
   };
 
@@ -447,7 +510,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   // 查看工作笔记
   const handleView = (workNote: WorkNote) => {
     setCurrentWorkNote(workNote);
-    setViewModalVisible(true);
+    setModernViewerVisible(true);
     if (onDocumentSelect) {
       onDocumentSelect(workNote);
     }
@@ -485,20 +548,238 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     loadWorkNotes();
   };
 
+  // 批量操作功能
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要删除的笔记');
+      return;
+    }
+
+    Modal.confirm({
+      title: '批量删除确认',
+      content: `确定要删除选中的 ${selectedRowKeys.length} 个工作笔记吗？此操作不可恢复。`,
+      okText: '确定删除',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          setBatchLoading(true);
+          const promises = selectedRowKeys.map(id => workNotesService.deleteWorkNote(Number(id)));
+          await Promise.all(promises);
+          message.success(`成功删除 ${selectedRowKeys.length} 个工作笔记`);
+          setSelectedRowKeys([]);
+          loadWorkNotes();
+        } catch (error) {
+          console.error('批量删除失败:', error);
+          message.error('批量删除失败');
+        } finally {
+          setBatchLoading(false);
+        }
+      }
+    });
+  };
+
+  const handleBatchStatusUpdate = async (status: string) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要更新的笔记');
+      return;
+    }
+
+    try {
+      setBatchLoading(true);
+      const promises = selectedRowKeys.map(id => 
+        workNotesService.updateWorkNote(Number(id), { status })
+      );
+      await Promise.all(promises);
+      
+      const statusText = {
+        'published': '已发布',
+        'draft': '草稿',
+        'archived': '已归档'
+      }[status] || status;
+      
+      message.success(`成功将 ${selectedRowKeys.length} 个笔记更新为${statusText}`);
+      setSelectedRowKeys([]);
+      loadWorkNotes();
+    } catch (error) {
+      console.error('批量状态更新失败:', error);
+      message.error('批量状态更新失败');
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
+  const handleBatchCopy = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要复制的笔记');
+      return;
+    }
+
+    try {
+      setBatchLoading(true);
+      const promises = selectedRowKeys.map(id => workNotesService.copyWorkNote(Number(id)));
+      await Promise.all(promises);
+      message.success(`成功复制 ${selectedRowKeys.length} 个工作笔记`);
+      setSelectedRowKeys([]);
+      loadWorkNotes();
+    } catch (error) {
+      console.error('批量复制失败:', error);
+      message.error('批量复制失败');
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
+  const handleBatchToggleTemplate = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要操作的笔记');
+      return;
+    }
+
+    try {
+      setBatchLoading(true);
+      const promises = selectedRowKeys.map(id => workNotesService.toggleTemplate(Number(id)));
+      await Promise.all(promises);
+      message.success(`成功切换 ${selectedRowKeys.length} 个笔记的模板状态`);
+      setSelectedRowKeys([]);
+      loadWorkNotes();
+    } catch (error) {
+      console.error('批量模板状态切换失败:', error);
+      message.error('批量操作失败');
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
+  // 行选择配置
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (selectedKeys: React.Key[]) => {
+      setSelectedRowKeys(selectedKeys);
+    },
+    onSelectAll: (selected: boolean, selectedRows: WorkNoteWithTask[], changeRows: WorkNoteWithTask[]) => {
+      if (selected) {
+        const allKeys = filteredNotes.map(note => note.id);
+        setSelectedRowKeys(allKeys);
+      } else {
+        setSelectedRowKeys([]);
+      }
+    },
+    onSelect: (record: WorkNoteWithTask, selected: boolean) => {
+      if (selected) {
+        setSelectedRowKeys(prev => [...prev, record.id]);
+      } else {
+        setSelectedRowKeys(prev => prev.filter(key => key !== record.id));
+      }
+    },
+    selections: [
+      Table.SELECTION_ALL,
+      Table.SELECTION_INVERT,
+      Table.SELECTION_NONE,
+      {
+        key: 'select-published',
+        text: '选择已发布',
+        onSelect: () => {
+          const publishedKeys = filteredNotes
+            .filter(note => note.status === 'published')
+            .map(note => note.id);
+          setSelectedRowKeys(publishedKeys);
+        },
+      },
+      {
+        key: 'select-draft',
+        text: '选择草稿',
+        onSelect: () => {
+          const draftKeys = filteredNotes
+            .filter(note => note.status === 'draft')
+            .map(note => note.id);
+          setSelectedRowKeys(draftKeys);
+        },
+      },
+    ],
+  };
+
+  // 批量操作菜单
+  const batchActionsMenu = {
+    items: [
+      {
+        key: 'batch-publish',
+        label: '批量发布',
+        icon: <CheckOutlined />,
+        onClick: () => handleBatchStatusUpdate('published'),
+      },
+      {
+        key: 'batch-draft',
+        label: '批量转为草稿',
+        icon: <EditOutlined />,
+        onClick: () => handleBatchStatusUpdate('draft'),
+      },
+      {
+        key: 'batch-archive',
+        label: '批量归档',
+        icon: <InboxOutlined />,
+        onClick: () => handleBatchStatusUpdate('archived'),
+      },
+      { type: 'divider' as const },
+      {
+        key: 'batch-copy',
+        label: '批量复制',
+        icon: <CopyOutlined />,
+        onClick: handleBatchCopy,
+      },
+      {
+        key: 'batch-template',
+        label: '批量切换模板状态',
+        icon: <BookOutlined />,
+        onClick: handleBatchToggleTemplate,
+      },
+      { type: 'divider' as const },
+      {
+        key: 'batch-delete',
+        label: '批量删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        onClick: handleBatchDelete,
+      },
+    ],
+  };
+
 
 
 
   // 过滤后的数据
 
-  // 表格列定义
+  // 响应式布局检测
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowSize.width < 768;
+  const isTablet = windowSize.width < 1024;
+  
   const columns: ColumnsType<WorkNoteWithTask> = [
     {
       title: '笔记ID',
       dataIndex: 'id',
       key: 'id',
-      width: 100,
+      width: isMobile ? 60 : 90,
+      fixed: 'left' as const,
       sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => b.id - a.id,
       defaultSortOrder: 'descend' as const,
+      responsive: ['md'],
       render: (id: number) => (
         <Button
           type="link"
@@ -507,7 +788,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
             fontWeight: 'bold',
             color: '#1890ff',
             padding: 0,
-            height: 'auto'
+            height: 'auto',
+            fontSize: isMobile ? '10px' : '12px'
           }}
           onClick={() => handleView(filteredNotes.find(note => note.id === id)!)}
         >
@@ -519,34 +801,53 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       title: '笔记标题',
       dataIndex: 'title',
       key: 'title',
-      width: 400,
+      ellipsis: true,
       sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => 
         a.title.localeCompare(b.title),
       render: (title: string, record: WorkNoteWithTask) => (
-        <div>
-          <div style={{ fontWeight: 500, marginBottom: 4 }}>
-            {record.categoryIcon} {title}
+        <div style={{ minWidth: isMobile ? 150 : 200 }}>
+          <div style={{ 
+            fontWeight: 500, 
+            marginBottom: 2,
+            cursor: 'pointer',
+            color: '#1890ff',
+            fontSize: isMobile ? 13 : 14
+          }}
+          onClick={() => handleView(record)}
+          title={title}
+          >
+            {record.categoryIcon} {isMobile ? (title.length > 20 ? title.substring(0, 20) + '...' : title) : title}
           </div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.categoryName}
-            {record.associatedTasks && record.associatedTasks.length > 0 && (
-              <span style={{ marginLeft: 8 }}>
-                · 关联 {record.associatedTasks.length} 个任务
-              </span>
-            )}
-            {record.tags && record.tags.length > 0 && (
-              <span style={{ marginLeft: 8 }}>
-                · {record.tags.slice(0, 2).map(tag => `#${tag}`).join(' ')}
-              </span>
-            )}
-          </Text>
+          {!isMobile && (
+            <div style={{ fontSize: 11, color: '#8c8c8c', lineHeight: 1.4 }}>
+              <Space size={4} wrap>
+                <span>{record.categoryName}</span>
+                {record.associatedTasks && record.associatedTasks.length > 0 && (
+                  <span>🔗{record.associatedTasks.length}个任务</span>
+                )}
+                {record.tags && record.tags.length > 0 && 
+                  record.tags.slice(0, 2).map(tag => (
+                    <span key={tag} style={{ color: '#52c41a' }}>#{tag}</span>
+                  ))
+                }
+              </Space>
+            </div>
+          )}
+          {isMobile && (
+            <div style={{ fontSize: 10, color: '#8c8c8c', marginTop: 4 }}>
+              #{record.id} • {record.status === 'published' ? '✓' : record.status === 'draft' ? '📝' : '📦'}
+              {record.associatedTasks && record.associatedTasks.length > 0 && <span> • 🔗{record.associatedTasks.length}</span>}
+            </div>
+          )}
         </div>
       ),
     },
     {
-      title: '关联状态',
+      title: '关联',
       key: 'associationStatus',
-      width: 140,
+      width: isMobile ? 60 : 80,
+      align: 'center' as const,
+      responsive: ['sm'],
       sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => {
         const aAssociated = a.associatedTasks && a.associatedTasks.length > 0;
         const bAssociated = b.associatedTasks && b.associatedTasks.length > 0;
@@ -555,34 +856,38 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
         return 0;
       },
       filters: [
-        { text: '已关联任务', value: 'associated' },
-        { text: '未关联任务', value: 'unassociated' },
+        { text: '已关联', value: 'associated' },
+        { text: '未关联', value: 'unassociated' },
       ],
       onFilter: (value: any, record: WorkNoteWithTask) => {
         if (value === 'associated') return record.associatedTasks && record.associatedTasks.length > 0;
         if (value === 'unassociated') return !record.associatedTasks || record.associatedTasks.length === 0;
         return true;
       },
-      render: (_, record: WorkNoteWithTask) => (
-        <Space direction="vertical" size={2}>
-          {record.associatedTasks && record.associatedTasks.length > 0 ? (
-            <Badge status="success" text="已关联任务" />
-          ) : (
-            <Badge status="default" text="未关联任务" />
-          )}
-          {record.associatedTasks && record.associatedTasks.length > 0 && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {record.associatedTasks.length} 个任务
-            </Text>
-          )}
-        </Space>
-      ),
+      render: (_, record: WorkNoteWithTask) => {
+        const hasAssociation = record.associatedTasks && record.associatedTasks.length > 0;
+        return (
+          <div style={{ textAlign: 'center' }}>
+            {hasAssociation ? (
+              <Tooltip title={`已关联 ${record.associatedTasks!.length} 个任务`}>
+                <Badge count={record.associatedTasks!.length} style={{ backgroundColor: '#52c41a' }}>
+                  🔗
+                </Badge>
+              </Tooltip>
+            ) : (
+              <span style={{ color: '#d9d9d9', fontSize: 16 }}>○</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
+      width: isMobile ? 60 : 80,
+      align: 'center' as const,
+      responsive: ['md'],
       sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => a.status.localeCompare(b.status),
       filters: [
         { text: '草稿', value: 'draft' },
@@ -593,69 +898,100 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       render: (status: string) => {
         const getStatusConfig = (status: string) => {
           switch (status) {
-            case 'published': return { color: 'success', text: '已发布' };
-            case 'draft': return { color: 'warning', text: '草稿' };
-            case 'archived': return { color: 'default', text: '已归档' };
-            default: return { color: 'default', text: status };
+            case 'published': return { color: '#52c41a', icon: '✓', text: '已发布' };
+            case 'draft': return { color: '#faad14', icon: '📝', text: '草稿' };
+            case 'archived': return { color: '#8c8c8c', icon: '📦', text: '已归档' };
+            default: return { color: '#d9d9d9', icon: '?', text: status };
           }
         };
         const config = getStatusConfig(status);
-        return <Tag color={config.color}>{config.text}</Tag>;
+        return (
+          <Tooltip title={config.text}>
+            <span style={{ 
+              color: config.color, 
+              fontSize: 16,
+              cursor: 'help'
+            }}>
+              {config.icon}
+            </span>
+          </Tooltip>
+        );
       },
     },
     {
       title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      width: 150,
+      width: isMobile ? 80 : 120,
+      align: 'center' as const,
+      responsive: ['lg'],
       sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => 
         dayjs(a.updated_at).unix() - dayjs(b.updated_at).unix(),
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => (
+        <div style={{ fontSize: isMobile ? 10 : 11 }}>
+          <div>{dayjs(date).format('MM-DD')}</div>
+          <div style={{ color: '#8c8c8c' }}>{dayjs(date).format('HH:mm')}</div>
+        </div>
+      ),
     },
     {
       title: '操作',
       key: 'actions',
-      width: 150,
+      width: isMobile ? 80 : 100,
+      fixed: 'right' as const,
+      align: 'center' as const,
       render: (_, record: WorkNoteWithTask) => (
-        <Space>
+        <Space size={isMobile ? 2 : 4}>
           <Tooltip title="查看笔记">
             <Button
               type="text"
+              size={isMobile ? 'small' : 'small'}
               icon={<EyeOutlined />}
               onClick={() => handleView(record)}
+              style={{ color: '#1890ff', fontSize: isMobile ? 12 : 14 }}
             />
           </Tooltip>
-          <Tooltip title="编辑笔记">
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              onClick={() => openEditModal(record)}
-            />
-          </Tooltip>
-          <Tooltip title="转换为任务文档">
-            <Button
-              type="text"
-              icon={<SwapOutlined />}
-              onClick={() => openConversionModal(record)}
-            />
-          </Tooltip>
+          {!isMobile && (
+            <Tooltip title="编辑笔记">
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => openEditModal(record)}
+                style={{ color: '#52c41a' }}
+              />
+            </Tooltip>
+          )}
+          {!isMobile && (
+            <Tooltip title="转换为任务文档">
+              <Button
+                type="text"
+                size="small"
+                icon={<SwapOutlined />}
+                onClick={() => openConversionModal(record)}
+                style={{ color: '#fa8c16' }}
+              />
+            </Tooltip>
+          )}
+          {isMobile && (
+            <Tooltip title="更多操作">
+              <Button
+                type="text"
+                size="small"
+                icon={<span style={{ fontSize: 12 }}>⋯</span>}
+                onClick={() => handleView(record)}
+                style={{ color: '#8c8c8c' }}
+              />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
   ];
 
   return (
-    <div style={{ padding: '24px' }}>
-      {/* 页面标题 */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0 }}>
-          <FileMarkdownOutlined style={{ marginRight: 8 }} />
-          工作笔记管理
-        </Title>
-        <Text type="secondary">
-          管理和查看所有的工作笔记文档
-        </Text>
-      </div>
+    <div style={{ padding: isMobile ? '12px' : '24px' }}>
+
 
       {/* 统计卡片 */}
       <WorkNotesStatsCards stats={stats} loading={loading} />
@@ -677,25 +1013,37 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
         }
       >
         {/* 搜索和筛选区 */}
-        <Card style={{ marginBottom: 24 }}>
-          <Row gutter={16} align="middle">
-            <Col flex="300px">
+        <Card style={{ marginBottom: isMobile ? 16 : 24 }}>
+          <Row gutter={[16, 16]} align="middle" wrap>
+            <Col xs={24} sm={24} md={12} lg={10} xl={8}>
               <Search
                 placeholder="搜索标题、内容或输入#ID搜索..."
                 value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
+                onChange={(e) => {
+                  setSearchKeyword(e.target.value);
+                  if (e.target.value.trim()) {
+                    setSearchLoading(true);
+                    setTimeout(() => setSearchLoading(false), 300);
+                  }
+                }}
+                loading={searchLoading}
                 allowClear
                 prefix={<SearchOutlined />}
                 style={{ width: '100%' }}
+                onSearch={() => {
+                  setSearchLoading(true);
+                  setTimeout(() => setSearchLoading(false), 100);
+                }}
               />
             </Col>
-            <Col flex="120px">
+            <Col xs={12} sm={8} md={6} lg={4} xl={3}>
               <Select
                 placeholder="状态筛选"
                 value={statusFilter}
                 onChange={setStatusFilter}
                 allowClear
                 style={{ width: '100%' }}
+                size="middle"
               >
                 <Option value="all">全部状态</Option>
                 <Option value="draft">草稿</Option>
@@ -703,109 +1051,164 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
                 <Option value="archived">已归档</Option>
               </Select>
             </Col>
-            <Col>
+            <Col xs={12} sm={8} md={6} lg={4} xl={3}>
               <Button
                 icon={<FilterOutlined />}
                 onClick={resetFilters}
+                style={{ width: '100%' }}
+                disabled={!searchKeyword && statusFilter === 'all' && !selectedCategory && !selectedTag && !selectedAssociation && !selectedTimeRange}
               >
                 清空筛选
               </Button>
             </Col>
+            <Col xs={24} sm={8} md={0} lg={6} xl={10}>
+              <div style={{ textAlign: 'right', color: '#8c8c8c', fontSize: 12 }}>
+                显示 {filteredNotes.length} / {workNotes.length} 个笔记
+                {debouncedSearchKeyword && (
+                  <span style={{ marginLeft: 8, color: '#1890ff' }}>
+                    🔍 "{debouncedSearchKeyword}"
+                  </span>
+                )}
+              </div>
+            </Col>
           </Row>
         </Card>
 
+        {/* 批量操作工具栏 */}
+        {selectedRowKeys.length > 0 && (
+          <Card style={{ marginBottom: isMobile ? 16 : 24, borderColor: '#1890ff' }}>
+            <Row align="middle" justify="space-between">
+              <Col>
+                <Space>
+                  <Text strong style={{ color: '#1890ff' }}>
+                    已选择 {selectedRowKeys.length} 个笔记
+                  </Text>
+                  <Button 
+                    size="small" 
+                    type="text" 
+                    onClick={() => setSelectedRowKeys([])}
+                    icon={<CloseOutlined />}
+                  >
+                    取消选择
+                  </Button>
+                </Space>
+              </Col>
+              <Col>
+                <Space>
+                  <Button
+                    type="primary"
+                    icon={<CheckOutlined />}
+                    onClick={() => handleBatchStatusUpdate('published')}
+                    loading={batchLoading}
+                    size={isMobile ? 'small' : 'middle'}
+                  >
+                    批量发布
+                  </Button>
+                  <Dropdown 
+                    menu={batchActionsMenu} 
+                    trigger={['click']}
+                    placement="bottomRight"
+                  >
+                    <Button 
+                      icon={<DownOutlined />}
+                      loading={batchLoading}
+                      size={isMobile ? 'small' : 'middle'}
+                    >
+                      更多操作
+                    </Button>
+                  </Dropdown>
+                </Space>
+              </Col>
+            </Row>
+          </Card>
+        )}
+
         {/* 工作笔记表格 */}
         <Card>
-          <Table
-            columns={columns}
-            dataSource={filteredNotes}
-            rowKey="id"
-            loading={loading}
-            pagination={{
-              total: filteredNotes.length,
-              pageSize: 20,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total) => `共 ${total} 个笔记`,
-            }}
-            scroll={{ x: 1000 }}
-          />
+          {error && (
+            <div style={{ 
+              padding: 16, 
+              marginBottom: 16, 
+              background: '#fff2f0', 
+              border: '1px solid #ffccc7',
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <span style={{ color: '#ff4d4f' }}>⚠️ {error}</span>
+              <Button size="small" type="link" onClick={loadWorkNotes}>
+                重试
+              </Button>
+            </div>
+          )}
+          
+          {loading ? (
+            <div style={{ padding: 24 }}>
+              <Skeleton active paragraph={{ rows: 8 }} />
+            </div>
+          ) : (
+            <Table
+              columns={columns}
+              dataSource={filteredNotes}
+              rowKey="id"
+              loading={false}
+              size="small"
+              rowSelection={rowSelection}
+              pagination={{
+                total: filteredNotes.length,
+                pageSize: 15,
+                pageSizeOptions: ['10', '15', '30', '50'],
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => 
+                  `第 ${range[0]}-${range[1]} 条，共 ${total} 个笔记`,
+                responsive: true,
+                position: ['topRight', 'bottomRight'],
+              }}
+              scroll={{ 
+                x: isMobile ? 600 : 800, 
+                y: isMobile ? 'calc(100vh - 500px)' : 'calc(100vh - 400px)' 
+              }}
+              locale={{
+                emptyText: (
+                  <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                    <div style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }}>📝</div>
+                    <div style={{ color: '#8c8c8c', fontSize: 16, marginBottom: 8 }}>
+                      {error ? '加载失败' : '暂无工作笔记'}
+                    </div>
+                    <div style={{ color: '#bfbfbf', fontSize: 12 }}>
+                      {error ? (
+                        <Button type="link" size="small" onClick={loadWorkNotes}>
+                          点击重试
+                        </Button>
+                      ) : (
+                        searchKeyword || selectedCategory || selectedTag || selectedAssociation || selectedTimeRange || statusFilter !== 'all'
+                          ? '试试调整筛选条件' 
+                          : '开始创建您的第一个工作笔记吧'
+                      )}
+                    </div>
+                  </div>
+                )
+              }}
+            />
+          )}
         </Card>
       </WorkNotesLayout>
 
-      {/* 查看笔记对话框 */}
-      <Modal
-        title={`查看笔记 - ${currentWorkNote?.title || ''}`}
-        open={viewModalVisible}
-        onCancel={() => {
-          setViewModalVisible(false);
+      {/* 现代化笔记查看器 */}
+      <ModernWorkNoteViewer
+        visible={modernViewerVisible}
+        note={currentWorkNote}
+        onClose={() => {
+          setModernViewerVisible(false);
           setCurrentWorkNote(null);
         }}
-        footer={[
-          <Button key="edit" type="primary" onClick={() => {
-            setViewModalVisible(false);
-            openEditModal(currentWorkNote!);
-          }}>
-            编辑
-          </Button>,
-          <Button key="close" onClick={() => setViewModalVisible(false)}>
-            关闭
-          </Button>,
-        ]}
-        width={800}
-      >
-        {currentWorkNote && (
-          <div>
-            <div style={{ marginBottom: 16 }}>
-              <Space>
-                <Tag color="blue">#{currentWorkNote.id}</Tag>
-                <Tag color={currentWorkNote.status === 'published' ? 'success' : 'warning'}>
-                  {currentWorkNote.status === 'published' ? '已发布' : '草稿'}
-                </Tag>
-                <Text type="secondary">
-                  更新时间: {dayjs(currentWorkNote.updated_at).format('YYYY-MM-DD HH:mm')}
-                </Text>
-              </Space>
-            </div>
-            
-            {currentWorkNote.description && (
-              <div style={{ marginBottom: 16 }}>
-                <Text strong>描述：</Text>
-                <div style={{ marginTop: 8, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
-                  {currentWorkNote.description}
-                </div>
-              </div>
-            )}
-            
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>内容：</Text>
-              <div style={{ 
-                marginTop: 8, 
-                padding: 16, 
-                background: '#fafafa', 
-                borderRadius: 4,
-                maxHeight: 400,
-                overflow: 'auto',
-                whiteSpace: 'pre-wrap',
-                fontFamily: 'monospace'
-              }}>
-                {currentWorkNote.content}
-              </div>
-            </div>
-            
-            {currentWorkNote.tags && currentWorkNote.tags.length > 0 && (
-              <div>
-                <Text strong>标签：</Text>
-                <div style={{ marginTop: 8 }}>
-                  {currentWorkNote.tags.map(tag => (
-                    <Tag key={tag} color="blue">#{tag}</Tag>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+        onEdit={(note) => {
+          setModernViewerVisible(false);
+          openEditModal(note);
+        }}
+      />
 
       {/* 编辑笔记对话框 */}
       <Modal
@@ -918,6 +1321,86 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
         }}
         onConversionSuccess={handleConversionSuccess}
       />
+
+      {/* 快速创建对话框 */}
+      <Modal
+        title="快速创建工作笔记"
+        open={quickCreateVisible}
+        onOk={() => quickCreateForm.submit()}
+        onCancel={() => {
+          setQuickCreateVisible(false);
+          quickCreateForm.resetFields();
+        }}
+        width={600}
+        okText="立即创建"
+        cancelText="取消"
+      >
+        <Form
+          form={quickCreateForm}
+          layout="vertical"
+          onFinish={handleQuickCreate}
+        >
+          <Form.Item
+            name="title"
+            label="笔记标题"
+            rules={[{ required: true, message: '请输入笔记标题' }]}
+          >
+            <Input 
+              placeholder="输入笔记标题..."
+              autoFocus
+            />
+          </Form.Item>
+          
+          <Form.Item
+            name="content"
+            label="笔记内容"
+          >
+            <TextArea
+              rows={6}
+              placeholder="快速记录你的想法..."
+              style={{ fontFamily: 'monospace' }}
+            />
+          </Form.Item>
+          
+          <Form.Item
+            name="tags"
+            label="标签"
+          >
+            <Select
+              mode="tags"
+              placeholder="添加标签（可选）"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 浮动操作按钮 */}
+      {!isMobile && (
+        <FloatButton.Group
+          trigger="hover"
+          type="primary"
+          style={{ right: 24 }}
+          icon={<PlusOutlined />}
+          tooltip="快速操作"
+        >
+          <FloatButton
+            icon={<PlusOutlined />}
+            tooltip="快速创建笔记"
+            onClick={() => setQuickCreateVisible(true)}
+          />
+          <FloatButton
+            icon={<BookOutlined />}
+            tooltip="从模板创建"
+            onClick={() => message.info('模板功能即将推出')}
+          />
+          <FloatButton
+            icon={<FileMarkdownOutlined />}
+            tooltip="完整创建"
+            onClick={() => setModalVisible(true)}
+          />
+        </FloatButton.Group>
+      )}
 
     </div>
   );

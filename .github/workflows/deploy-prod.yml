@@ -1,0 +1,383 @@
+name: Production Deploy
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment (skip some checks)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+env:
+  NODE_VERSION: '18'
+  GO_VERSION: '1.23'
+  SERVER_HOST: '152.136.104.251'
+  SERVER_USER: 'ubuntu'
+  DEPLOY_PATH: '/home/ubuntu/apps/new-ai-proj'
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    if: github.event.inputs.force_deploy != 'true'
+    
+    outputs:
+      frontend-version: ${{ steps.version.outputs.frontend-version }}
+      backend-version: ${{ steps.version.outputs.backend-version }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate version info
+        id: version
+        run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          COMMIT_SHORT=$(git rev-parse --short HEAD)
+          VERSION="$TIMESTAMP-$COMMIT_SHORT"
+          echo "frontend-version=$VERSION" >> $GITHUB_OUTPUT
+          echo "backend-version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+      
+      # Frontend Build
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
+      
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Build frontend for production
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          GENERATE_SOURCEMAP: false
+          REACT_APP_API_URL: /api/v1
+          REACT_APP_API_BASE_URL: /api/v1
+          NODE_ENV: production
+          REACT_APP_ENV: production
+      
+      - name: Create frontend deployment package
+        working-directory: ./frontend
+        run: |
+          tar -czf "../frontend-${{ steps.version.outputs.frontend-version }}.tar.gz" \
+            --exclude=node_modules \
+            --exclude=src \
+            --exclude=public \
+            --exclude=coverage \
+            --exclude=test-results \
+            build/ package.json nginx.conf Dockerfile.prod docker-entrypoint.sh
+      
+      # Backend Build
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: './backend/go.sum'
+      
+      - name: Build backend for production
+        working-directory: ./backend
+        run: |
+          go mod download
+          CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+      
+      - name: Create backend deployment package
+        working-directory: ./backend
+        run: |
+          tar -czf "../backend-${{ steps.version.outputs.backend-version }}.tar.gz" \
+            --exclude=*.go \
+            --exclude=go.mod \
+            --exclude=go.sum \
+            --exclude=tests \
+            --exclude=coverage.out \
+            --exclude=tmp \
+            --exclude=.env \
+            main Dockerfile.prod migrations/ config/ templates/
+      
+      # Upload artifacts
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-packages
+          path: |
+            frontend-${{ steps.version.outputs.frontend-version }}.tar.gz
+            backend-${{ steps.version.outputs.backend-version }}.tar.gz
+          retention-days: 7
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: always() && (needs.build-and-test.result == 'success' || github.event.inputs.force_deploy == 'true')
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download deployment artifacts
+        if: needs.build-and-test.result == 'success'
+        uses: actions/download-artifact@v3
+        with:
+          name: deployment-packages
+      
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Pre-deployment checks
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'EOF'
+            echo "=== Pre-deployment System Check ==="
+            echo "Disk space:"
+            df -h /home
+            echo "Memory usage:"
+            free -h
+            echo "Current services:"
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            echo "=== Check Complete ==="
+          EOF
+      
+      - name: Create deployment directory
+        run: |
+          RELEASE_DIR="releases/release_$(date +%Y%m%d_%H%M%S)"
+          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << EOF
+            sudo mkdir -p ${{ env.DEPLOY_PATH }}/{releases,shared,logs}
+            sudo chown -R ${{ env.SERVER_USER }}:${{ env.SERVER_USER }} ${{ env.DEPLOY_PATH }}
+            mkdir -p ${{ env.DEPLOY_PATH }}/$RELEASE_DIR
+            echo "Created release directory: $RELEASE_DIR"
+            echo "RELEASE_DIR=$RELEASE_DIR" >> /tmp/deploy_vars
+          EOF
+      
+      - name: Upload deployment packages
+        if: needs.build-and-test.result == 'success'
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            frontend-${{ needs.build-and-test.outputs.frontend-version }}.tar.gz \
+            backend-${{ needs.build-and-test.outputs.backend-version }}.tar.gz \
+            ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:~/
+      
+      - name: Deploy application
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'EOF'
+            set -e
+            
+            # Load deployment variables
+            source /tmp/deploy_vars
+            
+            cd ${{ env.DEPLOY_PATH }}
+            
+            echo "=== Starting Deployment ==="
+            
+            # Extract packages to release directory
+            if [ -f ~/frontend-${{ needs.build-and-test.outputs.frontend-version }}.tar.gz ]; then
+              echo "Extracting frontend package..."
+              tar -xzf ~/frontend-${{ needs.build-and-test.outputs.frontend-version }}.tar.gz -C $RELEASE_DIR/
+            fi
+            
+            if [ -f ~/backend-${{ needs.build-and-test.outputs.backend-version }}.tar.gz ]; then
+              echo "Extracting backend package..."
+              tar -xzf ~/backend-${{ needs.build-and-test.outputs.backend-version }}.tar.gz -C $RELEASE_DIR/
+            fi
+            
+            # Copy environment configuration
+            cp shared/config/.env.production $RELEASE_DIR/.env 2>/dev/null || echo "No .env.production found, using defaults"
+            
+            # Set up shared directories (logs, uploads, etc.)
+            mkdir -p shared/{logs,uploads,config}
+            ln -sfn ../../shared/logs $RELEASE_DIR/logs
+            ln -sfn ../../shared/uploads $RELEASE_DIR/uploads
+            
+            # Backup current version
+            if [ -L current ]; then
+              cp -P current previous 2>/dev/null || true
+            fi
+            
+            # Switch to new version
+            ln -sfn $RELEASE_DIR current
+            
+            echo "=== Deployment files ready ==="
+          EOF
+      
+      - name: Update docker-compose and restart services
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'EOF'
+            cd ${{ env.DEPLOY_PATH }}/current
+            
+            # Copy production docker-compose configuration
+            cp docker-compose.prod.yml docker-compose.yml
+            
+            # Load environment variables
+            if [ -f .env ]; then
+              export $(cat .env | xargs)
+            fi
+            
+            echo "=== Stopping current services ==="
+            docker-compose down --remove-orphans || true
+            
+            echo "=== Starting new services ==="
+            docker-compose up -d --build
+            
+            echo "=== Waiting for services to start ==="
+            sleep 30
+          EOF
+      
+      - name: Health check and verification
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'EOF'
+            cd ${{ env.DEPLOY_PATH }}/current
+            
+            echo "=== Health Check ==="
+            
+            # Check if containers are running
+            RUNNING_CONTAINERS=$(docker-compose ps -q | wc -l)
+            echo "Running containers: $RUNNING_CONTAINERS"
+            
+            # Health check attempts
+            for i in {1..30}; do
+              echo "Health check attempt $i/30..."
+              
+              # Check backend health
+              if curl -f -s http://localhost:8080/health > /dev/null 2>&1; then
+                echo "✅ Backend health check passed"
+                BACKEND_HEALTHY=true
+                break
+              else
+                echo "⏳ Backend not ready yet..."
+                BACKEND_HEALTHY=false
+                sleep 10
+              fi
+            done
+            
+            # Check frontend
+            if curl -f -s http://localhost:3000 > /dev/null 2>&1; then
+              echo "✅ Frontend health check passed"
+              FRONTEND_HEALTHY=true
+            else
+              echo "❌ Frontend health check failed"
+              FRONTEND_HEALTHY=false
+            fi
+            
+            if [ "$BACKEND_HEALTHY" = true ] && [ "$FRONTEND_HEALTHY" = true ]; then
+              echo "🎉 Deployment successful!"
+              docker-compose ps
+            else
+              echo "❌ Health check failed, initiating rollback..."
+              if [ -L previous ]; then
+                echo "Rolling back to previous version..."
+                mv current temp
+                mv previous current
+                mv temp previous
+                docker-compose up -d --build
+                sleep 20
+                if curl -f -s http://localhost:8080/health > /dev/null 2>&1; then
+                  echo "✅ Rollback successful"
+                else
+                  echo "❌ Rollback failed, manual intervention required"
+                fi
+              else
+                echo "❌ No previous version available for rollback"
+              fi
+              exit 1
+            fi
+          EOF
+      
+      - name: Cleanup old releases
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'EOF'
+            cd ${{ env.DEPLOY_PATH }}/releases
+            
+            # Keep only the 5 most recent releases
+            echo "Cleaning up old releases..."
+            ls -t | tail -n +6 | xargs rm -rf 2>/dev/null || true
+            
+            echo "Current releases:"
+            ls -la
+            
+            # Clean up deployment packages
+            rm -f ~/frontend-*.tar.gz ~/backend-*.tar.gz 2>/dev/null || true
+            
+            echo "=== Deployment Complete ==="
+          EOF
+      
+      - name: Send deployment notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            STATUS="✅ SUCCESS"
+            COLOR="good"
+          else
+            STATUS="❌ FAILED"
+            COLOR="danger"
+          fi
+          
+          echo "Deployment $STATUS"
+          echo "Branch/Tag: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
+          
+          # Here you can add Slack, Discord, or email notifications
+          # For example, using webhook:
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"Deployment '$STATUS' for new-ai-proj"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  post-deployment:
+    name: Post-Deployment Tasks
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: needs.deploy.result == 'success'
+    
+    steps:
+      - name: Run post-deployment checks
+        run: |
+          echo "=== Post-Deployment Verification ==="
+          
+          # Wait a bit more for everything to stabilize
+          sleep 30
+          
+          # Test external connectivity
+          if curl -f -s --max-time 30 http://${{ env.SERVER_HOST }} > /dev/null 2>&1; then
+            echo "✅ External connectivity test passed"
+          else
+            echo "⚠️ External connectivity test failed (may be expected if behind firewall)"
+          fi
+          
+          # Additional checks can be added here
+          echo "✅ Post-deployment checks complete"
+      
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            ## Changes in this Release
+            - Deployed to production server: ${{ env.SERVER_HOST }}
+            - Deployment time: ${{ github.run_id }}
+            - Commit: ${{ github.sha }}
+            
+            ## Deployment Details
+            - Frontend version: ${{ needs.build-and-test.outputs.frontend-version }}
+            - Backend version: ${{ needs.build-and-test.outputs.backend-version }}
+          draft: false
+          prerelease: false
