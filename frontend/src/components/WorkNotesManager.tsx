@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Table,
   Button,
@@ -12,102 +12,138 @@ import {
   Space,
   Tooltip,
   Card,
-  Empty,
   Spin,
   Typography,
-  Checkbox,
-  Dropdown,
   Row,
   Col,
-  Statistic,
-  Badge,
-  Divider,
-  Radio
+  Badge
 } from 'antd';
-import type { MenuProps } from 'antd';
 import { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  CopyOutlined,
   EyeOutlined,
   SearchOutlined,
   FileMarkdownOutlined,
-  StarOutlined,
-  StarFilled,
-  SwapOutlined,
-  DownOutlined,
-  ExportOutlined,
-  ReloadOutlined,
-  SettingOutlined,
   FilterOutlined,
-  SortAscendingOutlined,
-  SortDescendingOutlined,
-  TableOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
-  BookOutlined,
-  BookFilled,
-  PushpinOutlined,
-  PushpinFilled
+  SwapOutlined
 } from '@ant-design/icons';
 import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest } from '../services/workNotesService';
 import WorkNoteConversionModal from './conversion/WorkNoteConversionModal';
-import BatchWorkNoteConversionModal from './conversion/BatchWorkNoteConversionModal';
 import { WORK_NOTE_TYPES, WORK_NOTE_PRIORITIES, getWorkNoteTypeConfig, getWorkNotePriorityConfig } from '../constants/workNoteTypes';
+import WorkNotesStatsCards from './WorkNotesStatsCards';
+import WorkNotesLayout from './WorkNotesLayout';
+import WorkNotesTreeSidebar from './WorkNotesTreeSidebar';
+import dayjs from 'dayjs';
 
-const { Text, Paragraph, Title } = Typography;
+const { Title, Text } = Typography;
+const { Search } = Input;
 const { Option } = Select;
 const { TextArea } = Input;
+
+// 关联任务接口
+interface AssociatedTask {
+  id: number;
+  title: string;
+  status: string;
+  project_id: number;
+  project_name: string;
+}
+
+// 扩展的工作笔记接口
+interface WorkNoteWithTask extends WorkNote {
+  associatedTasks?: AssociatedTask[];
+  categoryIcon?: string;
+  categoryName?: string;
+}
+
+// 统计数据接口
+interface WorkNotesStats {
+  total: number;
+  draft: number;
+  published: number;
+  archived: number;
+  associated: number;
+}
+
+// 分类统计接口
+interface CategoryStats {
+  categories: {
+    [key: string]: {
+      count: number;
+      icon: string;
+      color: string;
+    }
+  };
+  tags: {
+    [key: string]: number;
+  };
+  associations: {
+    associated: number;
+    unassociated: number;
+    convertible: number;
+  };
+  timeRanges: {
+    today: number;
+    thisWeek: number;
+    thisMonth: number;
+    earlier: number;
+  };
+}
 
 interface WorkNotesManagerProps {
   selectedFolderId?: number | null;
   onDocumentSelect?: (doc: WorkNote) => void;
 }
 
-// 状态统计接口
-interface StatusStats {
-  draft: number;
-  published: number;
-  archived: number;
-  template: number;
-}
-
 const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   selectedFolderId,
   onDocumentSelect
 }) => {
-  const [workNotes, setWorkNotes] = useState<WorkNote[]>([]);
+  // 基础状态
+  const [workNotes, setWorkNotes] = useState<WorkNoteWithTask[]>([]);
+  const [filteredNotes, setFilteredNotes] = useState<WorkNoteWithTask[]>([]);
   const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [viewModalVisible, setViewModalVisible] = useState(false);
-  const [conversionModalVisible, setConversionModalVisible] = useState(false);
-  const [batchConversionModalVisible, setBatchConversionModalVisible] = useState(false);
-  const [currentWorkNote, setCurrentWorkNote] = useState<WorkNote | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
-  const [selectedWorkNotes, setSelectedWorkNotes] = useState<WorkNote[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState('');
   
-  // 新增状态管理
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [visibilityFilter, setVisibilityFilter] = useState<string>('all');
-  const [workNoteTypeFilter, setWorkNoteTypeFilter] = useState<string>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  const [sortField, setSortField] = useState<string>('updated_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-  const [statusStats, setStatusStats] = useState<StatusStats>({
+  // 统计数据
+  const [stats, setStats] = useState<WorkNotesStats>({
+    total: 0,
     draft: 0,
     published: 0,
     archived: 0,
-    template: 0
+    associated: 0
   });
-
+  
+  // 筛选状态
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedTag, setSelectedTag] = useState<string>('');
+  const [selectedAssociation, setSelectedAssociation] = useState<string>('');
+  const [selectedTimeRange, setSelectedTimeRange] = useState<string>('');
+  
+  // 对话框状态
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [conversionModalVisible, setConversionModalVisible] = useState(false);
+  const [currentWorkNote, setCurrentWorkNote] = useState<WorkNote | null>(null);
+  
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
+  const [modalVisible, setModalVisible] = useState(false);
+
+  // 计算统计数据
+  const calculateStats = useCallback((notes: WorkNoteWithTask[]): WorkNotesStats => {
+    return {
+      total: notes.length,
+      draft: notes.filter(note => note.status === 'draft').length,
+      published: notes.filter(note => note.status === 'published').length,
+      archived: notes.filter(note => note.status === 'archived').length,
+      associated: notes.filter(note => note.associatedTasks && note.associatedTasks.length > 0).length
+    };
+  }, []);
 
   // 检查是否是ID搜索
   const isIdSearch = (query: string): boolean => {
@@ -125,155 +161,174 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     }
   };
 
-  // 计算状态统计
-  const calculateStats = (notes: WorkNote[]): StatusStats => {
-    return notes.reduce((stats, note) => {
-      if (note.is_template) {
-        stats.template += 1;
-      } else {
-        switch (note.status) {
-          case 'draft':
-            stats.draft += 1;
-            break;
-          case 'published':
-            stats.published += 1;
-            break;
-          case 'archived':
-            stats.archived += 1;
-            break;
-          default:
-            break;
+
+  // 筛选数据
+  const filterNotes = useCallback(() => {
+    let filtered = [...workNotes];
+    
+    // 关键词搜索
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.trim();
+      
+      if (isIdSearch(keyword)) {
+        // ID搜索 (格式: #123)
+        const id = parseInt(keyword.substring(1));
+        if (!isNaN(id)) {
+          filtered = filtered.filter(note => note.id === id);
         }
-      }
-      return stats;
-    }, { draft: 0, published: 0, archived: 0, template: 0 });
-  };
-
-  // 过滤和排序数据
-  const getFilteredAndSortedData = (notes: WorkNote[]): WorkNote[] => {
-    let filtered = [...notes];
-
-    // 状态过滤
-    if (statusFilter !== 'all') {
-      if (statusFilter === 'template') {
-        filtered = filtered.filter(note => note.is_template);
       } else {
-        filtered = filtered.filter(note => !note.is_template && note.status === statusFilter);
+        // 常规搜索
+        const lowerKeyword = keyword.toLowerCase();
+        filtered = filtered.filter(note =>
+          note.title.toLowerCase().includes(lowerKeyword) ||
+          note.content?.toLowerCase().includes(lowerKeyword) ||
+          note.id.toString().includes(keyword)
+        );
       }
     }
 
-    // 类型过滤
+    // 状态筛选
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(note => note.status === statusFilter);
+    }
+
+    // 类型筛选
     if (typeFilter !== 'all') {
       filtered = filtered.filter(note => note.type === typeFilter);
     }
 
-    // 可见性过滤
-    if (visibilityFilter !== 'all') {
-      filtered = filtered.filter(note => note.visibility === visibilityFilter);
+    // 分类筛选
+    if (selectedCategory) {
+      filtered = filtered.filter(note => 
+        note.categoryName?.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+        selectedCategory === 'frontend' && note.categoryName?.includes('前端') ||
+        selectedCategory === 'backend' && note.categoryName?.includes('后端') ||
+        selectedCategory === 'ui-design' && note.categoryName?.includes('UI') ||
+        selectedCategory === 'data-analysis' && note.categoryName?.includes('数据')
+      );
     }
 
-    // 工作笔记类型过滤
-    if (workNoteTypeFilter !== 'all') {
-      filtered = filtered.filter(note => note.work_note_type === workNoteTypeFilter);
+    // 标签筛选
+    if (selectedTag) {
+      filtered = filtered.filter(note => 
+        note.tags?.some(tag => tag.includes(selectedTag))
+      );
     }
 
-    // 优先级过滤
-    if (priorityFilter !== 'all') {
-      filtered = filtered.filter(note => note.priority === priorityFilter);
-    }
-
-    // 排序
-    filtered.sort((a, b) => {
-      let valueA: any, valueB: any;
-      
-      switch (sortField) {
-        case 'id':
-          valueA = a.id;
-          valueB = b.id;
-          break;
-        case 'title':
-          valueA = a.title.toLowerCase();
-          valueB = b.title.toLowerCase();
-          break;
-        case 'status':
-          valueA = a.is_template ? 'template' : a.status;
-          valueB = b.is_template ? 'template' : b.status;
-          break;
-        case 'created_at':
-          valueA = new Date(a.created_at);
-          valueB = new Date(b.created_at);
-          break;
-        case 'updated_at':
-        default:
-          valueA = new Date(a.updated_at);
-          valueB = new Date(b.updated_at);
-          break;
+    // 关联状态筛选
+    if (selectedAssociation) {
+      if (selectedAssociation === 'associated') {
+        filtered = filtered.filter(note => note.associatedTasks && note.associatedTasks.length > 0);
+      } else if (selectedAssociation === 'unassociated') {
+        filtered = filtered.filter(note => !note.associatedTasks || note.associatedTasks.length === 0);
+      } else if (selectedAssociation === 'convertible') {
+        // 简单模拟可转换逻辑
+        filtered = filtered.filter(note => note.status === 'published' && (!note.associatedTasks || note.associatedTasks.length === 0));
       }
+    }
 
-      if (sortOrder === 'asc') {
-        return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
-      } else {
-        return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
-      }
-    });
+    // 时间范围筛选
+    if (selectedTimeRange) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const thisWeekStart = new Date(today.getTime() - (today.getDay() * 24 * 60 * 60 * 1000));
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    return filtered;
-  };
+      filtered = filtered.filter(note => {
+        const noteDate = new Date(note.updated_at);
+        switch (selectedTimeRange) {
+          case 'today':
+            return noteDate >= today;
+          case 'thisWeek':
+            return noteDate >= thisWeekStart;
+          case 'thisMonth':
+            return noteDate >= thisMonthStart;
+          case 'earlier':
+            return noteDate < thisMonthStart;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // 按ID降序排序（默认）
+    filtered.sort((a, b) => b.id - a.id);
+
+    setFilteredNotes(filtered);
+  }, [workNotes, searchKeyword, statusFilter, typeFilter, selectedCategory, selectedTag, selectedAssociation, selectedTimeRange]);
 
   // 加载工作笔记
-  const loadWorkNotes = async () => {
+  const loadWorkNotes = useCallback(async () => {
     try {
       setLoading(true);
-      let data;
+      const data = await workNotesService.listWorkNotes(selectedFolderId || undefined);
       
-      if (searchQuery) {
-        let results: WorkNote[] = [];
-        
-        if (isIdSearch(searchQuery)) {
-          // ID搜索 (格式: #123)
-          const id = parseInt(searchQuery.substring(1));
-          if (!isNaN(id)) {
-            results = await searchById(id);
+      // 模拟添加关联任务数据
+      const notesWithTasks: WorkNoteWithTask[] = data.documents.map(note => ({
+        ...note,
+        associatedTasks: Math.random() > 0.6 ? [
+          {
+            id: Math.floor(Math.random() * 1000),
+            title: '示例任务',
+            status: 'in_progress',
+            project_id: 1,
+            project_name: '示例项目'
           }
-        } else {
-          // 常规搜索
-          results = await workNotesService.searchWorkNotes(searchQuery);
-        }
-        
-        data = { documents: results, total: results.length, page: 1, page_size: 50 };
-      } else {
-        data = await workNotesService.listWorkNotes(selectedFolderId || undefined);
-      }
+        ] : undefined,
+        categoryIcon: '📝',
+        categoryName: '前端开发'
+      }));
       
-      setWorkNotes(data.documents);
-      setStatusStats(calculateStats(data.documents));
+      setWorkNotes(notesWithTasks);
+      setStats(calculateStats(notesWithTasks));
     } catch (error) {
       console.error('Failed to load work notes:', error);
       message.error('加载工作笔记失败');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedFolderId, calculateStats]);
 
+  // 初始化加载
   useEffect(() => {
     loadWorkNotes();
-  }, [selectedFolderId, searchQuery]);
+  }, [loadWorkNotes]);
 
-  // 搜索处理
-  const handleSearch = () => {
-    loadWorkNotes();
-  };
+  // 筛选条件变化时重新筛选
+  useEffect(() => {
+    filterNotes();
+  }, [filterNotes]);
 
   // 重置过滤器
   const resetFilters = () => {
     setStatusFilter('all');
     setTypeFilter('all');
-    setVisibilityFilter('all');
-    setWorkNoteTypeFilter('all');
-    setPriorityFilter('all');
-    setSearchQuery('');
-    setSortField('updated_at');
-    setSortOrder('desc');
+    setSearchKeyword('');
+    setSelectedCategory('');
+    setSelectedTag('');
+    setSelectedAssociation('');
+    setSelectedTimeRange('');
+  };
+
+  // 左侧树状导航事件处理
+  const handleCategorySelect = (category: string) => {
+    setSelectedCategory(category === selectedCategory ? '' : category);
+  };
+
+  const handleTagSelect = (tag: string) => {
+    setSelectedTag(tag === selectedTag ? '' : tag);
+  };
+
+  const handleAssociationSelect = (type: string) => {
+    setSelectedAssociation(type === selectedAssociation ? '' : type);
+  };
+
+  const handleTimeRangeSelect = (range: string) => {
+    setSelectedTimeRange(range === selectedTimeRange ? '' : range);
+  };
+
+  const handleTreeRefresh = () => {
+    loadWorkNotes();
   };
 
   // 创建工作笔记
@@ -430,699 +485,252 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     loadWorkNotes();
   };
 
-  // 处理行选择
-  const handleRowSelection = {
-    selectedRowKeys,
-    onChange: (selectedRowKeys: React.Key[], selectedRows: WorkNote[]) => {
-      setSelectedRowKeys(selectedRowKeys as number[]);
-      setSelectedWorkNotes(selectedRows);
-    },
-  };
-
-  // 批量操作菜单（使用 AntD v5 menu API）
-  const batchActionsItems: MenuProps['items'] = useMemo(() => [
-    {
-      key: 'batchConvert',
-      icon: <SwapOutlined />,
-      label: '批量转换为任务文档',
-      disabled: selectedRowKeys.length === 0,
-    },
-    { type: 'divider' as const },
-    {
-      key: 'batchExport',
-      icon: <ExportOutlined />,
-      label: '批量导出',
-      disabled: selectedRowKeys.length === 0,
-    },
-    {
-      key: 'batchTemplate',
-      icon: <StarOutlined />,
-      label: '批量设为模板',
-      disabled: selectedRowKeys.length === 0,
-    },
-    { type: 'divider' as const },
-    {
-      key: 'batchDelete',
-      icon: <DeleteOutlined />,
-      label: '批量删除',
-      danger: true,
-      disabled: selectedRowKeys.length === 0,
-    },
-  ], [selectedRowKeys]);
-
-  const onBatchActionClick: NonNullable<MenuProps['onClick']> = async ({ key }) => {
-    if (key === 'batchConvert') {
-      return setBatchConversionModalVisible(true);
-    }
-    if (key === 'batchExport') {
-      return message.info('批量导出功能开发中');
-    }
-    if (key === 'batchTemplate') {
-      return message.info('批量设为模板功能开发中');
-    }
-    if (key === 'batchDelete') {
-      Modal.confirm({
-        title: '确认批量删除',
-        content: `确定要删除选中的 ${selectedRowKeys.length} 个工作笔记吗？此操作不可撤销。`,
-        okText: '确认删除',
-        okType: 'danger',
-        cancelText: '取消',
-        onOk: async () => {
-          try {
-            for (const id of selectedRowKeys) {
-              await workNotesService.deleteWorkNote(id);
-            }
-            message.success(`成功删除 ${selectedRowKeys.length} 个工作笔记`);
-            setSelectedRowKeys([]);
-            setSelectedWorkNotes([]);
-            loadWorkNotes();
-          } catch (error) {
-            message.error('批量删除失败');
-          }
-        }
-      });
-    }
-  };
-
-  // 排序菜单（使用 AntD v5 menu API）
-  const sortMenuItems: MenuProps['items'] = [
-    { key: 'id-asc', icon: <SortAscendingOutlined />, label: 'ID 升序' },
-    { key: 'id-desc', icon: <SortDescendingOutlined />, label: 'ID 降序' },
-    { type: 'divider' as const },
-    { key: 'title-asc', label: '标题 A-Z' },
-    { key: 'title-desc', label: '标题 Z-A' },
-    { type: 'divider' as const },
-    { key: 'created-desc', label: '创建时间 (新→旧)' },
-    { key: 'created-asc', label: '创建时间 (旧→新)' },
-    { type: 'divider' as const },
-    { key: 'updated-desc', label: '更新时间 (新→旧)' },
-    { key: 'updated-asc', label: '更新时间 (旧→新)' },
-  ];
-
-  const onSortMenuClick: NonNullable<MenuProps['onClick']> = ({ key }) => {
-    switch (key) {
-      case 'id-asc': setSortField('id'); setSortOrder('asc'); break;
-      case 'id-desc': setSortField('id'); setSortOrder('desc'); break;
-      case 'title-asc': setSortField('title'); setSortOrder('asc'); break;
-      case 'title-desc': setSortField('title'); setSortOrder('desc'); break;
-      case 'created-desc': setSortField('created_at'); setSortOrder('desc'); break;
-      case 'created-asc': setSortField('created_at'); setSortOrder('asc'); break;
-      case 'updated-desc': setSortField('updated_at'); setSortOrder('desc'); break;
-      case 'updated-asc': setSortField('updated_at'); setSortOrder('asc'); break;
-      default: break;
-    }
-  };
-
-  // 获取状态颜色
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'published': return 'green';
-      case 'draft': return 'orange';
-      case 'archived': return 'red';
-      case 'template': return 'purple';
-      default: return 'default';
-    }
-  };
-
-  // 获取可见性颜色
-  const getVisibilityColor = (visibility: string) => {
-    switch (visibility) {
-      case 'public': return 'green';
-      case 'team': return 'blue';
-      case 'private': return 'red';
-      default: return 'default';
-    }
-  };
 
   // 过滤后的数据
-  const filteredData = getFilteredAndSortedData(workNotes);
 
   // 表格列定义
-  const columns: ColumnsType<WorkNote> = [
+  const columns: ColumnsType<WorkNoteWithTask> = [
     {
-      title: (
-        <Space>
-          <Text strong>ID</Text>
-          <Tooltip title="工作笔记唯一标识符">
-            <Text type="secondary" style={{ fontSize: '12px' }}>(?)</Text>
-          </Tooltip>
-        </Space>
-      ),
+      title: '笔记ID',
       dataIndex: 'id',
       key: 'id',
-      width: 80,
-      sorter: true,
-      sortDirections: ['ascend' as const, 'descend' as const],
+      width: 100,
+      sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => b.id - a.id,
+      defaultSortOrder: 'descend' as const,
       render: (id: number) => (
-        <Text style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#1890ff' }}>
+        <Button
+          type="link"
+          style={{ 
+            fontFamily: 'monospace', 
+            fontWeight: 'bold',
+            color: '#1890ff',
+            padding: 0,
+            height: 'auto'
+          }}
+          onClick={() => handleView(filteredNotes.find(note => note.id === id)!)}
+        >
           #{id}
-        </Text>
+        </Button>
       ),
     },
     {
-      title: (
-        <Space>
-          <Text strong>标题</Text>
-          <Badge count={filteredData.length} showZero style={{ backgroundColor: '#52c41a' }} />
-        </Space>
-      ),
+      title: '笔记标题',
       dataIndex: 'title',
       key: 'title',
-      ellipsis: { showTitle: true },
-      sorter: true,
-      sortDirections: ['ascend' as const, 'descend' as const],
-      render: (text: string, record: WorkNote) => (
-        <Space>
-          {record.is_pinned && (
-            <Tooltip title="已置顶">
-              <PushpinFilled style={{ color: '#f5222d' }} />
-            </Tooltip>
-          )}
-          {record.is_bookmarked && (
-            <Tooltip title="已收藏">
-              <BookFilled style={{ color: '#fa8c16' }} />
-            </Tooltip>
-          )}
-          <Button
-            type="link"
-            onClick={() => handleView(record)}
-            style={{ padding: 0, fontWeight: 500 }}
-          >
-            {text}
-          </Button>
-          {record.is_template && (
-            <Tooltip title="模板文档">
-              <StarFilled style={{ color: '#faad14' }} />
-            </Tooltip>
-          )}
-        </Space>
+      width: 350,
+      sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => 
+        a.title.localeCompare(b.title),
+      render: (title: string, record: WorkNoteWithTask) => (
+        <div>
+          <div style={{ fontWeight: 500, marginBottom: 4 }}>
+            {record.categoryIcon} {title}
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {record.categoryName}
+            {record.tags && record.tags.length > 0 && (
+              <span style={{ marginLeft: 8 }}>
+                {record.tags.slice(0, 2).map(tag => (
+                  <Tag key={tag} size="small" style={{ fontSize: 10, margin: '0 2px' }}>#{tag}</Tag>
+                ))}
+              </span>
+            )}
+          </Text>
+        </div>
       ),
     },
     {
-      title: (
-        <Space>
-          <Text strong>状态</Text>
-          <Tooltip title="文档当前状态">
-            <Text type="secondary" style={{ fontSize: '12px' }}>(?)</Text>
-          </Tooltip>
-        </Space>
+      title: '关联任务',
+      dataIndex: 'associatedTasks',
+      key: 'associatedTasks',
+      width: 200,
+      render: (tasks: AssociatedTask[] | undefined) => (
+        <div>
+          {tasks && tasks.length > 0 ? (
+            tasks.map(task => (
+              <div key={task.id} style={{ marginBottom: 2 }}>
+                <Button type="link" size="small" style={{ padding: 0, height: 'auto', fontSize: 12 }}>
+                  任务#{task.id} {task.title}
+                </Button>
+                <div style={{ fontSize: 10, color: '#999' }}>
+                  {task.project_name}
+                </div>
+              </div>
+            ))
+          ) : (
+            <Text type="secondary">--</Text>
+          )}
+        </div>
       ),
+    },
+    {
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 120,
-      sorter: true,
-      render: (status: string, record: WorkNote) => {
-        const displayStatus = record.is_template ? 'template' : status;
-        const displayText = record.is_template ? '模板' :
-                           status === 'published' ? '已发布' :
-                           status === 'draft' ? '草稿' :
-                           status === 'archived' ? '已归档' : status;
-        
-        return (
-          <Tag color={getStatusColor(displayStatus)} style={{ fontWeight: 500 }}>
-            {displayText}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: (
-        <Space>
-          <Text strong>类型</Text>
-        </Space>
-      ),
-      dataIndex: 'type',
-      key: 'type',
       width: 100,
-      render: (type: string) => (
-        <Tag style={{ fontWeight: 500 }}>
-          {type.toUpperCase()}
-        </Tag>
-      ),
-    },
-    {
-      title: (
-        <Space>
-          <Text strong>笔记类型</Text>
-        </Space>
-      ),
-      dataIndex: 'work_note_type',
-      key: 'work_note_type',
-      width: 120,
-      render: (workNoteType: string) => {
-        const config = getWorkNoteTypeConfig(workNoteType);
-        return (
-          <Tag color={config.color} style={{ fontWeight: 500 }}>
-            {config.icon} {config.label}
-          </Tag>
-        );
+      sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => a.status.localeCompare(b.status),
+      render: (status: string) => {
+        const getStatusConfig = (status: string) => {
+          switch (status) {
+            case 'published': return { color: 'success', text: '已发布' };
+            case 'draft': return { color: 'warning', text: '草稿' };
+            case 'archived': return { color: 'default', text: '已归档' };
+            default: return { color: 'default', text: status };
+          }
+        };
+        const config = getStatusConfig(status);
+        return <Tag color={config.color}>{config.text}</Tag>;
       },
     },
     {
-      title: (
-        <Space>
-          <Text strong>优先级</Text>
-        </Space>
-      ),
-      dataIndex: 'priority',
-      key: 'priority',
-      width: 100,
-      render: (priority: string) => {
-        const config = getWorkNotePriorityConfig(priority);
-        return (
-          <Tag color={config.color} style={{ fontWeight: 500 }}>
-            {config.label}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: (
-        <Space>
-          <Text strong>可见性</Text>
-        </Space>
-      ),
-      dataIndex: 'visibility',
-      key: 'visibility',
-      width: 100,
-      render: (visibility: string) => {
-        const displayText = visibility === 'public' ? '公开' :
-                           visibility === 'team' ? '团队' :
-                           visibility === 'private' ? '私有' : visibility;
-        
-        return (
-          <Tag color={getVisibilityColor(visibility)} style={{ fontWeight: 500 }}>
-            {displayText}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: (
-        <Space>
-          <Text strong>标签</Text>
-        </Space>
-      ),
-      dataIndex: 'tags',
-      key: 'tags',
-      width: 150,
-      render: (tags: string[]) =>
-        tags?.slice(0, 3).map(tag => (
-          <Tag key={tag} style={{ fontSize: '11px' }}>{tag}</Tag>
-        )).concat(
-          tags?.length > 3 ? [
-            <Tooltip key="more" title={tags.slice(3).join(', ')}>
-              <Tag style={{ fontSize: '11px' }}>+{tags.length - 3}</Tag>
-            </Tooltip>
-          ] : []
-        ),
-    },
-    {
-      title: (
-        <Space>
-          <Text strong>更新时间</Text>
-          <Tooltip title="最后修改时间">
-            <Text type="secondary" style={{ fontSize: '12px' }}>(?)</Text>
-          </Tooltip>
-        </Space>
-      ),
+      title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      width: 160,
-      sorter: true,
-      sortDirections: ['ascend' as const, 'descend' as const],
-      render: (date: string) => (
-        <Text style={{ fontSize: '12px', color: '#666' }}>
-          {new Date(date).toLocaleString('zh-CN', {
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
-        </Text>
-      ),
+      width: 150,
+      sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => 
+        dayjs(a.updated_at).unix() - dayjs(b.updated_at).unix(),
+      render: (date: string) => dayjs(date).format('MM-DD HH:mm'),
     },
     {
-      title: (
-        <Space>
-          <Text strong>操作</Text>
-        </Space>
-      ),
+      title: '操作',
       key: 'actions',
-      width: 240,
-      fixed: 'right',
-      render: (_, record: WorkNote) => (
-        <Space  wrap>
-          <Tooltip title="查看详情">
+      width: 150,
+      render: (_, record: WorkNoteWithTask) => (
+        <Space>
+          <Tooltip title="查看笔记">
             <Button
+              type="text"
               icon={<EyeOutlined />}
-              
               onClick={() => handleView(record)}
             />
           </Tooltip>
-          <Tooltip title="编辑内容">
+          <Tooltip title="编辑笔记">
             <Button
+              type="text"
               icon={<EditOutlined />}
-              
-              type="primary"
-              ghost
               onClick={() => openEditModal(record)}
             />
           </Tooltip>
           <Tooltip title="转换为任务文档">
             <Button
+              type="text"
               icon={<SwapOutlined />}
-              
-              type="primary"
               onClick={() => openConversionModal(record)}
             />
           </Tooltip>
-          <Tooltip title="复制副本">
-            <Button
-              icon={<CopyOutlined />}
-              
-              onClick={() => handleCopy(record.id)}
-            />
-          </Tooltip>
-          <Tooltip title={record.is_bookmarked ? "取消收藏" : "收藏"}>
-            <Button
-              icon={record.is_bookmarked ? <BookFilled /> : <BookOutlined />}
-              
-              type={record.is_bookmarked ? "primary" : "default"}
-              ghost={record.is_bookmarked}
-              onClick={() => handleToggleBookmark(record)}
-            />
-          </Tooltip>
-          <Tooltip title={record.is_pinned ? "取消置顶" : "置顶"}>
-            <Button
-              icon={record.is_pinned ? <PushpinFilled /> : <PushpinOutlined />}
-              
-              type={record.is_pinned ? "primary" : "default"}
-              ghost={record.is_pinned}
-              onClick={() => handleTogglePin(record)}
-            />
-          </Tooltip>
-          <Tooltip title={record.is_template ? "取消模板" : "设为模板"}>
-            <Button
-              icon={record.is_template ? <StarFilled /> : <StarOutlined />}
-              
-              type={record.is_template ? "primary" : "default"}
-              ghost={record.is_template}
-              onClick={() => handleToggleTemplate(record.id)}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="确认删除"
-            description="确定要删除这个工作笔记吗？此操作不可撤销。"
-            onConfirm={() => handleDelete(record.id)}
-            okText="删除"
-            okType="danger"
-            cancelText="取消"
-          >
-            <Tooltip title="删除">
-              <Button
-                icon={<DeleteOutlined />}
-                
-                danger
-              />
-            </Tooltip>
-          </Popconfirm>
         </Space>
       ),
     },
   ];
 
   return (
-    <div style={{ background: '#f0f2f5', padding: '24px', minHeight: '100vh' }}>
-      {/* 页面标题和统计 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Row gutter={[16, 16]} align="middle">
-          <Col span={12}>
-            <Space align="center">
-              <FileMarkdownOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-              <Title level={3} style={{ margin: 0 }}>
-                工作笔记管理
-                {selectedFolderId && (
-                  <Text type="secondary" style={{ fontSize: '16px', marginLeft: 8 }}>
-                    - 文件夹 {selectedFolderId}
-                  </Text>
-                )}
-              </Title>
-            </Space>
-          </Col>
-          <Col span={12}>
-            <Row gutter={16} justify="end">
-              <Col>
-                <Statistic
-                  title="草稿"
-                  value={statusStats.draft}
-                  valueStyle={{ color: '#fa8c16', fontSize: '16px' }}
-                  suffix={<Tag color="orange" style={{ marginLeft: 4, fontSize: '10px' }}>DRAFT</Tag>}
-                />
-              </Col>
-              <Col>
-                <Statistic
-                  title="已发布"
-                  value={statusStats.published}
-                  valueStyle={{ color: '#52c41a', fontSize: '16px' }}
-                  suffix={<Tag color="green" style={{ marginLeft: 4, fontSize: '10px' }}>PUB</Tag>}
-                />
-              </Col>
-              <Col>
-                <Statistic
-                  title="模板"
-                  value={statusStats.template}
-                  valueStyle={{ color: '#722ed1', fontSize: '16px' }}
-                  suffix={<Tag color="purple" style={{ marginLeft: 4, fontSize: '10px' }}>TPL</Tag>}
-                />
-              </Col>
-              <Col>
-                <Statistic
-                  title="总计"
-                  value={workNotes.length}
-                  valueStyle={{ color: '#1890ff', fontSize: '18px', fontWeight: 'bold' }}
-                  suffix={<Tag color="blue" style={{ marginLeft: 4, fontSize: '10px' }}>ALL</Tag>}
-                />
-              </Col>
-            </Row>
-          </Col>
-        </Row>
-      </Card>
+    <div style={{ padding: '24px' }}>
+      {/* 页面标题 */}
+      <div style={{ marginBottom: 24 }}>
+        <Title level={2} style={{ margin: 0 }}>
+          <FileMarkdownOutlined style={{ marginRight: 8 }} />
+          工作笔记管理
+        </Title>
+        <Text type="secondary">
+          管理和查看所有的工作笔记文档
+        </Text>
+      </div>
 
-      {/* 高级操作栏 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Row gutter={[16, 16]}>
-          <Col span={24}>
-            <Space style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-              {/* 左侧主要操作 */}
-              <Space wrap>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  size="large"
-                  onClick={() => setModalVisible(true)}
-                  style={{ fontWeight: 600 }}
-                >
-                  新建笔记
-                </Button>
-                <Dropdown 
-                  menu={{ items: batchActionsItems, onClick: onBatchActionClick }}
-                  disabled={selectedRowKeys.length === 0}
-                  trigger={['click']}
-                >
-                  <Button size="large">
-                    <Space>
-                      批量操作
-                      {selectedRowKeys.length > 0 && (
-                        <Badge count={selectedRowKeys.length}  />
-                      )}
-                      <DownOutlined />
-                    </Space>
-                  </Button>
-                </Dropdown>
-                <Button 
-                  icon={<ReloadOutlined />}
-                  onClick={loadWorkNotes}
-                  loading={loading}
-                >
-                  刷新
-                </Button>
-              </Space>
-              
-              {/* 右侧工具 */}
-              <Space wrap>
-                <Dropdown menu={{ items: sortMenuItems, onClick: onSortMenuClick }} trigger={['click']}>
-                  <Button icon={<BarsOutlined />}>
-                    排序: {sortField === 'updated_at' ? '更新时间' : 
-                          sortField === 'created_at' ? '创建时间' :
-                          sortField === 'title' ? '标题' : 'ID'}
-                    ({sortOrder === 'desc' ? '降序' : '升序'})
-                  </Button>
-                </Dropdown>
-                <Radio.Group 
-                  value={viewMode} 
-                  onChange={(e) => setViewMode(e.target.value)}
-                  
-                >
-                  <Radio.Button value="table" title="表格视图">
-                    <TableOutlined />
-                  </Radio.Button>
-                  <Radio.Button value="grid" title="卡片视图" disabled>
-                    <AppstoreOutlined />
-                  </Radio.Button>
-                </Radio.Group>
-                <Button 
-                  icon={<FilterOutlined />} 
-                  onClick={resetFilters}
-                  title="重置所有过滤器"
-                >
-                  重置
-                </Button>
-              </Space>
-            </Space>
-          </Col>
-        </Row>
-        
-        <Divider style={{ margin: '16px 0' }} />
-        
-        {/* 搜索和过滤器 */}
-        <Row gutter={[16, 8]}>
-          <Col xs={24} sm={24} md={8} lg={6}>
-            <Input.Search
-              placeholder="搜索标题、内容或 #ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onSearch={handleSearch}
-              allowClear
-              size="middle"
-            />
-          </Col>
-          <Col xs={12} sm={8} md={4} lg={3}>
-            <Select
-              value={statusFilter}
-              onChange={setStatusFilter}
-              style={{ width: '100%' }}
-              size="middle"
-            >
-              <Option value="all">全部状态</Option>
-              <Option value="draft">草稿</Option>
-              <Option value="published">已发布</Option>
-              <Option value="archived">已归档</Option>
-              <Option value="template">模板</Option>
-            </Select>
-          </Col>
-          <Col xs={12} sm={8} md={4} lg={3}>
-            <Select
-              value={typeFilter}
-              onChange={setTypeFilter}
-              style={{ width: '100%' }}
-              size="middle"
-            >
-              <Option value="all">全部类型</Option>
-              <Option value="markdown">Markdown</Option>
-              <Option value="html">HTML</Option>
-              <Option value="txt">文本</Option>
-              <Option value="pdf">PDF</Option>
-            </Select>
-          </Col>
-          <Col xs={12} sm={8} md={4} lg={3}>
-            <Select
-              value={visibilityFilter}
-              onChange={setVisibilityFilter}
-              style={{ width: '100%' }}
-              size="middle"
-            >
-              <Option value="all">全部可见性</Option>
-              <Option value="private">私有</Option>
-              <Option value="team">团队</Option>
-              <Option value="public">公开</Option>
-            </Select>
-          </Col>
-          <Col xs={12} sm={8} md={4} lg={3}>
-            <Select
-              value={workNoteTypeFilter}
-              onChange={setWorkNoteTypeFilter}
-              style={{ width: '100%' }}
-              size="middle"
-            >
-              <Option value="all">全部笔记类型</Option>
-              {Object.values(WORK_NOTE_TYPES).map(type => (
-                <Option key={type.value} value={type.value}>
-                  {type.icon} {type.label}
-                </Option>
-              ))}
-            </Select>
-          </Col>
-          <Col xs={12} sm={8} md={4} lg={3}>
-            <Select
-              value={priorityFilter}
-              onChange={setPriorityFilter}
-              style={{ width: '100%' }}
-              size="middle"
-            >
-              <Option value="all">全部优先级</Option>
-              {Object.values(WORK_NOTE_PRIORITIES).map(priority => (
-                <Option key={priority.value} value={priority.value}>
-                  {priority.label}
-                </Option>
-              ))}
-            </Select>
-          </Col>
-          <Col xs={24} sm={24} md={8} lg={9}>
-            <Space style={{ float: 'right' }}>
-              <Text type="secondary" style={{ fontSize: '13px' }}>
-                显示 {filteredData.length} / {workNotes.length} 条记录
-                {selectedRowKeys.length > 0 && ` · 已选择 ${selectedRowKeys.length} 条`}
-              </Text>
-            </Space>
-          </Col>
-        </Row>
-      </Card>
+      {/* 统计卡片 */}
+      <WorkNotesStatsCards stats={stats} loading={loading} />
 
-      {/* 工作笔记表格 */}
-      <Card>
-        <Spin spinning={loading}>
-          {filteredData.length === 0 && !loading ? (
-            <Empty
-              image={<FileMarkdownOutlined style={{ fontSize: 64, color: '#ccc' }} />}
-              description={
-                <div>
-                  <Text type="secondary" style={{ fontSize: '16px' }}>
-                    {workNotes.length === 0 ? '暂无工作笔记' : '没有符合条件的工作笔记'}
-                  </Text>
-                  <br />
-                  <Text type="secondary">
-                    {workNotes.length === 0 ? '点击"新建笔记"开始创建' : '请调整搜索条件或过滤器'}
-                  </Text>
-                </div>
-              }
-            />
-          ) : (
-            <Table
-              rowSelection={handleRowSelection}
-              columns={columns}
-              dataSource={filteredData}
-              rowKey="id"
-              scroll={{ x: 1200 }}
-              pagination={{
-                pageSize: 20,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) => 
-                  `第 ${range[0]}-${range[1]} 条，共 ${total} 条记录`,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                size: 'default'
-              }}
-              size="middle"
-              bordered
-              rowClassName={(record, index) => 
-                index % 2 === 0 ? 'table-row-light' : 'table-row-dark'
-              }
-              style={{}}
-            />
-          )}
-        </Spin>
-      </Card>
+      {/* 主要内容区域 */}
+      <WorkNotesLayout
+        sidebar={
+          <WorkNotesTreeSidebar
+            onCategorySelect={handleCategorySelect}
+            onTagSelect={handleTagSelect}
+            onAssociationSelect={handleAssociationSelect}
+            onTimeRangeSelect={handleTimeRangeSelect}
+            onRefresh={handleTreeRefresh}
+            selectedCategory={selectedCategory}
+            selectedTag={selectedTag}
+            selectedAssociation={selectedAssociation}
+            selectedTimeRange={selectedTimeRange}
+          />
+        }
+      >
+        {/* 搜索和筛选区 */}
+        <Card style={{ marginBottom: 24 }}>
+          <Row gutter={16} align="middle">
+            <Col flex="300px">
+              <Search
+                placeholder="搜索标题、内容或输入#ID搜索..."
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                allowClear
+                prefix={<SearchOutlined />}
+                style={{ width: '100%' }}
+              />
+            </Col>
+            <Col flex="120px">
+              <Select
+                placeholder="状态筛选"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                allowClear
+                style={{ width: '100%' }}
+              >
+                <Option value="draft">草稿</Option>
+                <Option value="published">已发布</Option>
+                <Option value="archived">已归档</Option>
+              </Select>
+            </Col>
+            <Col flex="120px">
+              <Select
+                placeholder="类型筛选"
+                value={typeFilter}
+                onChange={setTypeFilter}
+                allowClear
+                style={{ width: '100%' }}
+              >
+                <Option value="markdown">Markdown</Option>
+                <Option value="html">HTML</Option>
+                <Option value="txt">文本</Option>
+              </Select>
+            </Col>
+            <Col>
+              <Button
+                icon={<FilterOutlined />}
+                onClick={resetFilters}
+              >
+                清空筛选
+              </Button>
+            </Col>
+            <Col>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setModalVisible(true)}
+              >
+                新建笔记
+              </Button>
+            </Col>
+          </Row>
+        </Card>
+
+        {/* 工作笔记表格 */}
+        <Card>
+          <Table
+            columns={columns}
+            dataSource={filteredNotes}
+            rowKey="id"
+            loading={loading}
+            pagination={{
+              total: filteredNotes.length,
+              pageSize: 20,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 个笔记`,
+            }}
+            scroll={{ x: 1000 }}
+          />
+        </Card>
+      </WorkNotesLayout>
 
       {/* 转换为任务文档对话框 */}
       <WorkNoteConversionModal
@@ -1135,396 +743,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
         onConversionSuccess={handleConversionSuccess}
       />
 
-      {/* 批量转换为任务文档对话框 */}
-      <BatchWorkNoteConversionModal
-        visible={batchConversionModalVisible}
-        workNotes={selectedWorkNotes}
-        onClose={() => {
-          setBatchConversionModalVisible(false);
-          setSelectedRowKeys([]);
-          setSelectedWorkNotes([]);
-        }}
-        onConversionSuccess={(results) => {
-          message.success(`成功转换 ${results.length} 个工作笔记为任务文档`);
-          loadWorkNotes(); // 重新加载列表
-          setBatchConversionModalVisible(false);
-          setSelectedRowKeys([]);
-          setSelectedWorkNotes([]);
-        }}
-      />
 
-      {/* 新建工作笔记对话框 */}
-      <Modal
-        title="新建工作笔记"
-        open={modalVisible}
-        onCancel={() => {
-          setModalVisible(false);
-          form.resetFields();
-        }}
-        footer={null}
-        width={800}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCreate}
-          initialValues={{
-            type: 'markdown',
-            work_note_type: 'general',
-            priority: 'medium',
-            status: 'draft',
-            visibility: 'private',
-            is_pinned: false,
-            is_bookmarked: false
-          }}
-        >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="title"
-                label="标题"
-                rules={[{ required: true, message: '请输入标题' }]}
-              >
-                <Input placeholder="请输入工作笔记标题" />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item
-                name="type"
-                label="文档类型"
-              >
-                <Select>
-                  <Option value="markdown">Markdown</Option>
-                  <Option value="html">HTML</Option>
-                  <Option value="txt">纯文本</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item
-                name="work_note_type"
-                label="笔记类型"
-                rules={[{ required: true, message: '请选择笔记类型' }]}
-              >
-                <Select placeholder="选择笔记类型">
-                  {Object.values(WORK_NOTE_TYPES).map(type => (
-                    <Option key={type.value} value={type.value}>
-                      {type.icon} {type.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={16}>
-              <Form.Item
-                name="description"
-                label="描述"
-              >
-                <Input.TextArea 
-                  rows={2} 
-                  placeholder="请输入工作笔记描述（可选）"
-                />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="priority"
-                label="优先级"
-                rules={[{ required: true, message: '请选择优先级' }]}
-              >
-                <Select placeholder="选择优先级">
-                  {Object.values(WORK_NOTE_PRIORITIES).map(priority => (
-                    <Option key={priority.value} value={priority.value}>
-                      {priority.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="content"
-            label="内容"
-            rules={[{ required: true, message: '请输入内容' }]}
-          >
-            <TextArea 
-              rows={12} 
-              placeholder="请输入工作笔记内容..."
-            />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="status"
-                label="状态"
-              >
-                <Select>
-                  <Option value="draft">草稿</Option>
-                  <Option value="published">已发布</Option>
-                  <Option value="archived">已归档</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="visibility"
-                label="可见性"
-              >
-                <Select>
-                  <Option value="private">私有</Option>
-                  <Option value="team">团队</Option>
-                  <Option value="public">公开</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="tags"
-                label="标签"
-              >
-                <Select
-                  mode="tags"
-                  placeholder="添加标签"
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="is_pinned"
-                valuePropName="checked"
-                label=""
-              >
-                <Checkbox>
-                  <Space>
-                    <PushpinOutlined />
-                    置顶笔记
-                  </Space>
-                </Checkbox>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="is_bookmarked"
-                valuePropName="checked"
-                label=""
-              >
-                <Checkbox>
-                  <Space>
-                    <BookOutlined />
-                    收藏笔记
-                  </Space>
-                </Checkbox>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item style={{ textAlign: 'right', marginBottom: 0 }}>
-            <Space>
-              <Button onClick={() => {
-                setModalVisible(false);
-                form.resetFields();
-              }}>
-                取消
-              </Button>
-              <Button type="primary" htmlType="submit" loading={loading}>
-                创建
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 编辑工作笔记对话框 */}
-      <Modal
-        title="编辑工作笔记"
-        open={editModalVisible}
-        onCancel={() => {
-          setEditModalVisible(false);
-          editForm.resetFields();
-          setCurrentWorkNote(null);
-        }}
-        footer={null}
-        width={800}
-      >
-        <Form
-          form={editForm}
-          layout="vertical"
-          onFinish={handleUpdate}
-        >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="title"
-                label="标题"
-                rules={[{ required: true, message: '请输入标题' }]}
-              >
-                <Input placeholder="请输入工作笔记标题" />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item
-                name="type"
-                label="文档类型"
-              >
-                <Select>
-                  <Option value="markdown">Markdown</Option>
-                  <Option value="html">HTML</Option>
-                  <Option value="txt">纯文本</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item
-                name="work_note_type"
-                label="笔记类型"
-                rules={[{ required: true, message: '请选择笔记类型' }]}
-              >
-                <Select placeholder="选择笔记类型">
-                  {Object.values(WORK_NOTE_TYPES).map(type => (
-                    <Option key={type.value} value={type.value}>
-                      {type.icon} {type.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={16}>
-              <Form.Item
-                name="description"
-                label="描述"
-              >
-                <Input.TextArea 
-                  rows={2} 
-                  placeholder="请输入工作笔记描述（可选）"
-                />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="priority"
-                label="优先级"
-                rules={[{ required: true, message: '请选择优先级' }]}
-              >
-                <Select placeholder="选择优先级">
-                  {Object.values(WORK_NOTE_PRIORITIES).map(priority => (
-                    <Option key={priority.value} value={priority.value}>
-                      {priority.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="content"
-            label="内容"
-            rules={[{ required: true, message: '请输入内容' }]}
-          >
-            <TextArea 
-              rows={12} 
-              placeholder="请输入工作笔记内容..."
-            />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="status"
-                label="状态"
-              >
-                <Select>
-                  <Option value="draft">草稿</Option>
-                  <Option value="published">已发布</Option>
-                  <Option value="archived">已归档</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="visibility"
-                label="可见性"
-              >
-                <Select>
-                  <Option value="private">私有</Option>
-                  <Option value="team">团队</Option>
-                  <Option value="public">公开</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="tags"
-                label="标签"
-              >
-                <Select
-                  mode="tags"
-                  placeholder="添加标签"
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="is_pinned"
-                valuePropName="checked"
-                label=""
-              >
-                <Checkbox>
-                  <Space>
-                    <PushpinOutlined />
-                    置顶笔记
-                  </Space>
-                </Checkbox>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="is_bookmarked"
-                valuePropName="checked"
-                label=""
-              >
-                <Checkbox>
-                  <Space>
-                    <BookOutlined />
-                    收藏笔记
-                  </Space>
-                </Checkbox>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item style={{ textAlign: 'right', marginBottom: 0 }}>
-            <Space>
-              <Button onClick={() => {
-                setEditModalVisible(false);
-                editForm.resetFields();
-                setCurrentWorkNote(null);
-              }}>
-                取消
-              </Button>
-              <Button type="primary" htmlType="submit" loading={loading}>
-                更新
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   );
 };

@@ -2,6 +2,7 @@ import api from './api';
 
 import { ValidationHelper, AppError } from '../utils/errorTypes';
 import { logApiError, logTaskAction, logPerformance } from '../utils/logger';
+import { API_ENDPOINTS, apiConfig } from '../config/apiConfig';
 import { validateTaskRequest, sanitizeForAPI, sanitizeFromAPI } from '../utils/dataValidator';
 import {
   Task,

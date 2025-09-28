@@ -10,6 +10,9 @@
  */
 
 import { TimerCurrentResponse } from '../types/timer';
+import { urlBuilder } from '../utils/URLBuilder';
+import SmartReconnectionManager from '../utils/SmartReconnectionManager';
+import { errorLogger } from '../utils/ErrorLogger';
 
 // SSE事件类型定义
 export interface SSETimerEvent {
@@ -65,9 +68,8 @@ class SSETimerService {
   private eventListeners: Set<SSEEventListener> = new Set();
   private statusListeners: Set<SSEStatusListener> = new Set();
   
-  // 重连控制
-  private reconnectAttempts = 0;
-  private reconnectTimer: NodeJS.Timeout | null = null;
+  // 智能重连管理器
+  private reconnectionManager: SmartReconnectionManager;
   private heartbeatTimer: NodeJS.Timeout | null = null;
   
   // 降级轮询
@@ -81,6 +83,28 @@ class SSETimerService {
     this.initAuthToken();
     this.setupNetworkListeners();
     this.setupPageUnloadHandler();
+    
+    // 初始化智能重连管理器
+    this.reconnectionManager = new SmartReconnectionManager({
+      maxAttempts: SSE_CONFIG.MAX_RECONNECT_ATTEMPTS,
+      baseDelay: SSE_CONFIG.RECONNECT_INTERVAL,
+      maxDelay: 60000, // 最大1分钟
+      fallbackThreshold: 3, // 3次连续错误后降级
+    });
+    
+    // 监听重连事件
+    this.reconnectionManager.addListener((event) => {
+      errorLogger.sseEvent('reconnection', `${event.type} - attempt ${event.attempt}`, {
+        attempt: event.attempt,
+        delay: event.delay,
+        error: event.error,
+        errorType: event.errorType
+      });
+      
+      if (event.type === 'fallback') {
+        this.startFallbackPolling();
+      }
+    });
   }
   
   /**
@@ -95,9 +119,66 @@ class SSETimerService {
   }
   
   /**
+   * 执行实际连接操作（供重连管理器调用）
+   */
+  private async performActualConnection(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.authToken) {
+        reject(new Error('No auth token available'));
+        return;
+      }
+      
+      try {
+        // 使用URLBuilder构建SSE URL
+        const urlResult = urlBuilder.buildSSEUrl(SSE_CONFIG.ENDPOINT, this.authToken);
+        
+        if (!urlResult.isValid) {
+          reject(new Error(urlResult.error || 'Failed to build SSE URL'));
+          return;
+        }
+        
+        // 创建EventSource连接
+        this.eventSource = new EventSource(urlResult.url);
+        
+        // 设置连接超时
+        const connectionTimeout = setTimeout(() => {
+          reject(new Error('Connection timeout'));
+        }, SSE_CONFIG.CONNECTION_TIMEOUT);
+        
+        // 连接建立
+        this.eventSource.onopen = () => {
+          clearTimeout(connectionTimeout);
+          this.setConnectionStatus('connected');
+          this.stopFallbackPolling();
+          this.startHeartbeatMonitor();
+          errorLogger.sseConnection('established', { url: urlResult.url });
+          resolve();
+        };
+        
+        // 错误处理
+        this.eventSource.onerror = (event) => {
+          clearTimeout(connectionTimeout);
+          let errorMessage = 'EventSource error';
+          if (this.eventSource?.readyState === EventSource.CLOSED) {
+            errorMessage = 'Connection closed by server';
+          }
+          errorLogger.sseError(errorMessage, { event, readyState: this.eventSource?.readyState });
+          reject(new Error(errorMessage));
+        };
+        
+        // 设置事件监听器
+        this.setupEventListeners();
+        
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+  
+  /**
    * 建立SSE连接
    */
-  public connect(): void {
+  public async connect(): Promise<void> {
     if (this.connectionStatus === 'connected' || this.connectionStatus === 'connecting') {
       return;
     }
@@ -106,76 +187,18 @@ class SSETimerService {
     this.initAuthToken(); // 重新获取token
     
     if (!this.authToken) {
-      console.warn('SSE Timer Service: No auth token found, cannot establish SSE connection');
+      errorLogger.sseError('No auth token found, cannot establish SSE connection');
       this.setConnectionStatus('error', 'Authentication token not found');
       this.startFallbackPolling();
       return;
     }
     
     try {
-      // 使用配置的API基础URL而不是当前页面origin
-      const apiBaseUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'http://localhost:8081/api/v1';
-      // 构建SSE URL，包含认证
-      const url = new URL(SSE_CONFIG.ENDPOINT, apiBaseUrl);
-      // EventSource不支持自定义headers，通过URL参数传递token
-      url.searchParams.set('token', this.authToken);
-      
-      // 创建EventSource连接
-      this.eventSource = new EventSource(url.toString());
-      
-      // 设置连接超时
-      const connectionTimeout = setTimeout(() => {
-        if (this.connectionStatus === 'connecting') {
-          console.warn('SSE Timer Service: Connection timeout');
-          this.handleConnectionError('Connection timeout');
-        }
-      }, SSE_CONFIG.CONNECTION_TIMEOUT);
-      
-      // 连接建立
-      this.eventSource.onopen = () => {
-        clearTimeout(connectionTimeout);
-        console.log('SSE Timer Service: Connection established');
-        this.setConnectionStatus('connected');
-        this.reconnectAttempts = 0;
-        this.stopFallbackPolling();
-        this.startHeartbeatMonitor();
-      };
-      
-      // 接收消息
-      this.eventSource.onmessage = (event) => {
-        this.handleSSEMessage(event);
-      };
-      
-      // 错误处理
-      this.eventSource.onerror = (event) => {
-        clearTimeout(connectionTimeout);
-        
-        // 更详细的错误信息
-        let errorMessage = 'EventSource error';
-        if (this.eventSource?.readyState === EventSource.CLOSED) {
-          errorMessage = 'Connection closed by server';
-        } else if (this.eventSource?.readyState === EventSource.CONNECTING) {
-          errorMessage = 'Connection failed during establishment';
-        }
-        
-        // 检查是否是用户主动中断（页面刷新、导航等）
-        if (event instanceof ErrorEvent && event.message && event.message.includes('interrupted')) {
-          console.log('SSE Timer Service: Connection interrupted by user action (page navigation/refresh)');
-          // 用户主动中断不需要重连，只记录状态
-          this.setConnectionStatus('disconnected', 'User interrupted');
-          return;
-        }
-        
-        console.warn('SSE Timer Service: Connection error', errorMessage, event);
-        this.handleConnectionError(errorMessage);
-      };
-      
-      // 监听特定事件类型
-      this.setupEventListeners();
-      
+      await this.performActualConnection();
+      errorLogger.sseConnection('success');
     } catch (error) {
-      console.error('SSE Timer Service: Failed to create EventSource', error);
-      this.handleConnectionError(`Failed to create connection: ${error}`);
+      errorLogger.sseError('Connection failed', error);
+      await this.handleConnectionError(typeof error === 'string' ? error : (error as Error).message);
     }
   }
   
@@ -265,7 +288,7 @@ class SSETimerService {
   /**
    * 处理连接错误
    */
-  private handleConnectionError(error: string): void {
+  private async handleConnectionError(error: string): Promise<void> {
     // 如果是用户中断，不进行重连
     if (error.includes('interrupted') || error.includes('User interrupted')) {
       this.setConnectionStatus('disconnected', error);
@@ -276,11 +299,14 @@ class SSETimerService {
     this.setConnectionStatus('error', error);
     this.closeConnection();
     
-    // 如果还有重连次数，尝试重连
-    if (this.reconnectAttempts < SSE_CONFIG.MAX_RECONNECT_ATTEMPTS) {
-      this.scheduleReconnect();
-    } else {
-      console.warn('SSE Timer Service: Max reconnection attempts reached, falling back to polling');
+    // 使用智能重连管理器
+    const shouldReconnect = await this.reconnectionManager.attemptReconnection(
+      () => this.performActualConnection(),
+      error
+    );
+    
+    if (!shouldReconnect) {
+      console.warn('SSE Timer Service: Smart reconnection manager decided to fallback');
       this.startFallbackPolling();
     }
   }
@@ -333,8 +359,15 @@ class SSETimerService {
    */
   private async performFallbackRequest(): Promise<void> {
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'http://localhost:8081/api/v1';
-      const response = await fetch(`${apiBaseUrl}/user/timer/current`, {
+      // 使用URLBuilder构建API URL
+      const urlResult = urlBuilder.buildApiUrl('/user/timer/current');
+      
+      if (!urlResult.isValid) {
+        console.error('SSE Timer Service: Failed to build fallback URL:', urlResult.error);
+        return;
+      }
+      
+      const response = await fetch(urlResult.url, {
         headers: {
           'Authorization': `Bearer ${this.authToken}`,
           'Content-Type': 'application/json',

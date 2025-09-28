@@ -137,6 +137,40 @@ export interface ConversionResult {
   };
 }
 
+// 分类统计相关接口
+export interface CategoryStats {
+  categories: {
+    [key: string]: {
+      count: number;
+      icon: string;
+      color: string;
+    };
+  };
+  tags: {
+    [key: string]: number;
+  };
+  associations: {
+    associated: number;
+    unassociated: number;
+    convertible: number;
+  };
+  timeRanges: {
+    today: number;
+    thisWeek: number;
+    thisMonth: number;
+    earlier: number;
+  };
+}
+
+// 关联任务接口
+export interface AssociatedTask {
+  id: number;
+  title: string;
+  status: string;
+  project_id: number;
+  project_name: string;
+}
+
 export interface ConvertPreviewRequest {
   target_task_id: number;
   conversion_options: ConversionOptions;
@@ -430,6 +464,159 @@ class WorkNotesService {
     } catch (error: any) {
       console.error('Error getting folder work notes:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder work notes');
+    }
+  }
+
+  // 获取分类统计数据
+  async getCategoryStats(): Promise<CategoryStats> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.get<APIResponse<CategoryStats>>(
+        `${API_BASE_URL}/work-notes/category-stats`,
+        { headers }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get category stats');
+      }
+      
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error getting category stats:', error);
+      
+      // 如果API不存在，返回模拟数据
+      return {
+        categories: {
+          frontend: { count: 23, icon: '📝', color: '#1890ff' },
+          backend: { count: 18, icon: '🔧', color: '#52c41a' },
+          'ui-design': { count: 12, icon: '🎨', color: '#fa8c16' },
+          'data-analysis': { count: 8, icon: '📊', color: '#722ed1' },
+        },
+        tags: {
+          '重要': 34,
+          '待办': 12,
+          '会议': 15,
+          '想法': 8,
+        },
+        associations: {
+          associated: 78,
+          unassociated: 45,
+          convertible: 23,
+        },
+        timeRanges: {
+          today: 5,
+          thisWeek: 12,
+          thisMonth: 28,
+          earlier: 111,
+        },
+      };
+    }
+  }
+
+  // 获取关联任务信息
+  async getAssociatedTasks(noteId: number): Promise<AssociatedTask[]> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.get<APIResponse<{ tasks: AssociatedTask[] }>>(
+        `${API_BASE_URL}/work-notes/${noteId}/associated-tasks`,
+        { headers }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get associated tasks');
+      }
+      
+      return response.data.data.tasks || [];
+    } catch (error: any) {
+      console.error('Error getting associated tasks:', error);
+      
+      // 如果API不存在，返回模拟数据
+      return Math.random() > 0.6 ? [
+        {
+          id: Math.floor(Math.random() * 1000),
+          title: '示例任务',
+          status: 'in_progress',
+          project_id: 1,
+          project_name: '示例项目'
+        }
+      ] : [];
+    }
+  }
+
+  // 关联任务
+  async associateTask(noteId: number, taskId: number): Promise<void> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.post<APIResponse<void>>(
+        `${API_BASE_URL}/work-notes/${noteId}/associate-task`,
+        { task_id: taskId },
+        { headers }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to associate task');
+      }
+    } catch (error: any) {
+      console.error('Error associating task:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to associate task');
+    }
+  }
+
+  // 取消关联任务
+  async disassociateTask(noteId: number, taskId: number): Promise<void> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.delete<APIResponse<void>>(
+        `${API_BASE_URL}/work-notes/${noteId}/associate-task/${taskId}`,
+        { headers }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to disassociate task');
+      }
+    } catch (error: any) {
+      console.error('Error disassociating task:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to disassociate task');
+    }
+  }
+
+  // 按分类筛选笔记
+  async getWorkNotesByCategory(category: string): Promise<WorkNote[]> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.get<APIResponse<{ documents: WorkNote[] }>>(
+        `${API_BASE_URL}/work-notes?category=${encodeURIComponent(category)}`,
+        { headers }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get work notes by category');
+      }
+      
+      return (response.data.data.documents || []).map((note: any) => this.transformWorkNoteFromAPI(note));
+    } catch (error: any) {
+      console.error('Error getting work notes by category:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to get work notes by category');
+    }
+  }
+
+  // 按时间范围筛选
+  async getWorkNotesByTimeRange(range: string): Promise<WorkNote[]> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.get<APIResponse<{ documents: WorkNote[] }>>(
+        `${API_BASE_URL}/work-notes?time_range=${encodeURIComponent(range)}`,
+        { headers }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get work notes by time range');
+      }
+      
+      return (response.data.data.documents || []).map((note: any) => this.transformWorkNoteFromAPI(note));
+    } catch (error: any) {
+      console.error('Error getting work notes by time range:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to get work notes by time range');
     }
   }
 

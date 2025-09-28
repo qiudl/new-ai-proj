@@ -141,15 +141,30 @@ class AuthService {
 
   /**
    * 检查当前用户认证状态
+   * 注意：后端暂不支持/auth/me端点，直接基于token有效性判断
    */
   async checkAuthStatus(): Promise<ApiResponse<{ user: any }>> {
     try {
-      const response = await api.get('/auth/me');
+      // 检查token是否存在且有效
+      if (!TokenManager.isTokenValid()) {
+        return {
+          success: false,
+          error: 'Token已过期或不存在'
+        };
+      }
+      
+      // 从TokenManager获取用户信息
+      const user = TokenManager.getCurrentUser();
+      if (!user) {
+        return {
+          success: false,
+          error: '无法获取用户信息'
+        };
+      }
+      
       return {
         success: true,
-        data: {
-          user: response.data
-        }
+        data: { user }
       };
     } catch (error) {
       console.error('检查认证状态失败:', error);

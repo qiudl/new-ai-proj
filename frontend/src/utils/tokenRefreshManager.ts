@@ -95,26 +95,27 @@ export class TokenRefreshManager {
       timeoutMs = 10000
     } = options;
 
-    // 首先尝试开发环境自动登录
-    if (this.isDevelopmentEnvironment()) {
-      console.log('🚀 检测到开发环境，尝试自动重新登录...');
-      const devResult = await this.tryDevelopmentAutoLogin(timeoutMs);
-      if (devResult.success) {
-        return devResult;
-      }
-      console.warn('⚠️ 开发环境自动登录失败，尝试其他方式');
-    }
+    // 暂时禁用开发环境自动登录，因为后端不支持该端点
+    // if (this.isDevelopmentEnvironment()) {
+    //   console.log('🚀 检测到开发环境，尝试自动重新登录...');
+    //   const devResult = await this.tryDevelopmentAutoLogin(timeoutMs);
+    //   if (devResult.success) {
+    //     return devResult;
+    //   }
+    //   console.warn('⚠️ 开发环境自动登录失败，尝试其他方式');
+    // }
 
-    // 尝试使用刷新token（如果存在）
-    const refreshResult = await this.tryRefreshTokenRequest(timeoutMs);
-    if (refreshResult.success) {
-      return refreshResult;
-    }
+    // 暂时禁用token刷新，因为后端不支持该端点
+    // const refreshResult = await this.tryRefreshTokenRequest(timeoutMs);
+    // if (refreshResult.success) {
+    //   return refreshResult;
+    // }
 
-    // 所有方法都失败了
+    // 由于后端不支持token刷新，直接返回需要手动认证
+    console.warn('⚠️ 后端不支持token刷新，需要手动重新登录');
     return {
       success: false,
-      error: 'All token refresh methods failed',
+      error: 'Token刷新功能暂时不可用，需要重新登录',
       needsManualAuth: true
     };
   }
