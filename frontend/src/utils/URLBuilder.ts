@@ -28,10 +28,14 @@ class URLBuilder {
   private validatedBaseUrl: string | null = null;
   
   private constructor(config: URLConfig = {}) {
+    // 首先设置基础配置，但延迟执行detectBaseUrl以避免依赖this.config
+    const apiPrefix = config.apiPrefix || '/api/v1';
+    const debug = config.debug || false;
+    
     this.config = {
-      baseUrl: config.baseUrl || this.detectBaseUrl(),
-      apiPrefix: config.apiPrefix || '/api/v1',
-      debug: config.debug || false
+      baseUrl: config.baseUrl || this.detectBaseUrlWithPrefix(apiPrefix, debug),
+      apiPrefix: apiPrefix,
+      debug: debug
     };
     
     this.validateAndNormalizeConfig();
@@ -56,9 +60,9 @@ class URLBuilder {
   }
   
   /**
-   * 检测基础URL
+   * 检测基础URL（带API前缀处理）
    */
-  private detectBaseUrl(): string {
+  private detectBaseUrlWithPrefix(apiPrefix: string, debug: boolean): string {
     // 按优先级检查环境变量
     const candidates = [
       process.env.REACT_APP_API_URL,
@@ -69,10 +73,15 @@ class URLBuilder {
     
     for (const candidate of candidates) {
       if (candidate && candidate.trim()) {
-        if (this.config?.debug) {
-          console.log(`URLBuilder: Using base URL from environment: ${candidate}`);
+        const cleanCandidate = candidate.trim();
+        
+        // 如果URL已经包含API前缀，返回不含前缀的部分
+        if (cleanCandidate.includes(apiPrefix)) {
+          const baseUrl = cleanCandidate.replace(new RegExp(apiPrefix.replace('/', '\\/') + '.*$'), '');
+          return baseUrl;
         }
-        return candidate.trim();
+        
+        return cleanCandidate;
       }
     }
     
@@ -84,7 +93,14 @@ class URLBuilder {
    */
   private validateAndNormalizeConfig(): void {
     try {
-      // 验证baseUrl格式
+      // 检查是否为相对路径（用于开发环境代理）
+      if (this.config.baseUrl.startsWith('/')) {
+        // 相对路径，直接使用（webpack dev server会处理代理）
+        this.validatedBaseUrl = '';  // 对于相对路径，基础URL为空
+        return;
+      }
+      
+      // 验证绝对URL格式
       const testUrl = new URL(this.config.baseUrl);
       
       // 移除末尾的斜杠和API前缀
@@ -96,17 +112,9 @@ class URLBuilder {
       // 检查并移除重复的API前缀
       if (cleanBaseUrl.endsWith(this.config.apiPrefix)) {
         cleanBaseUrl = cleanBaseUrl.slice(0, -this.config.apiPrefix.length);
-        if (this.config.debug) {
-          console.warn(`URLBuilder: Removed duplicate API prefix from base URL`);
-        }
       }
       
       this.validatedBaseUrl = cleanBaseUrl;
-      
-      if (this.config.debug) {
-        console.log(`URLBuilder: Validated base URL: ${this.validatedBaseUrl}`);
-        console.log(`URLBuilder: API prefix: ${this.config.apiPrefix}`);
-      }
       
     } catch (error) {
       console.error(`URLBuilder: Invalid base URL: ${this.config.baseUrl}`, error);
@@ -120,8 +128,10 @@ class URLBuilder {
   public buildApiUrl(endpoint: string, params?: Record<string, string | number>): URLBuildResult {
     const warnings: string[] = [];
     
-    // 验证基础URL
-    if (!this.validatedBaseUrl) {
+    // 检查是否为相对路径模式（开发环境代理）
+    const isRelativeMode = this.config.baseUrl.startsWith('/');
+    
+    if (!isRelativeMode && this.validatedBaseUrl === null) {
       return {
         url: '',
         isValid: false,
@@ -145,6 +155,33 @@ class URLBuilder {
     
     // 构建完整URL
     const fullPath = `${this.config.apiPrefix}/${normalizedEndpoint}`.replace(/\/+/g, '/');
+    
+    if (isRelativeMode) {
+      // 相对路径模式，直接返回相对URL（webpack dev server会处理代理）
+      let relativeUrl = fullPath;
+      
+      // 添加查询参数
+      if (params) {
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          searchParams.set(key, String(value));
+        });
+        relativeUrl += `?${searchParams.toString()}`;
+      }
+      
+      const result: URLBuildResult = {
+        url: relativeUrl,
+        isValid: true
+      };
+      
+      if (warnings.length > 0) {
+        result.warnings = warnings;
+      }
+      
+      return result;
+    }
+    
+    // 绝对URL模式
     const fullUrl = `${this.validatedBaseUrl}${fullPath}`;
     
     try {

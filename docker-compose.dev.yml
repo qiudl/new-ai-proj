@@ -108,9 +108,10 @@ services:
     environment:
       # 确保前端开发服务器监听容器内的 3000 端口（避免被根目录 .env 中的 PORT=8080 覆盖）
       PORT: 3000
-      # Docker内部网络配置覆盖
-      REACT_APP_API_URL: /api/v1
-      REACT_APP_API_BASE_URL: /api/v1
+      # 明确设置前端API URL（修复URLBuilder错误）
+      REACT_APP_API_URL: http://localhost:8081/api/v1
+      REACT_APP_API_BASE_URL: http://localhost:8081/api/v1
+      REACT_APP_BASE_URL: http://localhost:8081
       HOST: 0.0.0.0
       GENERATE_SOURCEMAP: false
       # 加速编译和跳过问题检查
