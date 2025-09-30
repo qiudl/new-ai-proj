@@ -1,0 +1,157 @@
+.task-basic-info-form {
+  width: 100%;
+}
+
+.task-basic-info-form.compact {
+  background: #fafafa;
+  padding: 16px;
+  border-radius: 6px;
+}
+
+.info-section {
+  margin-bottom: 16px;
+}
+
+.info-section .ant-card-body {
+  padding: 16px;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 32px;
+}
+
+.tags-container .ant-tag {
+  margin: 0;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.custom-fields-editor {
+  width: 100%;
+}
+
+.custom-fields-editor .ant-row {
+  margin-bottom: 8px;
+}
+
+.custom-fields-editor .ant-row:last-child {
+  margin-bottom: 0;
+}
+
+.form-actions {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Compact mode specific styles */
+.task-basic-info-form.compact .ant-form-item {
+  margin-bottom: 8px;
+}
+
+.task-basic-info-form.compact .ant-form-item-label {
+  padding-bottom: 2px;
+}
+
+/* Time input group styling */
+.ant-input-group-compact .ant-input-number {
+  border-radius: 0;
+}
+
+.ant-input-group-compact .ant-input-number:first-child {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.ant-input-group-compact .ant-input-number:last-child {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+/* Custom field input styling */
+.custom-fields-editor .ant-input {
+  transition: all 0.2s;
+}
+
+.custom-fields-editor .ant-input:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* Tag input styling */
+.tags-container .ant-input {
+  border-style: dashed;
+  background: #fafafa;
+}
+
+/* Loading and disabled states */
+.task-basic-info-form .ant-spin-container {
+  position: relative;
+}
+
+.task-basic-info-form .ant-form-item-control-input-content input[disabled],
+.task-basic-info-form .ant-form-item-control-input-content .ant-select-disabled,
+.task-basic-info-form .ant-form-item-control-input-content .ant-input-number-disabled {
+  background-color: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* Priority radio button group styling */
+.ant-radio-group .ant-radio-button-wrapper {
+  border-radius: 0;
+}
+
+.ant-radio-group .ant-radio-button-wrapper:first-child {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.ant-radio-group .ant-radio-button-wrapper:last-child {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+/* Status select styling */
+.ant-select-selection-item {
+  display: flex;
+  align-items: center;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .task-basic-info-form .ant-col {
+    margin-bottom: 16px;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .form-actions .ant-space {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .info-section .ant-card-body {
+    padding: 12px;
+  }
+  
+  .task-basic-info-form.compact {
+    padding: 12px;
+  }
+  
+  .tags-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

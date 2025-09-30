@@ -1,0 +1,369 @@
+/* 性能监控组件样式 */
+.performance-monitor {
+  width: 100%;
+}
+
+.performance-monitor .ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.performance-monitor .ant-card-head {
+  padding: 8px 16px;
+  min-height: auto;
+}
+
+.performance-monitor .ant-card-body {
+  padding: 12px 16px;
+}
+
+/* 性能指标网格 */
+.performance-metrics {
+  margin-bottom: 16px;
+}
+
+.metric-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.metric-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.metric-item .ant-statistic {
+  margin-bottom: 4px;
+}
+
+.metric-item .ant-statistic-title {
+  font-size: 11px;
+  margin-bottom: 2px;
+  color: #595959;
+}
+
+.metric-item .ant-statistic-content {
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.metric-item .ant-progress {
+  margin-top: 4px;
+}
+
+.metric-item .ant-progress-line {
+  margin: 0;
+}
+
+.metric-item .ant-progress-bg {
+  height: 4px !important;
+  border-radius: 2px;
+}
+
+/* 文档统计 */
+.document-stats {
+  padding: 8px 0;
+  border-top: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+  margin: 12px 0;
+  text-align: center;
+}
+
+.document-stats .ant-typography {
+  font-size: 11px;
+}
+
+/* 性能趋势图 */
+.performance-trend {
+  margin: 12px 0;
+}
+
+.trend-chart {
+  display: flex;
+  align-items: end;
+  height: 40px;
+  gap: 2px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 4px;
+  margin-top: 8px;
+}
+
+.trend-bar {
+  flex: 1;
+  min-height: 2px;
+  border-radius: 1px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.trend-bar:hover {
+  opacity: 0.8;
+  transform: scaleY(1.1);
+}
+
+/* 优化建议 */
+.optimization-suggestions {
+  margin-top: 12px;
+}
+
+.suggestions-list {
+  margin: 8px 0;
+}
+
+.suggestion-item {
+  padding: 4px 8px;
+  background: #f6f8fa;
+  border-left: 3px solid #1890ff;
+  border-radius: 0 4px 4px 0;
+  margin-bottom: 4px;
+}
+
+.suggestion-item:last-child {
+  margin-bottom: 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .metric-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .performance-monitor .ant-card-head {
+    padding: 6px 12px;
+  }
+  
+  .performance-monitor .ant-card-body {
+    padding: 8px 12px;
+  }
+  
+  .metric-item .ant-statistic-title {
+    font-size: 10px;
+  }
+  
+  .metric-item .ant-statistic-content {
+    font-size: 14px;
+  }
+  
+  .document-stats .ant-typography {
+    font-size: 10px;
+  }
+  
+  .trend-chart {
+    height: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .performance-monitor .ant-card-head-title {
+    font-size: 13px;
+  }
+  
+  .metric-item .ant-statistic-content {
+    font-size: 12px;
+  }
+  
+  .suggestion-item {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+  
+  .trend-chart {
+    height: 25px;
+    gap: 1px;
+  }
+  
+  .performance-monitor .ant-btn {
+    font-size: 11px;
+    height: 24px;
+    padding: 0 6px;
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .performance-monitor .ant-card {
+    background: #1f1f1f;
+    border-color: #404040;
+  }
+  
+  .document-stats {
+    border-top-color: #404040;
+    border-bottom-color: #404040;
+  }
+  
+  .trend-chart {
+    background: #262626;
+  }
+  
+  .suggestion-item {
+    background: #262626;
+    color: #d0d0d0;
+  }
+  
+  .metric-item .ant-statistic-title {
+    color: #8c8c8c;
+  }
+}
+
+/* 动画效果 */
+.performance-monitor {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.metric-item {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 指标颜色主题 */
+.metric-excellent {
+  color: #52c41a;
+}
+
+.metric-good {
+  color: #1890ff;
+}
+
+.metric-fair {
+  color: #faad14;
+}
+
+.metric-poor {
+  color: #f5222d;
+}
+
+/* 进度条动画 */
+.metric-item .ant-progress-bg {
+  transition: all 0.3s ease;
+}
+
+/* 标签样式 */
+.performance-monitor .ant-tag {
+  margin: 0;
+  font-size: 11px;
+  padding: 0 6px;
+  line-height: 18px;
+}
+
+/* 按钮样式 */
+.performance-monitor .ant-btn {
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.performance-monitor .ant-btn-primary {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border: none;
+}
+
+.performance-monitor .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+}
+
+/* 工具提示优化 */
+.performance-monitor .ant-tooltip {
+  font-size: 11px;
+}
+
+/* 统计数字动画 */
+.metric-item .ant-statistic-content-value {
+  transition: all 0.3s ease;
+}
+
+/* 趋势图交互效果 */
+.trend-chart:hover .trend-bar {
+  opacity: 0.7;
+}
+
+.trend-chart .trend-bar:hover {
+  opacity: 1 !important;
+  transform: scaleY(1.2) !important;
+}
+
+/* 卡片阴影效果 */
+.performance-monitor .ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+  transition: all 0.3s ease;
+}
+
+/* 性能等级指示器 */
+.performance-level-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.performance-level-indicator.excellent {
+  background: #52c41a;
+  box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
+}
+
+.performance-level-indicator.good {
+  background: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.performance-level-indicator.fair {
+  background: #faad14;
+  box-shadow: 0 0 0 2px rgba(250, 173, 20, 0.2);
+}
+
+.performance-level-indicator.poor {
+  background: #f5222d;
+  box-shadow: 0 0 0 2px rgba(245, 34, 45, 0.2);
+}
+
+/* 加载状态 */
+.performance-monitor.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* 错误状态 */
+.performance-monitor.error .ant-card {
+  border-color: #f5222d;
+}
+
+.performance-monitor.error .ant-card-head {
+  background: #fff2f0;
+  color: #f5222d;
+}
+
+/* 数据更新闪烁效果 */
+@keyframes dataUpdate {
+  0% { background: rgba(24, 144, 255, 0.1); }
+  50% { background: rgba(24, 144, 255, 0.2); }
+  100% { background: rgba(24, 144, 255, 0.1); }
+}
+
+.metric-item.updating {
+  animation: dataUpdate 0.6s ease-in-out;
+  border-radius: 4px;
+}

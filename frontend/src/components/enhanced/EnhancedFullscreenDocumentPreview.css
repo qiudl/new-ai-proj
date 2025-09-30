@@ -1,0 +1,591 @@
+/* 增强全屏文档预览组件样式 */
+.enhanced-fullscreen-document-preview {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: #fff;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.enhanced-fullscreen-preview {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: #fff;
+  position: relative;
+}
+
+.enhanced-fullscreen-preview.fullscreen-mode {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+}
+
+/* 布局容器 */
+.preview-layout {
+  height: 100%;
+  background: #fff;
+  padding-top: 64px; /* 为新工具栏留出空间 */
+}
+
+.content-layout {
+  height: calc(100% - 64px);
+  overflow: hidden;
+}
+
+/* 顶部工具栏样式 */
+.enhanced-preview-header {
+  height: 56px;
+  line-height: 56px;
+  padding: 0 16px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 100;
+}
+
+.header-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.header-center {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.task-info-section {
+  margin-left: 12px;
+  min-width: 0;
+}
+
+.task-title {
+  margin: 0 !important;
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+  line-height: 1.4;
+}
+
+.task-meta {
+  font-size: 12px;
+  color: #8c8c8c;
+  line-height: 1.2;
+}
+
+/* 侧边栏样式 */
+.enhanced-preview-sider {
+  border-right: 1px solid #f0f0f0;
+  background: #fafafa;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-content {
+  padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.outline-section,
+.comments-section {
+  margin-bottom: 24px;
+}
+
+.outline-section h5,
+.comments-section h5 {
+  margin-bottom: 12px !important;
+  color: #262626;
+  font-weight: 600;
+}
+
+.sidebar-placeholder {
+  padding: 24px 0;
+  text-align: center;
+}
+
+/* 主内容区域 */
+.preview-main-content {
+  padding: 0;
+  background: #fff;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* 键盘快捷键提示 */
+.keyboard-shortcuts-hint {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.3s ease;
+  animation: fadeInHint 3s ease-in-out;
+}
+
+@keyframes fadeInHint {
+  0%, 90% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  10%, 80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+}
+
+.enhanced-fullscreen-preview:hover .keyboard-shortcuts-hint {
+  opacity: 0.8;
+}
+
+/* 错误和加载状态 */
+.enhanced-fullscreen-preview.error-state,
+.enhanced-fullscreen-preview.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+}
+
+.error-container {
+  max-width: 500px;
+  width: 90%;
+}
+
+.loading-container {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .enhanced-preview-sider {
+    width: 240px !important;
+  }
+  
+  .task-title {
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .enhanced-preview-header {
+    height: 48px;
+    line-height: 48px;
+    padding: 0 12px;
+  }
+  
+  .header-left,
+  .header-center,
+  .header-right {
+    gap: 8px;
+  }
+  
+  .task-title {
+    font-size: 14px;
+    max-width: 200px;
+  }
+  
+  .task-meta {
+    font-size: 11px;
+  }
+  
+  .enhanced-preview-sider {
+    width: 200px !important;
+  }
+  
+  .sidebar-content {
+    padding: 12px;
+  }
+  
+  .keyboard-shortcuts-hint {
+    bottom: 12px;
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+  
+  /* 移动端工具栏按钮优化 */
+  .header-center .ant-btn,
+  .header-right .ant-btn {
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .header-center .ant-btn-primary,
+  .header-right .ant-btn-primary {
+    padding: 0 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .enhanced-preview-header {
+    height: 44px;
+    line-height: 44px;
+    padding: 0 8px;
+  }
+  
+  .task-info-section {
+    margin-left: 8px;
+  }
+  
+  .task-title {
+    font-size: 13px;
+    max-width: 150px;
+  }
+  
+  .enhanced-preview-sider {
+    width: 100% !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 1000;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  .enhanced-preview-sider.ant-layout-sider-collapsed {
+    left: -100%;
+  }
+  
+  /* 移动端隐藏一些不重要的按钮文本 */
+  .header-center .ant-btn span:not(.anticon),
+  .header-right .ant-btn span:not(.anticon) {
+    display: none;
+  }
+  
+  .keyboard-shortcuts-hint {
+    display: none; /* 移动端隐藏快捷键提示 */
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .enhanced-fullscreen-preview {
+    background: #141414;
+    color: #fff;
+  }
+  
+  .preview-layout {
+    background: #141414;
+  }
+  
+  .enhanced-preview-header {
+    background: #1f1f1f;
+    border-bottom-color: #303030;
+  }
+  
+  .task-title {
+    color: #fff;
+  }
+  
+  .task-meta {
+    color: #8c8c8c;
+  }
+  
+  .enhanced-preview-sider {
+    background: #1f1f1f;
+    border-right-color: #303030;
+  }
+  
+  .preview-main-content {
+    background: #141414;
+  }
+  
+  .enhanced-fullscreen-preview.error-state,
+  .enhanced-fullscreen-preview.loading-state {
+    background: #141414;
+  }
+}
+
+/* 动画效果 */
+.enhanced-fullscreen-preview {
+  animation: slideInFade 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 工具栏按钮状态优化 */
+.enhanced-preview-header .ant-btn {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.enhanced-preview-header .ant-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.enhanced-preview-header .ant-btn-primary {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border: none;
+}
+
+.enhanced-preview-header .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+}
+
+/* 侧边栏滚动条样式 */
+.sidebar-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 2px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+/* 全屏模式特殊样式 */
+.enhanced-fullscreen-preview.fullscreen-mode .keyboard-shortcuts-hint {
+  display: block;
+  animation: none;
+  opacity: 0.6;
+}
+
+.enhanced-fullscreen-preview.fullscreen-mode:hover .keyboard-shortcuts-hint {
+  opacity: 1;
+}
+
+/* Affix 组件样式调整 */
+.enhanced-fullscreen-preview .ant-affix {
+  z-index: 100;
+}
+
+/* 确保内容区域正确填充 */
+.preview-main-content > div {
+  height: 100%;
+}
+
+/* Badge 状态指示器样式 */
+.header-center .ant-badge {
+  display: inline-flex;
+  align-items: center;
+}
+
+.header-center .ant-badge .ant-badge-dot {
+  background: #52c41a;
+  box-shadow: 0 0 0 1px #fff;
+}
+
+/* 新工具栏样式 */
+.toolbar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  z-index: 1000;
+  transition: all 0.3s ease;
+  transform: translateY(0);
+}
+
+.toolbar-container.toolbar-hidden {
+  transform: translateY(-100%);
+}
+
+.enhanced-document-toolbar {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  color: #fff;
+}
+
+.toolbar-left {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.toolbar-right {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.document-title-section {
+  text-align: center;
+}
+
+.font-size-control {
+  display: flex;
+  align-items: center;
+  color: #fff;
+}
+
+.enhanced-document-body {
+  flex: 1;
+  overflow: hidden;
+  margin-top: 60px; /* 为工具栏留出空间 */
+}
+
+/* 键盘快捷键提示 */
+.keyboard-hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 8px;
+  z-index: 999;
+  pointer-events: none;
+  animation: fadeInHint 0.3s ease;
+}
+
+.hint-content {
+  text-align: center;
+}
+
+.hint-keys {
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hint-keys kbd {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes fadeInHint {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* 工具栏按钮样式覆盖 */
+.enhanced-document-toolbar .ant-btn {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  background: transparent;
+}
+
+.enhanced-document-toolbar .ant-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.enhanced-document-toolbar .ant-slider {
+  margin: 0;
+}
+
+.enhanced-document-toolbar .ant-slider-rail {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.enhanced-document-toolbar .ant-slider-track {
+  background: #fff;
+}
+
+.enhanced-document-toolbar .ant-slider-handle {
+  border-color: #fff;
+  background: #fff;
+}
+
+/* 响应式工具栏 */
+@media (max-width: 768px) {
+  .enhanced-document-toolbar {
+    padding: 0 12px;
+  }
+  
+  .toolbar-left .ant-btn span:not(.anticon),
+  .toolbar-right .ant-btn span:not(.anticon) {
+    display: none;
+  }
+  
+  .font-size-control {
+    width: 60px;
+  }
+  
+  .keyboard-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .toolbar-container {
+    height: 50px;
+  }
+  
+  .enhanced-document-body {
+    margin-top: 50px;
+  }
+  
+  .document-title-section h4 {
+    font-size: 14px !important;
+  }
+}

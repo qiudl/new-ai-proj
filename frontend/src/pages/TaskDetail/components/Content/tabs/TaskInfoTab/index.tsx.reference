@@ -1,0 +1,476 @@
+/**
+ * TaskInfoTab - Enhanced task information tab
+ * 
+ * This component provides comprehensive task information editing with:
+ * - Rich text description editing
+ * - Integrated task properties management
+ * - Custom fields management
+ * - Tags and categories
+ * - Task attributes with inline editing
+ */
+
+import React, { useState, useCallback, useMemo } from 'react';
+import { 
+  Card, 
+  Row, 
+  Col, 
+  Space, 
+  Button, 
+  Typography, 
+  Spin,
+  message,
+  Form,
+  Select,
+  DatePicker,
+  InputNumber,
+  Avatar,
+  Tooltip,
+  Progress
+} from 'antd';
+import { 
+  EditOutlined, 
+  SaveOutlined,
+  PlusOutlined,
+  TagsOutlined,
+  FileTextOutlined,
+  UserOutlined,
+  CalendarOutlined,
+  ClockCircleOutlined,
+  FlagOutlined
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+import { Task } from '../../../../types/task.types';
+import DescriptionEditor from './DescriptionEditor';
+import CustomFieldsManager from './CustomFieldsManager';
+import TagsManager from './TagsManager';
+import './TaskInfoTab.css';
+
+const { Title, Text } = Typography;
+const { Option } = Select;
+
+export interface TaskInfoTabProps {
+  task: Task;
+  editable?: boolean;
+  loading?: boolean;
+  onTaskUpdate?: (updates: Partial<Task>) => void;
+  onTagsUpdate?: (tags: string[]) => void;
+}
+
+export interface CustomField {
+  id: string;
+  name: string;
+  type: 'text' | 'number' | 'date' | 'select' | 'multiselect';
+  value: any;
+  options?: string[];
+  required?: boolean;
+}
+
+// Constants for task options
+const PRIORITY_OPTIONS = [
+  { value: 'low', label: '低优先级', color: '#52c41a' },
+  { value: 'medium', label: '中等优先级', color: '#faad14' },
+  { value: 'high', label: '高优先级', color: '#ff4d4f' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'draft', label: '草稿', color: '#d9d9d9' },
+  { value: 'planning', label: '规划中', color: '#1890ff' },
+  { value: 'todo', label: '待处理', color: '#fa8c16' },
+  { value: 'in_progress', label: '进行中', color: '#52c41a' },
+  { value: 'testing', label: '测试中', color: '#722ed1' },
+  { value: 'completed', label: '已完成', color: '#52c41a' },
+  { value: 'cancelled', label: '已取消', color: '#f5222d' },
+  { value: 'on_hold', label: '暂停', color: '#faad14' },
+  { value: 'blocked', label: '阻塞', color: '#f5222d' },
+];
+
+// Mock users - in real app, fetch from API
+const MOCK_USERS = [
+  { id: 1, username: 'admin', email: 'admin@example.com' },
+  { id: 2, username: 'developer', email: 'dev@example.com' },
+  { id: 3, username: 'tester', email: 'test@example.com' }
+];
+
+const TaskInfoTab: React.FC<TaskInfoTabProps> = ({
+  task,
+  editable = true,
+  loading = false,
+  onTaskUpdate,
+  onTagsUpdate,
+}) => {
+  const [form] = Form.useForm();
+  const [isEditing, setIsEditing] = useState(false);
+  const [localChanges, setLocalChanges] = useState<Partial<Task>>({});
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // Initialize form values
+  const formValues = useMemo(() => ({
+    status: task.status,
+    priority: task.priority || 'medium',
+    assignee_id: task.assignee_id,
+    due_date: task.due_date ? dayjs(task.due_date) : null,
+    estimated_hours: Math.floor((task.estimated_hours || 0)),
+    estimated_minutes_remainder: Math.round(((task.estimated_hours || 0) % 1) * 60),
+  }), [task]);
+
+  // Handle description update
+  const handleDescriptionUpdate = useCallback((description: string) => {
+    setLocalChanges(prev => ({ ...prev, description }));
+  }, []);
+
+  // Handle form field changes
+  const handleFieldChange = useCallback((field: string, value: any) => {
+    if (field === 'estimated_hours' || field === 'estimated_minutes_remainder') {
+      const hours = field === 'estimated_hours' ? value : form.getFieldValue('estimated_hours') || 0;
+      const minutes = field === 'estimated_minutes_remainder' ? value : form.getFieldValue('estimated_minutes_remainder') || 0;
+      const totalHours = hours + (minutes / 60);
+      setLocalChanges(prev => ({ ...prev, estimated_hours: totalHours }));
+    } else if (field === 'due_date') {
+      setLocalChanges(prev => ({ ...prev, due_date: value ? value.toISOString() : null }));
+    } else {
+      setLocalChanges(prev => ({ ...prev, [field]: value }));
+    }
+  }, [form]);
+
+  // Handle custom field update
+  const handleCustomFieldUpdate = useCallback((fields: CustomField[]) => {
+    setCustomFields(fields);
+    setLocalChanges(prev => ({ 
+      ...prev, 
+      custom_fields: { 
+        ...prev.custom_fields,
+        ...fields.reduce((acc, field) => ({ ...acc, [field.name]: field.value }), {})
+      }
+    }));
+  }, []);
+
+  // Handle tags update
+  const handleTagsChange = useCallback((tags: string[]) => {
+    setLocalChanges(prev => ({ ...prev, tags }));
+    onTagsUpdate?.(tags);
+  }, [onTagsUpdate]);
+
+  // Handle save changes
+  const handleSave = useCallback(async () => {
+    if (!onTaskUpdate) return;
+    
+    setSaving(true);
+    try {
+      await onTaskUpdate(localChanges);
+      setLocalChanges({});
+      setIsEditing(false);
+      message.success('任务信息已更新');
+    } catch (error) {
+      console.error('Failed to update task:', error);
+      message.error('更新失败，请稍后重试');
+    } finally {
+      setSaving(false);
+    }
+  }, [localChanges, onTaskUpdate]);
+
+  // Handle cancel editing
+  const handleCancel = useCallback(() => {
+    setLocalChanges({});
+    setIsEditing(false);
+    form.setFieldsValue(formValues);
+  }, [form, formValues]);
+
+  // Merged task data with local changes
+  const mergedTask = useMemo(() => ({
+    ...task,
+    ...localChanges,
+  }), [task, localChanges]);
+
+  // Check if there are unsaved changes
+  const hasChanges = Object.keys(localChanges).length > 0;
+
+  if (loading) {
+    return (
+      <div className="task-info-loading">
+        <Spin size="large">
+          <div style={{ marginTop: 16 }}>正在加载任务信息...</div>
+        </Spin>
+      </div>
+    );
+  }
+
+  return (
+    <div className="task-info-tab">
+      {/* Header with edit controls */}
+      <div className="task-info-header">
+        <div className="header-left">
+          <Title level={4}>
+            <FileTextOutlined /> 任务信息
+          </Title>
+        </div>
+        
+        {editable && (
+          <div className="header-actions">
+            <Space>
+              {isEditing ? (
+                <>
+                  <Button onClick={handleCancel} disabled={saving}>
+                    取消
+                  </Button>
+                  <Button 
+                    type="primary" 
+                    icon={<SaveOutlined />}
+                    onClick={handleSave}
+                    disabled={!hasChanges}
+                    loading={saving}
+                  >
+                    保存更改
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  type="primary" 
+                  icon={<EditOutlined />}
+                  onClick={() => setIsEditing(true)}
+                >
+                  编辑任务
+                </Button>
+              )}
+            </Space>
+          </div>
+        )}
+      </div>
+
+      <Form
+        form={form}
+        initialValues={formValues}
+        layout="vertical"
+        disabled={!isEditing}
+      >
+        <Row gutter={[24, 24]}>
+          {/* Left Column - Description and Custom Fields */}
+          <Col xs={24} lg={14}>
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              {/* Task Description */}
+              <Card title="任务描述" size="small" className="info-card">
+                <DescriptionEditor
+                  value={mergedTask.description || ''}
+                  onChange={handleDescriptionUpdate}
+                  editable={isEditing}
+                  placeholder="添加任务描述..."
+                  task={mergedTask}
+                  onTaskUpdate={onTaskUpdate ? async (updates: Partial<Task>) => {
+                    await Promise.resolve(onTaskUpdate(updates));
+                  } : undefined}
+                />
+              </Card>
+
+              {/* Custom Fields */}
+              <Card 
+                title="自定义字段" 
+                size="small" 
+                className="info-card"
+                extra={
+                  isEditing && (
+                    <Button 
+                      type="text" 
+                      icon={<PlusOutlined />}
+                      size="small"
+                      onClick={() => {
+                        const newField: CustomField = {
+                          id: Date.now().toString(),
+                          name: 'New Field',
+                          type: 'text',
+                          value: '',
+                        };
+                        setCustomFields([...customFields, newField]);
+                      }}
+                    >
+                      添加字段
+                    </Button>
+                  )
+                }
+              >
+                <CustomFieldsManager
+                  fields={customFields}
+                  onChange={handleCustomFieldUpdate}
+                  editable={isEditing}
+                />
+              </Card>
+            </Space>
+          </Col>
+
+          {/* Right Column - Task Properties */}
+          <Col xs={24} lg={10}>
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              {/* Basic Properties */}
+              <Card title="基本属性" size="small" className="info-card">
+                <Row gutter={[16, 16]}>
+                  <Col span={24}>
+                    <Form.Item label={<><FlagOutlined /> 状态</>}>
+                      <Select
+                        value={mergedTask.status}
+                        onChange={(value) => handleFieldChange('status', value)}
+                        disabled={!isEditing}
+                      >
+                        {STATUS_OPTIONS.map(option => (
+                          <Option key={option.value} value={option.value}>
+                            <span style={{ color: option.color }}>●</span> {option.label}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+
+                  <Col span={24}>
+                    <Form.Item label={<><FlagOutlined /> 优先级</>}>
+                      <Select
+                        value={mergedTask.priority || 'medium'}
+                        onChange={(value) => handleFieldChange('priority', value)}
+                        disabled={!isEditing}
+                      >
+                        {PRIORITY_OPTIONS.map(option => (
+                          <Option key={option.value} value={option.value}>
+                            <span style={{ color: option.color }}>●</span> {option.label}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+
+                  <Col span={24}>
+                    <Form.Item label={<><UserOutlined /> 负责人</>}>
+                      <Select
+                        value={mergedTask.assignee_id}
+                        onChange={(value) => handleFieldChange('assignee_id', value)}
+                        placeholder="选择负责人"
+                        allowClear
+                        disabled={!isEditing}
+                      >
+                        {MOCK_USERS.map(user => (
+                          <Option key={user.id} value={user.id}>
+                            <Space>
+                              <Avatar size="small" icon={<UserOutlined />} />
+                              {user.username}
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+
+                  <Col span={24}>
+                    <Form.Item label={<><CalendarOutlined /> 截止时间</>}>
+                      <DatePicker
+                        value={mergedTask.due_date ? dayjs(mergedTask.due_date) : null}
+                        onChange={(value) => handleFieldChange('due_date', value)}
+                        showTime
+                        format="YYYY-MM-DD HH:mm"
+                        placeholder="选择截止时间"
+                        style={{ width: '100%' }}
+                        disabled={!isEditing}
+                      />
+                    </Form.Item>
+                  </Col>
+
+                  <Col span={12}>
+                    <Form.Item label={<><ClockCircleOutlined /> 预估工时</>}>
+                      <InputNumber
+                        value={Math.floor(mergedTask.estimated_hours || 0)}
+                        onChange={(value) => handleFieldChange('estimated_hours', value || 0)}
+                        min={0}
+                        max={999}
+                        style={{ width: '100%' }}
+                        addonAfter="小时"
+                        disabled={!isEditing}
+                      />
+                    </Form.Item>
+                  </Col>
+
+                  <Col span={12}>
+                    <Form.Item label="&nbsp;">
+                      <InputNumber
+                        value={Math.round(((mergedTask.estimated_hours || 0) % 1) * 60)}
+                        onChange={(value) => handleFieldChange('estimated_minutes_remainder', value || 0)}
+                        min={0}
+                        max={59}
+                        style={{ width: '100%' }}
+                        addonAfter="分钟"
+                        disabled={!isEditing}
+                      />
+                    </Form.Item>
+                  </Col>
+
+                  {/* Actual time display */}
+                  <Col span={24}>
+                    <Form.Item label="实际工时">
+                      {(() => {
+                        const actualHours = task.actual_hours || 0;
+                        const hours = Math.floor(actualHours);
+                        const minutes = Math.round((actualHours % 1) * 60);
+                        const timeText = hours > 0 
+                          ? `${hours}小时${minutes > 0 ? minutes + '分钟' : ''}`
+                          : minutes > 0 
+                            ? `${minutes}分钟`
+                            : '0小时';
+                        return (
+                          <div style={{ 
+                            padding: '8px 12px', 
+                            background: '#f5f5f5', 
+                            borderRadius: '6px',
+                            color: '#666'
+                          }}>
+                            <ClockCircleOutlined /> {timeText}
+                            <Tooltip title="从计时记录自动计算">
+                              <span style={{ marginLeft: 8, fontSize: '12px' }}>自动计算</span>
+                            </Tooltip>
+                          </div>
+                        );
+                      })()}
+                    </Form.Item>
+                  </Col>
+
+                  {/* Progress indicator */}
+                  {task.completion_percentage !== undefined && (
+                    <Col span={24}>
+                      <Form.Item label="完成进度">
+                        <Progress 
+                          percent={task.completion_percentage} 
+                          size="small" 
+                          status={task.completion_percentage === 100 ? 'success' : 'active'}
+                        />
+                      </Form.Item>
+                    </Col>
+                  )}
+                </Row>
+              </Card>
+
+              {/* Tags Management */}
+              <Card 
+                title={
+                  <Space>
+                    <TagsOutlined />
+                    <span>标签</span>
+                  </Space>
+                } 
+                size="small" 
+                className="info-card"
+              >
+                <TagsManager
+                  tags={mergedTask.tags || []}
+                  onChange={handleTagsChange}
+                  editable={isEditing}
+                />
+              </Card>
+            </Space>
+          </Col>
+        </Row>
+      </Form>
+
+      {/* Status indicator for unsaved changes */}
+      {hasChanges && (
+        <div className="unsaved-changes-indicator">
+          <Text type="warning">您有未保存的更改</Text>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TaskInfoTab;
