@@ -3,8 +3,7 @@ package routes
 import (
 	"ai-project-backend/config"
 	"ai-project-backend/middleware"
-	"database/sql"
-	"fmt"
+
 	"github.com/gin-gonic/gin"
 	promhttp "github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -40,9 +39,6 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// Prometheus metrics endpoint
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// 注册WebSocket路由（在静态文件之前） - 已注释
-	// RegisterWebSocketRoutes(router, app)
-
 	// API routes with authentication
 	api := router.Group("/api/v1")
 
@@ -61,7 +57,7 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册SSE token端点（在认证中间件之前）
 	timerHandler := app.GetUnifiedTimerHandler()
 	api.GET("/timer/sse-token", timerHandler.TimerSSEWithToken) // SSE with token auth (no middleware)
-	
+
 	// 注册认证路由并获取授权路由组
 	authorized := RegisterAuthRoutes(api, app)
 	// 使企业模拟中间件在所有受保护路由上生效
@@ -94,20 +90,14 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册组织管理路由
 	RegisterOrganizationRoutes(authorized, app)
 
-	// 注册项目和任务管理路由
-	fmt.Println("DEBUG: About to call RegisterProjectRoutes")
+	// 注册项目路由
 	RegisterProjectRoutes(authorized, app)
-	fmt.Println("DEBUG: RegisterProjectRoutes completed")
 
 	// 注册独立的任务路由
-	fmt.Println("DEBUG: About to call RegisterTaskRoutes")
 	RegisterTaskRoutes(authorized, app)
-	fmt.Println("DEBUG: RegisterTaskRoutes completed")
 
 	// 注册批量操作路由
-	fmt.Println("DEBUG: About to call RegisterBatchOperationRoutes")
 	RegisterBatchOperationRoutes(authorized, app)
-	fmt.Println("DEBUG: RegisterBatchOperationRoutes completed")
 
 	// 注册简化的系统路由（主要是权限相关）
 	RegisterSystemRoutes(authorized, app)
@@ -141,14 +131,6 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
 	// 注册管理员路由
 	RegisterAdminRoutes(authorized, app)
-
-	// 注册修复的任务文档路由（优先级更高，会覆盖之前的路由）
-	// 获取数据库连接用于修复
-	if dbProvider, ok := app.(interface{ GetDB() interface{} }); ok {
-		if sqlDB, ok := dbProvider.GetDB().(*sql.DB); ok {
-			RegisterTaskDocumentFixRoutes(authorized, sqlDB)
-		}
-	}
 
 	// 注册简化的API路由
 	RegisterAPIRoutes(router, authorized, app)
