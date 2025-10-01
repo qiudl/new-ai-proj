@@ -187,7 +187,7 @@ services:
 
   # Prisma CLI 工具 (数据库管理)
   prisma:
-    image: node:20
+    image: node:20-alpine
     container_name: ai_prisma
     working_dir: /app
     depends_on:

@@ -92,7 +92,7 @@ services:
     restart: unless-stopped
 
   prisma:
-    image: ${REGISTRY_PREFIX:-mirror.gcr.io/library/}node:20
+    image: ${REGISTRY_PREFIX:-mirror.gcr.io/library/}node:20-alpine
     container_name: ai-prisma
     working_dir: /app
     depends_on:
