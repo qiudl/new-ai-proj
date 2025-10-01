@@ -63,7 +63,7 @@ async function testTimelineFix() {
         console.log('   ✅ 前端类型定义: 已修复');
         
         console.log('\n📋 下一步建议:');
-        console.log('   1. 刷新前端页面 http://localhost:3001/projects/1/tasks/1441');
+        console.log('   1. 刷新前端页面 http://localhost:3000/projects/1/tasks/1441');
         console.log('   2. 检查浏览器开发者工具 Network 面板');
         console.log('   3. 确认时间线数据能正确显示');
         

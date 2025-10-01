@@ -18,7 +18,7 @@ dotenv.config({ path: join(__dirname, '.env') });
 
 // 测试配置
 const TEST_CONFIG = {
-  apiBase: process.env.TASK_API_BASE || 'http://localhost:8081/api/v1',
+  apiBase: process.env.TASK_API_BASE || 'http://localhost:8080/api/v1',
   authToken: process.env.TASK_API_TOKEN || process.env.API_TOKEN,
   testUserId: 1
 };

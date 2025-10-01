@@ -7,7 +7,7 @@
 import { spawn } from 'child_process';
 import { readFile } from 'fs/promises';
 
-const API_BASE = process.env.TASK_API_BASE || 'http://localhost:8081/api/v1';
+const API_BASE = process.env.TASK_API_BASE || 'http://localhost:8080/api/v1';
 
 async function testMCPTools() {
     console.log('🧪 测试Daily Focus MCP工具集成...\n');

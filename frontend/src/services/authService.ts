@@ -96,15 +96,18 @@ class AuthService {
     try {
       const response = await api.post('/auth/login', credentials);
       
-      if ((response as any).success && (response as any).data?.token) {
+      // 处理后端返回的access_token
+      const token = (response as any).data?.access_token || (response as any).data?.token;
+      
+      if ((response as any).success && token) {
         // 使用TokenManager保存token
-        TokenManager.setToken((response as any).data.token);
+        TokenManager.setToken(token);
       }
       
       return {
         success: true,
         data: {
-          token: (response as any).data?.token,
+          token: token,
           user: (response as any).data?.user
         }
       };

@@ -3,7 +3,7 @@
 # Test script for bulk archive/unarchive APIs
 set -e
 
-BASE_URL="http://localhost:8081/api/v1"
+BASE_URL="http://localhost:8080/api/v1"
 PROJECT_ID=1
 ADMIN_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwiZXhwIjoxNzU3NzEyMDE4LCJpYXQiOjE3NTc2MjU2MTgsImp0aSI6ImQxZDY1MTE0LTVkM2UtNDkxZC05NzlkLTM2NzQwZmY5NGNiMCJ9.fKMZb_Vt5hD7kGX4Yy8I5_r9zJLnPw7XjPmEn7zZd7Y"
 

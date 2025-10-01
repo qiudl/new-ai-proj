@@ -1,0 +1,25 @@
+# Dockerfile to create Node.js 20 Alpine image as workaround
+FROM redis:7-alpine as node-builder
+
+# Install Node.js 20 from Alpine repositories
+RUN apk add --no-cache nodejs npm
+
+# Create a minimal Node.js runtime
+FROM alpine:3.18
+
+# Copy Node.js from builder
+COPY --from=node-builder /usr/bin/node /usr/bin/node
+COPY --from=node-builder /usr/bin/npm /usr/bin/npm
+COPY --from=node-builder /usr/lib/node_modules /usr/lib/node_modules
+
+# Install dependencies needed for Node.js
+RUN apk add --no-cache libstdc++ libgcc
+
+# Create symlinks
+RUN ln -s /usr/lib/node_modules/npm/bin/npm-cli.js /usr/bin/npm
+RUN ln -s /usr/lib/node_modules/npm/bin/npx-cli.js /usr/bin/npx
+
+# Verify installation
+RUN node --version && npm --version
+
+CMD ["node"]

@@ -12,7 +12,7 @@
 set -e
 
 # Configuration
-BASE_URL="${BASE_URL:-http://localhost:8081/api/v1}"
+BASE_URL="${BASE_URL:-http://localhost:8080/api/v1}"
 PROJECT_ID="${PROJECT_ID:-1}"
 
 # Colors for output

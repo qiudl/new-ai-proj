@@ -68,7 +68,7 @@ services:
       ALL_PROXY: ""
       all_proxy: ""
     ports:
-      - "8081:8080"
+      - "8080:8080"
     volumes:
       # 代码挂载（支持热重载）
       - ./backend:/app:cached
@@ -109,9 +109,9 @@ services:
       # 确保前端开发服务器监听容器内的 3000 端口（避免被根目录 .env 中的 PORT=8080 覆盖）
       PORT: 3000
       # 明确设置前端API URL（修复URLBuilder错误）
-      REACT_APP_API_URL: http://localhost:8081/api/v1
-      REACT_APP_API_BASE_URL: http://localhost:8081/api/v1
-      REACT_APP_BASE_URL: http://localhost:8081
+      REACT_APP_API_URL: http://localhost:8080/api/v1
+      REACT_APP_API_BASE_URL: http://localhost:8080/api/v1
+      REACT_APP_BASE_URL: http://localhost:8080
       HOST: 0.0.0.0
       GENERATE_SOURCEMAP: false
       # 加速编译和跳过问题检查
@@ -129,7 +129,7 @@ services:
       # webpack优化
       WEBPACK_CACHE: false
     ports:
-      - "3001:3000"
+      - "3000:3000"
     volumes:
       # 代码挂载（支持热重载）- 排除node_modules
       - ./frontend:/app:cached

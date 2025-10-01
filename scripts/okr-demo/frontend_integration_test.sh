@@ -41,20 +41,20 @@ else
 fi
 
 print_step "2" "检查后端服务状态..."
-if curl -s http://localhost:8081/api/v1/auth/dev/quick-login -X POST -H "Content-Type: application/json" -d '{"username": "admin"}' > /dev/null 2>&1; then
-    print_success "后端服务正常运行 (http://localhost:8081)"
+if curl -s http://localhost:8080/api/v1/auth/dev/quick-login -X POST -H "Content-Type: application/json" -d '{"username": "admin"}' > /dev/null 2>&1; then
+    print_success "后端服务正常运行 (http://localhost:8080)"
 else
     print_warning "后端服务未运行，请先启动后端服务"
-    echo "启动命令: PORT=8081 ./backend/ai-project-backend"
+    echo "启动命令: PORT=8080 ./backend/ai-project-backend"
     exit 1
 fi
 
 print_step "3" "验证OKR数据是否存在..."
-JWT_TOKEN=$(curl -s -X POST "http://localhost:8081/api/v1/auth/dev/quick-login" \
+JWT_TOKEN=$(curl -s -X POST "http://localhost:8080/api/v1/auth/dev/quick-login" \
     -H "Content-Type: application/json" \
     -d '{"username": "admin"}' | jq -r '.data.access_token')
 
-OKR_RESPONSE=$(curl -s -X GET "http://localhost:8081/api/v1/okr/objectives?quarter=2025-Q1" \
+OKR_RESPONSE=$(curl -s -X GET "http://localhost:8080/api/v1/okr/objectives?quarter=2025-Q1" \
     -H "Authorization: Bearer $JWT_TOKEN")
 
 OKR_COUNT=$(echo "$OKR_RESPONSE" | jq -r '.total // 0')

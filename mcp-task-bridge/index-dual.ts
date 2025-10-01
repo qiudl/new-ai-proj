@@ -30,7 +30,7 @@ for (const p of envCandidates) {
 }
 
 // 初始化任务服务器
-const apiBaseUrl = process.env.API_BASE_URL || process.env.TASK_API_BASE || 'http://localhost:8081/api/v1';
+const apiBaseUrl = process.env.API_BASE_URL || process.env.TASK_API_BASE || 'http://localhost:8080/api/v1';
 console.error('[MCP] 初始化 TaskMCPServer（双协议模式）');
 console.error('[MCP] API基础URL:', apiBaseUrl);
 

@@ -9,7 +9,7 @@ echo "🚀 Starting React Frontend Development Environment..."
 echo "📋 Environment Information:"
 echo "NODE_ENV: ${NODE_ENV:-development}"
 echo "REACT_APP_ENV: ${REACT_APP_ENV:-development}"
-echo "REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8081/api/v1}"
+echo "REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8080/api/v1}"
 echo "REACT_APP_API_BASE_URL: ${REACT_APP_API_BASE_URL:-$REACT_APP_API_URL}"
 echo "Working directory: $(pwd)"
 
@@ -20,8 +20,8 @@ echo "📦 Using pre-installed dependencies from Docker image"
 if [ ! -f .env ]; then
     echo "🔧 Creating .env file for development..."
 cat > .env << EOF
-REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8081/api/v1}
-REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL:-${REACT_APP_API_URL:-http://localhost:8081/api/v1}}
+REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8080/api/v1}
+REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL:-${REACT_APP_API_URL:-http://localhost:8080/api/v1}}
 REACT_APP_ENV=${REACT_APP_ENV:-development}
 GENERATE_SOURCEMAP=${GENERATE_SOURCEMAP:-false}
 CHOKIDAR_USEPOLLING=true
@@ -50,8 +50,8 @@ if [ -w "node_modules" ]; then
 fi
 
 echo "🎯 Environment ready, starting application..."
-echo "📡 Frontend will be available at: http://localhost:3001"
-echo "🔗 API endpoint: ${REACT_APP_API_URL:-http://localhost:8081/api/v1}"
+echo "📡 Frontend will be available at: http://localhost:3000"
+echo "🔗 API endpoint: ${REACT_APP_API_URL:-http://localhost:8080/api/v1}"
 
 # Execute the main command
 exec "$@"

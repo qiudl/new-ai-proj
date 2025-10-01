@@ -5,7 +5,7 @@
 
 set -e
 
-BASE_URL="${BASE_URL:-http://localhost:8081/api/v1}"
+BASE_URL="${BASE_URL:-http://localhost:8080/api/v1}"
 JWT_TOKEN=""
 
 # 颜色输出

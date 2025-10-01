@@ -28,7 +28,7 @@ export class MockWebSocketServer {
     '更新文档', '部署应用', '重构代码', '添加功能'
   ];
 
-  constructor(port: number = 8081) {
+  constructor(port: number = 8080) {
     this.port = port;
   }
 
@@ -381,7 +381,7 @@ let mockServerInstance: MockWebSocketServer | null = null;
 /**
  * 获取模拟WebSocket服务器实例
  */
-export function getMockWebSocketServer(port = 8081): MockWebSocketServer {
+export function getMockWebSocketServer(port = 8080): MockWebSocketServer {
   if (!mockServerInstance) {
     mockServerInstance = new MockWebSocketServer(port);
   }

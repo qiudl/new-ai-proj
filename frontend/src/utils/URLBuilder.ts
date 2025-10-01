@@ -68,7 +68,7 @@ class URLBuilder {
       process.env.REACT_APP_API_URL,
       process.env.REACT_APP_API_BASE_URL,
       process.env.REACT_APP_BASE_URL,
-      'http://localhost:8081'  // 默认fallback
+      'http://localhost:8080'  // 默认fallback
     ];
     
     for (const candidate of candidates) {
@@ -85,7 +85,7 @@ class URLBuilder {
       }
     }
     
-    return 'http://localhost:8081';
+    return 'http://localhost:8080';
   }
   
   /**
@@ -313,7 +313,7 @@ class URLBuilder {
       .filter(([, value]) => value && value.trim())
       .map(([key]) => key);
     
-    let source = 'default (localhost:8081)';
+    let source = 'default (localhost:8080)';
     if (availableVars.length > 0) {
       source = availableVars[0];
     }

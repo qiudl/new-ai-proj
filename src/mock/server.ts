@@ -21,7 +21,7 @@ const middlewares = jsonServer.defaults({
 
 // 配置CORS
 server.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+  origin: ['http://localhost:3000', 'http://localhost:3000', 'http://localhost:3002'],
   credentials: true,
   optionsSuccessStatus: 200
 }))

@@ -44,12 +44,12 @@ const RealTimeDemo: React.FC = () => {
   const [manualEventCount, setManualEventCount] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   
-  const mockServerRef = useRef(getMockWebSocketServer(8081));
+  const mockServerRef = useRef(getMockWebSocketServer(8080));
   const eventCounterRef = useRef(0);
   const lastMinuteEventsRef = useRef<number[]>([]);
 
   // 模拟WebSocket URL（在实际应用中这会是真实的WebSocket服务器）
-  const websocketUrl = 'ws://localhost:8081/ws/timeline';
+  const websocketUrl = 'ws://localhost:8080/ws/timeline';
 
   // 支持的事件类型
   const eventTypes: { value: TaskTimelineEventType; label: string; color: string }[] = [

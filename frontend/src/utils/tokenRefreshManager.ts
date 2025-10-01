@@ -237,7 +237,7 @@ export class TokenRefreshManager {
     return (
       process.env.NODE_ENV === 'development' ||
       window.location.hostname === 'localhost' ||
-      window.location.port === '3001' ||
+      window.location.port === '3000' ||
       window.location.port === '3000'
     );
   }

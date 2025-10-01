@@ -7,7 +7,7 @@
 
 import { TaskMCPServer } from './dist/task-mcp.js';
 
-const API_BASE = process.env.TASK_API_BASE || 'http://localhost:8081/api/v1';
+const API_BASE = process.env.TASK_API_BASE || 'http://localhost:8080/api/v1';
 const TEST_TASK_ID = 1579; // 刚创建的测试任务
 
 async function runTests() {

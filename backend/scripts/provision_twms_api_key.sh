@@ -3,7 +3,7 @@
 # Safe by default: never prints secrets, shows plain key only once and offers to export it to env.
 # Usage:
 #   ADMIN_TOKEN will be obtained via login if possible, or you can set it beforehand securely.
-#   BASE_URL defaults to http://localhost:8081/api/v1
+#   BASE_URL defaults to http://localhost:8080/api/v1
 #   TWMS_IPS can be a comma-separated list of allowed IPs (e.g., "1.2.3.4,5.6.7.8")
 #   RATE_LIMIT_COUNT default 600 per_hour
 #
@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-BASE_URL=${BASE_URL:-"http://localhost:8081/api/v1"}
+BASE_URL=${BASE_URL:-"http://localhost:8080/api/v1"}
 TWMS_NAME=${TWMS_NAME:-"TWMS Integration Key"}
 TWMS_DESC=${TWMS_DESC:-"API key for TWMS external integration"}
 TWMS_IPS_RAW=${TWMS_IPS:-""}

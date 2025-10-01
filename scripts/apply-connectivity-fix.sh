@@ -76,13 +76,13 @@ rebuild_backend() {
     log_success "后端服务重新构建完成"
 }
 
-# 部署前端服务到3001端口
+# 部署前端服务到3000端口
 deploy_frontend() {
-    log_info "部署前端服务到3001端口..."
+    log_info "部署前端服务到3000端口..."
     
     # 停止旧的前端服务
-    docker stop test_frontend_3001 2>/dev/null || true
-    docker rm test_frontend_3001 2>/dev/null || true
+    docker stop test_frontend_3000 2>/dev/null || true
+    docker rm test_frontend_3000 2>/dev/null || true
     
     # 创建测试前端页面
     mkdir -p /tmp/frontend-connectivity-test
@@ -111,7 +111,7 @@ deploy_frontend() {
     <div class="container">
         <div class="header">
             <h1>🎯 前后端连通性验证</h1>
-            <p>端口配置: 前端3001 ← → 后端8080</p>
+            <p>端口配置: 前端3000 ← → 后端8080</p>
         </div>
         
         <div id="status" class="status loading">正在检测服务状态...</div>
@@ -202,11 +202,11 @@ EOF
 
     # 启动前端服务
     docker run -d --name connectivity_test_frontend \
-        -p 3001:80 \
+        -p 3000:80 \
         -v /tmp/frontend-connectivity-test:/usr/share/nginx/html:ro \
         nginx:alpine
     
-    log_success "前端测试服务已启动在3001端口"
+    log_success "前端测试服务已启动在3000端口"
 }
 
 # 验证修复结果
@@ -231,7 +231,7 @@ verify_fix() {
     
     # 测试前端服务
     echo -n "测试前端服务: "
-    if curl -s http://localhost:3001 > /dev/null; then
+    if curl -s http://localhost:3000 > /dev/null; then
         log_success "前端服务 ✅"
     else
         log_error "前端服务 ❌"
@@ -245,7 +245,7 @@ show_access_info() {
     log_success "修复应用完成!"
     echo
     echo "📍 访问地址:"
-    echo "   前端测试页面: http://152.136.104.251:3001"
+    echo "   前端测试页面: http://152.136.104.251:3000"
     echo "   后端API: http://152.136.104.251:8080"
     echo "   健康检查: http://152.136.104.251:8080/health"
     echo "   API健康检查: http://152.136.104.251:8080/api/v1/health"
@@ -253,7 +253,7 @@ show_access_info() {
     echo "🔧 手动验证命令:"
     echo "   curl http://152.136.104.251:8080/health"
     echo "   curl http://152.136.104.251:8080/api/v1/health"
-    echo "   curl http://152.136.104.251:3001"
+    echo "   curl http://152.136.104.251:3000"
     echo
     echo "📋 如果API路由仍然404，请运行:"
     echo "   docker-compose -f docker-compose.prod.yml build backend-prod"

@@ -47,7 +47,7 @@ async function main() {
     cwd: process.cwd(),
     env: {
       ...process.env,
-      TASK_API_BASE: process.env.TASK_API_BASE || 'http://localhost:8081/api/v1',
+      TASK_API_BASE: process.env.TASK_API_BASE || 'http://localhost:8080/api/v1',
       DEV_LOGIN_USERNAME: process.env.DEV_LOGIN_USERNAME || 'admin',
       MCP_DEBUG_PERMISSIONS: 'false' // reduce noise
     },

@@ -6,7 +6,7 @@ class Bus{constructor(){this.b=Buffer.alloc(0);this.w=new Map()}p(c){this.b=Buff
 
 async function main(){
   const child=spawn('node',[new URL('./dist/index.js',import.meta.url).pathname],{
-    cwd: process.cwd(), env:{...process.env, TASK_API_BASE: process.env.TASK_API_BASE||'http://localhost:8081/api/v1', DEV_LOGIN_USERNAME: process.env.DEV_LOGIN_USERNAME||'admin', MCP_DEBUG_PERMISSIONS:'false'}, stdio:['pipe','pipe','pipe']
+    cwd: process.cwd(), env:{...process.env, TASK_API_BASE: process.env.TASK_API_BASE||'http://localhost:8080/api/v1', DEV_LOGIN_USERNAME: process.env.DEV_LOGIN_USERNAME||'admin', MCP_DEBUG_PERMISSIONS:'false'}, stdio:['pipe','pipe','pipe']
   });
   const bus=new Bus();
   child.stdout.on('data',d=>bus.p(d));

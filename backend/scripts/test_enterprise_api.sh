@@ -6,7 +6,7 @@
 set -e
 
 # 配置
-BASE_URL="http://localhost:8081/api/v1"
+BASE_URL="http://localhost:8080/api/v1"
 ADMIN_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NTc4MDk1OTgsIm5iZiI6MTc1NzIwNDc5OCwiaWF0IjoxNzU3MjA0Nzk4LCJqdGkiOiIyOTk0MDIxYjcxYWIxMDU0YjAwMTY4MjE0NzlkMGY2MiJ9.VORnkUrNxuVrgACEk-tQ6pVbqvIAdPgErNtWdhlhk_o"
 
 # 颜色定义

@@ -184,13 +184,13 @@ setup_and_start_services() {
         
         # 健康检查
         echo "执行健康检查..."
-        if curl -f http://localhost:8081/health; then
+        if curl -f http://localhost:8080/health; then
             echo "后端服务健康检查通过"
         else
             echo "后端服务健康检查失败"
         fi
         
-        if curl -f http://localhost:3001; then
+        if curl -f http://localhost:3000; then
             echo "前端服务健康检查通过"
         else
             echo "前端服务健康检查失败"
@@ -217,7 +217,7 @@ post_deploy_verification() {
         docker-compose -f docker-compose.dev.yml logs --tail=20
         
         echo -e "\n=== 端口监听检查 ==="
-        netstat -tlnp | grep -E ":(8081|3001|5432|6379)" || true
+        netstat -tlnp | grep -E ":(8080|3000|5432|6379)" || true
         
         echo -e "\n=== 磁盘空间检查 ==="
         df -h
@@ -242,9 +242,9 @@ show_deployment_info() {
     echo "分支: ${BRANCH}"
     echo ""
     echo "=== 服务访问地址 ==="
-    echo "前端: http://${SERVER_HOST}:3001"
-    echo "后端API: http://${SERVER_HOST}:8081"
-    echo "健康检查: http://${SERVER_HOST}:8081/health"
+    echo "前端: http://${SERVER_HOST}:3000"
+    echo "后端API: http://${SERVER_HOST}:8080"
+    echo "健康检查: http://${SERVER_HOST}:8080/health"
     echo ""
     echo "=== 管理命令 ==="
     echo "SSH登录: ssh ${SERVER_USER}@${SERVER_HOST} -p ${SERVER_PORT}"

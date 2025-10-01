@@ -65,7 +65,7 @@ module.exports = {
   },
   devServer: {
     host: process.env.HOST || '0.0.0.0',
-    port: process.env.PORT || 3001,
+    port: process.env.PORT || 3000,
     allowedHosts: 'all',
     headers: {
       'Access-Control-Allow-Origin': '*',
@@ -89,7 +89,7 @@ module.exports = {
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:8081',
+        target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
         logLevel: 'debug'

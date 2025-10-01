@@ -7,7 +7,7 @@ echo "🔄 Daily Focus Tasks Carry-over功能测试"
 echo "======================================="
 
 # 配置参数
-BASE_URL="http://localhost:8081/api/v1"
+BASE_URL="http://localhost:8080/api/v1"
 FROM_DATE="2025-09-13"
 TO_DATE="2025-09-14"
 
