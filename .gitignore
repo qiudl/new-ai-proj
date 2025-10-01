@@ -149,3 +149,5 @@ config/design/*.secrets.*
 #claude related
 CLAUDE.md
 ./claude/
+
+/backend/ai-project-backend

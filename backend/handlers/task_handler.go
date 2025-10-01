@@ -592,15 +592,92 @@ func (h *TaskHandler) GetTaskDetailedInfo(c *gin.Context) {
 
 	// Build detailed response with hierarchical information
 	response := task.ToResponse()
-	
-	// TODO: Add parent task info, sibling tasks, and child tasks
-	// For now, return the basic task information
+
+	// Get parent task if exists
+	var parentTask interface{}
+	if task.ParentID != nil {
+		parent, err := h.db.Tasks().GetByID(c.Request.Context(), *task.ParentID)
+		if err == nil {
+			parentResp := parent.ToResponse()
+			parentTask = map[string]interface{}{
+				"id":       parentResp.ID,
+				"title":    parentResp.Title,
+				"status":   parentResp.Status,
+				"priority": parentResp.Priority,
+			}
+		}
+	}
+
+	// Get sibling tasks (tasks with same parent)
+	var siblings []interface{}
+	if task.ParentID != nil {
+		siblingTasks, err := h.db.Tasks().GetChildren(c.Request.Context(), *task.ParentID)
+		if err == nil {
+			for _, sibling := range siblingTasks {
+				// Exclude current task from siblings
+				if sibling.ID != task.ID {
+					siblingResp := sibling.ToResponse()
+					siblings = append(siblings, map[string]interface{}{
+						"id":       siblingResp.ID,
+						"title":    siblingResp.Title,
+						"status":   siblingResp.Status,
+						"priority": siblingResp.Priority,
+					})
+				}
+			}
+		}
+	}
+	if siblings == nil {
+		siblings = []interface{}{}
+	}
+
+	// Get child tasks
+	var children []interface{}
+	childTasks, err := h.db.Tasks().GetChildren(c.Request.Context(), task.ID)
+	if err == nil {
+		for _, child := range childTasks {
+			childResp := child.ToResponse()
+			children = append(children, map[string]interface{}{
+				"id":             childResp.ID,
+				"title":          childResp.Title,
+				"status":         childResp.Status,
+				"priority":       childResp.Priority,
+				"has_children":   childResp.HasChildren,
+				"children_count": childResp.ChildrenCount,
+			})
+		}
+	}
+	if children == nil {
+		children = []interface{}{}
+	}
+
+	// Build task path (from root to current task)
+	var path []interface{}
+	if task.ParentID != nil {
+		currentParentID := task.ParentID
+		for currentParentID != nil {
+			parentTaskRecord, err := h.db.Tasks().GetByID(c.Request.Context(), *currentParentID)
+			if err != nil {
+				break
+			}
+			parentResp := parentTaskRecord.ToResponse()
+			path = append([]interface{}{map[string]interface{}{
+				"id":    parentResp.ID,
+				"title": parentResp.Title,
+			}}, path...)
+			currentParentID = parentTaskRecord.ParentID
+		}
+	}
+	if path == nil {
+		path = []interface{}{}
+	}
+
 	detailedInfo := map[string]interface{}{
 		"task":        response,
-		"parent":      nil,
-		"siblings":    []interface{}{},
-		"children":    []interface{}{},
-		"path":        nil,
+		"parent":      parentTask,
+		"siblings":    siblings,
+		"children":    children,
+		"path":        path,
 		"level":       task.TaskLevel,
 		"depth":       task.Depth,
 	}
