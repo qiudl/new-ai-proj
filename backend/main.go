@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-	log.Println("🚀 启动AI项目后端服务...")
 
 	// 创建应用程序实例
 	app, err := application.NewApplication()

@@ -75,12 +75,12 @@ export class TimerService extends BaseClient {
         timer_type: string;
         message: string;
         started_at: string;
-        data: {
-          actual_work_duration: number;
-          efficiency: number;
-          pause_count: number;
-          pause_total: number;
-          total_duration: number;
+        data?: {
+          actual_work_duration?: number;
+          efficiency?: number;
+          pause_count?: number;
+          pause_total?: number;
+          total_duration?: number;
         };
       }>('POST', '/user/timer/stop', {});
 
@@ -90,10 +90,10 @@ export class TimerService extends BaseClient {
           task_id: taskId || 0,
           started_at: response.started_at || '', 
           stopped_at: new Date().toISOString(),
-          duration_seconds: response.data?.total_duration || 0
+          duration_seconds: (response.data as any)?.total_duration || 0
         };
 
-        const durationFormatted = this.formatDuration(response.data?.total_duration || 0);
+        const durationFormatted = this.formatDuration((response.data as any)?.total_duration || 0);
 
         return {
           success: true,
@@ -102,7 +102,7 @@ export class TimerService extends BaseClient {
           timer_id: response.timer_id,
           started_at: response.started_at,
           stopped_at: new Date().toISOString(),
-          duration_seconds: response.data?.total_duration || 0,
+          duration_seconds: (response.data as any)?.total_duration || 0,
           duration_formatted: durationFormatted,
           message: response.message || `⏹️ 计时已停止 (用时: ${durationFormatted})`
         };
