@@ -34,21 +34,3 @@ func RegisterTestDataRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	}
 }
 
-// SetupTestDataRoutes sets up test data generation routes (legacy function for backward compatibility)
-func SetupTestDataRoutes(router *gin.Engine, testDataHandler *handlers.TestDataHandler) {
-	// Test data routes - only available in development
-	testData := router.Group("/api/v1/test-data")
-	{
-		// Generation endpoints
-		testData.POST("/timer", testDataHandler.GenerateTimerData)
-		testData.POST("/quick-generate", testDataHandler.QuickGenerate)
-		
-		// Information endpoints
-		testData.GET("/work-patterns", testDataHandler.GetWorkPatterns)
-		testData.GET("/task-templates", testDataHandler.GetTaskTemplates)
-		testData.GET("/status", testDataHandler.GetGenerationStatus)
-		
-		// Cleanup endpoint
-		testData.POST("/cleanup", testDataHandler.CleanupTestData)
-	}
-}
