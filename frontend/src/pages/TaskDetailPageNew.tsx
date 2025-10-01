@@ -1369,8 +1369,14 @@ const TaskDetailPageNew: React.FC = () => {
             />
           </div>
         ) : (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-            <p>任务详细信息请查看右侧边栏</p>
+          <div>
+            <Alert
+              message="任务详情"
+              description="任务的详细信息已在右侧边栏显示。您可以在这里查看和编辑任务的具体内容。"
+              type="info"
+              showIcon
+              style={{ marginBottom: '16px' }}
+            />
           </div>
         )
       },

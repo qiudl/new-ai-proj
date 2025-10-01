@@ -8,13 +8,12 @@ import React, { useEffect, useMemo } from 'react';
 import { Spin, Alert, ConfigProvider } from 'antd';
 import { TaskDetailProvider } from './context/TaskDetailProvider';
 import { TaskDetailLayout } from './components/Layout/TaskDetailLayout';
-import { TaskDetailHeader } from './components/Header/TaskDetailHeader';
+import { TaskDetailHeaderCard } from './components/Header/TaskDetailHeaderCard';
 import { TaskDetailContent } from './components/Content/TaskDetailContent';
 import { TaskDetailSidebar } from './components/Sidebar/TaskDetailSidebar';
 import { TaskDetailModals } from './components/Modals/TaskDetailModals';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { useTaskDetail } from './hooks/data/useTaskDetail';
-import type { Task } from './types';
 import './styles/TaskDetail.css';
 
 export interface TaskDetailPageProps {
@@ -26,35 +25,37 @@ export interface TaskDetailPageProps {
  * Inner component that uses the context
  */
 const TaskDetailPageContent: React.FC = () => {
-  const { task, loading, error, refreshTask } = useTaskDetail();
+  const { task, loading, errors, actions } = useTaskDetail();
 
   // Auto-refresh on mount
   useEffect(() => {
-    refreshTask();
-  }, [refreshTask]);
+    actions.refreshTask();
+  }, [actions.refreshTask]);
 
   // Handle loading state
   if (loading.initial) {
     return (
       <div className="task-detail-loading-container">
-        <Spin size="large" tip="Loading task details..." />
+        <Spin size="large">
+          <div style={{ marginTop: 16 }}>正在加载任务详情...</div>
+        </Spin>
       </div>
     );
   }
 
   // Handle error state
-  if (error) {
+  if (errors.task) {
     return (
       <div className="task-detail-error-container">
         <Alert
-          message="Error Loading Task"
-          description={error.message || 'Failed to load task details. Please try again.'}
+          message="加载任务失败"
+          description={errors.task.message || '无法加载任务详情，请重试。'}
           type="error"
           showIcon
           action={
             <button
               className="task-detail-retry-button"
-              onClick={refreshTask}
+              onClick={actions.refreshTask}
             >
               Retry
             </button>
@@ -80,7 +81,7 @@ const TaskDetailPageContent: React.FC = () => {
 
   return (
     <TaskDetailLayout
-      header={<TaskDetailHeader task={task} />}
+      header={<TaskDetailHeaderCard task={task} />}
       content={<TaskDetailContent task={task} />}
       sidebar={<TaskDetailSidebar task={task} />}
     />
