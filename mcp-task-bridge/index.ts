@@ -892,17 +892,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       // 🔄 核心功能2：智能工作切换
       {
         name: 'switch_to_task',
-        description: '从当前任务切换到新任务（自动完成当前任务，启动新任务）',
+        description: '从当前任务切换到新任务（智能多维度匹配：标题相似度、任务状态、优先级、最近更新、Daily Focus）',
         inputSchema: {
           type: 'object',
           properties: {
-            newTaskTitle: { 
-              type: 'string', 
-              description: '要切换到的任务标题（支持模糊匹配）' 
+            newTaskTitle: {
+              type: 'string',
+              description: '要切换到的任务标题（支持智能模糊匹配，会综合评分选择最佳任务）'
             },
-            projectId: { 
-              type: 'number', 
-              description: '项目ID（可选，默认为1）' 
+            projectId: {
+              type: 'number',
+              description: '项目ID（可选，默认为1）'
             }
           },
           required: ['newTaskTitle']
