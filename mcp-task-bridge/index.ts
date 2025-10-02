@@ -43,7 +43,7 @@ const taskServer = new TaskMCPServer(apiBaseUrl);
 // 创建 MCP Server
 const server = new Server(
   {
-    name: 'task-manager',
+    name: 'ai-proj',
     version: '1.0.0',
   },
   {

@@ -103,7 +103,7 @@ export abstract class BaseClient {
       // HTTP错误响应
       const status = error.response.status;
       const data = error.response.data;
-      
+
       let errorMessage = 'Unknown error';
       if (data?.message) {
         errorMessage = data.message;
@@ -118,7 +118,14 @@ export abstract class BaseClient {
         case 400:
           return { success: false, error: `请求参数错误: ${errorMessage}` };
         case 401:
-          return { success: false, error: '认证失败，请检查API令牌' };
+          // 检查是否是Token过期错误
+          if (errorMessage.toLowerCase().includes('token') &&
+              (errorMessage.toLowerCase().includes('expired') ||
+               errorMessage.toLowerCase().includes('过期') ||
+               errorMessage.toLowerCase().includes('invalid'))) {
+            return { success: false, error: `Token已过期，请刷新Token后重试。提示：可使用 dev_quick_login 工具自动刷新` };
+          }
+          return { success: false, error: `认证失败，请检查API令牌: ${errorMessage}` };
         case 403:
           return { success: false, error: `权限不足: ${errorMessage}` };
         case 404:
@@ -131,11 +138,24 @@ export abstract class BaseClient {
           return { success: false, error: `HTTP ${status}: ${errorMessage}` };
       }
     } else if (error.request) {
-      // 网络错误
-      return {
-        success: false,
-        error: '网络连接失败，请检查服务器是否正常运行'
-      };
+      // 网络错误 - 检查是否是ECONNREFUSED等连接问题
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('ECONNREFUSED')) {
+        return {
+          success: false,
+          error: '无法连接到后端服务，请检查服务器是否正常运行'
+        };
+      } else if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout')) {
+        return {
+          success: false,
+          error: '请求超时，请检查网络连接或服务器状态'
+        };
+      } else {
+        return {
+          success: false,
+          error: `网络请求失败: ${errorMsg || '请检查服务器是否正常运行'}`
+        };
+      }
     } else {
       // 其他错误
       return {
