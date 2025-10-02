@@ -1,6 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { 
+import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
@@ -8,7 +8,8 @@ import { TaskMCPServer } from './task-mcp.js';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { existsSync } from 'fs';
+import { existsSync, writeFileSync, readFileSync, unlinkSync } from 'fs';
+import { tmpdir } from 'os';
 
 // __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -1734,8 +1735,87 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+// 进程锁管理
+class ProcessLock {
+  private lockFile: string;
+  private pid: number;
+
+  constructor(lockName: string = 'mcp-task-bridge') {
+    this.lockFile = join(tmpdir(), `${lockName}.lock`);
+    this.pid = process.pid;
+  }
+
+  // 尝试获取锁
+  acquire(): boolean {
+    try {
+      // 检查锁文件是否存在
+      if (existsSync(this.lockFile)) {
+        const existingPid = parseInt(readFileSync(this.lockFile, 'utf8').trim());
+
+        // 检查进程是否还在运行
+        try {
+          process.kill(existingPid, 0); // 发送信号0只检查进程存在，不杀死
+          console.error(`[LOCK] 检测到已有实例运行 (PID: ${existingPid})`);
+          return false; // 进程还在运行
+        } catch (e) {
+          // 进程不存在，清理旧锁文件
+          console.error(`[LOCK] 清理僵尸锁文件 (PID: ${existingPid} 已不存在)`);
+          unlinkSync(this.lockFile);
+        }
+      }
+
+      // 创建锁文件
+      writeFileSync(this.lockFile, String(this.pid));
+      console.error(`[LOCK] 进程锁已获取 (PID: ${this.pid})`);
+      return true;
+    } catch (error: any) {
+      console.error(`[LOCK] 获取锁失败:`, error.message);
+      return false;
+    }
+  }
+
+  // 释放锁
+  release(): void {
+    try {
+      if (existsSync(this.lockFile)) {
+        const lockPid = parseInt(readFileSync(this.lockFile, 'utf8').trim());
+        if (lockPid === this.pid) {
+          unlinkSync(this.lockFile);
+          console.error(`[LOCK] 进程锁已释放 (PID: ${this.pid})`);
+        }
+      }
+    } catch (error: any) {
+      console.error(`[LOCK] 释放锁失败:`, error.message);
+    }
+  }
+}
+
 // 启动服务器
 async function main() {
+  // 创建进程锁
+  const processLock = new ProcessLock('mcp-task-bridge');
+
+  // 尝试获取锁
+  if (!processLock.acquire()) {
+    console.error('[MCP] 已有实例正在运行，退出...');
+    process.exit(1);
+  }
+
+  // 确保退出时释放锁
+  const releaseLock = () => {
+    processLock.release();
+  };
+
+  process.on('exit', releaseLock);
+  process.on('SIGINT', () => {
+    releaseLock();
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    releaseLock();
+    process.exit(0);
+  });
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('[MCP] Task MCP Server 已启动');
