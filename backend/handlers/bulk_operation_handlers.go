@@ -63,9 +63,10 @@ func (h *BulkOperationHandler) BulkImportTasks(c *gin.Context) {
 	// Convert batch tasks to regular tasks
 	var tasks []*models.Task
 	for _, batchTask := range req.Tasks {
+		desc := batchTask.Description
 		task := &models.Task{
 			Title:       batchTask.Title,
-			Description: batchTask.Description,
+			Description: &desc,
 			Status:      "todo",
 			Priority:    batchTask.Priority,
 			ProjectID:   req.ProjectID,
@@ -293,9 +294,10 @@ func (h *BulkOperationHandler) ImportTasksFromCSV(c *gin.Context) {
 			continue
 		}
 
+		desc := strings.TrimSpace(record[1])
 		task := &models.Task{
 			Title:       strings.TrimSpace(record[0]),
-			Description: strings.TrimSpace(record[1]),
+			Description: &desc,
 			Status:      "todo",
 			Priority:    "medium",
 			ProjectID:   projectID,

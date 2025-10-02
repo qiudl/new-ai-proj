@@ -354,7 +354,11 @@ func (s *TaskDocumentFileService) generateTaskDocumentContent(task *models.Task,
 	content = strings.ReplaceAll(content, "{TASK_STATUS}", task.Status)
 	content = strings.ReplaceAll(content, "{TASK_PRIORITY}", "medium") // 默认优先级
 	content = strings.ReplaceAll(content, "{ASSIGNEE}", "")
-	content = strings.ReplaceAll(content, "{TASK_DESCRIPTION}", task.Description)
+	taskDesc := ""
+	if task.Description != nil {
+		taskDesc = *task.Description
+	}
+	content = strings.ReplaceAll(content, "{TASK_DESCRIPTION}", taskDesc)
 	content = strings.ReplaceAll(content, "{DETAILED_DESCRIPTION}", "请添加详细描述...")
 	content = strings.ReplaceAll(content, "{CREATED_DATE}", task.CreatedAt.Format("2006-01-02 15:04:05"))
 	content = strings.ReplaceAll(content, "{UPDATED_DATE}", task.UpdatedAt.Format("2006-01-02 15:04:05"))

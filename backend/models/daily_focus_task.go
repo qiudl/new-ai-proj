@@ -233,7 +233,7 @@ func (dft *DailyFocusTaskWithDetails) ToTaskInfo() *Task {
 	}
 	
 	if dft.TaskDescription != nil {
-		task.Description = *dft.TaskDescription
+		task.Description = dft.TaskDescription
 	}
 	if dft.TaskStatus != nil {
 		task.Status = *dft.TaskStatus

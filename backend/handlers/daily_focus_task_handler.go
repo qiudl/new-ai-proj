@@ -1558,11 +1558,15 @@ func (h *DailyFocusTaskHandler) getTaskSuggestionsWithDetails(ctx context.Contex
 			description = *candidate.Description
 		}
 
+		var taskDesc *string
+		if description != "" {
+			taskDesc = &description
+		}
 		task := models.Task{
 			ID:           candidate.TaskID,
 			ProjectID:    candidate.ProjectID,
 			Title:        candidate.Title,
-			Description:  description,
+			Description:  taskDesc,
 			Status:       candidate.Status,
 			Priority:     candidate.Priority,
 			DueDate:      candidate.DueDate,

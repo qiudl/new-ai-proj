@@ -96,7 +96,7 @@ func NewUnifiedTaskNodeFromTask(task *Task, level int) *UnifiedTaskNode {
 		SortOrder:   task.SortOrder,
 
 		// Extended fields
-		Description:      &task.Description,
+		Description:      task.Description,
 		AssigneeID:       task.AssigneeID,
 		DueDate:          task.DueDate,
 		CustomFields:     &task.CustomFields,

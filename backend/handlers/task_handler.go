@@ -268,7 +268,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 
 	var req struct {
 		Title         string                 `json:"title" binding:"required,min=1,max=255"`
-		Description   string                 `json:"description"`
+		Description   *string                `json:"description"`
 		Status        string                 `json:"status"`
 		Priority      string                 `json:"priority"`
 		AssigneeID    *int                   `json:"assignee_id"`
@@ -424,7 +424,7 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 	var req struct {
 		Tasks []struct {
 			Title         string                 `json:"title" binding:"required"`
-			Description   string                 `json:"description"`
+			Description   *string                `json:"description"`
 			Status        string                 `json:"status"`
 			Priority      string                 `json:"priority"`
 			AssigneeID    *int                   `json:"assignee_id"`
@@ -748,7 +748,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		task.Title = *req.Title
 	}
 	if req.Description != nil {
-		task.Description = *req.Description
+		task.Description = req.Description
 	}
 	if req.Status != nil {
 		task.Status = *req.Status
@@ -1517,7 +1517,7 @@ func (h *TaskHandler) CreateGlobalTask(c *gin.Context) {
 	var req struct {
 		ProjectID      int        `json:"project_id" binding:"required"`
 		Title          string     `json:"title" binding:"required,min=1,max=255"`
-		Description    string     `json:"description"`
+		Description    *string    `json:"description"`
 		Status         string     `json:"status"`
 		Priority       string     `json:"priority"`
 		AssigneeID     *int       `json:"assignee_id"`

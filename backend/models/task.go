@@ -120,7 +120,7 @@ type Task struct {
 	ID               int          `json:"id" db:"id"`
 	ProjectID        int          `json:"project_id" db:"project_id" validate:"required"`
 	Title            string       `json:"title" db:"title" validate:"required,min=1,max=255"`
-	Description      string       `json:"description" db:"description"`
+	Description      *string      `json:"description" db:"description"`
 	Status           string       `json:"status" db:"status" validate:"required,oneof=draft planning todo in_progress testing completed cancelled on_hold suspended blocked archived"`
 	AssigneeID       *int         `json:"assignee_id" db:"assignee_id"`
 	DueDate          *time.Time   `json:"due_date" db:"due_date"`
@@ -160,7 +160,7 @@ type Task struct {
 // TaskRequest represents a task creation/update request
 type TaskRequest struct {
 	Title        string       `json:"title" validate:"required,min=1,max=255"`
-	Description  string       `json:"description"`
+	Description  *string      `json:"description"`
 	Status       string       `json:"status" validate:"required,oneof=draft planning todo in_progress testing completed cancelled on_hold suspended blocked archived"`
 	AssigneeID   *int         `json:"assignee_id"`
 	DueDate      *time.Time   `json:"due_date"`
@@ -192,7 +192,7 @@ type TaskResponse struct {
 	ProjectID     int          `json:"project_id"`
 	ProjectName   string       `json:"project_name,omitempty"`
 	Title         string       `json:"title"`
-	Description   string       `json:"description"`
+	Description   *string      `json:"description"`
 	Status        string       `json:"status"`
 	AssigneeID    *int         `json:"assignee_id"`
 	AssigneeName  string       `json:"assignee_name,omitempty"`
