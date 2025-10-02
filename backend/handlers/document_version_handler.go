@@ -507,7 +507,7 @@ func (h *DocumentVersionHandler) DownloadVersion(c *gin.Context) {
 // @Produce json
 // @Param document_id path int true "Document ID"
 // @Param version_number path int true "Version Number"
-// @Success 200 {object} models.SuccessResponse
+// @Success 200 {object} models.APIResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse

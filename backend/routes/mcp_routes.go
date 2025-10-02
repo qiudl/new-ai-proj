@@ -73,6 +73,9 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	workNoteHandler := app.GetWorkNoteHandler()
 	reportHandler := app.GetReportHandler()
 
+	// 创建模板处理器
+	templateHandler := handlers.NewMCPTemplateHandler(app.GetDB())
+
 	// 任务文档相关路由
 	mcp.POST("/create-and-attach", createAndAttachTaskDocument(documentHandler, app))
 	mcp.POST("/create-and-attach-work-note", createAndAttachWorkNote(workNoteHandler))
@@ -96,6 +99,9 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	// 报告相关路由
 	mcp.GET("/get-daily-work-report", reportHandler.GetDailyWorkReport)
 	mcp.POST("/get-daily-work-report", reportHandler.GetDailyWorkReport)
+
+	// 模板文档生成路由
+	mcp.POST("/generate-document-from-template", templateHandler.GenerateDocumentFromTemplate)
 }
 
 // createAndAttachTaskDocument MCP专用：创建并关联任务文档

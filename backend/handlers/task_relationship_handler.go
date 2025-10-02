@@ -29,8 +29,8 @@ func NewTaskRelationshipHandler(service services.TaskRelationshipService) *TaskR
 // @Produce json
 // @Param relationship body models.TaskRelationshipRequest true "Task relationship data"
 // @Success 201 {object} models.TaskRelationship
-// @Failure 400 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/task-relationships [post]
 func (h *TaskRelationshipHandler) CreateRelationship(c *gin.Context) {
 	var req models.TaskRelationshipRequest
@@ -83,9 +83,9 @@ func (h *TaskRelationshipHandler) CreateRelationship(c *gin.Context) {
 // @Produce json
 // @Param task_id path int true "Task ID"
 // @Param type query string false "Filter by relationship type"
-// @Success 200 {object} SuccessResponse{data=[]models.TaskRelationship}
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Success 200 {object} models.APIResponse{data=[]models.TaskRelationship}
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/tasks/{task_id}/relationships [get]
 func (h *TaskRelationshipHandler) GetTaskRelationships(c *gin.Context) {
 	taskIDStr := c.Param("task_id")
@@ -115,9 +115,9 @@ func (h *TaskRelationshipHandler) GetTaskRelationships(c *gin.Context) {
 // @Param id path int true "Relationship ID"
 // @Param relationship body models.TaskRelationshipRequest true "Updated relationship data"
 // @Success 200 {object} models.TaskRelationship
-// @Failure 400 {object} ErrorResponse
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/task-relationships/{id} [put]
 func (h *TaskRelationshipHandler) UpdateRelationship(c *gin.Context) {
 	idStr := c.Param("id")
@@ -148,9 +148,9 @@ func (h *TaskRelationshipHandler) UpdateRelationship(c *gin.Context) {
 // @Tags task-relationships
 // @Produce json
 // @Param id path int true "Relationship ID"
-// @Success 200 {object} SuccessResponse
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Success 200 {object} models.APIResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/task-relationships/{id} [delete]
 func (h *TaskRelationshipHandler) DeleteRelationship(c *gin.Context) {
 	idStr := c.Param("id")
@@ -176,8 +176,8 @@ func (h *TaskRelationshipHandler) DeleteRelationship(c *gin.Context) {
 // @Produce json
 // @Param task_id path int true "Task ID"
 // @Success 200 {object} models.TaskWithRelationships
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/tasks/{task_id}/with-relationships [get]
 func (h *TaskRelationshipHandler) GetTaskWithAllRelationships(c *gin.Context) {
 	taskIDStr := c.Param("task_id")
@@ -202,8 +202,8 @@ func (h *TaskRelationshipHandler) GetTaskWithAllRelationships(c *gin.Context) {
 // @Tags task-relationships
 // @Produce json
 // @Param project_id query int false "Filter by project ID"
-// @Success 200 {object} SuccessResponse{data=[]models.ParallelDevelopmentGroup}
-// @Failure 500 {object} ErrorResponse
+// @Success 200 {object} models.APIResponse{data=[]models.ParallelDevelopmentGroup}
+// @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/parallel-groups [get]
 func (h *TaskRelationshipHandler) GetParallelDevelopmentGroups(c *gin.Context) {
 	projectIDStr := c.Query("project_id")
@@ -230,9 +230,9 @@ func (h *TaskRelationshipHandler) GetParallelDevelopmentGroups(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param tasks body []int true "Array of task IDs to validate"
-// @Success 200 {object} SuccessResponse{data=object}
-// @Failure 400 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Success 200 {object} models.APIResponse{data=object}
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/parallel-groups/validate [post]
 func (h *TaskRelationshipHandler) ValidateParallelTasksCanStart(c *gin.Context) {
 	var taskIDs []int
@@ -258,7 +258,7 @@ func (h *TaskRelationshipHandler) ValidateParallelTasksCanStart(c *gin.Context) 
 // @Param project_id query int false "Filter by project ID"
 // @Param root_task_id query int false "Root task ID for subgraph"
 // @Success 200 {object} models.TaskDependencyGraph
-// @Failure 500 {object} ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/task-dependency-graph [get]
 func (h *TaskRelationshipHandler) GetTaskDependencyGraph(c *gin.Context) {
 	projectIDStr := c.Query("project_id")
@@ -292,9 +292,9 @@ func (h *TaskRelationshipHandler) GetTaskDependencyGraph(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param relationships body []models.TaskRelationshipRequest true "Array of relationship requests"
-// @Success 201 {object} SuccessResponse{data=[]models.TaskRelationship}
-// @Failure 400 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Success 201 {object} models.APIResponse{data=[]models.TaskRelationship}
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/task-relationships/batch [post]
 func (h *TaskRelationshipHandler) BulkCreateRelationships(c *gin.Context) {
 	var requests []models.TaskRelationshipRequest

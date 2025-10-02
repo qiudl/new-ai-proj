@@ -1,0 +1,5297 @@
+basePath: /api/v1
+definitions:
+  handlers.JWTLoginResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  handlers.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handlers.RecomputeRequest:
+    properties:
+      entityType:
+        enum:
+        - task
+        - project
+        type: string
+      id:
+        minimum: 1
+        type: integer
+      persistSnapshot:
+        type: boolean
+      recursive:
+        type: boolean
+    required:
+    - entityType
+    - id
+    type: object
+  models.APIError:
+    properties:
+      code:
+        type: string
+      details: {}
+      message:
+        type: string
+    type: object
+  models.APIKeyCreateRequest:
+    properties:
+      allowed_domains:
+        items:
+          type: string
+        type: array
+      allowed_ips:
+        items:
+          items:
+            format: int32
+            type: integer
+          type: array
+        type: array
+      daily_quota:
+        minimum: 1
+        type: integer
+      description:
+        maxLength: 1000
+        type: string
+      expires_at:
+        type: string
+      metadata:
+        $ref: '#/definitions/models.CustomFields'
+      monthly_quota:
+        minimum: 1
+        type: integer
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/models.APIPermissionType'
+        minItems: 1
+        type: array
+      rate_limit_count:
+        maximum: 100000
+        minimum: 1
+        type: integer
+      rate_limit_window:
+        allOf:
+        - $ref: '#/definitions/models.RateLimitType'
+        enum:
+        - per_minute
+        - per_hour
+        - per_day
+        - per_month
+      scope_projects:
+        items:
+          type: integer
+        type: array
+      scope_users:
+        items:
+          type: integer
+        type: array
+      tags:
+        items:
+          type: string
+        type: array
+      user_agent_pattern:
+        maxLength: 500
+        type: string
+    required:
+    - name
+    - permissions
+    - rate_limit_window
+    type: object
+  models.APIKeyCreateResponse:
+    properties:
+      api_key:
+        $ref: '#/definitions/models.APIKeyResponse'
+      plain_key:
+        description: Only returned once upon creation
+        type: string
+      plain_secret:
+        description: Only returned once upon creation
+        type: string
+    type: object
+  models.APIKeyListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/models.APIKeyResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  models.APIKeyResponse:
+    properties:
+      allowed_domains:
+        items:
+          type: string
+        type: array
+      allowed_ips:
+        items:
+          items:
+            format: int32
+            type: integer
+          type: array
+        type: array
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      daily_quota:
+        type: integer
+      description:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      key_prefix:
+        type: string
+      last_used_at:
+        type: string
+      metadata:
+        $ref: '#/definitions/models.CustomFields'
+      monthly_quota:
+        type: integer
+      name:
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/models.APIPermissionType'
+        type: array
+      rate_limit_count:
+        type: integer
+      rate_limit_window:
+        $ref: '#/definitions/models.RateLimitType'
+      scope_projects:
+        items:
+          type: integer
+        type: array
+      scope_users:
+        items:
+          type: integer
+        type: array
+      tags:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+      updated_by:
+        type: integer
+      usage_count:
+        type: integer
+      user_agent_pattern:
+        type: string
+    type: object
+  models.APIKeyUpdateRequest:
+    properties:
+      allowed_domains:
+        items:
+          type: string
+        type: array
+      allowed_ips:
+        items:
+          items:
+            format: int32
+            type: integer
+          type: array
+        type: array
+      daily_quota:
+        minimum: 1
+        type: integer
+      description:
+        maxLength: 1000
+        type: string
+      expires_at:
+        type: string
+      is_active:
+        type: boolean
+      metadata:
+        $ref: '#/definitions/models.CustomFields'
+      monthly_quota:
+        minimum: 1
+        type: integer
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/models.APIPermissionType'
+        minItems: 1
+        type: array
+      rate_limit_count:
+        maximum: 100000
+        minimum: 1
+        type: integer
+      rate_limit_window:
+        allOf:
+        - $ref: '#/definitions/models.RateLimitType'
+        enum:
+        - per_minute
+        - per_hour
+        - per_day
+        - per_month
+      scope_projects:
+        items:
+          type: integer
+        type: array
+      scope_users:
+        items:
+          type: integer
+        type: array
+      tags:
+        items:
+          type: string
+        type: array
+      user_agent_pattern:
+        maxLength: 500
+        type: string
+    type: object
+  models.APIPermissionType:
+    enum:
+    - api.read
+    - api.write
+    - api.admin
+    - tasks.read
+    - tasks.write
+    - projects.read
+    - projects.write
+    - users.read
+    - users.write
+    - analytics.read
+    - analytics.write
+    - system.monitor
+    type: string
+    x-enum-varnames:
+    - PermissionAPIRead
+    - PermissionAPIWrite
+    - PermissionAPIAdmin
+    - PermissionTasksRead
+    - PermissionTasksWrite
+    - PermissionProjectsRead
+    - PermissionProjectsWrite
+    - PermissionUsersRead
+    - PermissionUsersWrite
+    - PermissionAnalyticsRead
+    - PermissionAnalyticsWrite
+    - PermissionSystemMonitor
+  models.APIQuotaStats:
+    properties:
+      api_key_id:
+        type: integer
+      avg_response_time_ms:
+        type: integer
+      created_at:
+        type: string
+      error_count:
+        type: integer
+      id:
+        type: integer
+      rate_limit_count:
+        type: integer
+      request_count:
+        type: integer
+      stat_date:
+        type: string
+      stat_hour:
+        type: integer
+      success_count:
+        type: integer
+      total_request_size:
+        type: integer
+      total_response_size:
+        type: integer
+      total_response_time_ms:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  models.APIResponse:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/models.APIError'
+      message:
+        type: string
+      success:
+        type: boolean
+      timestamp:
+        type: string
+    type: object
+  models.BatchConversionItem:
+    properties:
+      options:
+        $ref: '#/definitions/models.ConversionOptions'
+      target_task_id:
+        type: integer
+      work_note_id:
+        type: integer
+    required:
+    - target_task_id
+    - work_note_id
+    type: object
+  models.BatchConversionResult:
+    properties:
+      errors:
+        items:
+          type: string
+        type: array
+      results:
+        items:
+          $ref: '#/definitions/models.ConversionResult'
+        type: array
+      total_failed:
+        type: integer
+      total_requested:
+        type: integer
+      total_succeeded:
+        type: integer
+    type: object
+  models.BatchConvertRequest:
+    properties:
+      conversions:
+        items:
+          $ref: '#/definitions/models.BatchConversionItem'
+        type: array
+      global_options:
+        $ref: '#/definitions/models.BatchGlobalOptions'
+    required:
+    - conversions
+    type: object
+  models.BatchGlobalOptions:
+    properties:
+      error_handling:
+        description: '错误处理: continue/stop'
+        type: string
+      transaction_mode:
+        description: 是否使用事务模式
+        type: boolean
+    type: object
+  models.BulkReorderTasksRequest:
+    properties:
+      parent_id:
+        type: integer
+      task_orders:
+        items:
+          $ref: '#/definitions/models.TaskOrderItem'
+        type: array
+    required:
+    - task_orders
+    type: object
+  models.CarryOverTasksRequest:
+    properties:
+      from_date:
+        type: string
+      task_ids:
+        items:
+          type: integer
+        type: array
+      to_date:
+        type: string
+    required:
+    - from_date
+    - to_date
+    type: object
+  models.ConversionOptions:
+    properties:
+      convert_format:
+        description: 转换格式 markdown/txt/html
+        type: string
+      copy_relations:
+        description: 是否复制关联关系
+        type: boolean
+      preserve_original:
+        description: 是否保留原工作笔记
+        type: boolean
+      relation_type:
+        description: 关联类型
+        type: string
+      visibility:
+        allOf:
+        - $ref: '#/definitions/models.Visibility'
+        description: 可见性
+    type: object
+  models.ConversionPreview:
+    properties:
+      conversion_settings:
+        $ref: '#/definitions/models.ConversionOptions'
+      estimated_size:
+        type: integer
+      preview_content:
+        type: string
+      source_document:
+        $ref: '#/definitions/models.WorkNoteSummary'
+      target_task_id:
+        type: integer
+      warning_messages:
+        items:
+          type: string
+        type: array
+    type: object
+  models.ConversionResult:
+    properties:
+      conversion_summary:
+        $ref: '#/definitions/models.ConversionSummary'
+      created_task_document:
+        $ref: '#/definitions/models.TaskDocumentSummary'
+      original_work_note_id:
+        type: integer
+    type: object
+  models.ConversionSummary:
+    properties:
+      attachments_moved:
+        type: integer
+      content_migrated:
+        type: boolean
+      relations_copied:
+        type: integer
+    type: object
+  models.ConvertPreviewRequest:
+    properties:
+      conversion_options:
+        $ref: '#/definitions/models.ConversionOptions'
+      target_task_id:
+        type: integer
+    required:
+    - target_task_id
+    type: object
+  models.ConvertToTaskDocumentRequest:
+    properties:
+      conversion_options:
+        $ref: '#/definitions/models.ConversionOptions'
+      target_task_id:
+        type: integer
+    required:
+    - target_task_id
+    type: object
+  models.CreateDailyFocusTaskRequest:
+    properties:
+      estimated_duration_minutes:
+        minimum: 0
+        type: integer
+      focus_date:
+        type: string
+      priority_level:
+        enum:
+        - low
+        - medium
+        - high
+        type: string
+      task_id:
+        type: integer
+      user_notes:
+        type: string
+    required:
+    - task_id
+    type: object
+  models.CreateWorkNoteRequest:
+    properties:
+      content:
+        type: string
+      custom_fields:
+        additionalProperties: true
+        type: object
+      description:
+        type: string
+      is_bookmarked:
+        type: boolean
+      is_pinned:
+        type: boolean
+      priority:
+        $ref: '#/definitions/models.WorkNotePriority'
+      related_notes:
+        items:
+          type: integer
+        type: array
+      related_tasks:
+        items:
+          type: integer
+        type: array
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 255
+        minLength: 1
+        type: string
+      visibility:
+        $ref: '#/definitions/models.Visibility'
+      work_note_folder_id:
+        type: integer
+      work_note_type:
+        $ref: '#/definitions/models.WorkNoteType'
+    required:
+    - title
+    - visibility
+    - work_note_type
+    type: object
+  models.CustomFields:
+    additionalProperties: true
+    type: object
+  models.DailyFocusBatchError:
+    properties:
+      error:
+        type: string
+      task_id:
+        type: integer
+    type: object
+  models.DailyFocusBatchResponse:
+    properties:
+      failed_count:
+        type: integer
+      failed_tasks:
+        items:
+          $ref: '#/definitions/models.DailyFocusBatchError'
+        type: array
+      processed_count:
+        type: integer
+    type: object
+  models.DailyFocusTask:
+    properties:
+      carried_from_date:
+        type: string
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      estimated_duration_minutes:
+        type: integer
+      focus_date:
+        type: string
+      id:
+        type: integer
+      is_auto_suggested:
+        type: boolean
+      priority_level:
+        type: string
+      project:
+        $ref: '#/definitions/models.Project'
+      project_id:
+        type: integer
+      sort_order:
+        type: integer
+      status:
+        type: string
+      suggestion_reason:
+        type: string
+      suggestion_score:
+        type: number
+      task:
+        allOf:
+        - $ref: '#/definitions/models.Task'
+        description: 关联的任务信息 (通过JOIN获取)
+      task_id:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+      user_notes:
+        type: string
+    type: object
+  models.DailyFocusTaskListResponse:
+    properties:
+      active_count:
+        type: integer
+      completed_count:
+        type: integer
+      estimated_total_minutes:
+        type: integer
+      focus_date:
+        type: string
+      suggestions:
+        items:
+          $ref: '#/definitions/models.TaskSuggestion'
+        type: array
+      tasks:
+        items:
+          $ref: '#/definitions/models.DailyFocusTaskWithDetails'
+        type: array
+      total_count:
+        type: integer
+    type: object
+  models.DailyFocusTaskWithDetails:
+    properties:
+      carried_from_date:
+        type: string
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      estimated_duration_minutes:
+        type: integer
+      focus_date:
+        type: string
+      id:
+        type: integer
+      is_auto_suggested:
+        type: boolean
+      priority_level:
+        type: string
+      project:
+        $ref: '#/definitions/models.Project'
+      project_code:
+        type: string
+      project_id:
+        type: integer
+      project_name:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        type: string
+      suggestion_reason:
+        type: string
+      suggestion_score:
+        type: number
+      task:
+        allOf:
+        - $ref: '#/definitions/models.Task'
+        description: 关联的任务信息 (通过JOIN获取)
+      task_assignee_id:
+        type: integer
+      task_description:
+        type: string
+      task_due_date:
+        type: string
+      task_id:
+        type: integer
+      task_priority:
+        type: string
+      task_status:
+        type: string
+      task_title:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+      user_notes:
+        type: string
+    type: object
+  models.DocumentMetadata:
+    additionalProperties: true
+    type: object
+  models.DocumentStatus:
+    enum:
+    - draft
+    - published
+    - archived
+    - template
+    type: string
+    x-enum-varnames:
+    - DocumentStatusDraft
+    - DocumentStatusPublished
+    - DocumentStatusArchived
+    - DocumentStatusTemplate
+  models.DocumentType:
+    enum:
+    - markdown
+    - image
+    - pdf
+    - doc
+    - xlsx
+    - pptx
+    - txt
+    - html
+    type: string
+    x-enum-varnames:
+    - DocumentTypeMarkdown
+    - DocumentTypeImage
+    - DocumentTypePDF
+    - DocumentTypeDoc
+    - DocumentTypeXLSX
+    - DocumentTypePPTX
+    - DocumentTypeTXT
+    - DocumentTypeHTML
+  models.DocumentVersion:
+    properties:
+      change_summary:
+        type: string
+      comment_count:
+        type: integer
+      content:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      created_by_email:
+        type: string
+      created_by_name:
+        type: string
+      document_id:
+        type: integer
+      document_title:
+        description: Related fields
+        type: string
+      file_size:
+        type: integer
+      file_url:
+        type: string
+      id:
+        type: integer
+      is_major_version:
+        type: boolean
+      label_count:
+        type: integer
+      metadata:
+        $ref: '#/definitions/models.MetadataJSON'
+      mime_type:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      version_number:
+        type: integer
+    type: object
+  models.DocumentVersionBranch:
+    properties:
+      base_version:
+        type: integer
+      branch_name:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      created_by_name:
+        description: Related fields
+        type: string
+      current_version:
+        type: integer
+      description:
+        type: string
+      document_id:
+        type: integer
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      merged_at:
+        type: string
+      merged_by:
+        type: integer
+      merged_by_name:
+        type: string
+    type: object
+  models.DocumentVersionHistoryResponse:
+    properties:
+      branches:
+        items:
+          $ref: '#/definitions/models.DocumentVersionBranch'
+        type: array
+      document_id:
+        type: integer
+      document_title:
+        type: string
+      labels:
+        items:
+          $ref: '#/definitions/models.DocumentVersionLabel'
+        type: array
+      stats:
+        $ref: '#/definitions/models.DocumentVersionStats'
+      versions:
+        items:
+          $ref: '#/definitions/models.DocumentVersion'
+        type: array
+    type: object
+  models.DocumentVersionLabel:
+    properties:
+      color:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      created_by_name:
+        description: Related fields
+        type: string
+      description:
+        type: string
+      document_id:
+        type: integer
+      id:
+        type: integer
+      label:
+        type: string
+      version_number:
+        type: integer
+    type: object
+  models.DocumentVersionStats:
+    properties:
+      contributors_count:
+        type: integer
+      current_version:
+        type: integer
+      document_id:
+        type: integer
+      document_title:
+        type: string
+      first_version_date:
+        type: string
+      latest_version_date:
+        type: string
+      major_versions:
+        type: integer
+      total_size_all_versions:
+        type: integer
+      total_versions:
+        type: integer
+    type: object
+  models.ErrorResponse:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/models.APIError'
+      message:
+        type: string
+      success:
+        type: boolean
+      timestamp:
+        type: string
+    type: object
+  models.GenerateDocumentRequest:
+    properties:
+      autoCreate:
+        type: boolean
+      context:
+        $ref: '#/definitions/models.TemplateContext'
+      templateType:
+        type: string
+    required:
+    - context
+    - templateType
+    type: object
+  models.GenerateDocumentResponse:
+    properties:
+      content:
+        type: string
+      document_id:
+        type: integer
+      metadata:
+        additionalProperties: true
+        type: object
+    type: object
+  models.GraphEdge:
+    properties:
+      edge_style:
+        description: solid, dashed, dotted
+        type: string
+      relationship_type:
+        type: string
+      source:
+        type: integer
+      target:
+        type: integer
+      weight:
+        type: integer
+    type: object
+  models.GraphNode:
+    properties:
+      can_start:
+        type: boolean
+      coordinates:
+        properties:
+          x:
+            type: integer
+          "y":
+            type: integer
+        type: object
+      id:
+        type: integer
+      is_blocked:
+        type: boolean
+      level:
+        type: integer
+      node_type:
+        description: task, milestone, group
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  models.MetadataJSON:
+    additionalProperties: true
+    type: object
+  models.MoveTaskRequest:
+    properties:
+      new_position:
+        minimum: 0
+        type: integer
+      target_parent_id:
+        minimum: 1
+        type: integer
+      target_project_id:
+        minimum: 1
+        type: integer
+    type: object
+  models.PaginatedResponse:
+    properties:
+      data: {}
+      pagination:
+        $ref: '#/definitions/models.Pagination'
+    type: object
+  models.Pagination:
+    properties:
+      has_next:
+        type: boolean
+      has_prev:
+        type: boolean
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  models.ParallelDevelopmentGroup:
+    properties:
+      can_start_parallel:
+        type: boolean
+      completed_tasks:
+        type: integer
+      completion_percent:
+        type: number
+      dependencies:
+        items:
+          type: integer
+        type: array
+      group_id:
+        type: string
+      group_name:
+        type: string
+      in_progress_tasks:
+        type: integer
+      last_update:
+        type: string
+      tasks:
+        items:
+          $ref: '#/definitions/models.Task'
+        type: array
+      todo_tasks:
+        type: integer
+      total_tasks:
+        type: integer
+    type: object
+  models.Project:
+    properties:
+      budget:
+        type: number
+      company_id:
+        description: 主客户ID（向后兼容）
+        type: integer
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      description:
+        type: string
+      end_date:
+        type: string
+      enterprise_id:
+        description: 企业ID（新架构）
+        type: integer
+      id:
+        type: integer
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      owner_id:
+        type: integer
+      priority:
+        enum:
+        - high
+        - medium
+        - low
+        type: string
+      progress:
+        maximum: 100
+        minimum: 0
+        type: integer
+      project_number:
+        type: string
+      start_date:
+        type: string
+      status:
+        enum:
+        - planning
+        - active
+        - on_hold
+        - completed
+        - cancelled
+        type: string
+      updated_at:
+        type: string
+    required:
+    - name
+    type: object
+  models.RateLimitType:
+    enum:
+    - per_minute
+    - per_hour
+    - per_day
+    - per_month
+    type: string
+    x-enum-varnames:
+    - RateLimitPerMinute
+    - RateLimitPerHour
+    - RateLimitPerDay
+    - RateLimitPerMonth
+  models.ReorderTaskRequest:
+    properties:
+      direction:
+        enum:
+        - up
+        - down
+        - first
+        - last
+        type: string
+      new_position:
+        minimum: 0
+        type: integer
+    required:
+    - new_position
+    type: object
+  models.RestoreDocumentVersionRequest:
+    properties:
+      change_summary:
+        type: string
+      target_version:
+        minimum: 1
+        type: integer
+    required:
+    - target_version
+    type: object
+  models.Task:
+    properties:
+      actual_minutes:
+        type: integer
+      archive_reason:
+        type: string
+      archived_at:
+        description: Archive-related fields
+        type: string
+      archived_by:
+        type: integer
+      assignee_id:
+        type: integer
+      children_count:
+        type: integer
+      created_at:
+        description: Timestamps
+        type: string
+      custom_fields:
+        $ref: '#/definitions/models.CustomFields'
+      deleted_at:
+        type: string
+      dependencies:
+        description: AI-enhanced fields
+        items:
+          type: integer
+        type: array
+      depth:
+        type: integer
+      description:
+        type: string
+      due_date:
+        type: string
+      due_datetime:
+        type: string
+      estimated_hours:
+        type: number
+      estimated_minutes:
+        type: integer
+      has_children:
+        type: boolean
+      id:
+        type: integer
+      parent_id:
+        type: integer
+      path:
+        description: ltree hierarchy fields
+        type: string
+      priority:
+        enum:
+        - low
+        - medium
+        - high
+        type: string
+      project_id:
+        type: integer
+      sort_order:
+        type: integer
+      start_datetime:
+        description: Enhanced time management fields
+        type: string
+      status:
+        enum:
+        - draft
+        - planning
+        - todo
+        - in_progress
+        - testing
+        - completed
+        - cancelled
+        - on_hold
+        - suspended
+        - blocked
+        - archived
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      task_level:
+        type: integer
+      time_tracking_mode:
+        enum:
+        - manual
+        - automatic
+        - hybrid
+        type: string
+      time_unit_preference:
+        enum:
+        - auto
+        - minutes
+        - hours
+        - days
+        type: string
+      title:
+        maxLength: 255
+        minLength: 1
+        type: string
+      total_time_seconds:
+        type: integer
+      updated_at:
+        type: string
+      work_hours_per_day:
+        type: number
+    required:
+    - project_id
+    - status
+    - title
+    type: object
+  models.TaskDependencyGraph:
+    properties:
+      edges:
+        items:
+          $ref: '#/definitions/models.GraphEdge'
+        type: array
+      nodes:
+        items:
+          $ref: '#/definitions/models.GraphNode'
+        type: array
+    type: object
+  models.TaskDocumentSummary:
+    properties:
+      created_at:
+        type: string
+      format:
+        type: string
+      id:
+        type: integer
+      task_id:
+        type: integer
+      title:
+        type: string
+    type: object
+  models.TaskOrderItem:
+    properties:
+      new_position:
+        minimum: 0
+        type: integer
+      task_id:
+        type: integer
+    required:
+    - new_position
+    - task_id
+    type: object
+  models.TaskRelationship:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      created_by_username:
+        type: string
+      deleted_at:
+        type: string
+      id:
+        type: integer
+      metadata:
+        $ref: '#/definitions/models.CustomFields'
+      relationship_status:
+        type: string
+      relationship_type:
+        type: string
+      source_task_id:
+        type: integer
+      source_task_title:
+        description: Related task information (populated in queries)
+        type: string
+      target_task_id:
+        type: integer
+      target_task_title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.TaskRelationshipRequest:
+    properties:
+      metadata:
+        $ref: '#/definitions/models.CustomFields'
+      relationship_status:
+        enum:
+        - active
+        - inactive
+        - completed
+        - cancelled
+        type: string
+      relationship_type:
+        enum:
+        - depends_on
+        - blocks
+        - parallel_with
+        - follows
+        - related_to
+        - child_of
+        - parent_of
+        - sibling_of
+        type: string
+      source_task_id:
+        type: integer
+      target_task_id:
+        type: integer
+    required:
+    - relationship_type
+    - source_task_id
+    - target_task_id
+    type: object
+  models.TaskStatusHistory:
+    properties:
+      change_reason:
+        type: string
+      change_timestamp:
+        type: string
+      change_type:
+        type: string
+      changed_by:
+        type: integer
+      changed_by_username:
+        type: string
+      created_at:
+        type: string
+      dependency_resolved:
+        type: boolean
+      id:
+        type: integer
+      metadata:
+        $ref: '#/definitions/models.CustomFields'
+      new_status:
+        type: string
+      old_status:
+        type: string
+      parallel_group_id:
+        type: string
+      related_task_ids:
+        items:
+          type: integer
+        type: array
+      task_id:
+        type: integer
+      task_title:
+        description: Related information (populated in queries)
+        type: string
+      workflow_stage:
+        type: string
+    type: object
+  models.TaskSuggestion:
+    properties:
+      estimated_duration_minutes:
+        type: integer
+      suggestion_reason:
+        type: string
+      suggestion_score:
+        type: number
+      task:
+        $ref: '#/definitions/models.Task'
+      task_id:
+        type: integer
+    type: object
+  models.TaskWithRelationships:
+    properties:
+      actual_minutes:
+        type: integer
+      archive_reason:
+        type: string
+      archived_at:
+        description: Archive-related fields
+        type: string
+      archived_by:
+        type: integer
+      assignee_id:
+        type: integer
+      blocked_by:
+        items:
+          $ref: '#/definitions/models.TaskRelationship'
+        type: array
+      blocking:
+        items:
+          $ref: '#/definitions/models.TaskRelationship'
+        type: array
+      children_count:
+        type: integer
+      created_at:
+        description: Timestamps
+        type: string
+      custom_fields:
+        $ref: '#/definitions/models.CustomFields'
+      deleted_at:
+        type: string
+      dependencies:
+        items:
+          $ref: '#/definitions/models.TaskRelationship'
+        type: array
+      dependents:
+        items:
+          $ref: '#/definitions/models.TaskRelationship'
+        type: array
+      depth:
+        type: integer
+      description:
+        type: string
+      due_date:
+        type: string
+      due_datetime:
+        type: string
+      estimated_hours:
+        type: number
+      estimated_minutes:
+        type: integer
+      has_children:
+        type: boolean
+      id:
+        type: integer
+      parallel_tasks:
+        items:
+          $ref: '#/definitions/models.TaskRelationship'
+        type: array
+      parent_id:
+        type: integer
+      path:
+        description: ltree hierarchy fields
+        type: string
+      priority:
+        enum:
+        - low
+        - medium
+        - high
+        type: string
+      project_id:
+        type: integer
+      related_tasks:
+        items:
+          $ref: '#/definitions/models.TaskRelationship'
+        type: array
+      sort_order:
+        type: integer
+      start_datetime:
+        description: Enhanced time management fields
+        type: string
+      status:
+        enum:
+        - draft
+        - planning
+        - todo
+        - in_progress
+        - testing
+        - completed
+        - cancelled
+        - on_hold
+        - suspended
+        - blocked
+        - archived
+        type: string
+      status_history:
+        items:
+          $ref: '#/definitions/models.TaskStatusHistory'
+        type: array
+      tags:
+        items:
+          type: string
+        type: array
+      task_level:
+        type: integer
+      time_tracking_mode:
+        enum:
+        - manual
+        - automatic
+        - hybrid
+        type: string
+      time_unit_preference:
+        enum:
+        - auto
+        - minutes
+        - hours
+        - days
+        type: string
+      title:
+        maxLength: 255
+        minLength: 1
+        type: string
+      total_time_seconds:
+        type: integer
+      updated_at:
+        type: string
+      work_hours_per_day:
+        type: number
+    required:
+    - project_id
+    - status
+    - title
+    type: object
+  models.TemplateContext:
+    properties:
+      assignee:
+        type: string
+      deadline:
+        type: string
+      priority:
+        type: string
+      projectId:
+        type: integer
+      requirements:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      taskId:
+        type: integer
+      title:
+        description: 通用字段
+        type: string
+    type: object
+  models.UpdateDailyFocusTaskRequest:
+    properties:
+      estimated_duration_minutes:
+        minimum: 0
+        type: integer
+      priority_level:
+        enum:
+        - low
+        - medium
+        - high
+        type: string
+      user_notes:
+        type: string
+    type: object
+  models.UpdateWorkNoteRequest:
+    properties:
+      content:
+        type: string
+      custom_fields:
+        additionalProperties: true
+        type: object
+      description:
+        type: string
+      is_bookmarked:
+        type: boolean
+      is_pinned:
+        type: boolean
+      priority:
+        $ref: '#/definitions/models.WorkNotePriority'
+      related_notes:
+        items:
+          type: integer
+        type: array
+      related_tasks:
+        items:
+          type: integer
+        type: array
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 255
+        minLength: 1
+        type: string
+      visibility:
+        $ref: '#/definitions/models.Visibility'
+      work_note_folder_id:
+        type: integer
+      work_note_type:
+        $ref: '#/definitions/models.WorkNoteType'
+    type: object
+  models.User:
+    properties:
+      account_expires_at:
+        type: string
+      company_id:
+        type: integer
+      company_user_id:
+        type: integer
+      contact_person_name:
+        description: Enterprise user fields
+        type: string
+      contact_phone:
+        type: string
+      created_at:
+        type: string
+      current_timing_task_id:
+        description: Timer fields
+        type: integer
+      current_user_timer_task_id:
+        type: integer
+      deleted_at:
+        type: string
+      department_title:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      is_primary_contact:
+        type: boolean
+      last_login_at:
+        type: string
+      last_project_access:
+        type: string
+      notes:
+        type: string
+      profile:
+        $ref: '#/definitions/models.UserProfile'
+      role:
+        type: string
+      status:
+        enum:
+        - active
+        - inactive
+        - suspended
+        type: string
+      timing_accumulated_seconds:
+        description: Seconds accumulated before pause
+        type: integer
+      timing_paused_time:
+        description: Pause/Resume fields for Phase 3
+        type: string
+      timing_start_time:
+        type: string
+      timing_status:
+        type: string
+      updated_at:
+        type: string
+      user_type:
+        enum:
+        - system
+        - company
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - role
+    - status
+    - user_type
+    - username
+    type: object
+  models.UserProfile:
+    properties:
+      avatar:
+        type: string
+      department:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+    type: object
+  models.Visibility:
+    enum:
+    - private
+    - team
+    - public
+    type: string
+    x-enum-varnames:
+    - VisibilityPrivate
+    - VisibilityTeam
+    - VisibilityPublic
+  models.WorkNote:
+    properties:
+      archived:
+        type: boolean
+      archived_at:
+        type: string
+      archived_by:
+        type: integer
+      content:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      deleted_at:
+        type: string
+      description:
+        type: string
+      file_size:
+        type: integer
+      file_url:
+        type: string
+      folder_id:
+        type: integer
+      folder_name:
+        type: string
+      folder_path:
+        description: 运行时计算字段（不存储在数据库）
+        type: string
+      id:
+        type: integer
+      is_bookmarked:
+        type: boolean
+      is_pinned:
+        type: boolean
+      is_template:
+        type: boolean
+      last_read_at:
+        type: string
+      metadata:
+        $ref: '#/definitions/models.DocumentMetadata'
+      mime_type:
+        type: string
+      owner_id:
+        type: integer
+      owner_name:
+        description: 关联字段
+        type: string
+      parent_document_id:
+        type: integer
+      priority:
+        $ref: '#/definitions/models.WorkNotePriority'
+      project_id:
+        type: integer
+      read_time:
+        type: integer
+      related_notes:
+        items:
+          type: integer
+        type: array
+      related_task_info:
+        description: 相关任务信息
+        items:
+          type: string
+        type: array
+      related_tasks:
+        description: 关联信息
+        items:
+          type: integer
+        type: array
+      status:
+        $ref: '#/definitions/models.DocumentStatus'
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 255
+        minLength: 1
+        type: string
+      type:
+        $ref: '#/definitions/models.DocumentType'
+      unarchived_at:
+        type: string
+      unarchived_by:
+        type: integer
+      updated_at:
+        type: string
+      version:
+        type: integer
+      view_count:
+        type: integer
+      visibility:
+        $ref: '#/definitions/models.Visibility'
+      word_count:
+        type: integer
+      work_note_folder_id:
+        description: 文件夹关联（通过Document.FolderID，这里提供类型安全的访问）
+        type: integer
+      work_note_type:
+        allOf:
+        - $ref: '#/definitions/models.WorkNoteType'
+        description: 工作笔记专用字段（通过metadata存储，这里提供便捷访问）
+    required:
+    - created_by
+    - owner_id
+    - status
+    - title
+    - type
+    - visibility
+    type: object
+  models.WorkNoteListResponse:
+    properties:
+      limit:
+        type: integer
+      notes:
+        items:
+          $ref: '#/definitions/models.WorkNote'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  models.WorkNotePriority:
+    enum:
+    - low
+    - medium
+    - high
+    - urgent
+    type: string
+    x-enum-varnames:
+    - WorkNotePriorityLow
+    - WorkNotePriorityMedium
+    - WorkNotePriorityHigh
+    - WorkNotePriorityUrgent
+  models.WorkNoteSearchResult:
+    properties:
+      archived:
+        type: boolean
+      archived_at:
+        type: string
+      archived_by:
+        type: integer
+      content:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      deleted_at:
+        type: string
+      description:
+        type: string
+      file_size:
+        type: integer
+      file_url:
+        type: string
+      folder_id:
+        type: integer
+      folder_name:
+        type: string
+      folder_path:
+        description: 运行时计算字段（不存储在数据库）
+        type: string
+      highlighted_excerpt:
+        type: string
+      highlighted_title:
+        type: string
+      id:
+        type: integer
+      is_bookmarked:
+        type: boolean
+      is_pinned:
+        type: boolean
+      is_template:
+        type: boolean
+      last_read_at:
+        type: string
+      match_score:
+        type: number
+      match_type:
+        description: title, content, description, tags
+        type: string
+      metadata:
+        $ref: '#/definitions/models.DocumentMetadata'
+      mime_type:
+        type: string
+      owner_id:
+        type: integer
+      owner_name:
+        description: 关联字段
+        type: string
+      parent_document_id:
+        type: integer
+      priority:
+        $ref: '#/definitions/models.WorkNotePriority'
+      project_id:
+        type: integer
+      read_time:
+        type: integer
+      related_notes:
+        items:
+          type: integer
+        type: array
+      related_task_info:
+        description: 相关任务信息
+        items:
+          type: string
+        type: array
+      related_tasks:
+        description: 关联信息
+        items:
+          type: integer
+        type: array
+      status:
+        $ref: '#/definitions/models.DocumentStatus'
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 255
+        minLength: 1
+        type: string
+      type:
+        $ref: '#/definitions/models.DocumentType'
+      unarchived_at:
+        type: string
+      unarchived_by:
+        type: integer
+      updated_at:
+        type: string
+      version:
+        type: integer
+      view_count:
+        type: integer
+      visibility:
+        $ref: '#/definitions/models.Visibility'
+      word_count:
+        type: integer
+      work_note_folder_id:
+        description: 文件夹关联（通过Document.FolderID，这里提供类型安全的访问）
+        type: integer
+      work_note_type:
+        allOf:
+        - $ref: '#/definitions/models.WorkNoteType'
+        description: 工作笔记专用字段（通过metadata存储，这里提供便捷访问）
+    required:
+    - created_by
+    - owner_id
+    - status
+    - title
+    - type
+    - visibility
+    type: object
+  models.WorkNoteSummary:
+    properties:
+      id:
+        type: integer
+      size:
+        type: integer
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  models.WorkNoteType:
+    enum:
+    - general
+    - meeting
+    - idea
+    - log
+    - reference
+    - template
+    type: string
+    x-enum-comments:
+      WorkNoteTypeGeneral: 通用笔记
+      WorkNoteTypeIdea: 想法记录
+      WorkNoteTypeLog: 工作日志
+      WorkNoteTypeMeeting: 会议笔记
+      WorkNoteTypeReference: 参考资料
+      WorkNoteTypeTemplate: 笔记模板
+    x-enum-descriptions:
+    - 通用笔记
+    - 会议笔记
+    - 想法记录
+    - 工作日志
+    - 参考资料
+    - 笔记模板
+    x-enum-varnames:
+    - WorkNoteTypeGeneral
+    - WorkNoteTypeMeeting
+    - WorkNoteTypeIdea
+    - WorkNoteTypeLog
+    - WorkNoteTypeReference
+    - WorkNoteTypeTemplate
+  services.DocumentVersionInfo:
+    properties:
+      changes_summary:
+        type: string
+      checksum:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      created_by_name:
+        type: string
+      description:
+        type: string
+      document_id:
+        type: integer
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      id:
+        type: integer
+      is_current:
+        type: boolean
+      metadata:
+        additionalProperties: true
+        type: object
+      parent_version:
+        type: integer
+      storage_path:
+        type: string
+      title:
+        type: string
+      version_number:
+        type: integer
+    type: object
+  services.PrefixSearchResponse:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/services.PrefixSearchResult'
+        type: array
+      search_query:
+        type: string
+      search_time:
+        $ref: '#/definitions/time.Duration'
+      search_type:
+        description: '"prefix"'
+        type: string
+      total_count:
+        type: integer
+    type: object
+  services.PrefixSearchResult:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      created_by_name:
+        type: string
+      id:
+        type: integer
+      match_type:
+        description: '"name" or "path"'
+        type: string
+      name:
+        description: The actual name (title/filename)
+        type: string
+      path:
+        description: Full path if available
+        type: string
+      project_id:
+        type: integer
+      project_name:
+        type: string
+      score:
+        description: Match score
+        type: number
+      status:
+        type: string
+      type:
+        description: document, task, project, user
+        type: string
+      updated_at:
+        type: string
+      url:
+        description: Access URL
+        type: string
+    type: object
+  services.ProgressBreakdown:
+    properties:
+      id:
+        type: integer
+      method:
+        type: string
+      progress:
+        type: number
+      status:
+        type: string
+      title:
+        type: string
+      weight:
+        type: number
+    type: object
+  services.ProgressConfig:
+    properties:
+      blocked_policy:
+        type: string
+      cache_ttl_seconds:
+        type: integer
+      config_name:
+        type: string
+      default_weight_field:
+        type: string
+      enable_caching:
+        type: boolean
+      id:
+        type: integer
+      include_archived:
+        type: boolean
+      include_cancelled:
+        type: boolean
+      status_progress_map:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+    type: object
+  services.ProgressResult:
+    properties:
+      breakdown:
+        items:
+          $ref: '#/definitions/services.ProgressBreakdown'
+        type: array
+      config_version:
+        type: integer
+      entity_id:
+        type: integer
+      entity_type:
+        type: string
+      inputs:
+        additionalProperties: true
+        type: object
+      method_used:
+        type: string
+      progress:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  services.SearchResponse:
+    properties:
+      facets:
+        additionalProperties: true
+        type: object
+      has_next:
+        type: boolean
+      has_previous:
+        type: boolean
+      limit:
+        type: integer
+      page:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/services.SearchResult'
+        type: array
+      search_time:
+        $ref: '#/definitions/time.Duration'
+      suggestions:
+        items:
+          type: string
+        type: array
+      total_count:
+        type: integer
+    type: object
+  services.SearchResult:
+    properties:
+      category:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      created_by_name:
+        type: string
+      description:
+        type: string
+      file_size:
+        type: integer
+      file_type:
+        type: string
+      highlights:
+        items:
+          type: string
+        type: array
+      id:
+        type: integer
+      metadata:
+        additionalProperties: true
+        type: object
+      project_id:
+        type: integer
+      project_name:
+        type: string
+      score:
+        type: number
+      status:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      thumbnail:
+        type: string
+      title:
+        type: string
+      type:
+        description: document, task, project, user
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  services.VersionComparisonResult:
+    properties:
+      content_changed:
+        type: boolean
+      size_diff:
+        type: integer
+      summary:
+        type: string
+      version1:
+        $ref: '#/definitions/services.DocumentVersionInfo'
+      version2:
+        $ref: '#/definitions/services.DocumentVersionInfo'
+    type: object
+  time.Duration:
+    enum:
+    - -9223372036854775808
+    - 9223372036854775807
+    - 1
+    - 1000
+    - 1000000
+    - 1000000000
+    - 60000000000
+    - 3600000000000
+    format: int64
+    type: integer
+    x-enum-varnames:
+    - minDuration
+    - maxDuration
+    - Nanosecond
+    - Microsecond
+    - Millisecond
+    - Second
+    - Minute
+    - Hour
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: AI项目管理后端API服务，提供项目管理、任务管理、文档生成等功能
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: AI Project Backend API
+  version: "1.0"
+paths:
+  /api/v1/api-keys:
+    get:
+      description: Get a paginated list of API keys with optional filtering
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Search in name and description
+        in: query
+        name: search
+        type: string
+      - description: Filter by active status
+        in: query
+        name: is_active
+        type: boolean
+      - description: Filter by creator user ID
+        in: query
+        name: created_by
+        type: integer
+      - description: Filter by expiration status
+        in: query
+        name: has_expired
+        type: boolean
+      - description: Sort by field (name, created_at, last_used_at, usage_count)
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIKeyListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List API keys
+      tags:
+      - api-keys
+    post:
+      consumes:
+      - application/json
+      description: Create a new API key with specified permissions and restrictions
+      parameters:
+      - description: API key creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.APIKeyCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.APIKeyCreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create API key
+      tags:
+      - api-keys
+  /api/v1/api-keys/{id}:
+    delete:
+      description: Soft delete an API key
+      parameters:
+      - description: API key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete API key
+      tags:
+      - api-keys
+    get:
+      description: Get details of a specific API key
+      parameters:
+      - description: API key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIKeyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get API key
+      tags:
+      - api-keys
+    put:
+      consumes:
+      - application/json
+      description: Update an existing API key's properties
+      parameters:
+      - description: API key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: API key update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.APIKeyUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIKeyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update API key
+      tags:
+      - api-keys
+  /api/v1/api-keys/{id}/logs:
+    get:
+      description: Get usage logs for a specific API key
+      parameters:
+      - description: API key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Number of logs to return (default: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Offset for pagination (default: 0)'
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get API key usage logs
+      tags:
+      - api-keys
+  /api/v1/api-keys/{id}/rotate:
+    post:
+      description: Generate a new key for an existing API key (invalidates the old
+        one)
+      parameters:
+      - description: API key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIKeyCreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Rotate API key
+      tags:
+      - api-keys
+  /api/v1/api-keys/{id}/stats:
+    get:
+      description: Get usage statistics for a specific API key
+      parameters:
+      - description: API key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Number of days for statistics (default: 30)'
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIQuotaStats'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get API key usage statistics
+      tags:
+      - api-keys
+  /api/v1/api-keys/active:
+    get:
+      description: Get all currently active API keys
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.APIKeyResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get active API keys
+      tags:
+      - api-keys
+  /api/v1/api-keys/validate:
+    post:
+      description: Validate an API key and return its information
+      parameters:
+      - description: API Key (Bearer token)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIKeyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Validate API key
+      tags:
+      - api-keys
+  /api/v1/api-keys/verify-permission:
+    post:
+      description: Check if an API key has a specific permission
+      parameters:
+      - description: API Key (Bearer token)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Permission to check
+        in: query
+        name: permission
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Verify API key permission
+      tags:
+      - api-keys
+  /api/v1/documents/{document_id}/versions:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the version history of a document
+      parameters:
+      - description: Document ID
+        in: path
+        name: document_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.DocumentVersionHistoryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get document version history
+      tags:
+      - Document Versions
+    post:
+      consumes:
+      - multipart/form-data
+      description: Create a new version of an existing document
+      parameters:
+      - description: Document ID
+        in: path
+        name: document_id
+        required: true
+        type: integer
+      - description: Document file
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Version title
+        in: formData
+        name: title
+        type: string
+      - description: Version description
+        in: formData
+        name: description
+        type: string
+      - description: Summary of changes
+        in: formData
+        name: changes_summary
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/services.DocumentVersionInfo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Create new document version
+      tags:
+      - Document Versions
+  /api/v1/documents/{document_id}/versions/{version_number}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a specific version of a document (cannot delete current
+        version)
+      parameters:
+      - description: Document ID
+        in: path
+        name: document_id
+        required: true
+        type: integer
+      - description: Version Number
+        in: path
+        name: version_number
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Delete document version
+      tags:
+      - Document Versions
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific version of a document
+      parameters:
+      - description: Document ID
+        in: path
+        name: document_id
+        required: true
+        type: integer
+      - description: Version Number
+        in: path
+        name: version_number
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.DocumentVersionInfo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get specific document version
+      tags:
+      - Document Versions
+  /api/v1/documents/{document_id}/versions/{version_number}/download:
+    get:
+      description: Download a specific version of a document
+      parameters:
+      - description: Document ID
+        in: path
+        name: document_id
+        required: true
+        type: integer
+      - description: Version Number
+        in: path
+        name: version_number
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Download specific document version
+      tags:
+      - Document Versions
+  /api/v1/documents/{document_id}/versions/{version_number}/restore:
+    post:
+      consumes:
+      - application/json
+      description: Restore a document to a specific version
+      parameters:
+      - description: Document ID
+        in: path
+        name: document_id
+        required: true
+        type: integer
+      - description: Version Number
+        in: path
+        name: version_number
+        required: true
+        type: integer
+      - description: Restore request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.RestoreDocumentVersionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.DocumentVersionInfo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Restore document to specific version
+      tags:
+      - Document Versions
+  /api/v1/documents/{document_id}/versions/compare:
+    get:
+      consumes:
+      - application/json
+      description: Compare two versions of a document
+      parameters:
+      - description: Document ID
+        in: path
+        name: document_id
+        required: true
+        type: integer
+      - description: From version number
+        in: query
+        name: from_version
+        required: true
+        type: integer
+      - description: To version number
+        in: query
+        name: to_version
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.VersionComparisonResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Compare document versions
+      tags:
+      - Document Versions
+  /api/v1/mcp/generate-document-from-template:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        根据指定的模板类型和上下文信息智能生成Markdown格式的文档内容。支持8种预定义模板类型，可选择性地自动创建文档并关联到任务。
+
+        支持的模板类型:
+        - bug_report: Bug报告模板
+        - feature_spec: 功能规格说明模板
+        - technical_design: 技术设计文档模板
+        - meeting_notes: 会议纪要模板
+        - project_plan: 项目计划模板
+        - api_documentation: API文档模板
+        - test_plan: 测试计划模板
+        - user_story: 用户故事模板
+
+        autoCreate功能说明:
+        - 当autoCreate=true时，需要提供taskId或projectId参数
+        - 系统将自动创建文档记录并关联到指定任务
+        - 返回的document_id可用于后续文档操作
+      parameters:
+      - description: 文档生成请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.GenerateDocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功生成文档，返回内容和元数据
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.GenerateDocumentResponse'
+              type: object
+        "400":
+          description: 请求参数错误，如模板类型无效或autoCreate缺少必要参数
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: 未认证，autoCreate功能需要用户登录
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: 服务器内部错误，如文档生成失败或数据库操作失败
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 根据模板类型生成文档内容
+      tags:
+      - MCP
+  /api/v1/parallel-groups:
+    get:
+      description: Get all parallel development groups with their tasks and status
+      parameters:
+      - description: Filter by project ID
+        in: query
+        name: project_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.ParallelDevelopmentGroup'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get parallel development groups
+      tags:
+      - task-relationships
+  /api/v1/parallel-groups/validate:
+    post:
+      consumes:
+      - application/json
+      description: Check if a group of parallel tasks can be started based on dependencies
+      parameters:
+      - description: Array of task IDs to validate
+        in: body
+        name: tasks
+        required: true
+        schema:
+          items:
+            type: integer
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Validate parallel task startup
+      tags:
+      - task-relationships
+  /api/v1/permissions/check-dynamic:
+    post:
+      consumes:
+      - application/json
+      description: Check if user has dynamic permission (delegated, temporary, etc.)
+      parameters:
+      - description: Permission check request
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Check dynamic permission
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/delegate:
+    post:
+      consumes:
+      - application/json
+      description: Delegate permissions to another user temporarily
+      parameters:
+      - description: Delegation data
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Delegate permissions
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/delegations/{id}/revoke:
+    post:
+      consumes:
+      - application/json
+      description: Revoke a permission delegation
+      parameters:
+      - description: Delegation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Revocation data
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Revoke delegation
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/permission-templates:
+    get:
+      consumes:
+      - application/json
+      description: Get available permission templates for quick permission setup
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get permission templates
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/request:
+    post:
+      consumes:
+      - application/json
+      description: Request temporary access to specific permissions
+      parameters:
+      - description: Permission request
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Request temporary permission
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/requests:
+    get:
+      consumes:
+      - application/json
+      description: Get permission requests with filtering options
+      parameters:
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Filter by user ID
+        in: query
+        name: user_id
+        type: integer
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get permission requests
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/requests/{id}/approve:
+    post:
+      consumes:
+      - application/json
+      description: Approve a pending permission request
+      parameters:
+      - description: Request ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Approval data
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Approve permission request
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/requests/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      description: Reject a pending permission request
+      parameters:
+      - description: Request ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Rejection data
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Reject permission request
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/role-templates:
+    get:
+      consumes:
+      - application/json
+      description: Get available role templates for quick role creation
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get role templates
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/roles/from-template:
+    post:
+      consumes:
+      - application/json
+      description: Create a new role based on a predefined template
+      parameters:
+      - description: Role creation request
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Create role from template
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/users/{id}/delegations:
+    get:
+      consumes:
+      - application/json
+      description: Get all delegations for a user (both given and received)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get user delegations
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/users/{id}/optimization-suggestions:
+    get:
+      consumes:
+      - application/json
+      description: Suggest role optimizations based on usage patterns
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Suggest role optimization
+      tags:
+      - Enhanced Permissions
+  /api/v1/permissions/users/{id}/usage-analysis:
+    get:
+      consumes:
+      - application/json
+      description: Analyze permission usage patterns for a user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Time range for analysis
+        in: query
+        name: time_range
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Analyze permission usage
+      tags:
+      - Enhanced Permissions
+  /api/v1/progress/{entityType}/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Calculate progress for a task or project with optional breakdown
+        and caching
+      parameters:
+      - description: Entity type (task, project)
+        in: path
+        name: entityType
+        required: true
+        type: string
+      - description: Entity ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Include additional data (children,formula,snapshots)
+        in: query
+        name: include
+        type: string
+      - description: Use cached result if available
+        in: query
+        name: useCache
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.ProgressResult'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get progress for an entity
+      tags:
+      - Progress
+  /api/v1/progress/{entityType}/{id}/snapshots:
+    get:
+      consumes:
+      - application/json
+      description: Get historical progress snapshots for an entity within a time range
+      parameters:
+      - description: Entity type (task, project)
+        in: path
+        name: entityType
+        required: true
+        type: string
+      - description: Entity ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Start date (RFC3339)
+        in: query
+        name: from
+        type: string
+      - description: End date (RFC3339)
+        in: query
+        name: to
+        type: string
+      - description: Granularity (hourly, daily)
+        in: query
+        name: granularity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/services.ProgressResult'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get progress snapshots
+      tags:
+      - Progress
+  /api/v1/progress/config:
+    get:
+      consumes:
+      - application/json
+      description: Get the current progress calculation configuration
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.ProgressConfig'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get progress configuration
+      tags:
+      - Progress
+  /api/v1/progress/recompute:
+    post:
+      consumes:
+      - application/json
+      description: Force recalculation of progress for an entity and optionally its
+        children
+      parameters:
+      - description: Recompute request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RecomputeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.ProgressResult'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Recompute progress
+      tags:
+      - Progress
+  /api/v1/search:
+    get:
+      consumes:
+      - application/json
+      description: Perform advanced full-text search across documents, tasks, projects,
+        and users
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: Content type filter (document, task, project, user)
+        in: query
+        name: type
+        type: string
+      - description: Category filters
+        in: query
+        name: categories
+        type: array
+      - description: Tag filters
+        in: query
+        name: tags
+        type: array
+      - description: Start date filter (RFC3339 format)
+        in: query
+        name: date_from
+        type: string
+      - description: End date filter (RFC3339 format)
+        in: query
+        name: date_to
+        type: string
+      - description: Creator user ID filters
+        in: query
+        name: created_by
+        type: array
+      - description: Assignee user ID filters
+        in: query
+        name: assigned_to
+        type: array
+      - description: Project ID filters
+        in: query
+        name: project_ids
+        type: array
+      - description: Status filters
+        in: query
+        name: status
+        type: array
+      - description: Priority filters
+        in: query
+        name: priority
+        type: array
+      - description: File type filters
+        in: query
+        name: file_types
+        type: array
+      - description: Minimum file size in bytes
+        in: query
+        name: size_min
+        type: integer
+      - description: Maximum file size in bytes
+        in: query
+        name: size_max
+        type: integer
+      - description: Include content in results
+        in: query
+        name: include_content
+        type: boolean
+      - description: Sort field (relevance, date, size, title)
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        in: query
+        name: sort_order
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Results per page (default: 20)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.SearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Enhanced search across all content types
+      tags:
+      - Search
+  /api/v1/search/autocomplete:
+    get:
+      consumes:
+      - application/json
+      description: Get autocomplete suggestions for search queries
+      parameters:
+      - description: Partial search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: Content type filter
+        in: query
+        name: type
+        type: string
+      - description: 'Maximum suggestions (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get search suggestions
+      tags:
+      - Search
+  /api/v1/search/batch:
+    post:
+      consumes:
+      - application/json
+      description: Perform batch operations on search results
+      parameters:
+      - description: Batch operation request
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Batch operation on search results
+      tags:
+      - Search
+  /api/v1/search/export:
+    get:
+      consumes:
+      - application/json
+      description: Export search results in various formats
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: Export format (csv, json, xlsx)
+        in: query
+        name: format
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Export search results
+      tags:
+      - Search
+  /api/v1/search/history:
+    delete:
+      consumes:
+      - application/json
+      description: Clear user's search history
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Clear search history
+      tags:
+      - Search
+    get:
+      consumes:
+      - application/json
+      description: Get user's search history
+      parameters:
+      - description: Number of history entries
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get search history
+      tags:
+      - Search
+  /api/v1/search/index/rebuild:
+    post:
+      consumes:
+      - application/json
+      description: Rebuild the search index
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Rebuild search index
+      tags:
+      - Search
+  /api/v1/search/index/status:
+    get:
+      consumes:
+      - application/json
+      description: Get the status of the search index
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get search index status
+      tags:
+      - Search
+  /api/v1/search/prefix:
+    get:
+      consumes:
+      - application/json
+      description: Search content by name or path prefix matching
+      parameters:
+      - description: Name or path prefix to search
+        in: query
+        name: prefix
+        required: true
+        type: string
+      - description: Content type filter (document, task, project, user)
+        in: query
+        name: type
+        type: string
+      - description: 'Include path-based search (default: true)'
+        in: query
+        name: include_path
+        type: boolean
+      - description: 'Include name-based search (default: true)'
+        in: query
+        name: include_name
+        type: boolean
+      - description: 'Maximum results (default: 20, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: Sort field (name, path, date, relevance)
+        in: query
+        name: sort_by
+        type: string
+      - description: 'Sort order (asc, desc, default: asc)'
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.PrefixSearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Search by name or path prefix
+      tags:
+      - Search
+  /api/v1/search/saved:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve saved search queries for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get user's saved searches
+      tags:
+      - Search
+    post:
+      consumes:
+      - application/json
+      description: Save a search query for future use
+      parameters:
+      - description: Save search request
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Save a search query
+      tags:
+      - Search
+  /api/v1/search/saved/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a saved search query
+      parameters:
+      - description: Saved search ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Delete a saved search
+      tags:
+      - Search
+  /api/v1/search/stats:
+    get:
+      consumes:
+      - application/json
+      description: Get search usage statistics and popular queries
+      parameters:
+      - description: Time period (day, week, month, year)
+        in: query
+        name: period
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get search statistics
+      tags:
+      - Search
+  /api/v1/search/trends:
+    get:
+      consumes:
+      - application/json
+      description: Get trending search queries
+      parameters:
+      - description: Number of trending searches
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get trending searches
+      tags:
+      - Search
+  /api/v1/search/trends/similar/{type}/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Find content similar to the specified item
+      parameters:
+      - description: Content type (document, task, project, user)
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Content ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Number of similar items
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Find similar content
+      tags:
+      - Search
+  /api/v1/task-dependency-graph:
+    get:
+      description: Generate dependency graph data for task visualization
+      parameters:
+      - description: Filter by project ID
+        in: query
+        name: project_id
+        type: integer
+      - description: Root task ID for subgraph
+        in: query
+        name: root_task_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TaskDependencyGraph'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get task dependency graph
+      tags:
+      - task-relationships
+  /api/v1/task-relationships:
+    post:
+      consumes:
+      - application/json
+      description: Create a new relationship between two tasks
+      parameters:
+      - description: Task relationship data
+        in: body
+        name: relationship
+        required: true
+        schema:
+          $ref: '#/definitions/models.TaskRelationshipRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.TaskRelationship'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Create task relationship
+      tags:
+      - task-relationships
+  /api/v1/task-relationships/{id}:
+    delete:
+      description: Soft delete a task relationship
+      parameters:
+      - description: Relationship ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Delete task relationship
+      tags:
+      - task-relationships
+    put:
+      consumes:
+      - application/json
+      description: Update an existing relationship between tasks
+      parameters:
+      - description: Relationship ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated relationship data
+        in: body
+        name: relationship
+        required: true
+        schema:
+          $ref: '#/definitions/models.TaskRelationshipRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TaskRelationship'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Update task relationship
+      tags:
+      - task-relationships
+  /api/v1/task-relationships/batch:
+    post:
+      consumes:
+      - application/json
+      description: Create multiple task relationships in a single batch operation
+      parameters:
+      - description: Array of relationship requests
+        in: body
+        name: relationships
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/models.TaskRelationshipRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.TaskRelationship'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Bulk create relationships
+      tags:
+      - task-relationships
+  /api/v1/tasks/{task_id}/relationships:
+    get:
+      description: Get all relationships for a specific task
+      parameters:
+      - description: Task ID
+        in: path
+        name: task_id
+        required: true
+        type: integer
+      - description: Filter by relationship type
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.TaskRelationship'
+                  type: array
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get task relationships
+      tags:
+      - task-relationships
+  /api/v1/tasks/{task_id}/with-relationships:
+    get:
+      description: Get a task with all its incoming and outgoing relationships
+      parameters:
+      - description: Task ID
+        in: path
+        name: task_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TaskWithRelationships'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get task with relationships
+      tags:
+      - task-relationships
+  /api/v1/tasks/{taskId}/work-notes:
+    get:
+      consumes:
+      - application/json
+      description: 获取与指定任务关联的所有工作笔记
+      parameters:
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.WorkNote'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: 获取任务关联的工作笔记
+      tags:
+      - work-notes
+      - tasks
+  /api/v1/tasks/{taskId}/work-notes/create-and-attach:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的工作笔记并自动关联到指定的任务
+      parameters:
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      - description: 创建工作笔记请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateWorkNoteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.WorkNote'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: 创建工作笔记并关联到任务
+      tags:
+      - work-notes
+      - tasks
+  /api/v1/work-notes:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户的工作笔记列表，支持过滤和分页
+      parameters:
+      - description: 文件夹ID
+        in: query
+        name: folder_id
+        type: integer
+      - description: 笔记类型
+        in: query
+        name: work_note_type
+        type: string
+      - description: 优先级
+        in: query
+        name: priority
+        type: string
+      - description: 可见性
+        in: query
+        name: visibility
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      - description: 是否置顶
+        in: query
+        name: is_pinned
+        type: boolean
+      - description: 是否收藏
+        in: query
+        name: is_bookmarked
+        type: boolean
+      - description: 标签，逗号分隔
+        in: query
+        name: tags
+        type: string
+      - description: 搜索关键词
+        in: query
+        name: search
+        type: string
+      - default: updated_at
+        description: 排序字段
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: 排序方向
+        in: query
+        name: order
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.WorkNoteListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: 获取工作笔记列表
+      tags:
+      - work-notes
+    post:
+      consumes:
+      - application/json
+      description: 创建新的工作笔记
+      parameters:
+      - description: 创建工作笔记请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateWorkNoteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.WorkNote'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: 创建工作笔记
+      tags:
+      - work-notes
+  /api/v1/work-notes/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取工作笔记详情
+      parameters:
+      - description: 工作笔记ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.WorkNote'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: 获取工作笔记详情
+      tags:
+      - work-notes
+    put:
+      consumes:
+      - application/json
+      description: 更新指定ID的工作笔记
+      parameters:
+      - description: 工作笔记ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新工作笔记请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateWorkNoteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.WorkNote'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: 更新工作笔记
+      tags:
+      - work-notes
+  /api/v1/work-notes/{id}/convert-preview:
+    post:
+      consumes:
+      - application/json
+      description: 预览工作笔记转换为任务文档的结果，不实际执行转换
+      parameters:
+      - description: 工作笔记ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 转换预览请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.ConvertPreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ConversionPreview'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: 获取工作笔记转任务文档的预览
+      tags:
+      - work-notes
+      - conversion
+  /api/v1/work-notes/{id}/convert-to-task-document:
+    post:
+      consumes:
+      - application/json
+      description: 将工作笔记转换为任务文档，支持多种转换选项
+      parameters:
+      - description: 工作笔记ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 转换请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.ConvertToTaskDocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.ConversionResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: 转换工作笔记为任务文档
+      tags:
+      - work-notes
+      - conversion
+  /api/v1/work-notes/batch-convert-to-task-documents:
+    post:
+      consumes:
+      - application/json
+      description: 批量将多个工作笔记转换为任务文档
+      parameters:
+      - description: 批量转换请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.BatchConvertRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.BatchConversionResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: 批量转换工作笔记为任务文档
+      tags:
+      - work-notes
+      - conversion
+  /api/v1/work-notes/search:
+    get:
+      consumes:
+      - application/json
+      description: 根据关键词搜索工作笔记
+      parameters:
+      - description: 搜索关键词
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: 标签，逗号分隔
+        in: query
+        name: tags
+        type: string
+      - default: 10
+        description: 返回结果数量限制
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.WorkNoteSearchResult'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: 搜索工作笔记
+      tags:
+      - work-notes
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with username and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.JWTLoginResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: User login
+      tags:
+      - Authentication
+  /daily-focus-tasks:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve daily focus tasks for the authenticated user
+      parameters:
+      - description: Focus date (YYYY-MM-DD)
+        in: query
+        name: date
+        type: string
+      - description: Task status
+        enum:
+        - active
+        - completed
+        - removed
+        in: query
+        name: status
+        type: string
+      - default: false
+        description: Include suggestions
+        in: query
+        name: include_suggestions
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Daily focus tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/models.DailyFocusTaskListResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get daily focus tasks
+      tags:
+      - Daily Focus Tasks
+    post:
+      consumes:
+      - application/json
+      description: Add a task to daily focus list
+      parameters:
+      - description: Create daily focus task request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateDailyFocusTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Daily focus task created successfully
+          schema:
+            $ref: '#/definitions/models.DailyFocusTask'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "409":
+          description: Task already exists
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add daily focus task
+      tags:
+      - Daily Focus Tasks
+  /daily-focus-tasks/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a task from daily focus list
+      parameters:
+      - description: Daily Focus Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Daily focus task deleted successfully
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete daily focus task
+      tags:
+      - Daily Focus Tasks
+    put:
+      consumes:
+      - application/json
+      description: Update a daily focus task
+      parameters:
+      - description: Daily Focus Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update daily focus task request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateDailyFocusTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Daily focus task updated successfully
+          schema:
+            $ref: '#/definitions/models.DailyFocusTask'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update daily focus task
+      tags:
+      - Daily Focus Tasks
+  /daily-focus-tasks/carry-over:
+    post:
+      consumes:
+      - application/json
+      description: Carry over uncompleted daily focus tasks from a previous date to
+        a new date
+      parameters:
+      - description: Carry over request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CarryOverTasksRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Tasks carried over successfully
+          schema:
+            $ref: '#/definitions/models.DailyFocusBatchResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Carry over daily focus tasks
+      tags:
+      - Daily Focus Tasks
+  /projects/{id}/tasks:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve tasks for a specific project with optional filtering and
+        pagination
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      - description: Task status
+        in: query
+        name: status
+        type: string
+      - description: Assignee ID
+        in: query
+        name: assignee_id
+        type: string
+      - description: Task priority
+        in: query
+        name: priority
+        type: string
+      - default: created_at
+        description: Sort field
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: Sort order
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/models.PaginatedResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get tasks for a project
+      tags:
+      - Tasks
+  /projects/{id}/tasks/{taskId}/move:
+    post:
+      consumes:
+      - application/json
+      description: Move a task to a different project and/or change its parent
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Task ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      - description: Move task request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.MoveTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task moved successfully
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Move task to different project or parent
+      tags:
+      - Tasks
+  /projects/{id}/tasks/{taskId}/reorder:
+    post:
+      consumes:
+      - application/json
+      description: Change the position of a task within its current parent/project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Task ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      - description: Reorder task request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.ReorderTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task reordered successfully
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Reorder task position
+      tags:
+      - Tasks
+  /projects/{id}/tasks/bulk-reorder:
+    post:
+      consumes:
+      - application/json
+      description: Reorder multiple tasks in a single operation
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Bulk reorder request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.BulkReorderTasksRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tasks reordered successfully
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Bulk reorder tasks
+      tags:
+      - Tasks
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

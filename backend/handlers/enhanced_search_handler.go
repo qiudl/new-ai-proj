@@ -410,7 +410,7 @@ func (h *EnhancedSearchHandler) SaveSearch(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "Saved search ID"
-// @Success 200 {object} models.SuccessResponse
+// @Success 200 {object} models.APIResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
@@ -669,7 +669,7 @@ func (h *EnhancedSearchHandler) GetSearchHistory(c *gin.Context) {
 // @Tags Search
 // @Accept json
 // @Produce json
-// @Success 200 {object} models.SuccessResponse
+// @Success 200 {object} models.APIResponse
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/search/history [delete]
 func (h *EnhancedSearchHandler) ClearSearchHistory(c *gin.Context) {
@@ -767,7 +767,7 @@ func (h *EnhancedSearchHandler) GetTrendingSearches(c *gin.Context) {
 // @Param type path string true "Content type (document, task, project, user)"
 // @Param id path int true "Content ID"
 // @Param limit query int false "Number of similar items"
-// @Success 200 {object} []SearchResult
+// @Success 200 {object} models.APIResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse

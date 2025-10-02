@@ -680,7 +680,7 @@ func (h *DailyFocusTaskHandler) UpdateDailyFocusTask(c *gin.Context) {
 // @Produce		json
 // @Security		BearerAuth
 // @Param			id	path		int	true	"Daily Focus Task ID"
-// @Success		200	{object}	models.NewSuccessResponse	"Daily focus task deleted successfully"
+// @Success		200	{object}	models.APIResponse	"Daily focus task deleted successfully"
 // @Failure		400	{object}	models.ErrorResponse	"Bad request"
 // @Failure		401	{object}	models.ErrorResponse	"Unauthorized"
 // @Failure		404	{object}	models.ErrorResponse	"Not found"
