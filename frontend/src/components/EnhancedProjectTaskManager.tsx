@@ -1298,25 +1298,69 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       cancelText: '取消',
       onOk: async () => {
         try {
-          // 使用批量删除API如果可用，否则并行删除
           const taskIds = selectedRowKeys.map(id => Number(id));
-          
+          let deletedCount = 0;
+          let failedTasks: Array<{id: number, error: string}> = [];
+
+          // 尝试使用批量删除API
           try {
-            // 尝试使用批量删除API
-            await TaskService.bulkDeleteTasks(projectId, taskIds);
-          } catch (error) {
-            // 如果批量删除不可用，使用并行删除
-            const deletePromises = taskIds.map(taskId => 
-              TaskService.deleteTask(projectId, taskId)
+            const result = await TaskService.bulkDeleteTasks(projectId, taskIds);
+            deletedCount = result.deleted_count || taskIds.length;
+            console.log('[BatchDelete] 批量删除成功', result);
+          } catch (bulkError) {
+            console.warn('[BatchDelete] 批量删除API失败，使用并行删除', bulkError);
+
+            // 批量删除失败，尝试逐个删除并收集错误
+            const deleteResults = await Promise.allSettled(
+              taskIds.map(taskId =>
+                TaskService.deleteTask(projectId, taskId)
+                  .then(() => ({ id: taskId, success: true }))
+                  .catch((err) => ({ id: taskId, success: false, error: err.message || String(err) }))
+              )
             );
-            await Promise.all(deletePromises);
+
+            deleteResults.forEach(result => {
+              if (result.status === 'fulfilled') {
+                const taskResult = result.value;
+                if (taskResult.success) {
+                  deletedCount++;
+                } else {
+                  failedTasks.push({ id: taskResult.id, error: taskResult.error || '未知错误' });
+                }
+              } else {
+                console.error('[BatchDelete] 删除任务失败', result.reason);
+              }
+            });
           }
-          
-          message.success(`成功删除了 ${selectedRowKeys.length} 个任务`);
-          setSelectedRowKeys([]);
-          loadData();
+
+          // 显示删除结果
+          if (deletedCount > 0) {
+            message.success(`成功删除了 ${deletedCount} 个任务${failedTasks.length > 0 ? `，${failedTasks.length} 个失败` : ''}`);
+            setSelectedRowKeys([]);
+            loadData();
+          }
+
+          // 如果有失败的任务，显示详细错误
+          if (failedTasks.length > 0) {
+            const errorDetails = failedTasks.map(t => `任务${t.id}: ${t.error}`).join('\n');
+            console.error('[BatchDelete] 删除失败的任务:', failedTasks);
+            Modal.error({
+              title: '部分任务删除失败',
+              content: (
+                <div>
+                  <p>以下任务删除失败:</p>
+                  <pre style={{ maxHeight: '200px', overflow: 'auto' }}>{errorDetails}</pre>
+                </div>
+              ),
+            });
+          }
+
+          // 如果全部失败，抛出错误
+          if (deletedCount === 0 && failedTasks.length > 0) {
+            throw new Error(`所有任务删除失败: ${failedTasks[0].error}`);
+          }
         } catch (error: Error | unknown) {
-          console.error('Error in batch delete:', error);
+          console.error('[BatchDelete] Error in batch delete:', error);
           const errorMessage = (error as any)?.message || (error as any)?.error?.message || '批量删除失败';
           message.error(`批量删除失败: ${errorMessage}`);
         }

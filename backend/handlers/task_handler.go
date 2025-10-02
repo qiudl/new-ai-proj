@@ -859,35 +859,55 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	taskID, err := strconv.Atoi(c.Param("taskId"))
 	if err != nil {
+		log.Printf("[DeleteTask] 无效的任务ID参数: %v", err)
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
 	}
+
+	log.Printf("[DeleteTask] 开始删除任务: taskID=%d", taskID)
 
 	// Get existing task to check if archived
 	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			log.Printf("[DeleteTask] 任务不存在: taskID=%d", taskID)
 			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "任务不存在", nil))
 		} else {
-			log.Printf("Error getting task: %v", err)
+			log.Printf("[DeleteTask] 获取任务失败: taskID=%d, error=%v", taskID, err)
 			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务失败", nil))
 		}
 		return
 	}
 
+	log.Printf("[DeleteTask] 任务信息: taskID=%d, title=%s, status=%s, archived=%v",
+		taskID, task.Title, task.Status, task.CustomFields != nil && task.CustomFields["archived"] == "true")
+
 	// Validate task is not archived
 	if errResp := h.validateTaskNotArchived(task, "删除"); errResp != nil {
+		log.Printf("[DeleteTask] 任务已归档，无法删除: taskID=%d", taskID)
 		c.JSON(http.StatusConflict, errResp)
 		return
 	}
 
+	// 执行删除操作
 	err = h.db.Tasks().Delete(c.Request.Context(), taskID)
 	if err != nil {
-		log.Printf("Error deleting task: %v", err)
-		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "删除任务失败", nil))
+		log.Printf("[DeleteTask] 删除任务失败: taskID=%d, error=%v, errorType=%T", taskID, err, err)
+
+		// 尝试提取更详细的错误信息
+		errorMessage := "删除任务失败"
+		if err != nil {
+			errorMessage = fmt.Sprintf("删除任务失败: %v", err)
+		}
+
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, errorMessage, map[string]interface{}{
+			"task_id": taskID,
+			"error_detail": err.Error(),
+		}))
 		return
 	}
 
+	log.Printf("[DeleteTask] 任务删除成功: taskID=%d", taskID)
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "任务删除成功"))
 }
 

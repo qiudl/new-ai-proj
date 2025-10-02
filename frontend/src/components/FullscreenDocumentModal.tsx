@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Spin, message } from 'antd';
-import { FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons';
+import { createPortal } from 'react-dom';
+import { Button, Spin, Tooltip } from 'antd';
+import { CloseOutlined } from '@ant-design/icons';
 import UnifiedTaskDocumentArea from './UnifiedTaskDocumentArea';
 
 interface FullscreenDocumentModalProps {
@@ -18,54 +19,102 @@ const FullscreenDocumentModal: React.FC<FullscreenDocumentModalProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
 
+  // ESC 键退出全屏
+  useEffect(() => {
+    if (!visible) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [visible, onClose]);
+
+  // 禁止背景滚动
+  useEffect(() => {
+    if (visible) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [visible]);
+
+  if (!visible) return null;
+
   const handleClose = () => {
     onClose();
   };
 
-  return (
-    <Modal
-      open={visible}
-      onCancel={handleClose}
-      footer={null}
-      width="100vw"
+  return createPortal(
+    <div
+      className="fullscreen-document-overlay z-fullscreen-absolute"
       style={{
+        position: 'fixed',
         top: 0,
-        paddingBottom: 0,
-        maxWidth: 'none'
-      }}
-      bodyStyle={{
-        padding: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
         height: '100vh',
+        zIndex: 99999,
+        background: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
         overflow: 'hidden'
       }}
-      destroyOnClose={true}
-      centered={false}
-      maskClosable={false}
-      keyboard={true}
-      title={
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          padding: '0 8px'
-        }}>
-          <span>任务文档全屏预览</span>
-          <span style={{ fontSize: '12px', color: '#666' }}>
-            按 ESC 键退出全屏
-          </span>
-        </div>
-      }
-      className="fullscreen-document-modal"
     >
-      <div style={{ height: '100%', overflow: 'hidden' }}>
+      {/* 右上角关闭按钮 */}
+      <Tooltip title="退出全屏 (ESC)">
+        <Button
+          type="text"
+          icon={<CloseOutlined />}
+          onClick={handleClose}
+          size="large"
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            zIndex: 100000,
+            fontSize: '20px',
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.06)',
+            borderRadius: '4px',
+            transition: 'all 0.3s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.12)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.06)';
+          }}
+        />
+      </Tooltip>
+
+      {/* 文档内容区域 - 占满整个屏幕 */}
+      <div style={{
+        width: '100%',
+        height: '100%',
+        overflow: 'auto',
+        background: '#fff'
+      }}>
         {loading ? (
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '50vh' 
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100%'
           }}>
-            <Spin size="large" />
+            <Spin size="large" tip="加载文档中..." />
           </div>
         ) : (
           <UnifiedTaskDocumentArea
@@ -78,14 +127,15 @@ const FullscreenDocumentModal: React.FC<FullscreenDocumentModalProps> = ({
             compactMode={false}
             headerVisible={true}
             includeSubtaskDocuments={false}
-            style={{ 
+            style={{
               height: '100%',
               border: 'none'
             }}
           />
         )}
       </div>
-    </Modal>
+    </div>,
+    document.body
   );
 };
 

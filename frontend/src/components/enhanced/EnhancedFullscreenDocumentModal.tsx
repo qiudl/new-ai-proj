@@ -90,6 +90,7 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [toolbarVisible, setToolbarVisible] = useState(true);
   const [lastActivity, setLastActivity] = useState(Date.now());
+  const fullscreenRef = React.useRef<HTMLDivElement>(null);
 
   // 自动隐藏工具栏
   useEffect(() => {
@@ -127,6 +128,69 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
       document.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, [visible]);
+
+  // HTML5 Fullscreen API 支持
+  const enterFullscreen = useCallback(async () => {
+    const element = fullscreenRef.current;
+    if (!element) return;
+
+    try {
+      if (element.requestFullscreen) {
+        await element.requestFullscreen();
+      } else if ((element as any).webkitRequestFullscreen) {
+        await (element as any).webkitRequestFullscreen();
+      } else if ((element as any).mozRequestFullScreen) {
+        await (element as any).mozRequestFullScreen();
+      } else if ((element as any).msRequestFullscreen) {
+        await (element as any).msRequestFullscreen();
+      }
+      setIsFullscreen(true);
+    } catch (error) {
+      console.error('进入全屏失败:', error);
+    }
+  }, []);
+
+  const exitFullscreen = useCallback(async () => {
+    try {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        await (document as any).webkitExitFullscreen();
+      } else if ((document as any).mozCancelFullScreen) {
+        await (document as any).mozCancelFullScreen();
+      } else if ((document as any).msExitFullscreen) {
+        await (document as any).msExitFullscreen();
+      }
+      setIsFullscreen(false);
+    } catch (error) {
+      console.error('退出全屏失败:', error);
+    }
+  }, []);
+
+  // 监听全屏状态变化
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      setIsFullscreen(isCurrentlyFullscreen);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   // 键盘快捷键处理
   useEffect(() => {
@@ -195,11 +259,10 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
       if (e.key === 'F11') {
         e.preventDefault();
         if (!isFullscreen) {
-          document.documentElement.requestFullscreen?.();
+          enterFullscreen();
         } else {
-          document.exitFullscreen?.();
+          exitFullscreen();
         }
-        setIsFullscreen(!isFullscreen);
       }
       
       // Escape 键关闭
@@ -210,7 +273,7 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
 
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [visible, document, onClose, onDownload, onShare, fontSize, showToc, toolbarVisible, isFullscreen]);
+  }, [visible, document, onClose, onDownload, onShare, fontSize, showToc, toolbarVisible, isFullscreen, enterFullscreen, exitFullscreen]);
 
   // 处理打印
   const handlePrint = useCallback(() => {
@@ -268,15 +331,14 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
     },
     {
       key: 'fullscreen',
-      label: isFullscreen ? '退出全屏' : '进入全屏',
+      label: isFullscreen ? '退出全屏 (F11)' : '进入全屏 (F11)',
       icon: isFullscreen ? <CompressOutlined /> : <ExpandOutlined />,
       onClick: () => {
         if (!isFullscreen) {
-          document.documentElement.requestFullscreen?.();
+          enterFullscreen();
         } else {
-          document.exitFullscreen?.();
+          exitFullscreen();
         }
-        setIsFullscreen(!isFullscreen);
       }
     }
   ];
@@ -592,9 +654,9 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
       footer={null}
       width="100vw"
       style={{ top: 0, paddingBottom: 0, maxWidth: 'none' }}
-      bodyStyle={{ 
-        padding: 0, 
-        height: '100vh', 
+      bodyStyle={{
+        padding: 0,
+        height: '100vh',
         overflow: 'hidden',
         background: theme === 'dark' ? '#0d1117' : '#fff'
       }}
@@ -607,7 +669,7 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
       title={null}
       closable={false}
     >
-      <div className="enhanced-document-container">
+      <div ref={fullscreenRef} className="enhanced-document-container">
         <div 
           className={`toolbar-container ${!toolbarVisible ? 'toolbar-hidden' : ''}`}
           onMouseEnter={() => {

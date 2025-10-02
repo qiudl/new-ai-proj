@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -734,37 +735,52 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 
 // Delete soft deletes a task and all its descendants (sets deleted_at timestamp)
 func (r *PostgresTaskRepository) Delete(ctx context.Context, id int) error {
+	log.Printf("[TaskRepository.Delete] 开始删除任务: taskID=%d", id)
+
 	// Use recursive CTE to find all descendants and delete them in one query
 	query := `
 		WITH RECURSIVE task_hierarchy AS (
 			-- Start with the target task (only if it exists and is not deleted)
 			SELECT id FROM tasks WHERE id = $1 AND deleted_at IS NULL
-			
+
 			UNION ALL
-			
+
 			-- Recursively find all children (including already deleted ones to handle edge cases)
 			SELECT t.id FROM tasks t
 			INNER JOIN task_hierarchy th ON t.parent_id = th.id
 			WHERE t.deleted_at IS NULL
 		)
-		UPDATE tasks 
-		SET deleted_at = NOW() 
-		WHERE id IN (SELECT id FROM task_hierarchy) 
+		UPDATE tasks
+		SET deleted_at = NOW()
+		WHERE id IN (SELECT id FROM task_hierarchy)
 		AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to delete task and children: %w", err)
+		log.Printf("[TaskRepository.Delete] SQL执行失败: taskID=%d, error=%v, errorType=%T", id, err, err)
+
+		// 尝试检查是否是外键约束错误
+		errStr := err.Error()
+		if strings.Contains(errStr, "foreign key") || strings.Contains(errStr, "violates") {
+			log.Printf("[TaskRepository.Delete] 外键约束冲突: taskID=%d, detail=%s", id, errStr)
+			return fmt.Errorf("无法删除任务：存在外键约束冲突 (任务ID: %d, 详情: %v)", id, err)
+		}
+
+		return fmt.Errorf("failed to delete task and children (taskID=%d): %w", id, err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to get affected rows: %w", err)
+		log.Printf("[TaskRepository.Delete] 获取影响行数失败: taskID=%d, error=%v", id, err)
+		return fmt.Errorf("failed to get affected rows (taskID=%d): %w", id, err)
 	}
 
+	log.Printf("[TaskRepository.Delete] 删除完成: taskID=%d, rowsAffected=%d", id, rowsAffected)
+
 	if rowsAffected == 0 {
-		return fmt.Errorf("task not found")
+		log.Printf("[TaskRepository.Delete] 任务未找到或已删除: taskID=%d", id)
+		return fmt.Errorf("task not found or already deleted (taskID=%d)", id)
 	}
 
 	return nil

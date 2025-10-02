@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { Task } from '../types/task';
 import { taskService } from '../services/taskService';
 import { errorLogger } from '../utils/ErrorLogger';
@@ -225,8 +225,9 @@ const taskReducer = (state: TaskState, action: TaskAction): TaskState => {
   }
 };
 
-// Context 创建
-const TaskContext = createContext<TaskContextType | undefined>(undefined);
+// 分离 Context - state 和 actions 分开存储以避免不必要的重新渲染
+const TaskStateContext = createContext<TaskState | undefined>(undefined);
+const TaskActionsContext = createContext<TaskContextType['actions'] | undefined>(undefined);
 
 // Provider 组件
 interface TaskProviderProps {
@@ -242,6 +243,12 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
 }) => {
   const [state, dispatch] = useReducer(taskReducer, initialState);
 
+  // 使用 ref 存储最新的 state，避免 useCallback 依赖导致函数重新创建
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   // 生成缓存键
   const generateCacheKey = useCallback((filters: TaskState['filters']) => {
     return JSON.stringify(filters);
@@ -249,22 +256,22 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
 
   // 检查缓存有效性
   const isCacheValid = useCallback((key: string) => {
-    const cached = state.cache.get(key);
+    const cached = stateRef.current.cache.get(key);
     if (!cached) return false;
     return Date.now() - cached.timestamp < cacheTimeout;
-  }, [state.cache, cacheTimeout]);
+  }, [cacheTimeout]);
 
   // 加载任务列表
   const loadTasks = useCallback(async (
     filters: Partial<TaskState['filters']> = {},
     forceRefresh = false
   ) => {
-    const mergedFilters = { ...state.filters, ...filters };
+    const mergedFilters = { ...stateRef.current.filters, ...filters };
     const cacheKey = generateCacheKey(mergedFilters);
 
     // 检查缓存
     if (!forceRefresh && isCacheValid(cacheKey)) {
-      const cached = state.cache.get(cacheKey);
+      const cached = stateRef.current.cache.get(cacheKey);
       if (cached) {
         dispatch({ type: 'SET_TASKS', payload: cached.data });
         errorLogger.debug('task', 'TaskContext: 使用缓存数据', {
@@ -297,7 +304,7 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
         filters: mergedFilters
       });
     }
-  }, [state.filters, state.cache, generateCacheKey, isCacheValid]);
+  }, [generateCacheKey, isCacheValid]);
 
   // 按ID加载任务
   const loadTaskById = useCallback(async (id: number): Promise<Task> => {
@@ -366,7 +373,7 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
     // 乐观更新
     if (optimistic) {
       dispatch({ type: 'SET_OPTIMISTIC_UPDATE', payload: { id, updates } });
-      const currentTask = state.tasks.find(task => task.id === id);
+      const currentTask = stateRef.current.tasks.find(task => task.id === id);
       if (currentTask) {
         dispatch({ type: 'UPDATE_TASK', payload: { ...currentTask, ...updates } });
       }
@@ -401,7 +408,7 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
 
       throw error;
     }
-  }, [state.tasks, loadTasks, enableOptimisticUpdates]);
+  }, [loadTasks, enableOptimisticUpdates]);
 
   // 删除任务
   const deleteTask = useCallback(async (id: number) => {
@@ -494,31 +501,32 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
       const now = Date.now();
       const validEntries = new Map();
 
-      for (const [key, value] of state.cache.entries()) {
+      for (const [key, value] of stateRef.current.cache.entries()) {
         if (now - value.timestamp < cacheTimeout) {
           validEntries.set(key, value);
         }
       }
 
-      if (validEntries.size < state.cache.size) {
+      if (validEntries.size < stateRef.current.cache.size) {
         dispatch({ type: 'CLEAR_CACHE' });
         for (const [key, value] of validEntries.entries()) {
           dispatch({ type: 'SET_CACHE', payload: { key, data: value.data } });
         }
 
         errorLogger.debug('task', 'TaskContext: 清理过期缓存', {
-          originalSize: state.cache.size,
+          originalSize: stateRef.current.cache.size,
           newSize: validEntries.size
         });
       }
     }, cacheTimeout);
 
     return () => clearInterval(cleanupInterval);
-  }, [state.cache, cacheTimeout]);
+  }, [cacheTimeout]);
 
-  const contextValue: TaskContextType = {
-    state,
-    actions: {
+  // actions 对象只创建一次，永远不变
+  const actions = useMemo(() => {
+    console.log('✨✨✨ [TaskContext] Creating actions object - THIS SHOULD ONLY APPEAR ONCE');
+    return {
       loadTasks,
       loadTaskById,
       createTask,
@@ -530,23 +538,40 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
       clearError,
       refreshStatistics,
       invalidateCache
-    }
-  };
+    };
+  }, [
+    loadTasks,
+    loadTaskById,
+    createTask,
+    updateTask,
+    deleteTask,
+    batchUpdateTasks,
+    selectTask,
+    setFilters,
+    clearError,
+    refreshStatistics,
+    invalidateCache
+  ]);
 
   return (
-    <TaskContext.Provider value={contextValue}>
-      {children}
-    </TaskContext.Provider>
+    <TaskStateContext.Provider value={state}>
+      <TaskActionsContext.Provider value={actions}>
+        {children}
+      </TaskActionsContext.Provider>
+    </TaskStateContext.Provider>
   );
 };
 
-// 基础 Hook
+// 基础 Hook - 兼容原有 API
 export const useTaskContext = (): TaskContextType => {
-  const context = useContext(TaskContext);
-  if (context === undefined) {
+  const state = useContext(TaskStateContext);
+  const actions = useContext(TaskActionsContext);
+
+  if (state === undefined || actions === undefined) {
     throw new Error('useTaskContext must be used within a TaskProvider');
   }
-  return context;
+
+  return { state, actions };
 };
 
 // 选择器 Hooks

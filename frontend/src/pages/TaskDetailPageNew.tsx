@@ -178,26 +178,62 @@ const TaskDetailPageNew: React.FC = () => {
     resetAllState
   } = useTaskDetailState();
   
-  // 使用渲染追踪hook来监控连续渲染问题（减少依赖避免循环）
-  const { renderCount } = useRenderTracker('TaskDetailPageNew', 
-    { projectId, taskId }, 
-    {}
-  );
-  
-  // 开发环境下的详细调试日志
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && renderCount > 10) {
-      console.warn(`😨 TaskDetailPageNew excessive renders: ${renderCount}`, {
-        projectId,
-        taskId,
-        activeTab: uiState.activeTab,
-        taskLoading: taskState.loading,
-        hasTask: !!taskState.task,
-        documentLoading: documentState.loading,
-        stackTrace: new Error().stack?.slice(0, 300)
-      });
+  // 临时禁用渲染追踪以排除监控工具的影响
+  // const { renderCount } = useRenderTracker('TaskDetailPageNew',
+  //   { projectId, taskId },
+  //   {}
+  // );
+
+  // 简单的渲染计数（不使用hook）
+  const renderCountRef = useRef(0);
+  renderCountRef.current++;
+
+  // 追踪哪些值在变化导致重新渲染
+  const prevValuesRef = useRef<any>({});
+  const currentValues = {
+    projectId,
+    taskId,
+    'taskState.task': taskState.task,
+    'taskState.loading': taskState.loading,
+    'documentState.exists': documentState.exists,
+    'documentState.count': documentState.count,
+    'uiState.activeTab': uiState.activeTab,
+    'updateUIState': updateUIState,
+    'updateTaskState': updateTaskState,
+  };
+
+  if (renderCountRef.current > 1 && renderCountRef.current % 100 === 0) {
+    const changes = Object.keys(currentValues).filter(key => {
+      const prev = prevValuesRef.current[key];
+      const current = currentValues[key as keyof typeof currentValues];
+      return prev !== current;
+    });
+
+    if (changes.length > 0) {
+      console.warn(`🔍 [Render #${renderCountRef.current}] Changed values:`, changes.map(k => ({
+        key: k,
+        prev: prevValuesRef.current[k],
+        current: currentValues[k as keyof typeof currentValues]
+      })));
     }
-  }, [renderCount, projectId, taskId, uiState.activeTab, taskState.loading, taskState.task, documentState.loading]);
+  }
+
+  prevValuesRef.current = currentValues;
+
+  // 临时禁用过度渲染警告，使用更精准的调试
+  // useEffect(() => {
+  //   if (process.env.NODE_ENV === 'development' && renderCount > 10) {
+  //     console.warn(`😨 TaskDetailPageNew excessive renders: ${renderCount}`, {
+  //       projectId,
+  //       taskId,
+  //       activeTab: uiState.activeTab,
+  //       taskLoading: taskState.loading,
+  //       hasTask: !!taskState.task,
+  //       documentLoading: documentState.loading,
+  //       stackTrace: new Error().stack?.slice(0, 300)
+  //     });
+  //   }
+  // }, [renderCount, projectId, taskId, uiState.activeTab, taskState.loading, taskState.task, documentState.loading]);
 
   // 🆕 Timer hook for refreshing timer state when task completes
   const { refreshTimer } = useTimer();
@@ -1488,12 +1524,12 @@ const TaskDetailPageNew: React.FC = () => {
   return (
     <div className="task-detail-container" style={{ padding: '24px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
       {/* 开发环境渲染计数器 */}
-      {process.env.NODE_ENV === 'development' && renderCount > 3 && (
+      {process.env.NODE_ENV === 'development' && renderCountRef.current > 3 && (
         <div style={{
           position: 'fixed',
           top: '10px',
           right: showPerformanceDashboard ? '420px' : '10px',
-          background: renderCount > 10 ? '#ff4d4f' : renderCount > 5 ? '#fa8c16' : '#52c41a',
+          background: renderCountRef.current > 10 ? '#ff4d4f' : renderCountRef.current > 5 ? '#fa8c16' : '#52c41a',
           color: 'white',
           padding: '4px 8px',
           borderRadius: '4px',
@@ -1506,7 +1542,7 @@ const TaskDetailPageNew: React.FC = () => {
         onClick={() => setShowPerformanceDashboard(!showPerformanceDashboard)}
         title="点击切换性能仪表板"
         >
-          🔄 Renders: {renderCount} {showPerformanceDashboard ? '▼' : '▶'}
+          🔄 Renders: {renderCountRef.current} {showPerformanceDashboard ? '▼' : '▶'}
         </div>
       )}
       
