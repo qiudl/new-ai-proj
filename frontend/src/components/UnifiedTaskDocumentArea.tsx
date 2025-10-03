@@ -361,28 +361,30 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   
   // 加载文档列表 - 高度优化版本，支持渐进式加载
   const loadDocuments = useCallback(async (force = false) => {
+    console.log(`🔍 [LOAD-DOCS] Starting loadDocuments - projectId: ${projectId}, taskId: ${taskId}, force: ${force}, loading: ${loadingRef.current}`);
+
     // 防止重复加载
     if (loadingRef.current && !force) {
-      console.log('Documents already loading, skipping...');
+      console.log('⏸️ [LOAD-DOCS] Documents already loading, skipping...');
       return;
     }
-    
+
     // 检查缓存
     const cacheKey = `${projectId}:${taskId}:${includeDescendants}`;
     const cached = documentCache.current.get(cacheKey);
     if (cached && !force) {
-      console.log('Using cached documents');
+      console.log(`💾 [LOAD-DOCS] Using cached documents (${cached.length} items)`);
       setDocuments(cached);
       onDocumentChange?.(cached);
       return;
     }
-    
+
     loadingRef.current = true;
     setLoading(true);
-    
+    console.log('📥 [LOAD-DOCS] Fetching documents from API...');
+
     // 开始性能监控
     const loadStartTime = performance.now();
-    console.log('📊 Starting document loading...');
     
     // 避免清空文档状态导致重新渲染
     if (force) {

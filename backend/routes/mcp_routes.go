@@ -141,10 +141,27 @@ func createAndAttachTaskDocument(h *handlers.DocumentHandler, app ApplicationInt
 			}
 		}
 
-		// 生成默认标题（如果没有提供）
-		title := req.Title
+		// 生成默认标题（如果没有提供或为空）
+		title := strings.TrimSpace(req.Title)
 		if title == "" {
-			title = "任务文档"
+			// 从内容第一行提取标题
+			lines := strings.Split(req.Content, "\n")
+			if len(lines) > 0 {
+				firstLine := strings.TrimSpace(lines[0])
+				// 移除Markdown标题标记
+				firstLine = strings.TrimPrefix(firstLine, "#")
+				firstLine = strings.TrimSpace(firstLine)
+				// 限制标题长度为50个字符
+				if len(firstLine) > 50 {
+					title = firstLine[:50] + "..."
+				} else if firstLine != "" {
+					title = firstLine
+				} else {
+					title = "任务文档"
+				}
+			} else {
+				title = "任务文档"
+			}
 		}
 
 		// 设置路径参数，模拟标准API调用
