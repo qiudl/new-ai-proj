@@ -33,15 +33,18 @@ const FullscreenDocumentModal: React.FC<FullscreenDocumentModalProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [visible, onClose]);
 
-  // 禁止背景滚动
+  // 禁止背景滚动 + 隐藏 header 和 sidebar
   useEffect(() => {
     if (visible) {
       document.body.style.overflow = 'hidden';
+      document.body.classList.add('fullscreen-doc-active');
     } else {
       document.body.style.overflow = '';
+      document.body.classList.remove('fullscreen-doc-active');
     }
     return () => {
       document.body.style.overflow = '';
+      document.body.classList.remove('fullscreen-doc-active');
     };
   }, [visible]);
 
