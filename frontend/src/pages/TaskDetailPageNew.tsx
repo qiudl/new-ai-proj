@@ -109,6 +109,60 @@ const { Title, Paragraph, Text } = Typography;
 // 启用dayjs相对时间插件
 dayjs.extend(relativeTime);
 
+// 工具函数:获取更新类型信息 - 提取到组件外避免重复创建
+const getUpdateTypeInfo = (type: string) => {
+  const types = {
+    'status': { icon: '🔄', text: '状态变更', color: 'blue' },
+    'priority': { icon: '🔥', text: '优先级调整', color: 'orange' },
+    'assignee': { icon: '👤', text: '负责人变更', color: 'green' },
+    'due_date': { icon: '📅', text: '截止时间调整', color: 'purple' },
+    'description': { icon: '📝', text: '描述更新', color: 'cyan' },
+    'title': { icon: '✏️', text: '标题修改', color: 'geekblue' },
+    'tags': { icon: '🏷️', text: '标签变更', color: 'magenta' },
+    'custom_fields': { icon: '⚙️', text: '自定义字段更新', color: 'volcano' },
+    'created': { icon: '✨', text: '任务创建', color: 'green' },
+    'completed': { icon: '✅', text: '任务完成', color: 'green' },
+    'archived': { icon: '📦', text: '任务归档', color: 'default' }
+  };
+  return types[type as keyof typeof types] || { icon: '📄', text: '信息更新', color: 'gray' };
+};
+
+// 工具函数:获取变更详情 - 提取到组件外避免重复创建
+const getChangeDetails = (updateItem: any) => {
+  try {
+    if (updateItem.old_value && updateItem.new_value) {
+      const oldVal = typeof updateItem.old_value === 'string' ? updateItem.old_value : JSON.stringify(updateItem.old_value);
+      const newVal = typeof updateItem.new_value === 'string' ? updateItem.new_value : JSON.stringify(updateItem.new_value);
+
+      if (updateItem.update_type === 'status') {
+        const statusMap = {
+          'todo': '待开始',
+          'in_progress': '进行中',
+          'completed': '已完成',
+          'cancelled': '已取消'
+        };
+        return `${statusMap[oldVal as keyof typeof statusMap] || oldVal} → ${statusMap[newVal as keyof typeof statusMap] || newVal}`;
+      }
+
+      if (updateItem.update_type === 'priority') {
+        const priorityMap = { 'low': '低', 'medium': '中', 'high': '高' };
+        return `${priorityMap[oldVal as keyof typeof priorityMap] || oldVal} → ${priorityMap[newVal as keyof typeof priorityMap] || newVal}`;
+      }
+
+      if (updateItem.update_type === 'due_date') {
+        const oldDate = oldVal ? dayjs(oldVal).format('YYYY-MM-DD') : '未设置';
+        const newDate = newVal ? dayjs(newVal).format('YYYY-MM-DD') : '未设置';
+        return `${oldDate} → ${newDate}`;
+      }
+
+      return `"${oldVal}" → "${newVal}"`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 interface TaskCompletionStats {
   totalSubtasks: number;
   completedSubtasks: number;
@@ -188,37 +242,43 @@ const TaskDetailPageNew: React.FC = () => {
   const renderCountRef = useRef(0);
   renderCountRef.current++;
 
-  // 追踪哪些值在变化导致重新渲染
+  // 追踪哪些值在变化导致重新渲染 - 仅在启用性能调试时执行
+  const ENABLE_RENDER_TRACKING = process.env.REACT_APP_ENABLE_PERF_MONITOR === 'true';
+
   const prevValuesRef = useRef<any>({});
-  const currentValues = {
-    projectId,
-    taskId,
-    'taskState.task': taskState.task,
-    'taskState.loading': taskState.loading,
-    'documentState.exists': documentState.exists,
-    'documentState.count': documentState.count,
-    'uiState.activeTab': uiState.activeTab,
-    'updateUIState': updateUIState,
-    'updateTaskState': updateTaskState,
-  };
 
-  if (renderCountRef.current > 1 && renderCountRef.current % 100 === 0) {
-    const changes = Object.keys(currentValues).filter(key => {
-      const prev = prevValuesRef.current[key];
-      const current = currentValues[key as keyof typeof currentValues];
-      return prev !== current;
-    });
+  if (ENABLE_RENDER_TRACKING) {
+    const currentValues = {
+      projectId,
+      taskId,
+      'taskState.task': taskState.task,
+      'taskState.loading': taskState.loading,
+      'documentState.exists': documentState.exists,
+      'documentState.count': documentState.count,
+      'uiState.activeTab': uiState.activeTab,
+      'updateUIState': updateUIState,
+      'updateTaskState': updateTaskState,
+    };
 
-    if (changes.length > 0) {
-      console.warn(`🔍 [Render #${renderCountRef.current}] Changed values:`, changes.map(k => ({
-        key: k,
-        prev: prevValuesRef.current[k],
-        current: currentValues[k as keyof typeof currentValues]
-      })));
+    // 降低检查频率从每100次到每500次,减少CPU消耗
+    if (renderCountRef.current > 1 && renderCountRef.current % 500 === 0) {
+      const changes = Object.keys(currentValues).filter(key => {
+        const prev = prevValuesRef.current[key];
+        const current = currentValues[key as keyof typeof currentValues];
+        return prev !== current;
+      });
+
+      if (changes.length > 0) {
+        console.warn(`🔍 [Render #${renderCountRef.current}] Changed values:`, changes.map(k => ({
+          key: k,
+          prev: prevValuesRef.current[k],
+          current: currentValues[k as keyof typeof currentValues]
+        })));
+      }
     }
-  }
 
-  prevValuesRef.current = currentValues;
+    prevValuesRef.current = currentValues;
+  }
 
   // 临时禁用过度渲染警告，使用更精准的调试
   // useEffect(() => {
@@ -552,11 +612,13 @@ const TaskDetailPageNew: React.FC = () => {
     }
   }, [projectId, taskId, navigate, updateTaskState, updateRelationState, updateCompletionState, updateHistoryState]);
 
-  // 并行加载所有任务数据（使用当前task状态）
-  const loadAllTaskData = useCallback(async () => {
-    if (!projectId || !taskId || !taskState.task) return;
-    await loadAllTaskDataWithTask(taskState.task);
-  }, [projectId, taskId, taskState.task]);
+  // 使用ref存储task避免依赖taskState.task导致循环重建
+  const taskRef = useRef<Task | null>(null);
+
+  // 同步task到ref
+  useEffect(() => {
+    taskRef.current = taskState.task;
+  }, [taskState.task]);
 
   // 并行加载所有任务数据（使用传入的task参数）
   const loadAllTaskDataWithTask = useCallback(async (taskData: Task) => {
@@ -710,46 +772,53 @@ const TaskDetailPageNew: React.FC = () => {
     }
   }, [projectId, taskId, updateRelationState, updateProjectState, updateHistoryState, updateCompletionState]);
 
+  // 并行加载所有任务数据（使用ref中的task,避免依赖taskState.task）
+  const loadAllTaskData = useCallback(async () => {
+    if (!projectId || !taskId || !taskRef.current) return;
+    await loadAllTaskDataWithTask(taskRef.current);
+  }, [projectId, taskId, loadAllTaskDataWithTask]);
+
   // 计算完成统计 - 现在从钩子中获取
   // calculateCompletionStats 函数已在useTaskDetailState中定义
 
   // 加载关联任务
   const loadRelatedTasks = useCallback(async (page: number = 1) => {
-    if (!taskState.task || !projectId) return;
-    
+    const currentTask = taskRef.current;
+    if (!currentTask || !projectId) return;
+
     const parsedProjectId = parseInt(projectId);
     if (isNaN(parsedProjectId)) return;
-    
+
     try {
       updateRelationState({ loading: true });
-      
+
       // 获取同项目下的其他任务
       const tasksResponse = await TaskService.getTasks(parsedProjectId, {
         page,
         page_size: pageSize
       });
-      
+
       if (tasksResponse && tasksResponse.data) {
         const allTasks = Array.isArray(tasksResponse.data) ? tasksResponse.data : [];
         // 排除当前任务
-        const tasks = allTasks.filter(t => t.id !== taskState.task!.id);
-        
+        const tasks = allTasks.filter(t => t.id !== currentTask.id);
+
         // 根据关联性排序任务
         const sortedTasks = tasks.sort((a: Task, b: Task) => {
           // 1. 相同状态的任务优先
-          if (a.status === taskState.task!.status && b.status !== taskState.task!.status) return -1;
-          if (b.status === taskState.task!.status && a.status !== taskState.task!.status) return 1;
-          
+          if (a.status === currentTask.status && b.status !== currentTask.status) return -1;
+          if (b.status === currentTask.status && a.status !== currentTask.status) return 1;
+
           // 2. 相同优先级的任务其次
           const aPriority = a.custom_fields?.priority || 'medium';
           const bPriority = b.custom_fields?.priority || 'medium';
-          const taskPriority = taskState.task!.custom_fields?.priority || 'medium';
+          const taskPriority = currentTask.custom_fields?.priority || 'medium';
           if (aPriority === taskPriority && bPriority !== taskPriority) return -1;
           if (bPriority === taskPriority && aPriority !== taskPriority) return 1;
-          
+
           // 3. 相同负责人的任务
-          if (a.assignee_id === taskState.task!.assignee_id && b.assignee_id !== taskState.task!.assignee_id) return -1;
-          if (b.assignee_id === taskState.task!.assignee_id && a.assignee_id !== taskState.task!.assignee_id) return 1;
+          if (a.assignee_id === currentTask.assignee_id && b.assignee_id !== currentTask.assignee_id) return -1;
+          if (b.assignee_id === currentTask.assignee_id && a.assignee_id !== currentTask.assignee_id) return 1;
           
           // 4. 最后按更新时间排序
           return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
@@ -763,7 +832,7 @@ const TaskDetailPageNew: React.FC = () => {
       message.error('加载关联任务失败');
       updateRelationState({ loading: false });
     }
-  }, [taskState.task, projectId, pageSize, updateRelationState]);
+  }, [taskRef, projectId, pageSize, updateRelationState]); // 使用taskRef避免依赖taskState.task
 
   // 处理关联任务分页
   const handleRelatedTasksPageChange = useCallback((page: number) => {
@@ -791,11 +860,17 @@ const TaskDetailPageNew: React.FC = () => {
   }, [cleanupAll, resetAllState]);
   
   // 开发环境下的性能监控定时器
+  // 性能监控定时器 - 仅在需要调试时手动启用
   useEffect(() => {
+    // 通过环境变量控制是否启用性能监控,避免持续消耗CPU
+    const ENABLE_PERF_MONITOR = process.env.REACT_APP_ENABLE_PERF_MONITOR === 'true';
+
+    if (!ENABLE_PERF_MONITOR || !task) return;
+
     let performanceTimer: NodeJS.Timeout | null = null;
     let renderingMonitorTimer: NodeJS.Timeout | null = null;
-    
-    if (process.env.NODE_ENV === 'development' && task) {
+
+    if (process.env.NODE_ENV === 'development') {
       // 性能监控定时器
       performanceTimer = setInterval(() => {
         const metrics = taskDetailPerformanceMonitor.getMetrics();
@@ -805,12 +880,12 @@ const TaskDetailPageNew: React.FC = () => {
           console.groupEnd();
         }
       }, 30000); // 每30秒输出一次报告
-      
+
       // 渲染监控定时器
       renderingMonitorTimer = setInterval(() => {
         const renderStats = renderingPerformanceMonitor.getPerformanceStats();
         const alerts = renderingPerformanceMonitor.getContinuousRenderingAlerts();
-        
+
         if (alerts.length > 0) {
           console.group('😨 连续渲染问题报告');
           alerts.forEach(alert => {
@@ -821,14 +896,14 @@ const TaskDetailPageNew: React.FC = () => {
           console.groupEnd();
         }
       }, 10000); // 每10秒检查一次渲染问题
-      
+
       // 注册清理函数
       addCleanupFunction(() => {
         if (performanceTimer) clearInterval(performanceTimer);
         if (renderingMonitorTimer) clearInterval(renderingMonitorTimer);
       });
     }
-    
+
     return () => {
       if (performanceTimer) clearInterval(performanceTimer);
       if (renderingMonitorTimer) clearInterval(renderingMonitorTimer);
@@ -849,15 +924,17 @@ const TaskDetailPageNew: React.FC = () => {
   //   }
   // }, [location.search, uiState.activeTab, updateUIState]);
 
-  // 当切换到文档Tab时再检查文档存在与数量，避免初始加载时的重网络与遍历
-  useEffect(() => {
-    if (uiState.activeTab === 'document' && !documentState.loading && documentState.exists === null) {
-      // 直接调用避免依赖问题
-      if (taskState.task && projectId) {
-        checkDocumentExistsForTask(taskState.task);
-      }
-    }
-  }, [uiState.activeTab, documentState.loading, documentState.exists, taskState.task, projectId]); // 使用稳定依赖
+  // 移除重复的文档检查 - UnifiedTaskDocumentArea组件自己会加载文档
+  // 避免重复API调用和潜在的状态循环依赖
+  // useEffect(() => {
+  //   if (uiState.activeTab === 'document' && !documentState.loading && documentState.exists === null) {
+  //     console.log(`📄 [DOC-CHECK] Checking documents for task, loading: ${documentState.loading}, exists: ${documentState.exists}`);
+  //     // 直接调用避免依赖问题
+  //     if (taskState.task && projectId) {
+  //       checkDocumentExistsForTask(taskState.task);
+  //     }
+  //   }
+  // }, [uiState.activeTab, documentState.loading, documentState.exists, taskState.task, projectId]); // 使用稳定依赖
   
   // 文档Tab性能监控
   const documentTabTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -893,6 +970,7 @@ const TaskDetailPageNew: React.FC = () => {
 
   // 使用稳定回调避免子组件因回调变动触发重复加载导致的渲染循环
   const handleDocsChange = useCallback((docs: DocumentItem[]) => {
+    console.log(`📝 [DOCS-CHANGE] Received ${docs.length} documents from UnifiedTaskDocumentArea`);
     updateDocumentState({
       exists: docs.length > 0,
       count: docs.length,
@@ -933,9 +1011,10 @@ const TaskDetailPageNew: React.FC = () => {
     }
   }), []);
   
-  const getStatusConfig = useCallback((status: string) => {
+  // 简单查找函数不需要useCallback包装
+  const getStatusConfig = (status: string) => {
     return statusConfigs[status as keyof typeof statusConfigs] || statusConfigs.todo;
-  }, [statusConfigs]);
+  };
 
   // 使用useMemo优化优先级配置
   const priorityConfigs = useMemo(() => ({
@@ -944,10 +1023,11 @@ const TaskDetailPageNew: React.FC = () => {
     low: { color: '#52c41a', text: '低' },
     default: { color: '#d9d9d9', text: '未知' }
   }), []);
-  
-  const getPriorityConfig = useCallback((priority: string) => {
+
+  // 简单查找函数不需要useCallback包装
+  const getPriorityConfig = (priority: string) => {
     return priorityConfigs[priority as keyof typeof priorityConfigs] || priorityConfigs.default;
-  }, [priorityConfigs]);
+  };
 
 // 使用useMemo优化计算剩余时间
   const timeRemaining = useMemo(() => {
@@ -968,9 +1048,10 @@ const TaskDetailPageNew: React.FC = () => {
     }
   }, [task?.due_date]);
 
-  const handleEditTask = useCallback(() => {
+  // 简单的state更新不需要useCallback
+  const handleEditTask = () => {
     updateUIState({ taskModalMode: 'edit', taskModalVisible: true });
-  }, [updateUIState]);
+  };
 
   const handleUpdateTask = async (taskData: Partial<TaskRequest>) => {
     if (!taskState.task || !projectId) return;
@@ -1033,13 +1114,14 @@ const TaskDetailPageNew: React.FC = () => {
     });
   }, [taskState.task, projectId, navigate]);
 
-  const handleCreateSubtask = useCallback(() => {
+  // 简单的state更新不需要useCallback
+  const handleCreateSubtask = () => {
     updateUIState({ taskModalMode: 'createSubtask', taskModalVisible: true });
-  }, [updateUIState]);
+  };
 
-  const handleCreateSibling = useCallback(() => {
+  const handleCreateSibling = () => {
     updateUIState({ taskModalMode: 'createSibling', taskModalVisible: true });
-  }, [updateUIState]);
+  };
 
   // Tab预加载管理
   const [preloadedTabs, setPreloadedTabs] = useState(new Set<string>(['info'])); // info tab默认已加载
@@ -1100,18 +1182,28 @@ const TaskDetailPageNew: React.FC = () => {
   // 优化Tab切换处理函数 - 最小化依赖以防止无限渲染
   const handleTabChange = useCallback((key: string) => {
     const switchStartTime = performance.now();
-    
+
     // 使用当前值而不是依赖，减少回调重建
     const currentActiveTab = uiState.activeTab;
     const currentTaskId = task?.id;
     const currentDocumentCount = documentState.count;
     const isPreloaded = preloadedTabs.has(key);
-    
-    console.log(`📊 Tab switching from '${currentActiveTab}' to '${key}', preloaded: ${isPreloaded}`);
-    
+
+    console.log(`🔄 [TAB-SWITCH] From '${currentActiveTab}' to '${key}', preloaded: ${isPreloaded}, taskId: ${currentTaskId}, docCount: ${currentDocumentCount}`);
+
+    // 文档tab特殊优化:预加载组件代码
+    if (key === 'document' && !isPreloaded) {
+      console.log('⚡ [PRELOAD] Pre-importing UnifiedTaskDocumentArea...');
+      import('../components/UnifiedTaskDocumentArea').then(() => {
+        console.log('✅ [PRELOAD] UnifiedTaskDocumentArea loaded');
+      }).catch(err => {
+        console.error('❌ [PRELOAD] Failed to load UnifiedTaskDocumentArea:', err);
+      });
+    }
+
     // 立即预加载目标tab
     preloadTab(key);
-    
+
     // 立即更新状态以获得更快的响应
     updateUIState({ activeTab: key });
     
@@ -1294,15 +1386,9 @@ const TaskDetailPageNew: React.FC = () => {
   }, [navigate]);
 
   // Calculate derived values with memoization
-  const statusConfig = useMemo(() => 
-    task ? getStatusConfig(task.status) : null, 
-    [task?.status, getStatusConfig]
-  );
-  
-  const priorityConfig = useMemo(() => 
-    task ? getPriorityConfig(task.custom_fields?.priority as string || 'medium') : null, 
-    [task?.custom_fields?.priority, getPriorityConfig]
-  );
+  // 简单查找操作,直接调用即可
+  const statusConfig = task ? getStatusConfig(task.status) : null;
+  const priorityConfig = task ? getPriorityConfig(task.custom_fields?.priority as string || 'medium') : null;
   
 
 
@@ -1421,12 +1507,25 @@ const TaskDetailPageNew: React.FC = () => {
         label: documentTabLabel,
         children: uiState.activeTab === 'document' ? (
           <div>
-            <Suspense 
+            <Suspense
               fallback={
-                <div style={{ padding: '20px', textAlign: 'center' }}>
-                  <Spin size="large" tip="加载文档区域..." />
-                  <div style={{ marginTop: '12px', color: '#8c8c8c' }}>
-                    正在初始化文档组件，请稍候...
+                <div style={{
+                  padding: '60px 20px',
+                  textAlign: 'center',
+                  background: '#fafafa',
+                  borderRadius: '8px',
+                  minHeight: '400px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
+                  <Spin size="large" />
+                  <div style={{ marginTop: '24px', fontSize: '16px', color: '#1890ff', fontWeight: 500 }}>
+                    ⚡ 正在加载文档编辑器...
+                  </div>
+                  <div style={{ marginTop: '8px', color: '#8c8c8c', fontSize: '14px' }}>
+                    首次加载可能需要几秒钟
                   </div>
                 </div>
               }
@@ -2073,62 +2172,8 @@ const TaskDetailPageNew: React.FC = () => {
                     <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                       <Timeline>
                         {historyState.taskUpdates.map((update: any, index: number) => {
-                          // 获取更新类型的详细信息和处理更新详情的逻辑保持不变
-                          const getUpdateTypeInfo = (type: string) => {
-                            const types = {
-                              'status': { icon: '🔄', text: '状态变更', color: 'blue' },
-                              'priority': { icon: '🔥', text: '优先级调整', color: 'orange' },
-                              'assignee': { icon: '👤', text: '负责人变更', color: 'green' },
-                              'due_date': { icon: '📅', text: '截止时间调整', color: 'purple' },
-                              'description': { icon: '📝', text: '描述更新', color: 'cyan' },
-                              'title': { icon: '✏️', text: '标题修改', color: 'geekblue' },
-                              'tags': { icon: '🏷️', text: '标签变更', color: 'magenta' },
-                              'custom_fields': { icon: '⚙️', text: '自定义字段更新', color: 'volcano' },
-                              'created': { icon: '✨', text: '任务创建', color: 'green' },
-                              'completed': { icon: '✅', text: '任务完成', color: 'green' },
-                              'archived': { icon: '📦', text: '任务归档', color: 'default' }
-                            };
-                            return types[type as keyof typeof types] || { icon: '📄', text: '信息更新', color: 'gray' };
-                          };
-
+                          // 使用组件外部定义的工具函数,避免每次map都重新创建
                           const updateInfo = getUpdateTypeInfo(update.update_type);
-                          
-                          // 解析变更详情
-                          const getChangeDetails = (updateItem: any) => {
-                            try {
-                              if (updateItem.old_value && updateItem.new_value) {
-                                const oldVal = typeof updateItem.old_value === 'string' ? updateItem.old_value : JSON.stringify(updateItem.old_value);
-                                const newVal = typeof updateItem.new_value === 'string' ? updateItem.new_value : JSON.stringify(updateItem.new_value);
-                                
-                                if (updateItem.update_type === 'status') {
-                                  const statusMap = {
-                                    'todo': '待开始',
-                                    'in_progress': '进行中', 
-                                    'completed': '已完成',
-                                    'cancelled': '已取消'
-                                  };
-                                  return `${statusMap[oldVal as keyof typeof statusMap] || oldVal} → ${statusMap[newVal as keyof typeof statusMap] || newVal}`;
-                                }
-                                
-                                if (updateItem.update_type === 'priority') {
-                                  const priorityMap = { 'low': '低', 'medium': '中', 'high': '高' };
-                                  return `${priorityMap[oldVal as keyof typeof priorityMap] || oldVal} → ${priorityMap[newVal as keyof typeof priorityMap] || newVal}`;
-                                }
-                                
-                                if (updateItem.update_type === 'due_date') {
-                                  const oldDate = oldVal ? dayjs(oldVal).format('YYYY-MM-DD') : '未设置';
-                                  const newDate = newVal ? dayjs(newVal).format('YYYY-MM-DD') : '未设置';
-                                  return `${oldDate} → ${newDate}`;
-                                }
-                                
-                                return `"${oldVal}" → "${newVal}"`;
-                              }
-                              return null;
-                            } catch {
-                              return null;
-                            }
-                          };
-
                           const changeDetails = getChangeDetails(update);
                           const timeAgo = dayjs(update.created_at).fromNow();
 
