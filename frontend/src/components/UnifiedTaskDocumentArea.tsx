@@ -22,7 +22,8 @@ import {
   Spin,
   Modal,
   Input,
-  message
+  message,
+  Descriptions
 } from 'antd';
 import type { MenuProps, TabsProps } from 'antd';
 import {
@@ -314,6 +315,12 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   const [editContent, setEditContent] = useState('');
   const [editTitle, setEditTitle] = useState('');
 
+  // 信息面板展开/收起状态
+  const [isInfoPanelExpanded, setIsInfoPanelExpanded] = useState(() => {
+    const saved = localStorage.getItem('taskDocPreview_infoPanelExpanded');
+    return saved === 'true';
+  });
+
   // 防抖计时器引用
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -336,6 +343,11 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
       setEditTitle(selectedDocument.title);
     }
   }, [selectedDocument]);
+
+  // 保存信息面板状态到localStorage
+  useEffect(() => {
+    localStorage.setItem('taskDocPreview_infoPanelExpanded', String(isInfoPanelExpanded));
+  }, [isInfoPanelExpanded]);
 
   // 快速过滤：全部 / 仅本任务 / 仅子任务
   const [filterMode, setFilterMode] = useState<'all' | 'root' | 'desc'>('all');
@@ -1493,20 +1505,29 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         );
         
       case 'preview':
+        console.log('🔍 Preview mode - selectedDocument:', !!selectedDocument, 'isInfoPanelExpanded:', isInfoPanelExpanded);
         return selectedDocument ? (
           <Card
             style={{
               height: isFullscreen ? 'calc(100vh - 120px)' : 'auto',
-              overflow: isFullscreen ? 'auto' : 'visible'
+              overflow: 'hidden'
             }}
             styles={{
               body: {
-                padding: isFullscreen ? '32px' : '16px',
+                padding: 0,
                 height: isFullscreen ? 'calc(100vh - 180px)' : 'auto',
-                overflow: isFullscreen ? 'auto' : 'visible'
+                display: 'flex',
+                flexDirection: 'row'
               }
             }}
           >
+            {/* 主编辑区域 */}
+            <div className="main-edit-area" style={{
+              flex: 1,
+              minWidth: '600px',
+              padding: isFullscreen ? '32px' : '16px',
+              overflow: 'auto'
+            }}>
             {/* 标题编辑区域 */}
             <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <Input
@@ -1571,6 +1592,134 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                 paddingTop: '16px'
               }}>
                 💡 提示：按 ESC 键退出全屏预览
+              </div>
+            )}
+            </div>
+
+            {/* 右侧：快捷操作栏或信息面板 */}
+            {!isInfoPanelExpanded ? (
+              // 收起状态：快捷操作栏
+              <div className="quick-action-bar" style={{
+                width: '48px',
+                minWidth: '48px',
+                flexShrink: 0,
+                background: '#e6f7ff',  // 改为蓝色背景，更容易看到
+                borderLeft: '2px solid #1890ff',  // 改为蓝色边框
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '8px 4px',
+                gap: '8px',
+                overflow: 'visible'
+              }}>
+                <Tooltip title="展开信息" placement="left">
+                  <Button
+                    icon={<RightOutlined />}
+                    onClick={() => setIsInfoPanelExpanded(true)}
+                    type="text"
+                    style={{ width: '32px', height: '32px' }}
+                  />
+                </Tooltip>
+                <Divider style={{ margin: '4px 0' }} />
+                <Tooltip title="删除" placement="left">
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => handleDocumentDelete(selectedDocument)}
+                    type="text"
+                    style={{ width: '32px', height: '32px' }}
+                  />
+                </Tooltip>
+                <Tooltip title="下载" placement="left">
+                  <Button
+                    icon={<DownloadOutlined />}
+                    onClick={() => {
+                      const blob = new Blob([selectedDocument.content], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${selectedDocument.title}.${selectedDocument.type}`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    type="text"
+                    style={{ width: '32px', height: '32px' }}
+                  />
+                </Tooltip>
+              </div>
+            ) : (
+              // 展开状态：信息面板
+              <div className="info-panel-expanded" style={{
+                width: '30%',
+                minWidth: '280px',
+                maxWidth: '400px',
+                background: '#fafafa',
+                borderLeft: '1px solid #e8e8e8',
+                padding: '16px',
+                overflow: 'auto'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <Button
+                    icon={<LeftOutlined />}
+                    onClick={() => setIsInfoPanelExpanded(false)}
+                    type="text"
+                    size="small"
+                  >
+                    收起
+                  </Button>
+                  <span style={{ fontWeight: 600, fontSize: '16px' }}>文档信息</span>
+                </div>
+
+                <Divider style={{ margin: '8px 0' }} />
+
+                {/* 文档统计 */}
+                <div style={{ marginBottom: '16px' }}>
+                  <h4 style={{ marginBottom: '12px', color: '#333', fontSize: '14px' }}>📊 文档统计</h4>
+                  <Descriptions column={1} size="small">
+                    <Descriptions.Item label="类型">{selectedDocument.type?.toUpperCase()}</Descriptions.Item>
+                    <Descriptions.Item label="大小">{(selectedDocument.file_size / 1024).toFixed(2)} KB</Descriptions.Item>
+                    <Descriptions.Item label="创建时间">
+                      {new Date(selectedDocument.created_at).toLocaleString()}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="更新时间">
+                      {new Date(selectedDocument.updated_at).toLocaleString()}
+                    </Descriptions.Item>
+                  </Descriptions>
+                </div>
+
+                <Divider style={{ margin: '8px 0' }} />
+
+                {/* 快捷操作 */}
+                <div style={{ marginBottom: '16px' }}>
+                  <h4 style={{ marginBottom: '12px', color: '#333', fontSize: '14px' }}>🔧 快捷操作</h4>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Button
+                      danger
+                      block
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleDocumentDelete(selectedDocument)}
+                      size="small"
+                    >
+                      删除文档
+                    </Button>
+                    <Button
+                      block
+                      icon={<DownloadOutlined />}
+                      onClick={() => {
+                        const blob = new Blob([selectedDocument.content], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${selectedDocument.title}.${selectedDocument.type}`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      size="small"
+                    >
+                      下载文档
+                    </Button>
+                  </Space>
+                </div>
               </div>
             )}
           </Card>
@@ -1734,7 +1883,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
           )}
 
           {/* 中间内容区域 */}
-          <Col span={showDocumentList ? (compactMode ? 24 : 12) : (selectedDocument ? 18 : 24)}>
+          <Col span={showDocumentList ? (compactMode ? 24 : 18) : 24}>
             <div style={{ 
               padding: '16px'
             }}>
@@ -1742,8 +1891,8 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
             </div>
           </Col>
 
-          {/* 右侧文档概览 */}
-          {selectedDocument && showDocumentList && !compactMode && (
+          {/* 右侧文档概览 - 已移除，功能已整合到preview模式的信息面板中 */}
+          {false && selectedDocument && showDocumentList && !compactMode && (
             <Col 
               span={6}
               style={{ 

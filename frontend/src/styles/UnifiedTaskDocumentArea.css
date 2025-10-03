@@ -1910,6 +1910,76 @@ body.fullscreen-editor-active [class*="info-sidebar"] {
   display: none !important; /* 隐藏整个工具栏（包括编辑/预览按钮和格式化按钮） */
 }
 
+/* 主编辑区域样式 */
+.main-edit-area {
+  transition: all 0.3s ease;
+  flex: 1;
+  min-width: 600px;
+  overflow-y: auto;
+}
+
+/* 快捷操作栏样式 */
+.quick-action-bar {
+  transition: all 0.3s ease;
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.quick-action-bar .ant-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-action-bar .ant-btn:hover {
+  background-color: #f0f0f0;
+}
+
+/* 信息面板样式 */
+.info-panel-expanded {
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.info-panel-expanded h4 {
+  margin-bottom: 12px;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .info-panel-expanded {
+    width: 35% !important;
+    min-width: 260px !important;
+  }
+
+  .main-edit-area {
+    min-width: 500px;
+  }
+}
+
+@media (max-width: 768px) {
+  .info-panel-expanded {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    z-index: 100;
+    box-shadow: -4px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .main-edit-area {
+    min-width: auto;
+  }
+}
+
 /* 代码复制按钮样式（为代码模式准备） */
 .code-block-wrapper {
   position: relative;
