@@ -9,10 +9,25 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"ai-project-backend/handlers"
 )
+
+// registerBatchDocumentRoutes 注册批量文档状态API
+func registerBatchDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// 获取数据库连接
+	db := app.GetDB().GetDB().(*sql.DB)
+	batchHandler := handlers.NewBatchDocumentHandler(db)
+
+	// 批量获取文档状态
+	authorized.POST("/documents/batch-status", batchHandler.BatchGetDocumentStatus)
+}
 
 // RegisterDocumentRoutes 注册文档管理相关路由
 func RegisterDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// 注册批量文档状态API
+	registerBatchDocumentRoutes(authorized, app)
+
 	// 注册基础文档CRUD路由
 	registerBasicDocumentRoutes(authorized, app)
 
