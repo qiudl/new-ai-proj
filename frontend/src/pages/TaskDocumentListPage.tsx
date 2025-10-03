@@ -340,17 +340,20 @@ const TaskDocumentListPage: React.FC = () => {
         return (
           <Button
             type="link"
-            style={{ 
-              fontFamily: 'monospace', 
+            style={{
+              fontFamily: 'monospace',
               fontWeight: 'bold',
               color: '#1890ff',
               padding: 0,
               height: 'auto'
             }}
             onClick={() => {
-              // 点击文档ID，打开全屏文档预览（与查看图标一致）
-              const previewUrl = `/projects/${record.project_id}/tasks/${record.id}/document-preview?title=${encodeURIComponent(record.documentTitle || record.title)}`;
-              window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+              // 点击文档ID，页面内展开预览
+              if (expandedDocumentTask?.id === record.id) {
+                setExpandedDocumentTask(null);
+              } else {
+                setExpandedDocumentTask(record as any);
+              }
             }}
           >
             #{documentId}
@@ -459,15 +462,17 @@ const TaskDocumentListPage: React.FC = () => {
       width: 200,
       render: (_: unknown, record: TaskDocumentInfo) => (
         <Space>
-          <Tooltip title="全屏文档预览">
+          <Tooltip title={expandedDocumentTask?.id === record.id ? "收起文档" : "预览文档"}>
             <Button
-              type="text"
-              
+              type={expandedDocumentTask?.id === record.id ? "primary" : "text"}
               icon={<EyeOutlined />}
               onClick={() => {
-                // 打开新窗口显示全屏文档预览
-                const previewUrl = `/projects/${record.project_id}/tasks/${record.id}/document-preview?title=${encodeURIComponent(record.title)}`;
-                window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+                // 改为页面内展开
+                if (expandedDocumentTask?.id === record.id) {
+                  setExpandedDocumentTask(null);
+                } else {
+                  setExpandedDocumentTask(record as any);
+                }
               }}
             />
           </Tooltip>
