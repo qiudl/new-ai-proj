@@ -1766,3 +1766,199 @@ body.fullscreen-editor-active [class*="info-sidebar"] {
   background-color: #fafafa;
   font-weight: 600;
 }
+
+/* 新增：显示模式样式 */
+
+/* 标准模式（默认） */
+.document-preview-content.preview-standard {
+  /* 使用默认样式 */
+}
+
+/* 紧凑模式 */
+.document-preview-content.preview-compact {
+  line-height: 1.4 !important;
+  font-size: 13px !important;
+  padding: 8px !important;
+}
+
+.document-preview-content.preview-compact h1 {
+  font-size: 20px;
+  margin: 12px 0 6px;
+  padding-bottom: 6px;
+}
+
+.document-preview-content.preview-compact h2 {
+  font-size: 18px;
+  margin: 10px 0 6px;
+  padding-left: 8px;
+}
+
+.document-preview-content.preview-compact h3 {
+  font-size: 16px;
+  margin: 8px 0 4px;
+}
+
+.document-preview-content.preview-compact p {
+  margin-bottom: 8px;
+}
+
+.document-preview-content.preview-compact ul,
+.document-preview-content.preview-compact ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.document-preview-content.preview-compact li {
+  margin: 4px 0;
+}
+
+.document-preview-content.preview-compact pre {
+  padding: 8px;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.document-preview-content.preview-compact code {
+  font-size: 12px;
+  padding: 1px 3px;
+}
+
+/* 代码预览模式 */
+.document-preview-content.preview-code pre {
+  position: relative;
+  background-color: #f6f8fa;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 16px 0;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-x: auto;
+}
+
+.document-preview-content.preview-code pre::before {
+  content: 'CODE';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  color: #6a737d;
+  background: #fff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #e1e4e8;
+}
+
+.document-preview-content.preview-code code {
+  background-color: #f6f8fa;
+  border: 1px solid #e1e4e8;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 13px;
+}
+
+/* 代码块添加行号效果（通过CSS实现） */
+.document-preview-content.preview-code pre {
+  counter-reset: line;
+}
+
+/* 流程图预览模式 */
+.document-preview-content.preview-diagram {
+  /* 优化Mermaid图表显示 */
+}
+
+.document-preview-content.preview-diagram .mermaid,
+.document-preview-content.preview-diagram [class*="mermaid"] {
+  background-color: #fff;
+  border: 2px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 24px;
+  margin: 24px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow-x: auto;
+}
+
+.document-preview-content.preview-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 流程图放大显示 */
+.document-preview-content.preview-diagram .mermaid svg,
+.document-preview-content.preview-diagram [class*="mermaid"] svg {
+  transform: scale(1.1);
+  transform-origin: top left;
+}
+
+/* 非流程图内容在流程图模式下略微缩小 */
+.document-preview-content.preview-diagram p,
+.document-preview-content.preview-diagram h1,
+.document-preview-content.preview-diagram h2,
+.document-preview-content.preview-diagram h3 {
+  opacity: 0.85;
+}
+
+/* 代码复制按钮样式（为代码模式准备） */
+.code-block-wrapper {
+  position: relative;
+}
+
+.code-block-wrapper .copy-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+  z-index: 10;
+}
+
+.code-block-wrapper:hover .copy-button {
+  opacity: 1;
+}
+
+.code-block-wrapper .copy-button:hover {
+  background-color: #f0f0f0;
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.code-block-wrapper .copy-button:active {
+  background-color: #e6f7ff;
+}
+
+.code-block-wrapper .copy-button.copied {
+  background-color: #52c41a;
+  border-color: #52c41a;
+  color: #fff;
+}
+
+/* 行号样式 */
+.code-with-line-numbers {
+  position: relative;
+  padding-left: 48px;
+}
+
+.code-with-line-numbers .line-numbers {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background-color: #f0f0f0;
+  border-right: 1px solid #e1e4e8;
+  padding: 16px 8px;
+  text-align: right;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 12px;
+  color: #6a737d;
+  line-height: 1.45;
+  user-select: none;
+}

@@ -53,6 +53,7 @@ import {
 const TaskDocumentEditor = lazy(() => import('./TaskDocumentEditor'));
 const TaskDocumentManager = lazy(() => import('./TaskDocumentManager'));
 const TaskDocumentVersionHistoryButton = lazy(() => import('./TaskDocumentVersionHistoryButton'));
+const TaskMarkdownEditor = lazy(() => import('./TaskMarkdownEditor'));
 import { documentService, UnifiedDocument } from '../services/documentService';
 import { taskDocumentService } from '../services/taskDocumentService';
 import { TaskService } from '../services/taskService';
@@ -308,6 +309,11 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   const [documentListView, setDocumentListView] = useState<'grouped' | 'list' | 'timeline' | 'grid'>('grouped');
   const [documentSortBy, setDocumentSortBy] = useState<'created_at' | 'updated_at'>('created_at');
   const [documentSortOrder, setDocumentSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // 新增：预览模式的编辑和显示模式状态
+  const [isEditingInPreview, setIsEditingInPreview] = useState(false);
+  const [previewDisplayMode, setPreviewDisplayMode] = useState<'standard' | 'compact' | 'code' | 'diagram'>('standard');
+  const [editContent, setEditContent] = useState('');
   
   // 防抖计时器引用
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -821,6 +827,44 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
   const handleDocumentEdit = useCallback((doc: DocumentItem) => {
     setSelectedDocument(doc);
     setViewMode('edit');
+  }, []);
+
+  // 新增：进入预览编辑模式
+  const handleEnterPreviewEdit = useCallback(() => {
+    if (selectedDocument) {
+      setEditContent(selectedDocument.content);
+      setIsEditingInPreview(true);
+    }
+  }, [selectedDocument]);
+
+  // 新增：保存预览编辑的内容
+  const handleSavePreviewEdit = useCallback(async () => {
+    if (!selectedDocument) return;
+
+    try {
+      await documentService.updateDocument(selectedDocument.id, {
+        content: editContent,
+        title: selectedDocument.title,
+        type: selectedDocument.type as any
+      });
+      message.success('文档保存成功');
+      // 更新本地文档内容
+      setSelectedDocument({ ...selectedDocument, content: editContent });
+      setDocuments(prev => prev.map(doc =>
+        doc.id === selectedDocument.id ? { ...doc, content: editContent } : doc
+      ));
+      setIsEditingInPreview(false);
+      await loadDocuments();
+    } catch (error) {
+      console.error('保存失败:', error);
+      message.error('文档保存失败');
+    }
+  }, [selectedDocument, editContent, loadDocuments]);
+
+  // 新增：取消预览编辑
+  const handleCancelPreviewEdit = useCallback(() => {
+    setIsEditingInPreview(false);
+    setEditContent('');
   }, []);
 
   const handleDocumentDelete = useCallback(async (doc: DocumentItem) => {
@@ -1493,62 +1537,129 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         
       case 'preview':
         return selectedDocument ? (
-          <Card 
-            style={{ 
+          <Card
+            style={{
               height: isFullscreen ? 'calc(100vh - 120px)' : 'auto',
               overflow: isFullscreen ? 'auto' : 'visible'
             }}
-            bodyStyle={{
-              padding: isFullscreen ? '32px' : '16px',
-              height: isFullscreen ? 'calc(100vh - 180px)' : 'auto',
-              overflow: isFullscreen ? 'auto' : 'visible'
+            styles={{
+              body: {
+                padding: isFullscreen ? '32px' : '16px',
+                height: isFullscreen ? 'calc(100vh - 180px)' : 'auto',
+                overflow: isFullscreen ? 'auto' : 'visible'
+              }
             }}
           >
-            <div style={{ marginBottom: '16px', textAlign: 'center' }}>
-              <Title level={isFullscreen ? 2 : 3} style={{ color: '#1890ff' }}>
+            {/* 工具栏：编辑按钮、显示模式切换、保存/取消按钮 */}
+            <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <Title level={isFullscreen ? 2 : 3} style={{ color: '#1890ff', margin: 0, flex: 1 }}>
                 {selectedDocument.title}
               </Title>
-              {isFullscreen && (
-                <div style={{ 
-                  fontSize: '14px', 
-                  color: '#666', 
-                  marginTop: '8px',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: '16px'
-                }}>
-                  <span>📄 {selectedDocument.type?.toUpperCase()} 文档</span>
-                  <span>📅 {new Date(selectedDocument.updated_at).toLocaleDateString()}</span>
-                  <span>📊 {selectedDocument.content?.length || 0} 字符</span>
-                </div>
-              )}
+              <Space>
+                {/* 显示模式切换 */}
+                {!isEditingInPreview && (
+                  <Button.Group size="small">
+                    <Button
+                      type={previewDisplayMode === 'standard' ? 'primary' : 'default'}
+                      onClick={() => setPreviewDisplayMode('standard')}
+                    >
+                      标准
+                    </Button>
+                    <Button
+                      type={previewDisplayMode === 'compact' ? 'primary' : 'default'}
+                      onClick={() => setPreviewDisplayMode('compact')}
+                    >
+                      紧凑
+                    </Button>
+                    <Button
+                      type={previewDisplayMode === 'code' ? 'primary' : 'default'}
+                      onClick={() => setPreviewDisplayMode('code')}
+                    >
+                      代码
+                    </Button>
+                    <Button
+                      type={previewDisplayMode === 'diagram' ? 'primary' : 'default'}
+                      onClick={() => setPreviewDisplayMode('diagram')}
+                    >
+                      流程图
+                    </Button>
+                  </Button.Group>
+                )}
+
+                {/* 编辑/保存/取消按钮 */}
+                {isEditingInPreview ? (
+                  <>
+                    <Button type="primary" icon={<SaveOutlined />} onClick={handleSavePreviewEdit}>
+                      保存
+                    </Button>
+                    <Button onClick={handleCancelPreviewEdit}>取消</Button>
+                  </>
+                ) : (
+                  <Button type="default" icon={<EditOutlined />} onClick={handleEnterPreviewEdit}>
+                    编辑
+                  </Button>
+                )}
+              </Space>
             </div>
-            <Divider />
-            <div 
-              className={`document-preview-content ${isFullscreen ? 'fullscreen-preview' : ''}`}
-              style={{ 
-                whiteSpace: 'pre-wrap', 
-                lineHeight: '1.8',
-                wordBreak: 'break-word',
-                fontSize: isFullscreen ? '16px' : '14px',
-                maxWidth: isFullscreen ? '900px' : '100%',
-                margin: isFullscreen ? '0 auto' : '0',
-                padding: isFullscreen ? '20px' : '0',
-                backgroundColor: isFullscreen ? '#fafafa' : 'transparent',
-                borderRadius: isFullscreen ? '8px' : '0',
-                minHeight: isFullscreen ? '400px' : 'auto'
-              }}
-              dangerouslySetInnerHTML={{
-                __html: selectedDocument.type === 'markdown' 
-                  ? renderMarkdownContent(selectedDocument.content)
-                  : selectedDocument.content?.replace(/\n/g, '<br/>')
-              }}
-            />
+
             {isFullscreen && (
-              <div style={{ 
-                marginTop: '32px', 
-                textAlign: 'center', 
+              <div style={{
+                fontSize: '14px',
+                color: '#666',
+                marginBottom: '16px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '16px'
+              }}>
+                <span>📄 {selectedDocument.type?.toUpperCase()} 文档</span>
+                <span>📅 {new Date(selectedDocument.updated_at).toLocaleDateString()}</span>
+                <span>📊 {selectedDocument.content?.length || 0} 字符</span>
+              </div>
+            )}
+
+            <Divider />
+
+            {/* 内容区域：编辑模式或预览模式 */}
+            {isEditingInPreview ? (
+              // 编辑模式：使用TaskMarkdownEditor组件
+              <Suspense fallback={<Spin size="large" style={{ display: 'block', margin: '40px auto' }} />}>
+                <TaskMarkdownEditor
+                  value={editContent}
+                  onChange={setEditContent}
+                  placeholder="请输入文档内容（支持Markdown格式）..."
+                  rows={20}
+                  style={{ minHeight: '400px' }}
+                />
+              </Suspense>
+            ) : (
+              // 预览模式：根据显示模式应用不同样式
+              <div
+                className={`document-preview-content preview-${previewDisplayMode} ${isFullscreen ? 'fullscreen-preview' : ''}`}
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: previewDisplayMode === 'compact' ? '1.4' : '1.8',
+                  wordBreak: 'break-word',
+                  fontSize: previewDisplayMode === 'compact' ? '13px' : (isFullscreen ? '16px' : '14px'),
+                  maxWidth: isFullscreen ? '900px' : '100%',
+                  margin: isFullscreen ? '0 auto' : '0',
+                  padding: previewDisplayMode === 'compact' ? '8px' : (isFullscreen ? '20px' : '0'),
+                  backgroundColor: isFullscreen ? '#fafafa' : 'transparent',
+                  borderRadius: isFullscreen ? '8px' : '0',
+                  minHeight: isFullscreen ? '400px' : 'auto'
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: selectedDocument.type === 'markdown'
+                    ? renderMarkdownContent(selectedDocument.content)
+                    : selectedDocument.content?.replace(/\n/g, '<br/>')
+                }}
+              />
+            )}
+
+            {isFullscreen && !isEditingInPreview && (
+              <div style={{
+                marginTop: '32px',
+                textAlign: 'center',
                 color: '#999',
                 fontSize: '12px',
                 borderTop: '1px solid #e8e8e8',
