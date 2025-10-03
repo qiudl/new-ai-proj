@@ -128,18 +128,17 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
   const refreshTask = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: { key: 'task', value: true } });
     dispatch({ type: 'SET_LOADING', payload: { key: 'initial', value: true } });
-    
+
     try {
       const response = await TaskService.getTask(projectId, taskId);
       dispatch({ type: 'SET_TASK', payload: response });
-      
+
       // Load related data
       await Promise.all([
         loadRelations(),
-        loadDocuments(),
-        loadStatistics()
+        loadDocuments()
       ]);
-      
+
     } catch (error: any) {
       dispatch({ type: 'SET_ERROR', payload: { key: 'task', error } });
       message.error('Failed to load task details');
@@ -252,13 +251,28 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
           : Promise.resolve(null)
       ]);
 
+      const subtasksArray = Array.isArray(subtasks) ? subtasks : [];
+
       dispatch({
         type: 'SET_RELATIONS',
         payload: {
           parent: parentTask,
-          subtasks: Array.isArray(subtasks) ? subtasks : [],
+          subtasks: subtasksArray,
           siblings: []
         }
+      });
+
+      // Calculate and dispatch statistics immediately after loading relations
+      const completionStats = {
+        total: subtasksArray.length,
+        completed: subtasksArray.filter(t => t.status === 'completed').length,
+        inProgress: subtasksArray.filter(t => t.status === 'in_progress').length,
+        todo: subtasksArray.filter(t => t.status === 'todo').length
+      };
+
+      dispatch({
+        type: 'SET_STATISTICS',
+        payload: { completionStats }
       });
     } catch (error: any) {
       dispatch({ type: 'SET_ERROR', payload: { key: 'relations', error } });
@@ -282,14 +296,33 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
   }, [projectId, taskId, loadRelations]);
 
   // ========== Statistics Operations ==========
-  
+
   const loadStatistics = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: { key: 'statistics', value: true } });
-    
+
     try {
-      // Placeholder for statistics loading
-      // const response = await TaskService.getTaskStatistics(projectId, taskId);
-      // dispatch({ type: 'SET_STATISTICS', payload: response });
+      // Load subtasks to calculate completion statistics
+      const subtasks = stateRef.current.relations.subtasks;
+
+      // Calculate completion stats from subtasks
+      const stats = {
+        totalSubtasks: subtasks.length,
+        completedSubtasks: subtasks.filter(t => t.status === 'completed').length,
+        inProgressSubtasks: subtasks.filter(t => t.status === 'in_progress').length,
+        todoSubtasks: subtasks.filter(t => t.status === 'todo').length
+      };
+
+      const completionStats = {
+        total: stats.totalSubtasks,
+        completed: stats.completedSubtasks,
+        inProgress: stats.inProgressSubtasks,
+        todo: stats.todoSubtasks
+      };
+
+      dispatch({
+        type: 'SET_STATISTICS',
+        payload: { completionStats }
+      });
     } catch (error: any) {
       dispatch({ type: 'SET_ERROR', payload: { key: 'statistics', error } });
     } finally {
