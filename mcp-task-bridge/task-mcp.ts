@@ -322,6 +322,19 @@ export class TaskMCPServer {
         this.dailyFocusService.setAuthToken(token);
     }
 
+    // Token监控方法（委托给taskService）
+    getTokenRefreshStats() {
+        return this.taskService.getTokenRefreshStats();
+    }
+
+    checkTokenHealth() {
+        return this.taskService.checkTokenHealth();
+    }
+
+    getRecentTokenEvents(limit: number = 10) {
+        return this.taskService.getRecentTokenEvents(limit);
+    }
+
     // 设置API基础URL（同步到所有服务）
     setApiBase(apiBase: string) {
         this.taskService.setApiBase(apiBase);

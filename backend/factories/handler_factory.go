@@ -42,11 +42,11 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 
 	// 创建JWT令牌服务配置
 	jwtServiceConfig := &services.JWTServiceConfig{
-		AccessTokenExpiry:  15 * time.Minute,
-		RefreshTokenExpiry: 7 * 24 * time.Hour,
+		AccessTokenExpiry:  24 * time.Hour,        // 24小时访问令牌
+		RefreshTokenExpiry: 30 * 24 * time.Hour,   // 30天刷新令牌
 		SecretKey:          f.config.JWT.Secret,
 		RefreshSecretKey:   f.config.JWT.Secret + "-refresh",
-		MaxRefreshCount:    10,
+		MaxRefreshCount:    100,                   // 增加最大刷新次数，支持长期使用
 		CleanupInterval:    time.Hour,
 		EnableBlacklist:    true,
 	}

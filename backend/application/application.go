@@ -90,9 +90,9 @@ func NewApplication() (*Application, error) {
 	jwtServiceConfig := &services.JWTServiceConfig{
 		SecretKey:          cfg.JWT.Secret,
 		RefreshSecretKey:   cfg.JWT.Secret + "_refresh", // Use a different key for refresh tokens
-		AccessTokenExpiry:  cfg.JWT.Expiration,
-		RefreshTokenExpiry: cfg.JWT.Expiration * 24, // Refresh token lasts longer
-		MaxRefreshCount:    5,
+		AccessTokenExpiry:  24 * time.Hour,              // 24小时访问令牌
+		RefreshTokenExpiry: 30 * 24 * time.Hour,         // 30天刷新令牌
+		MaxRefreshCount:    100,                         // 增加最大刷新次数，支持长期使用
 		CleanupInterval:    time.Hour,
 		EnableBlacklist:    true,
 	}

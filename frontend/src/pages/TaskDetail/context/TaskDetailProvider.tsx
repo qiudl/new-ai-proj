@@ -321,8 +321,12 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
     dispatch({ type: 'RESET' });
   }, []);
 
+  const setUI = useCallback((uiUpdates: Partial<typeof state.ui>) => {
+    dispatch({ type: 'SET_UI', payload: uiUpdates });
+  }, []);
+
   // ========== Context Value ==========
-  
+
   const contextValue = useMemo<TaskDetailContextValue>(() => ({
     task: state.task,
     projectId,
@@ -344,10 +348,12 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
       deleteDocument,
       loadRelations,
       createSubtask,
+      loadStatistics,
       setActiveTab,
       openModal,
       closeModal,
       toggleSidebar,
+      setUI,
       reset
     }
   }), [
@@ -364,10 +370,12 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
     deleteDocument,
     loadRelations,
     createSubtask,
+    loadStatistics,
     setActiveTab,
     openModal,
     closeModal,
     toggleSidebar,
+    setUI,
     reset
   ]);
 

@@ -1,18 +1,36 @@
 import axios from 'axios';
 import { MCPPermissionManager } from './permission-manager.js';
 import { getGlobalContextManager } from './unified-user-context.js';
+import { getGlobalTokenStorage } from './token-storage.js';
+import { getGlobalTokenMonitor, TokenRefreshEventType } from './token-monitor.js';
 export class BaseClient {
     constructor(apiBase = 'http://localhost:8080/api/v1') {
         this.REFRESH_BUFFER_MS = 60 * 1000; // 提前60秒刷新
         this.apiBase = apiBase;
         // 获取全局统一上下文管理器
         this.contextManager = getGlobalContextManager(apiBase);
+        // 初始化Token持久化存储
+        this.tokenStorage = getGlobalTokenStorage({
+            enableEncryption: process.env.MCP_TOKEN_ENCRYPTION !== 'false' // 默认启用加密
+        });
+        // 初始化Token刷新监控器
+        this.tokenMonitor = getGlobalTokenMonitor({
+            enableLogging: process.env.MCP_TOKEN_MONITOR_LOGGING !== 'false', // 默认启用
+            enableMetrics: process.env.MCP_TOKEN_MONITOR_METRICS !== 'false' // 默认启用
+        });
+        // 尝试从持久化存储加载Token（异步，不阻塞构造函数）
+        this.loadPersistedToken().catch(error => {
+            console.error('[BASE_CLIENT] 加载持久化Token失败:', error);
+        });
         // 从环境变量读取令牌（不再硬编码）。优先 TASK_API_TOKEN，兼容 API_TOKEN。
         const token = process.env.TASK_API_TOKEN || process.env.API_TOKEN;
         if (token && token.trim().length > 0) {
-            this.authToken = token.trim();
-            // 如果有令牌，尝试创建用户上下文
-            this.initializeContextFromToken(this.authToken);
+            // 环境变量的Token作为后备选项
+            if (!this.authToken) {
+                this.authToken = token.trim();
+                // 如果有令牌，尝试创建用户上下文
+                this.initializeContextFromToken(this.authToken);
+            }
         }
         // 保持原有的权限管理器以向后兼容
         this.permissionManager = new MCPPermissionManager(apiBase, this.authToken, {
@@ -209,6 +227,12 @@ export class BaseClient {
             return;
         }
         this.tokenState.refreshing = true;
+        const startTime = Date.now();
+        // 记录刷新开始事件
+        this.tokenMonitor.recordEvent(TokenRefreshEventType.REFRESH_STARTED, true, {
+            expiresAt: this.tokenState.expiresAt.toISOString(),
+            timeUntilExpiry: Math.floor((this.tokenState.expiresAt.getTime() - Date.now()) / 1000)
+        });
         try {
             console.error('[TOKEN] 开始刷新访问令牌...');
             const response = await axios.post(`${this.apiBase}/auth/refresh`, {}, {
@@ -227,17 +251,33 @@ export class BaseClient {
             }
             // 更新Token状态
             this.updateTokenState(access_token, refresh_token, expires_in);
+            const duration = Date.now() - startTime;
             console.error('[TOKEN] 访问令牌刷新成功', {
                 expiresIn: expires_in + 's',
-                expiresAt: this.tokenState?.expiresAt.toISOString()
+                expiresAt: this.tokenState?.expiresAt.toISOString(),
+                duration: duration + 'ms'
             });
+            // 记录刷新成功事件
+            this.tokenMonitor.recordEvent(TokenRefreshEventType.REFRESH_SUCCESS, true, {
+                expiresAt: this.tokenState?.expiresAt.toISOString(),
+                httpStatus: response.status
+            }, undefined, undefined, duration);
         }
         catch (error) {
+            const duration = Date.now() - startTime;
             console.error('[TOKEN] 刷新访问令牌失败:', {
                 message: error.message,
                 status: error.response?.status,
-                data: error.response?.data
+                data: error.response?.data,
+                duration: duration + 'ms'
             });
+            // 记录刷新失败事件
+            const eventType = error.response?.status === 401
+                ? TokenRefreshEventType.REFRESH_EXPIRED
+                : TokenRefreshEventType.REFRESH_FAILED;
+            this.tokenMonitor.recordEvent(eventType, false, {
+                httpStatus: error.response?.status
+            }, error.message, error.response?.status?.toString(), duration);
             // 如果是401错误，可能Refresh Token也过期了
             if (error.response?.status === 401) {
                 console.error('[TOKEN] Refresh Token可能已过期，需要重新登录');
@@ -265,6 +305,108 @@ export class BaseClient {
         console.error('[TOKEN] Token状态已更新', {
             expiresAt: this.tokenState.expiresAt.toISOString()
         });
+        // 持久化保存Token
+        this.persistToken();
+    }
+    // 加载持久化的Token
+    async loadPersistedToken() {
+        try {
+            const persistedData = await this.tokenStorage.loadToken();
+            if (!persistedData) {
+                console.error('[TOKEN] 没有找到持久化的Token');
+                return;
+            }
+            // 检查Token是否过期
+            if (this.tokenStorage.isTokenExpired(persistedData, this.REFRESH_BUFFER_MS)) {
+                console.error('[TOKEN] 持久化的Token已过期，尝试刷新...');
+                // 记录Token过期事件
+                this.tokenMonitor.recordEvent(TokenRefreshEventType.TOKEN_EXPIRED, false, {
+                    expiresAt: persistedData.expiresAt,
+                    timeUntilExpiry: Math.floor((new Date(persistedData.expiresAt).getTime() - Date.now()) / 1000)
+                });
+                // 设置临时Token状态以便刷新
+                this.tokenState = {
+                    accessToken: persistedData.accessToken,
+                    refreshToken: persistedData.refreshToken,
+                    expiresAt: new Date(persistedData.expiresAt),
+                    refreshing: false
+                };
+                this.authToken = persistedData.accessToken;
+                // 尝试刷新Token
+                try {
+                    await this.refreshAccessToken();
+                    console.error('[TOKEN] Token刷新成功');
+                }
+                catch (error) {
+                    console.error('[TOKEN] Token刷新失败，清除持久化存储:', error.message);
+                    await this.tokenStorage.clearToken();
+                    this.tokenState = undefined;
+                    this.authToken = undefined;
+                }
+                return;
+            }
+            // Token有效，直接使用
+            this.tokenState = {
+                accessToken: persistedData.accessToken,
+                refreshToken: persistedData.refreshToken,
+                expiresAt: new Date(persistedData.expiresAt),
+                refreshing: false
+            };
+            this.authToken = persistedData.accessToken;
+            const timeUntilExpiry = Math.floor((new Date(persistedData.expiresAt).getTime() - Date.now()) / 1000);
+            console.error('[TOKEN] 已加载持久化的Token', {
+                expiresAt: persistedData.expiresAt,
+                timeUntilExpiry: timeUntilExpiry + 's'
+            });
+            // 记录Token加载成功事件
+            this.tokenMonitor.recordEvent(TokenRefreshEventType.TOKEN_LOADED, true, {
+                expiresAt: persistedData.expiresAt,
+                timeUntilExpiry
+            });
+            // 初始化用户上下文
+            await this.initializeContextFromToken(this.authToken);
+        }
+        catch (error) {
+            console.error('[TOKEN] 加载持久化Token失败:', error.message);
+        }
+    }
+    // 持久化保存Token
+    async persistToken() {
+        if (!this.tokenState) {
+            return;
+        }
+        try {
+            const persistedData = {
+                accessToken: this.tokenState.accessToken,
+                refreshToken: this.tokenState.refreshToken,
+                expiresAt: this.tokenState.expiresAt.toISOString(),
+                lastUpdate: new Date().toISOString()
+            };
+            await this.tokenStorage.saveToken(persistedData);
+            // 记录Token持久化事件
+            this.tokenMonitor.recordEvent(TokenRefreshEventType.TOKEN_PERSISTED, true, {
+                expiresAt: persistedData.expiresAt
+            });
+        }
+        catch (error) {
+            console.error('[TOKEN] 持久化保存Token失败:', error.message);
+            // 记录持久化失败事件
+            this.tokenMonitor.recordEvent(TokenRefreshEventType.TOKEN_PERSISTED, false, undefined, error.message);
+        }
+    }
+    // 清除持久化的Token
+    async clearPersistedToken() {
+        try {
+            await this.tokenStorage.clearToken();
+            console.error('[TOKEN] 持久化Token已清除');
+            // 记录Token清除事件
+            this.tokenMonitor.recordEvent(TokenRefreshEventType.TOKEN_CLEARED, true);
+        }
+        catch (error) {
+            console.error('[TOKEN] 清除持久化Token失败:', error.message);
+            // 记录清除失败事件
+            this.tokenMonitor.recordEvent(TokenRefreshEventType.TOKEN_CLEARED, false, undefined, error.message);
+        }
     }
     // 设置认证令牌
     setAuthToken(token) {
@@ -361,5 +503,36 @@ export class BaseClient {
     setApiBase(apiBase) {
         this.apiBase = apiBase;
         this.permissionManager.setApiBase(apiBase);
+    }
+    // ==================== Token监控API ====================
+    /**
+     * 获取Token刷新统计信息
+     */
+    getTokenRefreshStats() {
+        return this.tokenMonitor.getStats();
+    }
+    /**
+     * 获取最近的Token刷新事件
+     */
+    getRecentTokenEvents(limit = 10) {
+        return this.tokenMonitor.getRecentEvents(limit);
+    }
+    /**
+     * 执行Token健康检查
+     */
+    checkTokenHealth() {
+        return this.tokenMonitor.healthCheck();
+    }
+    /**
+     * 重置Token监控统计
+     */
+    resetTokenMonitorStats() {
+        this.tokenMonitor.resetStats();
+    }
+    /**
+     * 获取Token监控日志文件路径
+     */
+    getTokenMonitorLogPath() {
+        return this.tokenMonitor.getLogFilePath();
     }
 }

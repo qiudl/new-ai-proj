@@ -7,13 +7,12 @@
  */
 
 import React, { useCallback, useMemo } from 'react';
-import { 
-  Space, 
-  Button, 
-  Tag, 
-  Breadcrumb, 
-  Typography, 
-  Dropdown, 
+import {
+  Space,
+  Button,
+  Tag,
+  Typography,
+  Dropdown,
   Tooltip,
   Badge,
   Avatar
@@ -23,8 +22,6 @@ import {
   DeleteOutlined,
   ShareAltOutlined,
   MoreOutlined,
-  HomeOutlined,
-  ProjectOutlined,
   CalendarOutlined,
   UserOutlined,
   StarOutlined,
@@ -34,6 +31,7 @@ import {
 import { useKeyboardShortcuts } from '../../hooks/ui/useKeyboardShortcuts';
 import { Task, TaskStatus, TaskPriority } from '../../types/task.types';
 import MVPTaskDetailTimer from '../../../../components/MVPTaskDetailTimer';
+import { TaskBreadcrumb } from './TaskBreadcrumb';
 import './TaskDetailHeaderCard.css';
 
 const { Title, Text } = Typography;
@@ -41,6 +39,10 @@ const { Title, Text } = Typography;
 export interface TaskDetailHeaderCardProps {
   /** Task data to display */
   task: Task;
+  /** Parent task (for breadcrumb navigation) */
+  parentTask?: Task | null;
+  /** Project ID */
+  projectId: number;
   /** Callback for edit action */
   onEdit?: () => void;
   /** Callback for delete action */
@@ -107,6 +109,8 @@ const PRIORITY_CONFIG: Record<TaskPriority, { color: string; label: string }> = 
 
 export const TaskDetailHeaderCard: React.FC<TaskDetailHeaderCardProps> = React.memo(({
   task,
+  parentTask,
+  projectId,
   onEdit,
   onDelete,
   onStatusChange,
@@ -273,36 +277,16 @@ export const TaskDetailHeaderCard: React.FC<TaskDetailHeaderCardProps> = React.m
   );
 
   return (
-    <div 
+    <div
       className={`task-detail-header ${className}`.trim()}
       data-testid={testId}
     >
       {/* Breadcrumb Navigation */}
       <div className="task-header-breadcrumb">
-        <Breadcrumb
-          items={[
-            {
-              href: '/dashboard',
-              title: (
-                <span>
-                  <HomeOutlined />
-                  <span>首页</span>
-                </span>
-              ),
-            },
-            {
-              href: `/projects/${task.project_id}`,
-              title: (
-                <span>
-                  <ProjectOutlined />
-                  <span>项目</span>
-                </span>
-              ),
-            },
-            {
-              title: '任务详情',
-            },
-          ]}
+        <TaskBreadcrumb
+          task={task}
+          parentTask={parentTask}
+          projectId={projectId}
         />
       </div>
 
@@ -419,6 +403,9 @@ export const TaskDetailHeaderCard: React.FC<TaskDetailHeaderCardProps> = React.m
     prevProps.task?.status === nextProps.task?.status &&
     prevProps.task?.priority === nextProps.task?.priority &&
     prevProps.task?.updated_at === nextProps.task?.updated_at &&
+    prevProps.parentTask?.id === nextProps.parentTask?.id &&
+    prevProps.parentTask?.title === nextProps.parentTask?.title &&
+    prevProps.projectId === nextProps.projectId &&
     prevProps.isFavorite === nextProps.isFavorite &&
     JSON.stringify(prevProps.loading) === JSON.stringify(nextProps.loading) &&
     JSON.stringify(prevProps.permissions) === JSON.stringify(nextProps.permissions) &&

@@ -1,6 +1,34 @@
 // Phase 5: 测试优化 - 测试环境配置
 import '@testing-library/jest-dom';
 
+// Mock axios to avoid ES module issues
+jest.mock('axios', () => {
+  const mockAxios = {
+    create: jest.fn(() => mockAxios),
+    get: jest.fn(() => Promise.resolve({ data: {} })),
+    post: jest.fn(() => Promise.resolve({ data: {} })),
+    put: jest.fn(() => Promise.resolve({ data: {} })),
+    delete: jest.fn(() => Promise.resolve({ data: {} })),
+    patch: jest.fn(() => Promise.resolve({ data: {} })),
+    request: jest.fn(() => Promise.resolve({ data: {} })),
+    interceptors: {
+      request: {
+        use: jest.fn(),
+        eject: jest.fn()
+      },
+      response: {
+        use: jest.fn(),
+        eject: jest.fn()
+      }
+    }
+  };
+  return {
+    __esModule: true,
+    default: mockAxios,
+    ...mockAxios
+  };
+});
+
 // Mock Web APIs that might not be available in test environment
 global.matchMedia = global.matchMedia || function (query: string) {
   return {

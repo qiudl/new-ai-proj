@@ -111,6 +111,8 @@ const CacheMonitoringHub = React.lazy(() => import('./components/cache/CacheMoni
 const RoleTemplateDetailPage = React.lazy(() => import('./pages/RoleTemplateDetailPage'));
 const VersionHistoryPage = React.lazy(() => import('./pages/VersionHistoryPage'));
 const VersionHistoryDemoPage = React.lazy(() => import('./pages/VersionHistoryDemoPage'));
+const EnhancedTaskHeaderCardDemo = React.lazy(() => import('./pages/TaskDetail/demo/EnhancedTaskHeaderCardDemo'));
+const TaskDetailComponentsDemo = React.lazy(() => import('./pages/TaskDetail/demo/TaskDetailComponentsDemo'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -494,6 +496,8 @@ const AppContent: React.FC = () => {
 
                 {/* 开发测试相关路由 */}
                 <Route path="/test-center" element={<TestCenter />} />
+                <Route path="/demo/enhanced-task-header-card" element={<EnhancedTaskHeaderCardDemo />} />
+                <Route path="/demo/task-detail-components" element={<TaskDetailComponentsDemo />} />
                 <Route path="/mcp-test" element={
                   <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
                     <MCPTestPage />
