@@ -112,10 +112,18 @@ class SSETimerService {
    */
   private initAuthToken(): void {
     // 从localStorage获取token，支持多种可能的key
-    this.authToken = localStorage.getItem('access_token') 
+    const token = localStorage.getItem('token')
+                  || localStorage.getItem('access_token')
                   || localStorage.getItem('authToken')
-                  || localStorage.getItem('token')
                   || localStorage.getItem('auth_token');
+
+    // 确保token不是字符串 "null" 或 "undefined"
+    if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+      this.authToken = token;
+    } else {
+      this.authToken = null;
+      errorLogger.sseError('Invalid or missing auth token', { token });
+    }
   }
   
   /**
@@ -359,14 +367,20 @@ class SSETimerService {
    */
   private async performFallbackRequest(): Promise<void> {
     try {
+      // 检查token有效性
+      if (!this.authToken || this.authToken === 'null' || this.authToken === 'undefined') {
+        errorLogger.sseError('Fallback polling skipped: no valid auth token');
+        return;
+      }
+
       // 使用URLBuilder构建API URL
       const urlResult = urlBuilder.buildApiUrl('/user/timer/current');
-      
+
       if (!urlResult.isValid) {
         console.error('SSE Timer Service: Failed to build fallback URL:', urlResult.error);
         return;
       }
-      
+
       const response = await fetch(urlResult.url, {
         headers: {
           'Authorization': `Bearer ${this.authToken}`,

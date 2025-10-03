@@ -20,6 +20,7 @@ vendor/
 *.out
 go.work
 go.work.sum
+backend/bin/*
 
 # Build outputs
 dist/
