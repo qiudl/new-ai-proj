@@ -116,16 +116,28 @@ export const permissionService = {
   // Permission Checking
   async checkUserPermission(request: PermissionCheckRequest): Promise<{ result: PermissionResult }> {
     const response: any = await api.post('/permissions/check', request);
-    // Axios may unwrap or return raw; normalize here
-    if (response && response.result && typeof response.result.hasPermission === 'boolean') {
-      return { result: response.result as PermissionResult };
+
+    // Backend returns { result: { has_permission, reason, source } }
+    // Need to normalize has_permission -> hasPermission
+    if (response && response.result) {
+      const backendResult = response.result;
+      const normalizedResult: PermissionResult = {
+        hasPermission: backendResult.has_permission ?? backendResult.hasPermission ?? false,
+        reason: backendResult.reason || '',
+        grantedBy: backendResult.granted_by || backendResult.grantedBy || []
+      };
+      return { result: normalizedResult };
     }
-    if (response && typeof response === 'object' && 'success' in response && 'data' in response) {
-      // Wrapped { success, data }
-      return response as { result: PermissionResult };
-    }
-    // Fallback: assume response already is { result: PermissionResult }
-    return response as { result: PermissionResult };
+
+    // Fallback for unexpected format
+    console.warn('[checkUserPermission] Unexpected response format:', response);
+    return {
+      result: {
+        hasPermission: false,
+        reason: 'Invalid response format',
+        grantedBy: []
+      }
+    };
   },
 
   // Audit Logs
@@ -223,10 +235,12 @@ export const permissionService = {
           try {
             const payload = JSON.parse(atob(token.split('.')[1]));
             if (payload && (payload.role === 'admin' || payload.role === 'company_admin')) {
+              console.log('[hasPermission] Dev bypass for admin/company_admin');
               return true;
             }
             // Also check for impersonation context in JWT
             if (payload && payload.impersonation && payload.role === 'enterprise_admin') {
+              console.log('[hasPermission] Dev bypass for enterprise_admin with impersonation');
               return true;
             }
           } catch {}
@@ -239,13 +253,24 @@ export const permissionService = {
         ? permissionCode.replace(/\./g, '_')  // Convert task.read → task_read
         : permissionCode;  // Keep task_read as is
 
+      console.log('[hasPermission] Checking permission:', { original: permissionCode, normalized: normalizedCode, resourceId });
+
       const result = await this.checkUserPermission({
         permissionCode: normalizedCode,
         resourceID: resourceId
       });
+
+      console.log('[hasPermission] API response:', result);
+      console.log('[hasPermission] Result:', result.result.hasPermission);
+
       return result.result.hasPermission;
     } catch (error) {
-      console.error('Permission check failed:', error);
+      console.error('[hasPermission] Permission check failed:', error);
+      console.error('[hasPermission] Error details:', {
+        permissionCode,
+        resourceId,
+        error: error instanceof Error ? error.message : String(error)
+      });
       return false;
     }
   },
