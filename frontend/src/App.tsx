@@ -45,7 +45,8 @@ const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const DashboardPage = React.lazy(() => import(/* webpackPrefetch: true */ './pages/DashboardPage'));
 const ProjectsPage = React.lazy(() => import(/* webpackPrefetch: true */ './pages/ProjectsPage'));
 const TasksPage = React.lazy(() => import(/* webpackPrefetch: true */ './pages/TasksPage'));
-const TaskDetailPageNew = React.lazy(() => import(/* webpackPrefetch: true */ './pages/TaskDetailPageNew'));
+const TaskDetailRouter = React.lazy(() => import('./routes/TaskDetailRouter'));
+const GrayReleasePanel = React.lazy(() => import('./components/admin/GrayReleasePanel'));
 const TaskEditPage = React.lazy(() => import('./pages/TaskEditPage'));
 const AllFieldsTaskListPage = React.lazy(() => import('./pages/AllFieldsTaskListPage'));
 const SmartSwimlanesPage = React.lazy(() => import('./pages/SmartSwimlanesPage'));
@@ -289,7 +290,8 @@ const AppContent: React.FC = () => {
 
                 <Route path="/projects/:projectId/tasks/:taskId/edit" element={<TaskEditPage />} />
 
-                <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailPageNew />} />
+                {/* 使用TaskDetailRouter进行灰度发布 */}
+                <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailRouter />} />
 
                 <Route path="/projects/:projectId/archived-tasks" element={<ArchivedTasksPage />} />
 
@@ -498,6 +500,13 @@ const AppContent: React.FC = () => {
                 <Route path="/test-center" element={<TestCenter />} />
                 <Route path="/demo/enhanced-task-header-card" element={<EnhancedTaskHeaderCardDemo />} />
                 <Route path="/demo/task-detail-components" element={<TaskDetailComponentsDemo />} />
+
+                {/* 灰度发布管理面板 */}
+                <Route path="/admin/gray-release" element={
+                  <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
+                    <GrayReleasePanel />
+                  </PermissionRoute>
+                } />
                 <Route path="/mcp-test" element={
                   <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
                     <MCPTestPage />
