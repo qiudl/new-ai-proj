@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Card, 
-  Table, 
-  Button, 
-  Input, 
-  Space, 
-  Tag, 
+import {
+  Card,
+  Table,
+  Button,
+  Input,
+  Space,
+  Tag,
   Tooltip,
   message,
   Badge,
@@ -15,8 +15,8 @@ import {
   Col,
   Divider
 } from 'antd';
-import { 
-  FileTextOutlined, 
+import {
+  FileTextOutlined,
   EditOutlined,
   SearchOutlined,
   FilterOutlined,
@@ -26,7 +26,8 @@ import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   SyncOutlined,
-  UnorderedListOutlined
+  UnorderedListOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
@@ -35,6 +36,7 @@ import { Task } from '../types/task';
 import ViewSwitcher, { ViewType } from '../components/ViewSwitcher';
 import HierarchicalTaskTable, { HierarchicalTaskWithDocument } from '../components/HierarchicalTaskTable';
 import { useHierarchicalTasks } from '../hooks/useHierarchicalTasks';
+import UnifiedTaskDocumentArea from '../components/UnifiedTaskDocumentArea';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -76,6 +78,9 @@ const TaskDocumentListPage: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<number | undefined>();
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [documentFilter, setDocumentFilter] = useState<string | undefined>();
+
+  // 文档预览状态 - 页面内展开
+  const [expandedDocumentTask, setExpandedDocumentTask] = useState<HierarchicalTaskWithDocument | null>(null);
 
   // 层级任务Hook
   const hierarchicalTasks = useHierarchicalTasks();
@@ -283,9 +288,15 @@ const TaskDocumentListPage: React.FC = () => {
   }, [navigate]);
 
   const handleDocumentView = useCallback((task: HierarchicalTaskWithDocument) => {
-    const previewUrl = `/projects/${task.project_id}/tasks/${task.id}/document-preview?title=${encodeURIComponent(task.title)}`;
-    window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
-  }, []);
+    // 改为页面内展开模式
+    if (expandedDocumentTask?.id === task.id) {
+      // 如果点击的是已展开的任务，则收起
+      setExpandedDocumentTask(null);
+    } else {
+      // 展开新任务的文档预览
+      setExpandedDocumentTask(task);
+    }
+  }, [expandedDocumentTask]);
 
   const handleDocumentEdit = useCallback((task: HierarchicalTaskWithDocument) => {
     if (task.documentCount > 0) {
@@ -647,6 +658,44 @@ const TaskDocumentListPage: React.FC = () => {
           />
         )}
       </Card>
+
+      {/* 文档预览区域 - 在下方展开 */}
+      {expandedDocumentTask && (
+        <Card
+          style={{
+            marginTop: 16,
+            border: '2px solid #1890ff',
+            borderRadius: 8
+          }}
+          title={
+            <Space>
+              <FileTextOutlined />
+              <span>任务文档预览 - {expandedDocumentTask.title}</span>
+            </Space>
+          }
+          extra={
+            <Button
+              type="text"
+              icon={<CloseOutlined />}
+              onClick={() => setExpandedDocumentTask(null)}
+            >
+              关闭
+            </Button>
+          }
+        >
+          <UnifiedTaskDocumentArea
+            projectId={expandedDocumentTask.project_id}
+            taskId={expandedDocumentTask.id}
+            height="600px"
+            defaultViewMode="preview"
+            showToolbar={true}
+            showDocumentList={true}
+            compactMode={false}
+            headerVisible={true}
+            includeSubtaskDocuments={false}
+          />
+        </Card>
+      )}
     </div>
   );
 };
