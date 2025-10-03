@@ -123,12 +123,9 @@ export const getEnvironmentConfig = () => {
       // 直接访问后端端口
       apiBaseURL = `${protocol}//${hostname}:8080/api/v1`;
     }
-  } else if (env.actualEnv === 'docker-test') {
-    // Docker测试环境，使用相对路径通过代理
-    apiBaseURL = `${protocol}//${hostname}:${currentPort}/api/v1`;
   } else {
-    // 生产环境，使用相对路径通过反向代理
-    apiBaseURL = `${protocol}//${hostname}${currentPort !== '80' && currentPort !== '443' ? `:${currentPort}` : ''}/api/v1`;
+    // 生产环境和Docker测试环境都使用相对路径(通过Nginx代理)
+    apiBaseURL = '/api/v1';
   }
   
   return {
