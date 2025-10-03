@@ -8,6 +8,8 @@ import './styles/z-index-management.css';
 import './styles/antd5-modal-fix.css';       // 启用Ant Design 5专用修复
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { FeatureFlagService } from './utils/featureFlags';
+import { getFeatureFlagConfig } from './config/featureFlagConfig';
 
 // Suppress development warnings for known issues
 if (process.env.NODE_ENV === 'development') {
@@ -24,6 +26,9 @@ import('./utils/chunkErrorHandler');
 if (process.env.NODE_ENV === 'development') {
   import('./utils/consoleCommands');
 }
+
+// Initialize Feature Flags
+FeatureFlagService.init(getFeatureFlagConfig());
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

@@ -234,9 +234,10 @@ export const permissionService = {
       }
 
       // Normalize permission code (support both underscore and dot formats)
+      // Backend expects underscore format (task_read, project_read, etc.)
       const normalizedCode = permissionCode.includes('.')
-        ? permissionCode
-        : permissionCode.replace(/_/g, '.');
+        ? permissionCode.replace(/\./g, '_')  // Convert task.read → task_read
+        : permissionCode;  // Keep task_read as is
 
       const result = await this.checkUserPermission({
         permissionCode: normalizedCode,

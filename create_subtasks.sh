@@ -1,0 +1,33 @@
+#!/bin/bash
+
+TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NTk5ODk1ODIsIm5iZiI6MTc1OTM4NDc4MiwiaWF0IjoxNzU5Mzg0NzgyLCJqdGkiOiI1NzE5ZWQ1MGU0YmEzYTEyNWYyZjdiMmY4MzU0NGQ0ZCJ9.HV1y8vttyNVfu_KX2xp8v9dxN6nPzNP_TPPbh-hkmnU"
+
+echo "Creating subtask 1..."
+curl -s -X POST "http://localhost:8080/api/v1/tasks" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"实现MCP文档更新接口（updateTaskDocument）","project_id":1,"parent_id":2498,"priority":"high","estimated_minutes":120,"description":"实现updateTaskDocument接口，支持智能更新（存在则更新，不存在则创建），并自动创建版本记录"}' | jq -r '.data.id'
+
+echo "Creating subtask 2..."
+curl -s -X POST "http://localhost:8080/api/v1/tasks" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"实现MCP版本历史查询接口（getTaskDocumentVersions）","project_id":1,"parent_id":2498,"priority":"high","estimated_minutes":90,"description":"实现getTaskDocumentVersions接口，支持查询任务文档的完整版本历史"}' | jq -r '.data.id'
+
+echo "Creating subtask 3..."
+curl -s -X POST "http://localhost:8080/api/v1/tasks" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"实现MCP版本比较接口（compareTaskDocumentVersions）","project_id":1,"parent_id":2498,"priority":"medium","estimated_minutes":120,"description":"实现版本比较接口，支持对比两个版本的差异"}' | jq -r '.data.id'
+
+echo "Creating subtask 4..."
+curl -s -X POST "http://localhost:8080/api/v1/tasks" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"实现MCP版本恢复接口（restoreTaskDocumentVersion）","project_id":1,"parent_id":2498,"priority":"medium","estimated_minutes":90,"description":"实现版本恢复功能，允许将文档回滚到指定版本"}' | jq -r '.data.id'
+
+echo "Creating subtask 5..."
+curl -s -X POST "http://localhost:8080/api/v1/tasks" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"实现MCP版本删除接口（deleteTaskDocumentVersion）","project_id":1,"parent_id":2498,"priority":"low","estimated_minutes":60,"description":"实现版本删除功能，允许删除非当前版本的历史版本"}' | jq -r '.data.id'
