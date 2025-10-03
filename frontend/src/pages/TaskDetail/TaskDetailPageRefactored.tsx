@@ -5,7 +5,7 @@
  * while maintaining 100% visual compatibility with TaskDetailPageNew.tsx
  */
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Row, Col, Spin, message } from 'antd';
 import { TaskDetailProvider } from './context/TaskDetailProvider';
@@ -166,6 +166,37 @@ const TaskDetailPageContent: React.FC = () => {
     actions.loadDocuments();
   }, [actions]);
 
+  // Handle create sibling
+  const handleCreateSibling = useCallback(() => {
+    actions.setUI({
+      modals: {
+        ...ui.modals,
+        edit: {
+          visible: true,
+          data: { mode: 'createSibling' }
+        }
+      }
+    });
+  }, [actions, ui.modals]);
+
+  // Handle bulk create subtasks
+  const handleBulkCreateSubTasks = useCallback(() => {
+    actions.openModal('bulkImport');
+  }, [actions]);
+
+  // Handle archive task
+  const handleArchiveTask = useCallback(() => {
+    actions.openModal('archive');
+  }, [actions]);
+
+  // Handle navigate to task
+  const handleNavigateToTask = useCallback(
+    (navTaskId: number, navProjectId: number) => {
+      navigate(`/projects/${navProjectId}/tasks/${navTaskId}`);
+    },
+    [navigate]
+  );
+
   // Loading state
   if (loading.initial) {
     return (
@@ -234,7 +265,17 @@ const TaskDetailPageContent: React.FC = () => {
             onDocsChange={handleDocsChange}
           />
         }
-        sidebar={<TaskDetailSidebar projectId={parsedProjectId} />}
+        sidebar={
+          <TaskDetailSidebar
+            projectId={parsedProjectId}
+            onCreateSubtask={handleCreateSubtask}
+            onCreateSibling={handleCreateSibling}
+            onBulkCreateSubTasks={handleBulkCreateSubTasks}
+            onBulkImportSubtasks={handleBulkImportSubtasks}
+            onArchiveTask={handleArchiveTask}
+            onNavigateToTask={handleNavigateToTask}
+          />
+        }
       />
 
       {/* Modals */}

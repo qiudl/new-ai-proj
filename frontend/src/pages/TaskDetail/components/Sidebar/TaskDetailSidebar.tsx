@@ -1,9 +1,9 @@
 /**
  * TaskDetailSidebar - 任务详情侧边栏
- * 包含: 计时器警告、正在计时的任务列表、基本信息、文档概览
+ * 包含: 计时器警告、正在计时的任务列表、快速操作、基本信息、文档概览
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Card, Space, Alert, Typography } from 'antd';
 import {
   WarningOutlined,
@@ -16,6 +16,7 @@ import {
 import MVPTaskDetailTimer from '../../../../components/MVPTaskDetailTimer';
 import { TaskDetailInfo } from '../../../../components/TaskDetailBasicInfo';
 import TaskDocumentWidget from '../../../../components/TaskDocumentWidget';
+import { TaskRelationsPanel } from '../../../../components/TaskDetailRelations';
 import { useTaskDetailContext } from '../../hooks/useTaskDetailContext';
 import { useTimer } from '../../../../contexts/TimerContext';
 import dayjs from 'dayjs';
@@ -24,14 +25,32 @@ const { Text } = Typography;
 
 export interface TaskDetailSidebarProps {
   projectId: number;
+  onCreateSubtask: () => void;
+  onCreateSibling?: () => void;
+  onBulkCreateSubTasks?: () => void;
+  onBulkImportSubtasks: () => void;
+  onArchiveTask?: () => void;
+  onNavigateToTask?: (taskId: number, projectId: number) => void;
 }
 
 /**
  * TaskDetailSidebar组件
  */
-const TaskDetailSidebar: React.FC<TaskDetailSidebarProps> = ({ projectId }) => {
-  const { task, relations, loading } = useTaskDetailContext();
+const TaskDetailSidebar: React.FC<TaskDetailSidebarProps> = ({
+  projectId,
+  onCreateSubtask,
+  onCreateSibling,
+  onBulkCreateSubTasks,
+  onBulkImportSubtasks,
+  onArchiveTask,
+  onNavigateToTask
+}) => {
+  const { task, relations, loading, actions } = useTaskDetailContext();
   const { currentTimer, activeTimers } = useTimer();
+
+  // State for expanded sections
+  const [expandedSubtasks, setExpandedSubtasks] = useState(true);
+  const [expandedSiblings, setExpandedSiblings] = useState(false);
 
   // 如果没有任务数据，不渲染
   if (!task) {
@@ -136,6 +155,40 @@ const TaskDetailSidebar: React.FC<TaskDetailSidebarProps> = ({ projectId }) => {
     return activeTimers.filter((timer) => timer.task_id !== task.id);
   }, [activeTimers, task.id]);
 
+  // Default handlers
+  const handleCreateSibling = useCallback(() => {
+    if (onCreateSibling) {
+      onCreateSibling();
+    }
+    // Note: actions.setUI is not available in this context,
+    // so we rely on the parent to provide onCreateSibling
+  }, [onCreateSibling]);
+
+  const handleBulkCreateSubTasks = useCallback(() => {
+    if (onBulkCreateSubTasks) {
+      onBulkCreateSubTasks();
+    }
+    // Note: Rely on parent to provide handler
+  }, [onBulkCreateSubTasks]);
+
+  const handleArchiveTask = useCallback(() => {
+    if (onArchiveTask) {
+      onArchiveTask();
+    }
+    // Note: Rely on parent to provide handler
+  }, [onArchiveTask]);
+
+  const handleNavigateToTask = useCallback(
+    (taskId: number, navProjectId: number) => {
+      if (onNavigateToTask) {
+        onNavigateToTask(taskId, navProjectId);
+      } else {
+        window.location.href = `/projects/${navProjectId}/tasks/${taskId}`;
+      }
+    },
+    [onNavigateToTask]
+  );
+
   return (
     <>
       {/* 任务计时器 */}
@@ -201,6 +254,25 @@ const TaskDetailSidebar: React.FC<TaskDetailSidebarProps> = ({ projectId }) => {
           </Space>
         </Card>
       )}
+
+      {/* 快速操作和相关任务 */}
+      <TaskRelationsPanel
+        task={task}
+        parentTask={relations.parent}
+        subtasks={relations.subtasks}
+        siblingTasks={relations.siblings}
+        expandedSubtasks={expandedSubtasks}
+        expandedSiblings={expandedSiblings}
+        onCreateSubtask={onCreateSubtask}
+        onCreateSibling={handleCreateSibling}
+        onBulkCreateSubTasks={handleBulkCreateSubTasks}
+        onBulkImportSubtasks={onBulkImportSubtasks}
+        onArchiveTask={handleArchiveTask}
+        onNavigateToTask={handleNavigateToTask}
+        onToggleSubtasks={() => setExpandedSubtasks(!expandedSubtasks)}
+        onToggleSiblings={() => setExpandedSiblings(!expandedSiblings)}
+        getStatusConfig={getStatusConfig}
+      />
 
       {/* 任务基本信息 */}
       <TaskDetailInfo
