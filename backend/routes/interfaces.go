@@ -20,6 +20,7 @@ type ApplicationInterface interface {
 
 	// 认证处理器
 	GetAuthHandler() *handlers.AuthHandler
+	GetServiceAccountHandler() *handlers.ServiceAccountHandler
 
 	// 基础处理器 (for backward compatibility)
 	GetHealthHandler() gin.HandlerFunc

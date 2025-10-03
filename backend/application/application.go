@@ -38,9 +38,10 @@ type Application struct {
 	// progressPusher *services.ProgressPusher
 	redisClient *redis.Client
 	// Legacy individual handlers for compatibility
-	authHandler           *handlers.AuthHandler           // Auth handler instance
-	documentHandler       *handlers.DocumentHandler       // Document handler instance (legacy)
-	routerDocumentHandler *handlers.RouterDocumentHandler // Router-based document handler
+	authHandler              *handlers.AuthHandler              // Auth handler instance
+	serviceAccountHandler    *handlers.ServiceAccountHandler    // Service account handler instance
+	documentHandler          *handlers.DocumentHandler          // Document handler instance (legacy)
+	routerDocumentHandler    *handlers.RouterDocumentHandler    // Router-based document handler
 	userProfileHandler    *handlers.UserProfileHandler    // User profile handler instance
 	companyHandler        *handlers.CompanyHandler        // Company handler instance
 	enterpriseHandler     *handlers.EnterpriseHandler     // Enterprise handler instance
@@ -99,6 +100,9 @@ func NewApplication() (*Application, error) {
 
 	// Initialize Auth Handler
 	authHandler := handlers.NewAuthHandler(db, cfg.JWT.Secret, jwtTokenService)
+
+	// Initialize Service Account Handler
+	serviceAccountHandler := handlers.NewServiceAccountHandler(db, jwtTokenService)
 
 	// Initialize User Profile Handler
 	userProfileHandler := handlers.NewUserProfileHandler(db, logger, validate)
@@ -188,9 +192,10 @@ func NewApplication() (*Application, error) {
 		// progressPusher: progressPusher,
 		redisClient: redisClient,
 		// Legacy individual handlers for compatibility
-		authHandler:           authHandler,
-		documentHandler:       documentHandler,
-		routerDocumentHandler: routerDocumentHandler,
+		authHandler:              authHandler,
+		serviceAccountHandler:    serviceAccountHandler,
+		documentHandler:          documentHandler,
+		routerDocumentHandler:    routerDocumentHandler,
 		userProfileHandler:    userProfileHandler,
 		companyHandler:        companyHandler,
 		enterpriseHandler:     enterpriseHandler,
@@ -316,6 +321,11 @@ func (app *Application) GetJWTManager() *utils.JWTManager {
 // GetAuthHandler returns the auth handler
 func (app *Application) GetAuthHandler() *handlers.AuthHandler {
 	return app.authHandler
+}
+
+// GetServiceAccountHandler returns the service account handler
+func (app *Application) GetServiceAccountHandler() *handlers.ServiceAccountHandler {
+	return app.serviceAccountHandler
 }
 
 // GetUserProfileHandler returns the user profile handler

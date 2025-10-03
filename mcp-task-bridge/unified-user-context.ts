@@ -173,16 +173,26 @@ export class UnifiedUserContextManager {
         },
         body: JSON.stringify({ username }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success && (data.data?.access_token || data.token)) {
         const token = data.data?.access_token || data.token;
-        return await this.createContextFromToken(token);
+        const context = await this.createContextFromToken(token);
+
+        // 附加refresh_token和expires_in信息到上下文
+        if (context && data.data) {
+          (context as any).refreshToken = data.data.refresh_token;
+          (context as any).expiresIn = data.data.expires_in;
+
+          console.error('[UNIFIED_CTX] 开发登录成功，包含刷新Token信息');
+        }
+
+        return context;
       } else {
         throw new Error(data.error || 'Login failed');
       }
