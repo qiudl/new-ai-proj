@@ -287,9 +287,12 @@ const TaskDocumentListPage: React.FC = () => {
     navigate(`/projects/${task.project_id}/tasks/${task.id}`);
   }, [navigate]);
 
-  const handleDocumentView = useCallback((task: HierarchicalTaskWithDocument) => {
+  const handleDocumentView = useCallback((task: HierarchicalTaskWithDocument | null) => {
     // 改为页面内展开模式
-    if (expandedDocumentTask?.id === task.id) {
+    if (!task) {
+      // 收起预览
+      setExpandedDocumentTask(null);
+    } else if (expandedDocumentTask?.id === task.id) {
       // 如果点击的是已展开的任务，则收起
       setExpandedDocumentTask(null);
     } else {
@@ -649,6 +652,53 @@ const TaskDocumentListPage: React.FC = () => {
               showTotal: (total) => `共 ${total} 个任务`,
             }}
             scroll={{ x: 1000 }}
+            expandable={{
+              expandedRowKeys: expandedDocumentTask ? [expandedDocumentTask.id] : [],
+              onExpand: (expanded, record) => {
+                if (expanded) {
+                  setExpandedDocumentTask(record as any);
+                } else {
+                  setExpandedDocumentTask(null);
+                }
+              },
+              expandedRowRender: (record) => (
+                <div style={{
+                  padding: 16,
+                  backgroundColor: '#f0f5ff',
+                  border: '2px solid #1890ff',
+                  borderRadius: 8,
+                  margin: '8px 0'
+                }}>
+                  <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 16, fontWeight: 'bold', color: '#1890ff' }}>
+                      📄 任务文档预览 - #{record.id} {record.title}
+                    </span>
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<CloseOutlined />}
+                      onClick={() => setExpandedDocumentTask(null)}
+                    >
+                      收起
+                    </Button>
+                  </div>
+                  <div style={{ backgroundColor: 'white', padding: 16, borderRadius: 4 }}>
+                    <UnifiedTaskDocumentArea
+                      projectId={record.project_id}
+                      taskId={record.id}
+                      height="600px"
+                      defaultViewMode="preview"
+                      showToolbar={true}
+                      showDocumentList={true}
+                      compactMode={false}
+                      headerVisible={true}
+                      includeSubtaskDocuments={false}
+                    />
+                  </div>
+                </div>
+              ),
+              expandIcon: () => null, // 隐藏默认的展开图标，我们用按钮控制
+            }}
           />
         ) : (
           <HierarchicalTaskTable
@@ -664,44 +714,6 @@ const TaskDocumentListPage: React.FC = () => {
           />
         )}
       </Card>
-
-      {/* 文档预览区域 - 在下方展开 */}
-      {expandedDocumentTask && (
-        <Card
-          style={{
-            marginTop: 16,
-            border: '2px solid #1890ff',
-            borderRadius: 8
-          }}
-          title={
-            <Space>
-              <FileTextOutlined />
-              <span>任务文档预览 - {expandedDocumentTask.title}</span>
-            </Space>
-          }
-          extra={
-            <Button
-              type="text"
-              icon={<CloseOutlined />}
-              onClick={() => setExpandedDocumentTask(null)}
-            >
-              关闭
-            </Button>
-          }
-        >
-          <UnifiedTaskDocumentArea
-            projectId={expandedDocumentTask.project_id}
-            taskId={expandedDocumentTask.id}
-            height="600px"
-            defaultViewMode="preview"
-            showToolbar={true}
-            showDocumentList={true}
-            compactMode={false}
-            headerVisible={true}
-            includeSubtaskDocuments={false}
-          />
-        </Card>
-      )}
     </div>
   );
 };
