@@ -310,11 +310,10 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   const [documentSortBy, setDocumentSortBy] = useState<'created_at' | 'updated_at'>('created_at');
   const [documentSortOrder, setDocumentSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  // 新增：预览模式的编辑和显示模式状态
-  const [isEditingInPreview, setIsEditingInPreview] = useState(false);
-  const [previewDisplayMode, setPreviewDisplayMode] = useState<'standard' | 'compact' | 'code' | 'diagram'>('standard');
+  // 编辑内容和标题状态
   const [editContent, setEditContent] = useState('');
-  
+  const [editTitle, setEditTitle] = useState('');
+
   // 防抖计时器引用
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -324,11 +323,19 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
     onViewModeChange?.(mode);
   }, [onViewModeChange]);
 
-  // 本地控制“是否包含下级”开关，默认取props
+  // 本地控制"是否包含下级"开关，默认取props
   const [includeDescendants, setIncludeDescendants] = useState<boolean>(includeSubtaskDocuments);
   useEffect(() => {
     setIncludeDescendants(includeSubtaskDocuments);
   }, [includeSubtaskDocuments]);
+
+  // 当选中文档变化时，自动初始化编辑内容和标题
+  useEffect(() => {
+    if (selectedDocument) {
+      setEditContent(selectedDocument.content);
+      setEditTitle(selectedDocument.title);
+    }
+  }, [selectedDocument]);
 
   // 快速过滤：全部 / 仅本任务 / 仅子任务
   const [filterMode, setFilterMode] = useState<'all' | 'root' | 'desc'>('all');
@@ -829,43 +836,42 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     setViewMode('edit');
   }, []);
 
-  // 新增：进入预览编辑模式
-  const handleEnterPreviewEdit = useCallback(() => {
-    if (selectedDocument) {
-      setEditContent(selectedDocument.content);
-      setIsEditingInPreview(true);
-    }
-  }, [selectedDocument]);
-
-  // 新增：保存预览编辑的内容
+  // 保存预览编辑的内容（包括标题和内容）
   const handleSavePreviewEdit = useCallback(async () => {
     if (!selectedDocument) return;
+
+    // 验证标题不能为空
+    if (!editTitle.trim()) {
+      message.error('文档标题不能为空');
+      return;
+    }
 
     try {
       await documentService.updateDocument(selectedDocument.id, {
         content: editContent,
-        title: selectedDocument.title,
+        title: editTitle, // 使用编辑后的标题
         type: selectedDocument.type as any
       });
       message.success('文档保存成功');
-      // 更新本地文档内容
-      setSelectedDocument({ ...selectedDocument, content: editContent });
+      // 更新本地文档内容和标题
+      setSelectedDocument({ ...selectedDocument, content: editContent, title: editTitle });
       setDocuments(prev => prev.map(doc =>
-        doc.id === selectedDocument.id ? { ...doc, content: editContent } : doc
+        doc.id === selectedDocument.id ? { ...doc, content: editContent, title: editTitle } : doc
       ));
-      setIsEditingInPreview(false);
       await loadDocuments();
     } catch (error) {
       console.error('保存失败:', error);
       message.error('文档保存失败');
     }
-  }, [selectedDocument, editContent, loadDocuments]);
+  }, [selectedDocument, editContent, editTitle, loadDocuments]);
 
-  // 新增：取消预览编辑
+  // 取消预览编辑 - 恢复为原始内容
   const handleCancelPreviewEdit = useCallback(() => {
-    setIsEditingInPreview(false);
-    setEditContent('');
-  }, []);
+    if (selectedDocument) {
+      setEditContent(selectedDocument.content);
+      setEditTitle(selectedDocument.title);
+    }
+  }, [selectedDocument]);
 
   const handleDocumentDelete = useCallback(async (doc: DocumentItem) => {
     try {
@@ -1446,55 +1452,6 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     }
   ];
 
-  // 优化Markdown渲染函数 - 使用缓存和分批处理
-  const markdownCache = useRef(new Map<string, string>());
-  
-  const renderMarkdownContent = useCallback((content: string) => {
-    if (!content) return '';
-    
-    // 缓存检查
-    const cacheKey = content.substring(0, 100); // 使用前100个字符作为缓存键
-    if (markdownCache.current.has(cacheKey)) {
-      return markdownCache.current.get(cacheKey)!;
-    }
-    
-    // 对于大文档，使用简化渲染
-    if (content.length > 10000) {
-      const rendered = content.substring(0, 5000) + '\n\n[... 内容过长，部分预览 ...]';
-      markdownCache.current.set(cacheKey, rendered);
-      return rendered;
-    }
-    
-    // 优化后的渲染逻辑
-    let rendered = content
-      // 标题 - 使用更高效的正则
-      .replace(/^### (.+)$/gm, '<h3 style="color: #1890ff; margin: 16px 0 8px 0; font-size: 18px;">$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2 style="color: #1890ff; margin: 20px 0 10px 0; font-size: 22px;">$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1 style="color: #1890ff; margin: 24px 0 12px 0; font-size: 28px;">$1</h1>')
-      // 粗体和斜体
-      .replace(/\*\*(.+?)\*\*/g, '<strong style="color: #333; font-weight: 600;">$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em style="font-style: italic; color: #666;">$1</em>')
-      // 代码块
-      .replace(/```[\w]*\n([\s\S]+?)```/g, '<pre style="background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin: 16px 0; overflow-x: auto; font-family: Consolas, Monaco, monospace; font-size: 14px;"><code>$1</code></pre>')
-      // 行内代码
-      .replace(/`([^`]+)`/g, '<code style="background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: Consolas, Monaco, monospace; font-size: 13px; color: #d73a49;">$1</code>')
-      // 链接
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #1890ff; text-decoration: none;" target="_blank">$1</a>')
-      // 换行
-      .replace(/\n/g, '<br/>');
-    
-    // 缓存结果
-    markdownCache.current.set(cacheKey, rendered);
-    
-    // 限制缓存大小
-    if (markdownCache.current.size > 50) {
-      const firstKey = markdownCache.current.keys().next().value;
-      markdownCache.current.delete(firstKey);
-    }
-    
-    return rendered;
-  }, []);
-
   // 文档统计（基于过滤结果）
   const documentStats = useMemo(() => {
     const total = filteredDocuments.length;
@@ -1550,55 +1507,24 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
               }
             }}
           >
-            {/* 工具栏：编辑按钮、显示模式切换、保存/取消按钮 */}
+            {/* 标题编辑区域 */}
             <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <Title level={isFullscreen ? 2 : 3} style={{ color: '#1890ff', margin: 0, flex: 1 }}>
-                {selectedDocument.title}
-              </Title>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="请输入文档标题"
+                style={{
+                  flex: 1,
+                  fontSize: isFullscreen ? '20px' : '16px',
+                  fontWeight: 600,
+                  color: '#1890ff'
+                }}
+              />
               <Space>
-                {/* 显示模式切换 */}
-                {!isEditingInPreview && (
-                  <Button.Group size="small">
-                    <Button
-                      type={previewDisplayMode === 'standard' ? 'primary' : 'default'}
-                      onClick={() => setPreviewDisplayMode('standard')}
-                    >
-                      标准
-                    </Button>
-                    <Button
-                      type={previewDisplayMode === 'compact' ? 'primary' : 'default'}
-                      onClick={() => setPreviewDisplayMode('compact')}
-                    >
-                      紧凑
-                    </Button>
-                    <Button
-                      type={previewDisplayMode === 'code' ? 'primary' : 'default'}
-                      onClick={() => setPreviewDisplayMode('code')}
-                    >
-                      代码
-                    </Button>
-                    <Button
-                      type={previewDisplayMode === 'diagram' ? 'primary' : 'default'}
-                      onClick={() => setPreviewDisplayMode('diagram')}
-                    >
-                      流程图
-                    </Button>
-                  </Button.Group>
-                )}
-
-                {/* 编辑/保存/取消按钮 */}
-                {isEditingInPreview ? (
-                  <>
-                    <Button type="primary" icon={<SaveOutlined />} onClick={handleSavePreviewEdit}>
-                      保存
-                    </Button>
-                    <Button onClick={handleCancelPreviewEdit}>取消</Button>
-                  </>
-                ) : (
-                  <Button type="default" icon={<EditOutlined />} onClick={handleEnterPreviewEdit}>
-                    编辑
-                  </Button>
-                )}
+                <Button type="primary" icon={<SaveOutlined />} onClick={handleSavePreviewEdit}>
+                  保存
+                </Button>
+                <Button onClick={handleCancelPreviewEdit}>取消</Button>
               </Space>
             </div>
 
@@ -1620,43 +1546,22 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
 
             <Divider />
 
-            {/* 内容区域：编辑模式或预览模式 */}
-            {isEditingInPreview ? (
-              // 编辑模式：使用TaskMarkdownEditor组件
-              <Suspense fallback={<Spin size="large" style={{ display: 'block', margin: '40px auto' }} />}>
-                <TaskMarkdownEditor
-                  value={editContent}
-                  onChange={setEditContent}
-                  placeholder="请输入文档内容（支持Markdown格式）..."
-                  rows={20}
-                  style={{ minHeight: '400px' }}
-                />
-              </Suspense>
-            ) : (
-              // 预览模式：根据显示模式应用不同样式
-              <div
-                className={`document-preview-content preview-${previewDisplayMode} ${isFullscreen ? 'fullscreen-preview' : ''}`}
+            {/* 内容区域：直接使用TaskMarkdownEditor组件 */}
+            <Suspense fallback={<Spin size="large" style={{ display: 'block', margin: '40px auto' }} />}>
+              <TaskMarkdownEditor
+                value={editContent}
+                onChange={setEditContent}
+                placeholder="请输入文档内容（支持Markdown格式）..."
+                rows={20}
                 style={{
-                  whiteSpace: 'pre-wrap',
-                  lineHeight: previewDisplayMode === 'compact' ? '1.4' : '1.8',
-                  wordBreak: 'break-word',
-                  fontSize: previewDisplayMode === 'compact' ? '13px' : (isFullscreen ? '16px' : '14px'),
+                  minHeight: isFullscreen ? '400px' : '300px',
                   maxWidth: isFullscreen ? '900px' : '100%',
-                  margin: isFullscreen ? '0 auto' : '0',
-                  padding: previewDisplayMode === 'compact' ? '8px' : (isFullscreen ? '20px' : '0'),
-                  backgroundColor: isFullscreen ? '#fafafa' : 'transparent',
-                  borderRadius: isFullscreen ? '8px' : '0',
-                  minHeight: isFullscreen ? '400px' : 'auto'
-                }}
-                dangerouslySetInnerHTML={{
-                  __html: selectedDocument.type === 'markdown'
-                    ? renderMarkdownContent(selectedDocument.content)
-                    : selectedDocument.content?.replace(/\n/g, '<br/>')
+                  margin: isFullscreen ? '0 auto' : '0'
                 }}
               />
-            )}
+            </Suspense>
 
-            {isFullscreen && !isEditingInPreview && (
+            {isFullscreen && (
               <div style={{
                 marginTop: '32px',
                 textAlign: 'center',

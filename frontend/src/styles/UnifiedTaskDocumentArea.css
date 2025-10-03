@@ -1900,6 +1900,16 @@ body.fullscreen-editor-active [class*="info-sidebar"] {
   opacity: 0.85;
 }
 
+/* 预览模式包装器：隐藏TaskMarkdownEditor的工具栏 */
+.preview-mode-wrapper .task-markdown-textarea {
+  display: none; /* 隐藏编辑区域 */
+}
+
+/* 在预览模式下隐藏TaskMarkdownEditor的编辑/预览切换按钮和工具栏 */
+.preview-mode-wrapper > div > div:first-child {
+  display: none !important; /* 隐藏整个工具栏（包括编辑/预览按钮和格式化按钮） */
+}
+
 /* 代码复制按钮样式（为代码模式准备） */
 .code-block-wrapper {
   position: relative;
