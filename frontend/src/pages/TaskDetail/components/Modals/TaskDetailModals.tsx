@@ -37,22 +37,22 @@ const TaskDetailModals: React.FC<TaskDetailModalsProps> = ({
 
   // 关闭任务模态框
   const handleTaskModalCancel = () => {
-    actions.closeModal('taskModal');
+    actions.closeModal('edit');
   };
 
   // 关闭归档模态框
   const handleArchiveModalCancel = () => {
-    actions.closeModal('archiveModal');
+    actions.closeModal('archive');
   };
 
   // 关闭批量子任务模态框
   const handleBulkSubTaskModalCancel = () => {
-    actions.closeModal('bulkSubTaskModal');
+    actions.closeModal('bulkImport');
   };
 
   // 获取任务模态框的任务数据
   const getTaskForModal = () => {
-    const mode = ui.modals.taskModal.mode;
+    const mode = ui.modals.edit?.data?.mode;
     if (mode === 'edit') return task;
     if (mode === 'createSubtask') return undefined;
     if (mode === 'createSibling') return undefined;
@@ -61,14 +61,14 @@ const TaskDetailModals: React.FC<TaskDetailModalsProps> = ({
 
   // 获取父任务（用于创建子任务）
   const getParentTask = () => {
-    const mode = ui.modals.taskModal.mode;
+    const mode = ui.modals.edit?.data?.mode;
     if (mode === 'createSubtask') return task;
     return undefined;
   };
 
   // 获取兄弟任务（用于创建兄弟任务）
   const getSiblingTask = () => {
-    const mode = ui.modals.taskModal.mode;
+    const mode = ui.modals.edit?.data?.mode;
     if (mode === 'createSibling') return task;
     return undefined;
   };
@@ -76,26 +76,26 @@ const TaskDetailModals: React.FC<TaskDetailModalsProps> = ({
   return (
     <>
       {/* 统一的任务模态框 */}
-      {ui.modals.taskModal.visible && (
+      {ui.modals.edit?.visible && (
         <TaskModal
-          visible={ui.modals.taskModal.visible}
+          visible={ui.modals.edit.visible}
           task={getTaskForModal()}
           parentTask={getParentTask()}
           siblingTask={getSiblingTask()}
-          mode={ui.modals.taskModal.mode || 'create'}
+          mode={ui.modals.edit.data?.mode || 'create'}
           projectId={projectId}
           onOk={onTaskModalSubmit}
           onCancel={handleTaskModalCancel}
-          loading={ui.loading.modal}
+          loading={ui.modals.edit.loading}
           allowParentSelection={true}
           onEditDetails={onEditDetails}
         />
       )}
 
       {/* Archive Modal */}
-      {ui.modals.archiveModal.visible && (
+      {ui.modals.archive?.visible && (
         <TaskArchiveModal
-          visible={ui.modals.archiveModal.visible}
+          visible={ui.modals.archive.visible}
           onCancel={handleArchiveModalCancel}
           onSuccess={onArchiveSuccess}
           projectId={projectId}
@@ -105,9 +105,9 @@ const TaskDetailModals: React.FC<TaskDetailModalsProps> = ({
       )}
 
       {/* Bulk SubTask Creator Modal */}
-      {ui.modals.bulkSubTaskModal.visible && (
+      {ui.modals.bulkImport?.visible && (
         <BulkSubTaskCreator
-          visible={ui.modals.bulkSubTaskModal.visible}
+          visible={ui.modals.bulkImport.visible}
           onCancel={handleBulkSubTaskModalCancel}
           onSuccess={onBulkSubTaskSuccess}
           parentTask={task}

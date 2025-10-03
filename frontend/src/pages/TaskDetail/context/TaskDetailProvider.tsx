@@ -2,7 +2,7 @@
  * TaskDetailProvider - Context provider implementation
  */
 
-import React, { useReducer, useCallback, useMemo, ReactNode } from 'react';
+import React, { useReducer, useCallback, useMemo, useRef, useEffect, ReactNode } from 'react';
 import { message } from 'antd';
 import { TaskDetailContext, TaskDetailContextValue } from './TaskDetailContext';
 import { taskDetailReducer, TaskDetailState, TaskDetailAction } from './TaskDetailReducer';
@@ -110,12 +110,18 @@ const createInitialState = (): TaskDetailState => ({
 /**
  * TaskDetailProvider component
  */
-export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({ 
-  children, 
-  projectId, 
-  taskId 
+export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
+  children,
+  projectId,
+  taskId
 }) => {
   const [state, dispatch] = useReducer(taskDetailReducer, createInitialState());
+
+  // Use ref to hold latest state without causing dependency changes
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // ========== Task Operations ==========
   
@@ -237,15 +243,15 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
   
   const loadRelations = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: { key: 'relations', value: true } });
-    
+
     try {
       const [subtasks, parentTask] = await Promise.all([
         TaskService.getTaskChildren(projectId, taskId),
-        state.task?.parent_id 
-          ? TaskService.getTask(projectId, state.task.parent_id)
+        stateRef.current.task?.parent_id
+          ? TaskService.getTask(projectId, stateRef.current.task.parent_id)
           : Promise.resolve(null)
       ]);
-      
+
       dispatch({
         type: 'SET_RELATIONS',
         payload: {
@@ -259,7 +265,7 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
     } finally {
       dispatch({ type: 'SET_LOADING', payload: { key: 'relations', value: false } });
     }
-  }, [projectId, taskId, state.task?.parent_id]);
+  }, [projectId, taskId]);
 
   const createSubtask = useCallback(async (title: string, description?: string) => {
     try {
@@ -306,16 +312,16 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
   }, []);
 
   const toggleSidebar = useCallback(() => {
-    dispatch({ 
-      type: 'SET_UI', 
-      payload: { 
+    dispatch({
+      type: 'SET_UI',
+      payload: {
         sidebar: {
-          ...state.ui.sidebar,
-          collapsed: !state.ui.sidebar.collapsed
+          ...stateRef.current.ui.sidebar,
+          collapsed: !stateRef.current.ui.sidebar.collapsed
         }
       }
     });
-  }, [state.ui.sidebar]);
+  }, []);
 
   const reset = useCallback(() => {
     dispatch({ type: 'RESET' });
@@ -327,39 +333,8 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
 
   // ========== Context Value ==========
 
-  const contextValue = useMemo<TaskDetailContextValue>(() => ({
-    task: state.task,
-    projectId,
-    taskId,
-    relations: state.relations,
-    documents: state.documents,
-    statistics: state.statistics,
-    ui: state.ui,
-    loading: state.loading,
-    errors: state.errors,
-    actions: {
-      refreshTask,
-      updateTask,
-      deleteTask,
-      archiveTask,
-      loadDocuments,
-      createDocument,
-      updateDocument,
-      deleteDocument,
-      loadRelations,
-      createSubtask,
-      loadStatistics,
-      setActiveTab,
-      openModal,
-      closeModal,
-      toggleSidebar,
-      setUI,
-      reset
-    }
-  }), [
-    state,
-    projectId,
-    taskId,
+  // Memoize actions separately to prevent recreation on state changes
+  const actions = useMemo(() => ({
     refreshTask,
     updateTask,
     deleteTask,
@@ -377,6 +352,48 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
     toggleSidebar,
     setUI,
     reset
+  }), [
+    refreshTask,
+    updateTask,
+    deleteTask,
+    archiveTask,
+    loadDocuments,
+    createDocument,
+    updateDocument,
+    deleteDocument,
+    loadRelations,
+    createSubtask,
+    loadStatistics,
+    setActiveTab,
+    openModal,
+    closeModal,
+    toggleSidebar,
+    setUI,
+    reset
+  ]);
+
+  const contextValue = useMemo<TaskDetailContextValue>(() => ({
+    task: state.task,
+    projectId,
+    taskId,
+    relations: state.relations,
+    documents: state.documents,
+    statistics: state.statistics,
+    ui: state.ui,
+    loading: state.loading,
+    errors: state.errors,
+    actions
+  }), [
+    state.task,
+    state.relations,
+    state.documents,
+    state.statistics,
+    state.ui,
+    state.loading,
+    state.errors,
+    projectId,
+    taskId,
+    actions
   ]);
 
   return (
