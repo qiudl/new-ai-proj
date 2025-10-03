@@ -16,7 +16,8 @@ import {
   Badge,
   Tooltip,
   Typography,
-  Tabs
+  Tabs,
+  message
 } from 'antd';
 import {
   BranchesOutlined,
@@ -25,7 +26,11 @@ import {
   CheckCircleOutlined,
   WarningOutlined,
   EditOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
+  StopOutlined,
+  InboxOutlined
 } from '@ant-design/icons';
 import { TaskDetailDescendantsTreeV2, TaskDetailDescendantsTreeRef } from '../../../../components/TaskDetailDescendantsTreeV2';
 import { UnifiedTaskRefresh, RefreshContext } from '../../../../components/UnifiedTaskRefresh';
@@ -35,8 +40,10 @@ import TaskInfoEditor from '../../../../components/TaskInfoEditor';
 import TaskSummaryEditor from '../../../../components/TaskSummaryEditor';
 import MarkdownRenderer from '../../../../components/MarkdownRenderer';
 import { TaskBreadcrumb } from '../Header/TaskBreadcrumb';
+import { EnhancedTaskHeaderCard } from '../Header/EnhancedTaskHeaderCard';
 import { useTaskDetailContext } from '../../hooks/useTaskDetailContext';
 import type { TaskRequest } from '../../types';
+import { TaskService } from '../../../../services/taskService';
 
 const { Text } = Typography;
 
@@ -75,6 +82,92 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   if (!task) {
     return null;
   }
+
+  // 状态配置
+  const statusConfig = useMemo(() => {
+    const configs = {
+      todo: {
+        text: '待开始',
+        color: '#d9d9d9',
+        bgColor: '#fafafa',
+        icon: <PauseCircleOutlined />
+      },
+      in_progress: {
+        text: '进行中',
+        color: '#1890ff',
+        bgColor: '#e6f7ff',
+        icon: <PlayCircleOutlined />
+      },
+      completed: {
+        text: '已完成',
+        color: '#52c41a',
+        bgColor: '#f6ffed',
+        icon: <CheckCircleOutlined />
+      },
+      cancelled: {
+        text: '已取消',
+        color: '#ff4d4f',
+        bgColor: '#fff2f0',
+        icon: <StopOutlined />
+      },
+      archived: {
+        text: '已归档',
+        color: '#8c8c8c',
+        bgColor: '#f0f0f0',
+        icon: <InboxOutlined />
+      }
+    };
+    return configs[task.status as keyof typeof configs] || configs.todo;
+  }, [task.status]);
+
+  // 优先级配置
+  const priorityConfig = useMemo(() => {
+    const configs = {
+      low: { text: '低', color: '#52c41a' },
+      medium: { text: '中', color: '#faad14' },
+      high: { text: '高', color: '#ff4d4f' },
+      critical: { text: '紧急', color: '#f5222d' }
+    };
+    const priority = (task.custom_fields?.priority || 'medium') as keyof typeof configs;
+    return configs[priority] || configs.medium;
+  }, [task.custom_fields?.priority]);
+
+  // 恢复任务处理
+  const handleUnarchive = async () => {
+    try {
+      await TaskService.updateTask(projectId, task.id, { status: 'todo' });
+      message.success('任务已恢复到待开始状态');
+      await actions.refreshTask();
+    } catch (error) {
+      message.error('恢复任务失败');
+      console.error('Unarchive task error:', error);
+    }
+  };
+
+  // 编辑任务处理
+  const handleEdit = () => {
+    actions.setUI({
+      modals: {
+        ...ui.modals,
+        edit: {
+          visible: true,
+          data: { mode: 'edit' }
+        }
+      }
+    });
+  };
+
+  // 删除任务处理
+  const handleDelete = () => {
+    actions.setUI({
+      modals: {
+        ...ui.modals,
+        delete: {
+          visible: true
+        }
+      }
+    });
+  };
 
   // 计算完成统计数据
   const completionState = useMemo(() => {
@@ -273,6 +366,18 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
         task={task}
         parentTask={relations.parent}
         projectId={projectId}
+      />
+
+      {/* Enhanced Task Header Card */}
+      <EnhancedTaskHeaderCard
+        task={task}
+        projectId={projectId}
+        statusConfig={statusConfig}
+        priorityConfig={priorityConfig}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onUnarchive={handleUnarchive}
+        testId="task-header-card"
       />
 
       <Col xs={24} sm={24} md={24} lg={16} xl={16} className="content-area">
