@@ -649,6 +649,7 @@ const TaskDocumentListPage: React.FC = () => {
           <HierarchicalTaskTable
             tasks={hierarchicalTasks.tasks}
             loading={hierarchicalTasks.loading}
+            expandedDocumentTaskId={expandedDocumentTask?.id}
             onExpand={hierarchicalTasks.expandNode}
             onCollapse={hierarchicalTasks.collapseNode}
             onTaskClick={handleTaskClick}

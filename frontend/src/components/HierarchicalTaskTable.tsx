@@ -42,11 +42,13 @@ interface HierarchicalTaskTableProps {
   onDocumentView?: (task: HierarchicalTaskWithDocument) => void;
   onDocumentEdit?: (task: HierarchicalTaskWithDocument) => void;
   onProjectView?: (task: HierarchicalTaskWithDocument) => void;
+  expandedDocumentTaskId?: number | null; // 当前展开的文档任务ID
 }
 
 const HierarchicalTaskTable: React.FC<HierarchicalTaskTableProps> = ({
   tasks,
   loading = false,
+  expandedDocumentTaskId = null,
   onExpand,
   onCollapse,
   onTaskClick,
@@ -313,9 +315,9 @@ const HierarchicalTaskTable: React.FC<HierarchicalTaskTableProps> = ({
       render: (_: unknown, record: HierarchicalTaskWithDocument) => (
         <Space size="small">
           {record.documentCount > 0 && (
-            <Tooltip title="查看文档">
+            <Tooltip title={expandedDocumentTaskId === record.id ? "收起文档" : "查看文档"}>
               <Button
-                type="text"
+                type={expandedDocumentTaskId === record.id ? "primary" : "text"}
                 size="small"
                 icon={<EyeOutlined />}
                 onClick={() => onDocumentView?.(record)}
