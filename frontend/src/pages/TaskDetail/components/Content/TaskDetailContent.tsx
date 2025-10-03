@@ -360,7 +360,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   }, [task, ui.activeTab, relations.subtasks, projectId, onUpdateTask, onDocsChange]);
 
   return (
-    <Col xs={24} sm={24} md={24} lg={16} xl={16} className="content-area">
+    <>
       {/* Breadcrumb Navigation */}
       <TaskBreadcrumb
         task={task}
@@ -559,7 +559,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           items={tabItems}
         />
       </Card>
-    </Col>
+    </>
   );
 };
 
