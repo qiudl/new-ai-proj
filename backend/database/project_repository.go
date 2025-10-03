@@ -290,11 +290,12 @@ func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context,
 		args = append(args, *companyID)
 		argIndex++
 	} else if userID > 0 {
-		// Filter by ownership or membership if user ID provided (for non-enterprise users)
+		// Filter by ownership or membership if user ID provided (for non-admin users)
 		whereConditions = append(whereConditions, fmt.Sprintf("(p.owner_id = $%d OR EXISTS (SELECT 1 FROM project_users pu WHERE pu.project_id = p.id AND pu.user_id = $%d))", argIndex, argIndex+1))
 		args = append(args, userID, userID)
 		argIndex += 2
 	}
+	// If userID == 0 (admin/super_admin), no user-based filtering - show all projects
 
 	// Add search condition
 	if search != "" {

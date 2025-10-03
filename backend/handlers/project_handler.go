@@ -43,9 +43,15 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 	
 	// 如果不是模拟状态，获取当前用户的企业ID（用于企业数据隔离）
 	var companyIDPtr *int
+	var queryUserID int = userID // Default: use actual userID for filtering
+
 	if enterpriseIDPtr == nil && userRole != nil {
 		roleStr := userRole.(string)
-		if roleStr == "company_admin" || roleStr == "company_user" {
+
+		// Admin and super_admin users can see all projects (no data isolation)
+		if roleStr == "admin" || roleStr == "super_admin" {
+			queryUserID = 0 // Set to 0 to skip user-based filtering in repository
+		} else if roleStr == "company_admin" || roleStr == "company_user" {
 			companyID, err := h.getUserCompanyID(uint(userID), roleStr)
 			if err != nil {
 				log.Printf("Error getting user company ID: %v", err)
@@ -76,7 +82,7 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	projectsWithCompany, total, err := h.db.Projects().GetPaginatedWithCompany(c.Request.Context(), userID, offset, pageSize, search, status, sortBy, sortOrder, companyIDPtr, enterpriseIDPtr)
+	projectsWithCompany, total, err := h.db.Projects().GetPaginatedWithCompany(c.Request.Context(), queryUserID, offset, pageSize, search, status, sortBy, sortOrder, companyIDPtr, enterpriseIDPtr)
 	if err != nil {
 		log.Printf("Error getting projects: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目列表失败", nil))
