@@ -360,7 +360,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   }, [task, ui.activeTab, relations.subtasks, projectId, onUpdateTask, onDocsChange]);
 
   return (
-    <>
+    <Col xs={24} sm={24} md={24} lg={16} xl={16} className="content-area">
       {/* Breadcrumb Navigation */}
       <TaskBreadcrumb
         task={task}
@@ -380,10 +380,9 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
         testId="task-header-card"
       />
 
-      <Col xs={24} sm={24} md={24} lg={16} xl={16} className="content-area">
-        {/* 任务摘要（AI提炼）*/}
-        {task.custom_fields?.task_summary && (
-          <Card style={{ marginBottom: '24px' }}>
+      {/* 任务摘要（AI提炼）*/}
+      {task.custom_fields?.task_summary && (
+        <Card style={{ marginBottom: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
               <Text strong>任务摘要</Text>
             </div>
@@ -561,7 +560,6 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
         />
       </Card>
     </Col>
-    </>
   );
 };
 
