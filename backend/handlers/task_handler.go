@@ -1826,25 +1826,42 @@ func (h *TaskHandler) getUserCompanyID(userID uint, role string) (uint, error) {
 		// 企业管理员：从 users 表直接获取 company_id
 		user, err := h.db.Users().GetByID(context.Background(), int(userID))
 		if err != nil {
+			log.Printf("[getUserCompanyID] Error getting user %d: %v", userID, err)
 			return 0, err
 		}
 		if user.CompanyID != nil {
 			return uint(*user.CompanyID), nil
 		}
 	}
-	
+
 	if role == "company_user" {
 		// 企业普通用户：从 company_users 表获取 customer_id
 		// 这需要通过数据库原生查询实现，因为repository可能没有对应方法
-		exec := h.db.(*database.PostgresDB).GetDB().(*sql.DB)
+		postgresDB, ok := h.db.(*database.PostgresDB)
+		if !ok {
+			log.Printf("[getUserCompanyID] Failed to cast db to PostgresDB")
+			return 0, fmt.Errorf("database type assertion failed")
+		}
+
+		exec, ok := postgresDB.GetDB().(*sql.DB)
+		if !ok {
+			log.Printf("[getUserCompanyID] Failed to cast GetDB to *sql.DB")
+			return 0, fmt.Errorf("database connection type assertion failed")
+		}
+
 		var customerID int
 		err := exec.QueryRow("SELECT customer_id FROM company_users WHERE user_id = $1", userID).Scan(&customerID)
 		if err != nil {
+			if err == sql.ErrNoRows {
+				log.Printf("[getUserCompanyID] No company_users record for user %d", userID)
+				return 0, nil
+			}
+			log.Printf("[getUserCompanyID] Error querying company_users for user %d: %v", userID, err)
 			return 0, err
 		}
 		return uint(customerID), nil
 	}
-	
+
 	return 0, nil
 }
 

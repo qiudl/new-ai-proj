@@ -51,7 +51,9 @@ import {
   QuestionCircleOutlined,
   ControlOutlined,
   BugOutlined,
-  RocketOutlined
+  RocketOutlined,
+  ExpandOutlined,
+  ShrinkOutlined
 } from '@ant-design/icons';
 import TaskDocumentUploader from './TaskDocumentUploader';
 import DocumentVersionHistory from './DocumentVersionHistory';
@@ -153,6 +155,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewContent, setPreviewContent] = useState('');
   const [previewTitle, setPreviewTitle] = useState('');
+  const [previewExpanded, setPreviewExpanded] = useState(false); // 全屏预览展开/收起状态
   
   // 版本历史状态
   const [versionHistoryVisible, setVersionHistoryVisible] = useState(false);
@@ -1629,23 +1632,64 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
         open={previewVisible}
         onCancel={() => setPreviewVisible(false)}
         footer={[
+          <Button
+            key="expand"
+            icon={previewExpanded ? <ShrinkOutlined /> : <ExpandOutlined />}
+            onClick={() => setPreviewExpanded(!previewExpanded)}
+          >
+            {previewExpanded ? '收起' : '展开'}
+          </Button>,
+          <Popconfirm
+            key="delete"
+            title="确定删除该文档吗？"
+            description="删除后无法恢复，请确认操作"
+            onConfirm={async () => {
+              const docToDelete = documents.find(d => d.original_name === previewTitle);
+              if (docToDelete) {
+                await handleDelete(docToDelete);
+                setPreviewVisible(false);
+                notification.success({
+                  message: '删除成功',
+                  description: `文档 "${previewTitle}" 已删除`
+                });
+              }
+            }}
+            okText="删除"
+            cancelText="取消"
+            okType="danger"
+          >
+            <Button key="delete" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>,
           <Button key="close" onClick={() => setPreviewVisible(false)}>
             关闭
           </Button>
         ]}
-        width={isMobile ? '95vw' : 800}
-        style={isMobile ? {
+        width={previewExpanded ? '95vw' : (isMobile ? '95vw' : 800)}
+        style={previewExpanded ? {
+          top: 10,
+          paddingBottom: 0,
+          margin: 'auto',
+          maxWidth: '100vw'
+        } : (isMobile ? {
           top: 20,
           paddingBottom: 0,
           margin: 'auto'
-        } : undefined}
-        styles={isMobile ? {
+        } : undefined)}
+        styles={previewExpanded ? {
+          body: {
+            maxHeight: 'calc(100vh - 120px)',
+            overflow: 'auto',
+            padding: '16px'
+          }
+        } : (isMobile ? {
           body: {
             maxHeight: 'calc(100vh - 150px)',
             overflow: 'auto',
             padding: '12px'
           }
-        } : undefined}
+        } : undefined)}
         className="document-preview-modal"
         destroyOnHidden
         maskClosable={true}
@@ -1659,12 +1703,12 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
               borderRadius: '4px', 
               border: '1px solid #d9d9d9'
             }}>
-              <pre 
-                style={{ 
-                  whiteSpace: 'pre-wrap', 
-                  fontFamily: 'Monaco, Consolas, monospace', 
+              <pre
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  fontFamily: 'Monaco, Consolas, monospace',
                   fontSize: '14px',
-                  maxHeight: '500px', 
+                  maxHeight: previewExpanded ? 'calc(100vh - 250px)' : '500px',
                   overflow: 'auto',
                   margin: 0
                 }}

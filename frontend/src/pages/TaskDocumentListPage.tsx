@@ -13,7 +13,8 @@ import {
   Select,
   Row,
   Col,
-  Divider
+  Divider,
+  Popconfirm
 } from 'antd';
 import {
   FileTextOutlined,
@@ -27,11 +28,13 @@ import {
   ExclamationCircleOutlined,
   SyncOutlined,
   UnorderedListOutlined,
-  CloseOutlined
+  CloseOutlined,
+  DeleteOutlined
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
+import { documentService } from '../services/documentService';
 import { Task } from '../types/task';
 import ViewSwitcher, { ViewType } from '../components/ViewSwitcher';
 import HierarchicalTaskTable, { HierarchicalTaskWithDocument } from '../components/HierarchicalTaskTable';
@@ -93,6 +96,30 @@ const TaskDocumentListPage: React.FC = () => {
     newSearchParams.set('view', view);
     setSearchParams(newSearchParams);
   }, [searchParams, setSearchParams]);
+
+  // 删除文档处理
+  const handleDeleteDocument = async (record: TaskDocumentInfo) => {
+    if (!record.documentId) {
+      message.warning('该任务没有关联文档');
+      return;
+    }
+
+    try {
+      await documentService.deleteDocument(record.documentId);
+      message.success('文档删除成功');
+
+      // 关闭预览（如果正在预览该文档）
+      if (expandedDocumentTask?.id === record.id) {
+        setExpandedDocumentTask(null);
+      }
+
+      // 刷新列表
+      loadTasks();
+    } catch (error) {
+      console.error('删除文档失败:', error);
+      message.error('删除文档失败');
+    }
+  };
 
   // 使用useRef避免函数依赖导致重复渲染
   const projectsRef = React.useRef<Project[]>([]);
@@ -298,7 +325,7 @@ const TaskDocumentListPage: React.FC = () => {
     // 关键词搜索
     if (searchKeyword.trim()) {
       const keyword = searchKeyword.trim();
-      
+
       if (isIdSearch(keyword)) {
         // ID搜索 (格式: #123)
         const id = parseInt(keyword.substring(1));
@@ -333,7 +360,39 @@ const TaskDocumentListPage: React.FC = () => {
       filtered = filtered.filter(task => !task.documentExists);
     }
 
-    setFilteredTasks(filtered);
+    // 分离有文档和无文档的任务，只对有文档的进行排序
+    const tasksWithDocs = filtered.filter(task => task.documentExists && task.documentId);
+    const tasksWithoutDocs = filtered.filter(task => !task.documentExists || !task.documentId);
+
+    // 对有文档的任务排序：优先按最后更新时间降序，其次按文档ID降序
+    tasksWithDocs.sort((a, b) => {
+      // 首先按文档更新时间降序（最新的在前）
+      const aTime = a.documentUpdatedAt || a.lastModified || '';
+      const bTime = b.documentUpdatedAt || b.lastModified || '';
+
+      if (aTime && bTime) {
+        const timeCompare = new Date(bTime).getTime() - new Date(aTime).getTime();
+        if (timeCompare !== 0) return timeCompare;
+      }
+
+      // 如果时间相同或缺失，按文档ID降序
+      return (b.documentId || 0) - (a.documentId || 0);
+    });
+
+    console.log('📊 任务排序结果:', {
+      总任务数: filtered.length,
+      有文档任务数: tasksWithDocs.length,
+      无文档任务数: tasksWithoutDocs.length,
+      前5个有文档任务: tasksWithDocs.slice(0, 5).map(t => ({
+        id: t.id,
+        docId: t.documentId,
+        更新时间: t.documentUpdatedAt || t.lastModified,
+        title: t.title
+      }))
+    });
+
+    // 合并：有文档的在前，无文档的在后
+    setFilteredTasks([...tasksWithDocs, ...tasksWithoutDocs]);
   }, [searchKeyword, selectedProject, statusFilter, documentFilter]); // 移除tasks依赖
 
   // 初始化加载
@@ -414,20 +473,17 @@ const TaskDocumentListPage: React.FC = () => {
       key: 'documentId',
       width: 100,
       sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => {
-        // 修复排序逻辑：undefined排在最后，有值的按降序排列
+        // 只对有文档ID的任务排序
         const aVal = a.documentId || 0;
         const bVal = b.documentId || 0;
-        // 如果两个都是0（都是undefined），按任务ID排序
-        if (aVal === 0 && bVal === 0) {
-          return b.id - a.id; // 任务ID降序
-        }
-        // 如果只有一个是0，0排在后面
+        // 如果两个都没有文档ID，保持原顺序
+        if (aVal === 0 && bVal === 0) return 0;
+        // 如果只有一个没有文档ID，没有的排在后面
         if (aVal === 0) return 1;
         if (bVal === 0) return -1;
         // 都有值时，按文档ID降序
         return bVal - aVal;
       },
-      defaultSortOrder: 'descend' as const,
       render: (documentId: number | undefined, record: TaskDocumentInfo) => {
         if (!documentId) {
           return <Text type="secondary">无文档</Text>;
@@ -590,11 +646,29 @@ const TaskDocumentListPage: React.FC = () => {
           <Tooltip title="打开项目">
             <Button
               type="text"
-              
+
               icon={<FolderOpenOutlined />}
               onClick={() => navigate(`/projects/${record.project_id}`)}
             />
           </Tooltip>
+          {record.documentExists && record.documentId && (
+            <Popconfirm
+              title="确定删除该文档吗？"
+              description="删除后无法恢复，但任务本身不会被删除"
+              onConfirm={() => handleDeleteDocument(record)}
+              okText="删除"
+              cancelText="取消"
+              okType="danger"
+            >
+              <Tooltip title="删除文档">
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },

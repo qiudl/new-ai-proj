@@ -232,10 +232,22 @@ const DocumentListItem: React.FC<{
             <Button
               type="text"
               icon={<DownloadOutlined />}
-              
+
               onClick={(e) => {
                 e.stopPropagation();
                 onDownload?.(document);
+              }}
+            />
+          </Tooltip>,
+          <Tooltip title="删除">
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(document);
               }}
             />
           </Tooltip>
@@ -888,17 +900,26 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
   }, [selectedDocument]);
 
   const handleDocumentDelete = useCallback(async (doc: DocumentItem) => {
-    try {
-      await documentService.deleteDocument(doc.id);
-      message.success('文档删除成功');
-      await loadDocuments();
-      if (selectedDocument?.id === doc.id) {
-        setSelectedDocument(null);
+    Modal.confirm({
+      title: '确定删除该文档吗？',
+      content: `文档"${doc.title}"删除后无法恢复，请确认操作`,
+      okText: '删除',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await documentService.deleteDocument(doc.id);
+          message.success('文档删除成功');
+          await loadDocuments();
+          if (selectedDocument?.id === doc.id) {
+            setSelectedDocument(null);
+          }
+        } catch (error) {
+          console.error('删除失败:', error);
+          message.error('文档删除失败');
+        }
       }
-    } catch (error) {
-      console.error('删除失败:', error);
-      message.error('文档删除失败');
-    }
+    });
   }, [loadDocuments, selectedDocument]);
 
   const handleDocumentDownload = useCallback(async (doc: DocumentItem) => {

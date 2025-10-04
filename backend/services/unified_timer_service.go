@@ -532,11 +532,15 @@ func (s *unifiedTimerServiceImpl) StopTimer(ctx context.Context, userID int, not
 	}
 
 	// 清除用户当前计时器状态
-	s.db.ExecContext(ctx, `
-		UPDATE users 
-		SET current_timer_id = NULL, updated_at = NOW() 
+	_, err = s.db.ExecContext(ctx, `
+		UPDATE users
+		SET current_timer_id = NULL, updated_at = NOW()
 		WHERE id = $1
 	`, userID)
+	if err != nil {
+		// 记录警告但不失败整个操作,因为主要的计时器记录已经成功停止
+		fmt.Printf("Warning: Failed to clear user current_timer_id for user %d: %v\n", userID, err)
+	}
 
 	// 发送通知
 	go s.notifyTimerStopped(userID, currentTimer.ID, currentTimer.TargetTitle, actualWorkDuration)
@@ -867,7 +871,11 @@ func (s *unifiedTimerServiceImpl) StopTimerByID(ctx context.Context, userID int,
 	}
 
 	// 如果该计时器是用户当前计时器，则清空
-	_, _ = s.db.ExecContext(ctx, `UPDATE users SET current_timer_id = NULL, updated_at = NOW() WHERE id = $1 AND current_timer_id = $2`, userID, t.ID)
+	_, err = s.db.ExecContext(ctx, `UPDATE users SET current_timer_id = NULL, updated_at = NOW() WHERE id = $1 AND current_timer_id = $2`, userID, t.ID)
+	if err != nil {
+		// 记录警告但不失败整个操作,因为主要的计时器记录已经成功停止
+		fmt.Printf("Warning: Failed to clear user current_timer_id for user %d timer %d: %v\n", userID, t.ID, err)
+	}
 
 	go s.notifyTimerStopped(userID, t.ID, t.TargetTitle, actualWorkDuration)
 	return &UnifiedTimerResponse{

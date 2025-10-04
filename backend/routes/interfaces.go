@@ -177,7 +177,10 @@ type ApplicationInterface interface {
 
 	// AI配置处理器
 	GetAIConfigHandler() *handlers.AIConfigHandler
-	
+
+	// API密钥处理器
+	GetAPIKeyHandler() *handlers.APIKeyHandler
+
 	// 测试数据生成服务
 	GetTestDataGeneratorService() interface{}
 }

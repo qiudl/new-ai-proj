@@ -40,10 +40,14 @@ console.error('[MCP] 初始化 TaskMCPServer（连接后端模式）');
 console.error('[MCP] API基础URL:', apiBaseUrl);
 const taskServer = new TaskMCPServer(apiBaseUrl);
 
+// 服务器名称可通过环境变量配置，默认为 ai-proj
+const serverName = process.env.MCP_SERVER_NAME || 'ai-proj';
+console.error('[MCP] 服务器名称:', serverName);
+
 // 创建 MCP Server
 const server = new Server(
   {
-    name: 'ai-proj',
+    name: serverName,
     version: '1.0.0',
   },
   {

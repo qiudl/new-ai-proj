@@ -281,21 +281,14 @@ const TaskDetailSidebar: React.FC<TaskDetailSidebarProps> = ({
         parentTask={relations.parent}
       />
 
-      {/* 任务文档小部件 - 兼容性保留 */}
+      {/* 任务文档小部件 */}
       <div style={{ marginBottom: '16px' }}>
-        <Card title="文档概览">
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              💡 新版统一文档界面已在主Tab中启用
-            </Text>
-            <TaskDocumentWidget
-              projectId={projectId}
-              taskId={task.id}
-              compact={true}
-              showTitle={false}
-            />
-          </Space>
-        </Card>
+        <TaskDocumentWidget
+          projectId={projectId}
+          taskId={task.id}
+          compact={false}
+          showTitle={true}
+        />
       </div>
 
       {/* 任务提醒 */}
