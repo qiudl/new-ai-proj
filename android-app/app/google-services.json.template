@@ -1,0 +1,10 @@
+{
+  "_comment": "这是一个模板文件。请按以下步骤配置 Firebase:",
+  "_step1": "访问 https://console.firebase.google.com",
+  "_step2": "创建新项目或选择现有项目",
+  "_step3": "添加 Android 应用，包名：com.aiproj.mobile",
+  "_step4": "下载 google-services.json 文件",
+  "_step5": "将下载的文件重命名为 google-services.json 并放到 app/ 目录",
+  "_step6": "删除此模板文件",
+  "_note": "如果不使用 Firebase 推送通知功能，可以暂时跳过此配置"
+}

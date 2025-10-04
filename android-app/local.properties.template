@@ -1,0 +1,17 @@
+## This file must *NOT* be checked into Version Control Systems,
+# as it contains information specific to your local configuration.
+#
+# Location of the SDK. This is only used by Gradle.
+# For customization when using a Version Control System, please read the
+# header note.
+
+# Android SDK location (required)
+# macOS example:
+sdk.dir=/Users/YOUR_USERNAME/Library/Android/sdk
+# Windows example:
+#sdk.dir=C\:\\Users\\YOUR_USERNAME\\AppData\\Local\\Android\\sdk
+# Linux example:
+#sdk.dir=/home/YOUR_USERNAME/Android/Sdk
+
+# Optional: Custom API Base URL for development
+# api.base.url=http://10.0.2.2:8080/api/v1

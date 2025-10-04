@@ -1,0 +1,39 @@
+[Unit]
+Description=SSH Tunnel for PostgreSQL Database
+After=network-online.target
+Wants=network-online.target
+Documentation=file:///Users/johnqiu/coding/www/projects/new-ai-proj/docs/SSH_TUNNEL_GUIDE.md
+
+[Service]
+Type=simple
+User=johnqiu
+WorkingDirectory=/Users/johnqiu/coding/www/projects/new-ai-proj
+Environment="REMOTE_HOST=ubuntu@152.136.104.251"
+Environment="LOCAL_PORT=15433"
+Environment="REMOTE_PORT=5432"
+Environment="HEALTH_CHECK_INTERVAL=30"
+Environment="MAX_RETRY=3"
+
+# 启动健康检查守护进程
+ExecStart=/Users/johnqiu/coding/www/projects/new-ai-proj/scripts/ssh-tunnel-manager.sh health
+
+# 停止时优雅关闭
+ExecStop=/Users/johnqiu/coding/www/projects/new-ai-proj/scripts/ssh-tunnel-manager.sh stop
+
+# 重启策略
+Restart=always
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# 资源限制
+MemoryMax=100M
+CPUQuota=10%
+
+# 日志配置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ssh-tunnel
+
+[Install]
+WantedBy=multi-user.target
