@@ -181,6 +181,9 @@ type ApplicationInterface interface {
 	// API密钥处理器
 	GetAPIKeyHandler() *handlers.APIKeyHandler
 
+	// Dashboard处理器
+	GetDashboardHandler() *handlers.DashboardHandler
+
 	// 测试数据生成服务
 	GetTestDataGeneratorService() interface{}
 }

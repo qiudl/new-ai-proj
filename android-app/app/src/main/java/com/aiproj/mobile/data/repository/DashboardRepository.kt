@@ -124,8 +124,8 @@ class DashboardRepository @Inject constructor(
     suspend fun getDashboardStats(date: String? = null): Result<DashboardStats> {
         return try {
             val response = dashboardApi.getDashboardStats(date)
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+            if (response.isSuccessful && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
             } else {
                 Result.failure(Exception("获取统计数据失败: ${response.code()}"))
             }
@@ -140,21 +140,12 @@ class DashboardRepository @Inject constructor(
      */
     suspend fun getTimeStats(days: Int = 7): Result<TimeStatsData> {
         return try {
-            // TODO: 实现实际的 API 调用
-            // 暂时返回模拟数据用于UI开发
-            val dailyStats = generateMockDailyStats(days)
-            val totalHours = dailyStats.sumOf { it.hours.toDouble() }.toFloat()
-            val averageHours = totalHours / days
-            val mostProductiveDay = dailyStats.maxByOrNull { it.hours }?.label
-
-            Result.success(
-                TimeStatsData(
-                    dailyStats = dailyStats,
-                    totalHours = totalHours,
-                    averageHoursPerDay = averageHours,
-                    mostProductiveDay = mostProductiveDay
-                )
-            )
+            val response = dashboardApi.getTimeStats(days)
+            if (response.isSuccessful && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception("获取时间统计失败: ${response.code()}"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -166,61 +157,15 @@ class DashboardRepository @Inject constructor(
      */
     suspend fun getRecentNotifications(limit: Int = 5): Result<List<Notification>> {
         return try {
-            // TODO: 实现实际的 API 调用
-            // 暂时返回模拟数据用于UI开发
-            val mockNotifications = generateMockNotifications(limit)
-            Result.success(mockNotifications)
+            val response = dashboardApi.getNotifications(limit)
+            if (response.isSuccessful && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!.notifications)
+            } else {
+                Result.failure(Exception("获取通知失败: ${response.code()}"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * 生成模拟的每日统计数据
-     * TODO: 移除此方法，改为实际API调用
-     */
-    private fun generateMockDailyStats(days: Int): List<DailyTimeStat> {
-        val dayLabels = listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
-        return (0 until days).map { index ->
-            DailyTimeStat(
-                date = "2025-10-${String.format("%02d", index + 1)}",
-                hours = (2..8).random().toFloat() + (0..9).random() / 10f,
-                taskCount = (1..5).random(),
-                label = dayLabels[index % 7]
-            )
-        }
-    }
-
-    /**
-     * 生成模拟通知数据
-     * TODO: 移除此方法，改为实际API调用
-     */
-    private fun generateMockNotifications(limit: Int): List<Notification> {
-        val types = listOf(
-            NotificationType.TASK_ASSIGNED,
-            NotificationType.TASK_UPDATED,
-            NotificationType.DEADLINE_APPROACHING,
-            NotificationType.COMMENT_ADDED
-        )
-
-        val messages = listOf(
-            "你被分配了新任务：实现用户认证模块",
-            "任务「API文档编写」已被更新",
-            "任务「数据库优化」即将到期，请及时处理",
-            "王小明在「前端重构」任务中添加了评论",
-            "项目「移动端开发」有新的更新"
-        )
-
-        return (0 until limit).map { index ->
-            Notification(
-                id = index + 1,
-                type = types.random(),
-                title = "通知标题 ${index + 1}",
-                message = messages.random(),
-                isRead = index > 1, // 前2条未读
-                relatedTaskId = if (index % 2 == 0) (100 + index) else null,
-                createdAt = "2025-10-0${4 - index / 2}T${10 + index}:30:00Z"
-            )
-        }
-    }
 }

@@ -665,6 +665,14 @@ func (app *Application) GetAPIKeyHandler() *handlers.APIKeyHandler {
 	return nil // 需要通过工厂创建
 }
 
+// GetDashboardHandler returns the Dashboard handler
+func (app *Application) GetDashboardHandler() *handlers.DashboardHandler {
+	if app.handlers != nil && app.handlers.DashboardHandler != nil {
+		return app.handlers.DashboardHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
 // GetWebSocketHandler returns the WebSocket handler - COMPLETELY DISABLED
 // func (app *Application) GetWebSocketHandler() gin.HandlerFunc {
 // 	// Temporarily disabled WebSocket functionality

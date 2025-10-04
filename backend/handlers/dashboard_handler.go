@@ -3,6 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -449,4 +450,431 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 func getWeekNumber(date time.Time) int {
 	_, week := date.ISOWeek()
 	return week
+}
+
+// DashboardStatsResponse represents daily dashboard statistics
+type DashboardStatsResponse struct {
+	TodayTasksCompleted int `json:"today_tasks_completed"`
+	TodayTasksTotal     int `json:"today_tasks_total"`
+	TodayWorkTime       int `json:"today_work_time"` // in minutes
+	ActiveProjects      int `json:"active_projects"`
+	PendingTasks        int `json:"pending_tasks"`
+}
+
+// GetStats handles GET /api/v1/dashboard/stats
+// Returns daily dashboard statistics for the current user
+func (h *DashboardHandler) GetStats(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	userID := userIDInterface.(int)
+
+	// Get optional date parameter (default to today)
+	dateStr := c.Query("date")
+	var targetDate time.Time
+	if dateStr == "" {
+		targetDate = time.Now()
+	} else {
+		var err error
+		targetDate, err = time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid date format, expected YYYY-MM-DD",
+			})
+			return
+		}
+	}
+
+	// Calculate date range for "today"
+	startOfDay := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 0, 0, 0, 0, targetDate.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	db := h.db.GetDB().(*sql.DB)
+	stats := &DashboardStatsResponse{}
+
+	// 1. Get today's task statistics
+	taskStatsQuery := `
+		SELECT
+			COUNT(*) FILTER (WHERE status = 'completed' AND updated_at >= $1 AND updated_at < $2) as completed_today,
+			COUNT(*) FILTER (WHERE created_at >= $1 AND created_at < $2) as created_today,
+			COUNT(*) FILTER (WHERE status IN ('todo', 'planning', 'in_progress')) as pending_total
+		FROM tasks
+		WHERE (assignee_id = $3 OR creator_id = $3)
+			AND deleted_at IS NULL`
+
+	err := db.QueryRow(taskStatsQuery, startOfDay, endOfDay, userID).Scan(
+		&stats.TodayTasksCompleted,
+		&stats.TodayTasksTotal,
+		&stats.PendingTasks,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch task statistics",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// 2. Get today's work time from time logs (in minutes)
+	workTimeQuery := `
+		SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (stopped_at - started_at)) / 60), 0)::int
+		FROM user_timers
+		WHERE user_id = $1
+			AND started_at >= $2
+			AND started_at < $3
+			AND stopped_at IS NOT NULL`
+
+	err = db.QueryRow(workTimeQuery, userID, startOfDay, endOfDay).Scan(&stats.TodayWorkTime)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch work time",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// 3. Get active projects count
+	activeProjectsQuery := `
+		SELECT COUNT(DISTINCT p.id)
+		FROM projects p
+		INNER JOIN tasks t ON t.project_id = p.id
+		WHERE t.assignee_id = $1
+			AND p.status = 'active'
+			AND t.status IN ('todo', 'planning', 'in_progress')
+			AND t.deleted_at IS NULL
+			AND p.deleted_at IS NULL`
+
+	err = db.QueryRow(activeProjectsQuery, userID).Scan(&stats.ActiveProjects)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch active projects",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    stats,
+	})
+}
+
+// DailyTimeStat 每日时间统计
+type DailyTimeStat struct {
+	Date      string  `json:"date"`       // 日期，格式: "2025-10-01"
+	Hours     float64 `json:"hours"`      // 工作小时数
+	TaskCount int     `json:"taskCount"`  // 完成任务数
+	Label     string  `json:"label"`      // 日期标签
+}
+
+// TimeStatsResponse 时间统计响应
+type TimeStatsResponse struct {
+	DailyStats         []DailyTimeStat `json:"dailyStats"`
+	TotalHours         float64         `json:"totalHours"`
+	AverageHoursPerDay float64         `json:"averageHoursPerDay"`
+	MostProductiveDay  string          `json:"mostProductiveDay"`
+}
+
+// GetTimeStats 获取时间统计数据（7天工作时长图表）
+func (h *DashboardHandler) GetTimeStats(c *gin.Context) {
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	userID := userIDInterface.(int)
+
+	// Get days parameter (default 7)
+	daysStr := c.DefaultQuery("days", "7")
+	days, err := strconv.Atoi(daysStr)
+	if err != nil || days < 1 || days > 30 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid days parameter, must be between 1 and 30",
+		})
+		return
+	}
+
+	db := h.db.GetDB().(*sql.DB)
+	now := time.Now()
+	startDate := now.AddDate(0, 0, -(days - 1))
+	startOfPeriod := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, startDate.Location())
+
+	// Query daily work time and task completion counts
+	query := `
+		WITH date_series AS (
+			SELECT generate_series(
+				$1::timestamp,
+				$2::timestamp,
+				interval '1 day'
+			)::date as date
+		),
+		daily_time AS (
+			SELECT
+				DATE(started_at) as work_date,
+				SUM(EXTRACT(EPOCH FROM (stopped_at - started_at)) / 3600)::float as hours
+			FROM user_timers
+			WHERE user_id = $3
+				AND started_at >= $1
+				AND stopped_at IS NOT NULL
+			GROUP BY DATE(started_at)
+		),
+		daily_tasks AS (
+			SELECT
+				DATE(updated_at) as completion_date,
+				COUNT(*) as task_count
+			FROM tasks
+			WHERE (assignee_id = $3 OR creator_id = $3)
+				AND status = 'completed'
+				AND updated_at >= $1
+				AND deleted_at IS NULL
+			GROUP BY DATE(updated_at)
+		)
+		SELECT
+			ds.date,
+			COALESCE(dt.hours, 0) as hours,
+			COALESCE(dtask.task_count, 0) as task_count
+		FROM date_series ds
+		LEFT JOIN daily_time dt ON ds.date = dt.work_date
+		LEFT JOIN daily_tasks dtask ON ds.date = dtask.completion_date
+		ORDER BY ds.date ASC`
+
+	rows, err := db.Query(query, startOfPeriod, now, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch time statistics",
+			"details": err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+
+	var dailyStats []DailyTimeStat
+	var totalHours float64
+	var maxHours float64
+	var mostProductiveDay string
+
+	for rows.Next() {
+		var date time.Time
+		var hours float64
+		var taskCount int
+
+		if err := rows.Scan(&date, &hours, &taskCount); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to parse time statistics",
+				"details": err.Error(),
+			})
+			return
+		}
+
+		// Format date and label
+		dateStr := date.Format("2006-01-02")
+		weekday := date.Weekday()
+		var label string
+		if days <= 7 {
+			// For week view, show weekday names
+			weekdayNames := []string{"周日", "周一", "周二", "周三", "周四", "周五", "周六"}
+			label = weekdayNames[weekday]
+		} else {
+			// For month view, show date
+			label = date.Format("01/02")
+		}
+
+		dailyStats = append(dailyStats, DailyTimeStat{
+			Date:      dateStr,
+			Hours:     hours,
+			TaskCount: taskCount,
+			Label:     label,
+		})
+
+		totalHours += hours
+		if hours > maxHours {
+			maxHours = hours
+			mostProductiveDay = dateStr
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Error iterating time statistics",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Calculate average
+	averageHours := 0.0
+	if len(dailyStats) > 0 {
+		averageHours = totalHours / float64(len(dailyStats))
+	}
+
+	response := TimeStatsResponse{
+		DailyStats:         dailyStats,
+		TotalHours:         totalHours,
+		AverageHoursPerDay: averageHours,
+		MostProductiveDay:  mostProductiveDay,
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// NotificationResponse 通知响应
+type NotificationResponse struct {
+	ID               int     `json:"id"`
+	Type             string  `json:"type"`
+	Title            string  `json:"title"`
+	Message          string  `json:"message"`
+	IsRead           bool    `json:"is_read"`
+	RelatedTaskID    *int    `json:"related_task_id,omitempty"`
+	RelatedProjectID *int    `json:"related_project_id,omitempty"`
+	CreatedAt        string  `json:"created_at"`
+	ReadAt           *string `json:"read_at,omitempty"`
+}
+
+// NotificationListResponse 通知列表响应
+type NotificationListResponse struct {
+	Notifications []NotificationResponse `json:"notifications"`
+	Total         int                    `json:"total"`
+	UnreadCount   int                    `json:"unread_count"`
+}
+
+// GetNotifications 获取最近通知列表
+func (h *DashboardHandler) GetNotifications(c *gin.Context) {
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	userID := userIDInterface.(int)
+
+	// Get limit parameter (default 10, max 50)
+	limitStr := c.DefaultQuery("limit", "10")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 || limit > 50 {
+		limit = 10
+	}
+
+	// Get unread_only parameter
+	unreadOnly := c.DefaultQuery("unread_only", "false") == "true"
+
+	db := h.db.GetDB().(*sql.DB)
+
+	// Build query based on filters
+	whereClause := "WHERE user_id = $1"
+	args := []interface{}{userID}
+	argCount := 1
+
+	if unreadOnly {
+		argCount++
+		whereClause += fmt.Sprintf(" AND is_read = false")
+	}
+
+	// Get total count and unread count
+	var total, unreadCount int
+	countQuery := fmt.Sprintf(`
+		SELECT
+			COUNT(*) as total,
+			COUNT(*) FILTER (WHERE is_read = false) as unread_count
+		FROM notifications
+		%s`, whereClause)
+
+	err = db.QueryRow(countQuery, args[:argCount]...).Scan(&total, &unreadCount)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch notification counts",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Get notifications
+	args = append(args[:argCount], limit)
+	notificationQuery := fmt.Sprintf(`
+		SELECT
+			id,
+			type,
+			title,
+			message,
+			is_read,
+			related_task_id,
+			related_project_id,
+			created_at,
+			read_at
+		FROM notifications
+		%s
+		ORDER BY created_at DESC
+		LIMIT $%d`, whereClause, argCount+1)
+
+	rows, err := db.Query(notificationQuery, args...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch notifications",
+			"details": err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+
+	var notifications []NotificationResponse
+	for rows.Next() {
+		var notif NotificationResponse
+		var createdAt time.Time
+		var readAt *time.Time
+
+		err := rows.Scan(
+			&notif.ID,
+			&notif.Type,
+			&notif.Title,
+			&notif.Message,
+			&notif.IsRead,
+			&notif.RelatedTaskID,
+			&notif.RelatedProjectID,
+			&createdAt,
+			&readAt,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to parse notification",
+				"details": err.Error(),
+			})
+			return
+		}
+
+		notif.CreatedAt = createdAt.Format(time.RFC3339)
+		if readAt != nil {
+			readAtStr := readAt.Format(time.RFC3339)
+			notif.ReadAt = &readAtStr
+		}
+
+		notifications = append(notifications, notif)
+	}
+
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Error iterating notifications",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Return empty list if no notifications
+	if notifications == nil {
+		notifications = []NotificationResponse{}
+	}
+
+	response := NotificationListResponse{
+		Notifications: notifications,
+		Total:         total,
+		UnreadCount:   unreadCount,
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
 }
