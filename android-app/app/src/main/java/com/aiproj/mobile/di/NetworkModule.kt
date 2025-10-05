@@ -1,20 +1,25 @@
 package com.aiproj.mobile.di
 
+import android.content.Context
 import com.aiproj.mobile.BuildConfig
 import com.aiproj.mobile.data.api.AttachmentApi
 import com.aiproj.mobile.data.api.AuthApi
 import com.aiproj.mobile.data.api.AuthInterceptor
 import com.aiproj.mobile.data.api.CommentApi
 import com.aiproj.mobile.data.api.DashboardApi
+import com.aiproj.mobile.data.api.DocumentApi
 import com.aiproj.mobile.data.api.ProjectApi
 import com.aiproj.mobile.data.api.TaskApi
 import com.aiproj.mobile.data.api.TimeLogApi
 import com.aiproj.mobile.data.api.TokenProvider
+import com.aiproj.mobile.data.network.ConnectivityObserver
+import com.aiproj.mobile.data.network.ConnectivityObserverImpl
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -141,5 +146,25 @@ object NetworkModule {
     @Singleton
     fun provideCommentApi(retrofit: Retrofit): CommentApi {
         return retrofit.create(CommentApi::class.java)
+    }
+
+    /**
+     * 提供 DocumentApi
+     */
+    @Provides
+    @Singleton
+    fun provideDocumentApi(retrofit: Retrofit): DocumentApi {
+        return retrofit.create(DocumentApi::class.java)
+    }
+
+    /**
+     * 提供 ConnectivityObserver
+     */
+    @Provides
+    @Singleton
+    fun provideConnectivityObserver(
+        @ApplicationContext context: Context
+    ): ConnectivityObserver {
+        return ConnectivityObserverImpl(context)
     }
 }

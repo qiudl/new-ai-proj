@@ -1,5 +1,6 @@
 package com.aiproj.mobile.ui.screens.tasks
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -30,13 +31,18 @@ import java.util.*
 fun TaskDetailScreen(
     onNavigateBack: () -> Unit,
     onEdit: (Int) -> Unit,
+    onNavigateToDocuments: ((Int) -> Unit)? = null,
     viewModel: TaskDetailViewModel = hiltViewModel()
 ) {
+    Log.d("TaskDetailScreen", "TaskDetailScreen Composable 开始渲染")
+
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     // TODO: 从TokenManager或UserPreferencesManager获取当前用户ID
     val currentUserId = remember { 1 }
+
+    Log.d("TaskDetailScreen", "UI状态: isLoading=${uiState.isLoading}, task=${uiState.task?.title}, error=${uiState.error}")
 
     Scaffold(
         topBar = {
@@ -49,6 +55,11 @@ fun TaskDetailScreen(
                 },
                 actions = {
                     uiState.task?.let { task ->
+                        onNavigateToDocuments?.let { navigateToDocuments ->
+                            IconButton(onClick = { navigateToDocuments(task.id) }) {
+                                Icon(Icons.Default.Description, contentDescription = "文档")
+                            }
+                        }
                         IconButton(onClick = { onEdit(task.id) }) {
                             Icon(Icons.Default.Edit, contentDescription = "编辑")
                         }
@@ -86,7 +97,10 @@ fun TaskDetailScreen(
             }
         }
     ) { paddingValues ->
+        Log.d("TaskDetailScreen", "渲染主内容区域: isLoading=${uiState.isLoading}")
+
         if (uiState.isLoading) {
+            Log.d("TaskDetailScreen", "显示加载指示器")
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -96,7 +110,9 @@ fun TaskDetailScreen(
                 CircularProgressIndicator()
             }
         } else {
+            Log.d("TaskDetailScreen", "加载完成, task是否为null: ${uiState.task == null}")
             uiState.task?.let { task ->
+                Log.d("TaskDetailScreen", "渲染TaskDetailContent: ${task.title}")
                 TaskDetailContent(
                     task = task,
                     subtasks = uiState.subtasks,
@@ -492,7 +508,7 @@ fun TaskActionBar(
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            when (task.status) {
+            when (task.status ?: TaskStatus.TODO) {
                 TaskStatus.TODO, TaskStatus.PLANNING -> {
                     Button(
                         onClick = onStart,

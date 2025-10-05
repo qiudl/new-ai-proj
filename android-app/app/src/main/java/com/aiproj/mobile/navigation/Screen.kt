@@ -43,4 +43,23 @@ sealed class Screen(val route: String) {
 
     // 个人中心
     object Profile : Screen("profile")
+
+    // 文档列表
+    object DocumentList : Screen("document_list/{taskId}") {
+        fun createRoute(taskId: Int) = "document_list/$taskId"
+    }
+
+    // 文档查看
+    object DocumentViewer : Screen("document_viewer/{taskId}/{documentId}") {
+        fun createRoute(taskId: Int, documentId: Int) = "document_viewer/$taskId/$documentId"
+    }
+
+    // 文档编辑
+    object DocumentEditor : Screen("document_editor/{taskId}?documentId={documentId}") {
+        fun createRoute(taskId: Int, documentId: Int? = null) = if (documentId != null) {
+            "document_editor/$taskId?documentId=$documentId"
+        } else {
+            "document_editor/$taskId"
+        }
+    }
 }

@@ -23,6 +23,9 @@ import com.aiproj.mobile.ui.screens.profile.ProfileScreen
 import com.aiproj.mobile.ui.screens.tasks.TaskDetailScreen
 import com.aiproj.mobile.ui.screens.tasks.TaskListScreen
 import com.aiproj.mobile.ui.screens.timer.TimerScreen
+import com.aiproj.mobile.ui.document.list.DocumentListScreen
+import com.aiproj.mobile.ui.document.viewer.DocumentViewerScreen
+import com.aiproj.mobile.ui.document.editor.DocumentEditorScreen
 
 /**
  * 应用主导航
@@ -137,6 +140,9 @@ fun MainScreen(
                     onEdit = { editTaskId ->
                         // TODO: 创建TaskEditScreen后启用
                         // navController.navigate(Screen.TaskEdit.createRoute(editTaskId))
+                    },
+                    onNavigateToDocuments = { navigateTaskId ->
+                        navController.navigate(Screen.DocumentList.createRoute(navigateTaskId))
                     }
                 )
             }
@@ -149,6 +155,67 @@ fun MainScreen(
             // 个人中心
             composable(Screen.Profile.route) {
                 ProfileScreen(onLogout = onLogout)
+            }
+
+            // 文档列表
+            composable(
+                route = Screen.DocumentList.route,
+                arguments = listOf(
+                    navArgument("taskId") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+                DocumentListScreen(
+                    taskId = taskId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onDocumentClick = { documentId ->
+                        navController.navigate(Screen.DocumentViewer.createRoute(taskId, documentId))
+                    },
+                    onCreateDocument = {
+                        navController.navigate(Screen.DocumentEditor.createRoute(taskId))
+                    }
+                )
+            }
+
+            // 文档查看
+            composable(
+                route = Screen.DocumentViewer.route,
+                arguments = listOf(
+                    navArgument("taskId") { type = NavType.IntType },
+                    navArgument("documentId") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+                val documentId = backStackEntry.arguments?.getInt("documentId") ?: return@composable
+                DocumentViewerScreen(
+                    taskId = taskId,
+                    documentId = documentId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToEdit = { editTaskId, editDocumentId ->
+                        navController.navigate(Screen.DocumentEditor.createRoute(editTaskId, editDocumentId))
+                    }
+                )
+            }
+
+            // 文档编辑
+            composable(
+                route = Screen.DocumentEditor.route,
+                arguments = listOf(
+                    navArgument("taskId") { type = NavType.IntType },
+                    navArgument("documentId") {
+                        type = NavType.IntType
+                        defaultValue = -1
+                    }
+                )
+            ) { backStackEntry ->
+                val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+                val documentIdArg = backStackEntry.arguments?.getInt("documentId") ?: -1
+                val documentId = if (documentIdArg == -1) null else documentIdArg
+                DocumentEditorScreen(
+                    taskId = taskId,
+                    documentId = documentId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
         }
     }
