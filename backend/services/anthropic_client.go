@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"ai-project-backend/models"
 )
 
 // AnthropicClient Anthropic API客户端
@@ -85,6 +87,87 @@ func (c *AnthropicClient) Generate(ctx context.Context, prompt string) (string, 
 	req.Header.Set("anthropic-version", "2023-06-01")
 
 	resp, err := c.client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("API请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("读取响应失败: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("API请求失败 (status: %d): %s", resp.StatusCode, string(body))
+	}
+
+	var response AnthropicResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", fmt.Errorf("解析响应失败: %w", err)
+	}
+
+	if response.Error != nil {
+		return "", fmt.Errorf("API返回错误: %s", response.Error.Message)
+	}
+
+	if len(response.Content) == 0 {
+		return "", fmt.Errorf("AI返回空响应")
+	}
+
+	return response.Content[0].Text, nil
+}
+
+// GenerateWithConfig 使用指定配置生成文本
+func (c *AnthropicClient) GenerateWithConfig(ctx context.Context, prompt string, config *models.AIConfig) (string, error) {
+	if config.APIKeyEncrypted == "" {
+		return "", fmt.Errorf("AI配置缺少API密钥")
+	}
+
+	// 使用配置中的参数
+	maxTokens := 4096
+	if config.MaxTokens > 0 {
+		maxTokens = config.MaxTokens
+	}
+
+	reqBody := AnthropicRequest{
+		Model:     config.Model,
+		MaxTokens: maxTokens,
+		Messages: []AnthropicMessage{
+			{
+				Role:    "user",
+				Content: prompt,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("序列化请求失败: %w", err)
+	}
+
+	// 使用配置中的BaseURL
+	baseURL := "https://api.anthropic.com/v1"
+	if config.BaseURL != nil && *config.BaseURL != "" {
+		baseURL = *config.BaseURL
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/messages", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", config.APIKeyEncrypted)
+	req.Header.Set("anthropic-version", "2023-06-01")
+
+	// 使用配置中的超时时间
+	timeout := 60 * time.Second
+	if config.Metadata.Timeout > 0 {
+		timeout = time.Duration(config.Metadata.Timeout) * time.Second
+	}
+
+	client := &http.Client{Timeout: timeout}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("API请求失败: %w", err)
 	}

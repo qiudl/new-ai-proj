@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
 
@@ -21,7 +22,7 @@ type AISubtaskHandler struct {
 func NewAISubtaskHandler(db database.DB) *AISubtaskHandler {
 	return &AISubtaskHandler{
 		db:                db,
-		aiGenerateService: services.NewAIGenerateService(),
+		aiGenerateService: services.NewAIGenerateService(db.GetDB().(*sql.DB)),
 	}
 }
 

@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -12,12 +13,14 @@ import (
 
 // AIGenerateService AI生成服务
 type AIGenerateService struct {
+	db              *sql.DB
 	anthropicClient *AnthropicClient
 }
 
 // NewAIGenerateService 创建AI生成服务
-func NewAIGenerateService() *AIGenerateService {
+func NewAIGenerateService(db *sql.DB) *AIGenerateService {
 	return &AIGenerateService{
+		db:              db,
 		anthropicClient: NewAnthropicClient(),
 	}
 }
@@ -31,6 +34,44 @@ type GenerateSubtasksParams struct {
 	MaxSubtasks        int
 }
 
+// getAIConfig 从数据库获取AI配置
+func (s *AIGenerateService) getAIConfig(ctx context.Context, modelKey string) (*models.AIConfig, error) {
+	query := `
+		SELECT id, provider, model, api_key_encrypted, base_url, enabled,
+		       max_tokens, temperature, created_at, updated_at
+		FROM ai_configs
+		WHERE provider = $1 AND enabled = true
+		LIMIT 1
+	`
+
+	var config models.AIConfig
+	var apiKeyEncrypted string
+	err := s.db.QueryRowContext(ctx, query, modelKey).Scan(
+		&config.ID,
+		&config.Provider,
+		&config.Model,
+		&apiKeyEncrypted,
+		&config.BaseURL,
+		&config.Enabled,
+		&config.MaxTokens,
+		&config.Temperature,
+		&config.CreatedAt,
+		&config.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("AI配置不存在或未启用: %s", modelKey)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("查询AI配置失败: %w", err)
+	}
+
+	// 将加密的API密钥赋值(实际使用时需要解密,这里暂时直接使用)
+	config.APIKeyEncrypted = apiKeyEncrypted
+
+	return &config, nil
+}
+
 // GenerateSubtasks 生成子任务
 func (s *AIGenerateService) GenerateSubtasks(ctx context.Context, params *GenerateSubtasksParams) (*models.AIGenerateResponse, error) {
 	// 设置默认值
@@ -38,31 +79,28 @@ func (s *AIGenerateService) GenerateSubtasks(ctx context.Context, params *Genera
 		params.MaxSubtasks = 10
 	}
 
-	// 1. 构建Prompt
-	prompt := s.buildPrompt(params)
-
-	// 2. 调用AI模型
-	var response string
-	var err error
-
-	switch params.Model {
-	case "claude", "anthropic":
-		response, err = s.anthropicClient.Generate(ctx, prompt)
-	default:
-		return nil, fmt.Errorf("不支持的AI模型: %s", params.Model)
+	// 1. 从数据库获取AI配置
+	aiConfig, err := s.getAIConfig(ctx, params.Model)
+	if err != nil {
+		return nil, err
 	}
 
+	// 2. 构建Prompt
+	prompt := s.buildPrompt(params)
+
+	// 3. 调用AI模型（暂时只支持Anthropic兼容的API）
+	response, err := s.anthropicClient.GenerateWithConfig(ctx, prompt, aiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("AI调用失败: %w", err)
 	}
 
-	// 3. 解析AI响应
+	// 4. 解析AI响应
 	subtasks, err := s.parseAIResponse(response, params.MaxSubtasks)
 	if err != nil {
 		return nil, fmt.Errorf("解析AI响应失败: %w", err)
 	}
 
-	// 4. 计算统计信息
+	// 5. 计算统计信息
 	statistics := s.calculateStatistics(subtasks)
 
 	return &models.AIGenerateResponse{

@@ -93,8 +93,9 @@ class TaskDetailViewModel @Inject constructor(
                     val timeLogs = timeLogsResult.getOrNull() ?: emptyList()
                     val attachments = attachmentsResult.getOrNull() ?: emptyList()
                     val comments = commentsResult.getOrNull() ?: emptyList()
+                    val documents = documentsResult.getOrNull() ?: emptyList()
 
-                    Log.d(TAG, "更新UI状态 - task: ${task?.title}, subtasks: ${subtasks.size}, timeLogs: ${timeLogs.size}")
+                    Log.d(TAG, "更新UI状态 - task: ${task?.title}, subtasks: ${subtasks.size}, timeLogs: ${timeLogs.size}, documents: ${documents.size}")
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -103,6 +104,7 @@ class TaskDetailViewModel @Inject constructor(
                             timeLogs = timeLogs,
                             attachments = attachments,
                             comments = comments,
+                            documents = documents,
                             error = null
                         )
                     }
@@ -341,6 +343,7 @@ data class TaskDetailUiState(
     val timeLogs: List<TimeLog> = emptyList(),
     val attachments: List<Attachment> = emptyList(),
     val comments: List<Comment> = emptyList(),
+    val documents: List<com.aiproj.mobile.data.models.Document> = emptyList(),
     val error: String? = null,
     val successMessage: String? = null
 )
