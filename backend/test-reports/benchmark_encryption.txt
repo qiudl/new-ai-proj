@@ -1,0 +1,8 @@
+goos: darwin
+goarch: arm64
+pkg: ai-project-backend/utils
+cpu: Apple M1 Pro
+BenchmarkEncryption-10            	 1996723	       584.0 ns/op	     592 B/op	       8 allocs/op
+BenchmarkEncryptionParallel-10    	 1000000	      1050 ns/op	     816 B/op	      11 allocs/op
+PASS
+ok  	ai-project-backend/utils	3.019s

@@ -1,0 +1,2406 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>utils: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">ai-project-backend/utils/cache.go (0.0%)</option>
+				
+				<option value="file1">ai-project-backend/utils/cors.go (0.0%)</option>
+				
+				<option value="file2">ai-project-backend/utils/data_validator.go (0.0%)</option>
+				
+				<option value="file3">ai-project-backend/utils/encryption.go (37.7%)</option>
+				
+				<option value="file4">ai-project-backend/utils/enhanced_data_validator.go (0.0%)</option>
+				
+				<option value="file5">ai-project-backend/utils/jwt.go (0.0%)</option>
+				
+				<option value="file6">ai-project-backend/utils/password.go (0.0%)</option>
+				
+				<option value="file7">ai-project-backend/utils/retry.go (0.0%)</option>
+				
+				<option value="file8">ai-project-backend/utils/validator.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">no coverage</span>
+				<span class="cov1">low coverage</span>
+				<span class="cov2">*</span>
+				<span class="cov3">*</span>
+				<span class="cov4">*</span>
+				<span class="cov5">*</span>
+				<span class="cov6">*</span>
+				<span class="cov7">*</span>
+				<span class="cov8">*</span>
+				<span class="cov9">*</span>
+				<span class="cov10">high coverage</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package utils
+
+import (
+        "ai-project-backend/models"
+        "context"
+        "fmt"
+        "sync"
+        "time"
+)
+
+// CacheEntry represents a cached item with expiration
+type CacheEntry struct {
+        Data      interface{}
+        ExpiresAt time.Time
+}
+
+// IsExpired checks if the cache entry has expired
+func (c *CacheEntry) IsExpired() bool <span class="cov0" title="0">{
+        return time.Now().After(c.ExpiresAt)
+}</span>
+
+// TaskQueryCache provides in-memory caching for task queries
+type TaskQueryCache struct {
+        cache map[string]*CacheEntry
+        mutex sync.RWMutex
+        // Default TTL for cache entries
+        DefaultTTL time.Duration
+}
+
+// NewTaskQueryCache creates a new task query cache
+func NewTaskQueryCache(defaultTTL time.Duration) *TaskQueryCache <span class="cov0" title="0">{
+        cache := &amp;TaskQueryCache{
+                cache:      make(map[string]*CacheEntry),
+                DefaultTTL: defaultTTL,
+        }
+
+        // Start cleanup goroutine
+        go cache.cleanupExpiredEntries()
+
+        return cache
+}</span>
+
+// Get retrieves an item from cache
+func (c *TaskQueryCache) Get(key string) (interface{}, bool) <span class="cov0" title="0">{
+        c.mutex.RLock()
+        defer c.mutex.RUnlock()
+
+        entry, exists := c.cache[key]
+        if !exists </span><span class="cov0" title="0">{
+                return nil, false
+        }</span>
+
+        <span class="cov0" title="0">if entry.IsExpired() </span><span class="cov0" title="0">{
+                // Don't delete here to avoid write lock in read operation
+                return nil, false
+        }</span>
+
+        <span class="cov0" title="0">return entry.Data, true</span>
+}
+
+// Set stores an item in cache with default TTL
+func (c *TaskQueryCache) Set(key string, data interface{}) <span class="cov0" title="0">{
+        c.SetWithTTL(key, data, c.DefaultTTL)
+}</span>
+
+// SetWithTTL stores an item in cache with custom TTL
+func (c *TaskQueryCache) SetWithTTL(key string, data interface{}, ttl time.Duration) <span class="cov0" title="0">{
+        c.mutex.Lock()
+        defer c.mutex.Unlock()
+
+        c.cache[key] = &amp;CacheEntry{
+                Data:      data,
+                ExpiresAt: time.Now().Add(ttl),
+        }
+}</span>
+
+// Delete removes an item from cache
+func (c *TaskQueryCache) Delete(key string) <span class="cov0" title="0">{
+        c.mutex.Lock()
+        defer c.mutex.Unlock()
+
+        delete(c.cache, key)
+}</span>
+
+// InvalidatePattern removes all cache entries matching a pattern
+func (c *TaskQueryCache) InvalidatePattern(pattern string) <span class="cov0" title="0">{
+        c.mutex.Lock()
+        defer c.mutex.Unlock()
+
+        for key := range c.cache </span><span class="cov0" title="0">{
+                if matchesPattern(key, pattern) </span><span class="cov0" title="0">{
+                        delete(c.cache, key)
+                }</span>
+        }
+}
+
+// Clear removes all cache entries
+func (c *TaskQueryCache) Clear() <span class="cov0" title="0">{
+        c.mutex.Lock()
+        defer c.mutex.Unlock()
+
+        c.cache = make(map[string]*CacheEntry)
+}</span>
+
+// GetStats returns cache statistics
+func (c *TaskQueryCache) GetStats() map[string]interface{} <span class="cov0" title="0">{
+        c.mutex.RLock()
+        defer c.mutex.RUnlock()
+
+        totalEntries := len(c.cache)
+        expiredEntries := 0
+
+        for _, entry := range c.cache </span><span class="cov0" title="0">{
+                if entry.IsExpired() </span><span class="cov0" title="0">{
+                        expiredEntries++
+                }</span>
+        }
+
+        <span class="cov0" title="0">return map[string]interface{}{
+                "total_entries":   totalEntries,
+                "active_entries":  totalEntries - expiredEntries,
+                "expired_entries": expiredEntries,
+        }</span>
+}
+
+// cleanupExpiredEntries runs periodically to remove expired entries
+func (c *TaskQueryCache) cleanupExpiredEntries() <span class="cov0" title="0">{
+        ticker := time.NewTicker(5 * time.Minute)
+        defer ticker.Stop()
+
+        for range ticker.C </span><span class="cov0" title="0">{
+                c.mutex.Lock()
+                for key, entry := range c.cache </span><span class="cov0" title="0">{
+                        if entry.IsExpired() </span><span class="cov0" title="0">{
+                                delete(c.cache, key)
+                        }</span>
+                }
+                <span class="cov0" title="0">c.mutex.Unlock()</span>
+        }
+}
+
+// Helper function to match cache key patterns
+func matchesPattern(key, pattern string) bool <span class="cov0" title="0">{
+        // Simple pattern matching - starts with pattern
+        if len(pattern) == 0 </span><span class="cov0" title="0">{
+                return true
+        }</span>
+        <span class="cov0" title="0">if len(key) &lt; len(pattern) </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov0" title="0">return key[:len(pattern)] == pattern</span>
+}
+
+// TaskCacheKeys provides standardized cache key generation
+type TaskCacheKeys struct{}
+
+// GlobalTasksKey generates cache key for global tasks query
+func (k *TaskCacheKeys) GlobalTasksKey(limit, offset int, filters string) string <span class="cov0" title="0">{
+        return fmt.Sprintf("global_tasks:limit=%d:offset=%d:filters=%s", limit, offset, filters)
+}</span>
+
+// ProjectTasksKey generates cache key for project tasks query
+func (k *TaskCacheKeys) ProjectTasksKey(projectID, limit, offset int) string <span class="cov0" title="0">{
+        return fmt.Sprintf("project_tasks:project=%d:limit=%d:offset=%d", projectID, limit, offset)
+}</span>
+
+// TaskCountKey generates cache key for task count queries
+func (k *TaskCacheKeys) TaskCountKey(projectID int, status string) string <span class="cov0" title="0">{
+        if projectID == 0 </span><span class="cov0" title="0">{
+                return fmt.Sprintf("task_count:global:status=%s", status)
+        }</span>
+        <span class="cov0" title="0">return fmt.Sprintf("task_count:project=%d:status=%s", projectID, status)</span>
+}
+
+// TaskHierarchyKey generates cache key for task hierarchy
+func (k *TaskCacheKeys) TaskHierarchyKey(projectID int) string <span class="cov0" title="0">{
+        return fmt.Sprintf("task_hierarchy:project=%d", projectID)
+}</span>
+
+// TaskDetailKey generates cache key for individual task
+func (k *TaskCacheKeys) TaskDetailKey(taskID int) string <span class="cov0" title="0">{
+        return fmt.Sprintf("task_detail:id=%d", taskID)
+}</span>
+
+// TaskRepositoryInterface defines the interface for task repository operations
+type TaskRepositoryInterface interface {
+        GetAll(ctx context.Context, limit, offset int) ([]*models.Task, int, error)
+        GetByProjectID(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error)
+        GetByID(ctx context.Context, id int) (*models.Task, error)
+        Create(ctx context.Context, task *models.Task) (*models.Task, error)
+        Update(ctx context.Context, task *models.Task) (*models.Task, error)
+        Delete(ctx context.Context, id int) error
+}
+
+// CacheableTaskRepository wraps TaskRepository with caching
+type CacheableTaskRepository struct {
+        repo  TaskRepositoryInterface
+        cache *TaskQueryCache
+        keys  *TaskCacheKeys
+}
+
+// NewCacheableTaskRepository creates a new cacheable task repository
+func NewCacheableTaskRepository(repo TaskRepositoryInterface, cache *TaskQueryCache) *CacheableTaskRepository <span class="cov0" title="0">{
+        return &amp;CacheableTaskRepository{
+                repo:  repo,
+                cache: cache,
+                keys:  &amp;TaskCacheKeys{},
+        }
+}</span>
+
+// Cached version of GetAll with automatic cache management
+func (r *CacheableTaskRepository) GetAllCached(ctx context.Context, limit, offset int, enableCache bool) ([]*models.Task, int, error) <span class="cov0" title="0">{
+        if !enableCache </span><span class="cov0" title="0">{
+                return r.repo.GetAll(ctx, limit, offset)
+        }</span>
+
+        // Generate cache key
+        <span class="cov0" title="0">cacheKey := r.keys.GlobalTasksKey(limit, offset, "")
+
+        // Try to get from cache
+        if cachedData, found := r.cache.Get(cacheKey); found </span><span class="cov0" title="0">{
+                if result, ok := cachedData.(CachedTaskResult); ok </span><span class="cov0" title="0">{
+                        return result.Tasks, result.Total, nil
+                }</span>
+        }
+
+        // Fetch from database
+        <span class="cov0" title="0">tasks, total, err := r.repo.GetAll(ctx, limit, offset)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, 0, err
+        }</span>
+
+        // Store in cache
+        <span class="cov0" title="0">r.cache.Set(cacheKey, CachedTaskResult{
+                Tasks: tasks,
+                Total: total,
+        })
+
+        return tasks, total, nil</span>
+}
+
+// CachedTaskResult represents cached task query result
+type CachedTaskResult struct {
+        Tasks []*models.Task `json:"tasks"`
+        Total int            `json:"total"`
+}
+
+// InvalidateTaskCaches removes task-related cache entries
+func (r *CacheableTaskRepository) InvalidateTaskCaches(taskID, projectID int) <span class="cov0" title="0">{
+        // Invalidate global task caches
+        r.cache.InvalidatePattern("global_tasks:")
+
+        // Invalidate project-specific caches
+        if projectID &gt; 0 </span><span class="cov0" title="0">{
+                r.cache.InvalidatePattern(fmt.Sprintf("project_tasks:project=%d:", projectID))
+                r.cache.InvalidatePattern(fmt.Sprintf("task_hierarchy:project=%d", projectID))
+        }</span>
+
+        // Invalidate specific task cache
+        <span class="cov0" title="0">if taskID &gt; 0 </span><span class="cov0" title="0">{
+                r.cache.Delete(r.keys.TaskDetailKey(taskID))
+        }</span>
+
+        // Invalidate count caches
+        <span class="cov0" title="0">r.cache.InvalidatePattern("task_count:")</span>
+}
+
+// Performance monitoring for cache
+type CacheMetrics struct {
+        Hits   int64 `json:"hits"`
+        Misses int64 `json:"misses"`
+        Sets   int64 `json:"sets"`
+}
+
+// Global cache metrics (in production, use proper metrics system)
+var GlobalCacheMetrics = &amp;CacheMetrics{}
+
+// RecordCacheHit increments cache hit counter
+func RecordCacheHit() <span class="cov0" title="0">{
+        GlobalCacheMetrics.Hits++
+}</span>
+
+// RecordCacheMiss increments cache miss counter
+func RecordCacheMiss() <span class="cov0" title="0">{
+        GlobalCacheMetrics.Misses++
+}</span>
+
+// RecordCacheSet increments cache set counter
+func RecordCacheSet() <span class="cov0" title="0">{
+        GlobalCacheMetrics.Sets++
+}</span>
+
+// GetCacheHitRatio returns cache hit ratio
+func GetCacheHitRatio() float64 <span class="cov0" title="0">{
+        total := GlobalCacheMetrics.Hits + GlobalCacheMetrics.Misses
+        if total == 0 </span><span class="cov0" title="0">{
+                return 0.0
+        }</span>
+        <span class="cov0" title="0">return float64(GlobalCacheMetrics.Hits) / float64(total)</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package utils
+
+import "github.com/gin-gonic/gin"
+
+// SetCORSHeaders 设置CORS头部的通用函数
+func SetCORSHeaders(c *gin.Context) <span class="cov0" title="0">{
+        c.Header("Access-Control-Allow-Origin", "*")
+        c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+        c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
+        c.Header("Access-Control-Allow-Credentials", "true")
+        c.Header("Access-Control-Expose-Headers", "Content-Length, Content-Type")
+        c.Header("Access-Control-Max-Age", "86400")
+}</span>
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package utils
+
+import (
+        "encoding/json"
+        "fmt"
+
+        "ai-project-backend/models"
+)
+
+// ValidateAndCleanCustomFields validates and cleans CustomFields to ensure it's always a map
+func ValidateAndCleanCustomFields(input interface{}) (models.CustomFields, error) <span class="cov0" title="0">{
+        if input == nil </span><span class="cov0" title="0">{
+                return models.CustomFields{}, nil
+        }</span>
+
+        // Handle different input types
+        <span class="cov0" title="0">switch v := input.(type) </span>{
+        case models.CustomFields:<span class="cov0" title="0">
+                // Already correct type, validate content
+                return validateCustomFieldsContent(v)</span>
+
+        case map[string]interface{}:<span class="cov0" title="0">
+                // Convert to CustomFields and validate
+                cf := models.CustomFields(v)
+                return validateCustomFieldsContent(cf)</span>
+
+        case string:<span class="cov0" title="0">
+                // Parse JSON string
+                var cf models.CustomFields
+                if err := json.Unmarshal([]byte(v), &amp;cf); err != nil </span><span class="cov0" title="0">{
+                        return models.CustomFields{}, fmt.Errorf("invalid JSON in custom_fields: %v", err)
+                }</span>
+                <span class="cov0" title="0">return validateCustomFieldsContent(cf)</span>
+
+        case []interface{}:<span class="cov0" title="0">
+                // Handle array format - convert to object
+                return convertArrayToCustomFields(v)</span>
+
+        default:<span class="cov0" title="0">
+                // Try to marshal and unmarshal to clean the data
+                jsonBytes, err := json.Marshal(v)
+                if err != nil </span><span class="cov0" title="0">{
+                        return models.CustomFields{}, fmt.Errorf("cannot marshal custom_fields: %v", err)
+                }</span>
+
+                <span class="cov0" title="0">var cf models.CustomFields
+                if err := json.Unmarshal(jsonBytes, &amp;cf); err != nil </span><span class="cov0" title="0">{
+                        // If unmarshaling to map fails, try to handle as array
+                        var arr []interface{}
+                        if arrErr := json.Unmarshal(jsonBytes, &amp;arr); arrErr == nil </span><span class="cov0" title="0">{
+                                return convertArrayToCustomFields(arr)
+                        }</span>
+                        <span class="cov0" title="0">return models.CustomFields{}, fmt.Errorf("invalid custom_fields format: %v", err)</span>
+                }
+
+                <span class="cov0" title="0">return validateCustomFieldsContent(cf)</span>
+        }
+}
+
+// validateCustomFieldsContent validates the content of CustomFields
+func validateCustomFieldsContent(cf models.CustomFields) (models.CustomFields, error) <span class="cov0" title="0">{
+        if cf == nil </span><span class="cov0" title="0">{
+                return models.CustomFields{}, nil
+        }</span>
+
+        // Validate each field
+        <span class="cov0" title="0">cleaned := make(models.CustomFields)
+
+        for key, value := range cf </span><span class="cov0" title="0">{
+                // Skip null values
+                if value == nil </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+
+                // Validate key format
+                <span class="cov0" title="0">if key == "" </span><span class="cov0" title="0">{
+                        continue</span> // Skip empty keys
+                }
+
+                // Clean and validate common fields
+                <span class="cov0" title="0">switch key </span>{
+                case "priority":<span class="cov0" title="0">
+                        if str, ok := value.(string); ok &amp;&amp; isValidPriority(str) </span><span class="cov0" title="0">{
+                                cleaned[key] = str
+                        }</span>
+                case "tags":<span class="cov0" title="0">
+                        if cleanedTags := cleanTagsArray(value); len(cleanedTags) &gt; 0 </span><span class="cov0" title="0">{
+                                cleaned[key] = cleanedTags
+                        }</span> else<span class="cov0" title="0"> {
+                                cleaned[key] = []string{} // Ensure it's always an array
+                        }</span>
+                case "estimated_hours":<span class="cov0" title="0">
+                        if num, ok := convertToFloat64(value); ok &amp;&amp; num &gt;= 0 </span><span class="cov0" title="0">{
+                                cleaned[key] = num
+                        }</span>
+                case "progress":<span class="cov0" title="0">
+                        if num, ok := convertToFloat64(value); ok &amp;&amp; num &gt;= 0 &amp;&amp; num &lt;= 100 </span><span class="cov0" title="0">{
+                                cleaned[key] = num
+                        }</span>
+                default:<span class="cov0" title="0">
+                        // For other fields, just ensure they're JSON-serializable
+                        if isJSONSerializable(value) </span><span class="cov0" title="0">{
+                                cleaned[key] = value
+                        }</span>
+                }
+        }
+
+        <span class="cov0" title="0">return cleaned, nil</span>
+}
+
+// convertArrayToCustomFields converts array format to proper CustomFields
+func convertArrayToCustomFields(arr []interface{}) (models.CustomFields, error) <span class="cov0" title="0">{
+        result := make(models.CustomFields)
+
+        for _, item := range arr </span><span class="cov0" title="0">{
+                if item == nil </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+
+                // If item is a map, merge it into result
+                <span class="cov0" title="0">if itemMap, ok := item.(map[string]interface{}); ok </span><span class="cov0" title="0">{
+                        for k, v := range itemMap </span><span class="cov0" title="0">{
+                                if v != nil &amp;&amp; k != "" </span><span class="cov0" title="0">{
+                                        result[k] = v
+                                }</span>
+                        }
+                }
+        }
+
+        <span class="cov0" title="0">return validateCustomFieldsContent(result)</span>
+}
+
+// Helper functions
+func isValidPriority(priority string) bool <span class="cov0" title="0">{
+        validPriorities := map[string]bool{
+                "low":    true,
+                "medium": true,
+                "high":   true,
+        }
+        return validPriorities[priority]
+}</span>
+
+func cleanTagsArray(value interface{}) []string <span class="cov0" title="0">{
+        switch v := value.(type) </span>{
+        case []string:<span class="cov0" title="0">
+                return v</span>
+        case []interface{}:<span class="cov0" title="0">
+                var tags []string
+                for _, tag := range v </span><span class="cov0" title="0">{
+                        if str, ok := tag.(string); ok &amp;&amp; str != "" </span><span class="cov0" title="0">{
+                                tags = append(tags, str)
+                        }</span>
+                }
+                <span class="cov0" title="0">return tags</span>
+        case string:<span class="cov0" title="0">
+                if v != "" </span><span class="cov0" title="0">{
+                        return []string{v}
+                }</span>
+        }
+        <span class="cov0" title="0">return []string{}</span>
+}
+
+func convertToFloat64(value interface{}) (float64, bool) <span class="cov0" title="0">{
+        switch v := value.(type) </span>{
+        case float64:<span class="cov0" title="0">
+                return v, true</span>
+        case float32:<span class="cov0" title="0">
+                return float64(v), true</span>
+        case int:<span class="cov0" title="0">
+                return float64(v), true</span>
+        case int64:<span class="cov0" title="0">
+                return float64(v), true</span>
+        case string:<span class="cov0" title="0">
+                // Try to parse string as number
+                var f float64
+                if json.Unmarshal([]byte(v), &amp;f) == nil </span><span class="cov0" title="0">{
+                        return f, true
+                }</span>
+        }
+        <span class="cov0" title="0">return 0, false</span>
+}
+
+func isJSONSerializable(value interface{}) bool <span class="cov0" title="0">{
+        _, err := json.Marshal(value)
+        return err == nil
+}</span>
+
+// ValidateTaskRequest validates and cleans a TaskRequest
+func ValidateTaskRequest(req *models.TaskRequest) error <span class="cov0" title="0">{
+        if req == nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("task request cannot be nil")
+        }</span>
+
+        // Clean CustomFields
+        <span class="cov0" title="0">cleanedFields, err := ValidateAndCleanCustomFields(req.CustomFields)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("invalid custom_fields: %v", err)
+        }</span>
+        <span class="cov0" title="0">req.CustomFields = cleanedFields
+
+        return nil</span>
+}
+
+// DatabaseHealthCheck checks for problematic custom_fields data in the database
+type DatabaseHealthCheck struct {
+        db interface{} // Database interface
+}
+
+func (dhc *DatabaseHealthCheck) CheckCustomFieldsIntegrity() ([]string, error) <span class="cov0" title="0">{
+        // This would contain SQL queries to check for problematic data
+        // For now, return a placeholder
+        var issues []string
+
+        // Query to find array-format custom_fields
+        // SELECT id, title, custom_fields FROM tasks WHERE custom_fields::text LIKE '[%'
+
+        // Query to find null custom_fields
+        // SELECT id, title FROM tasks WHERE custom_fields IS NULL
+
+        return issues, nil
+}</span>
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package utils
+
+import (
+        "crypto/aes"
+        "crypto/cipher"
+        "crypto/rand"
+        "crypto/sha256"
+        "encoding/base64"
+        "encoding/hex"
+        "errors"
+        "fmt"
+        "io"
+        mathrand "math/rand"
+        "os"
+        "strings"
+)
+
+// EncryptionService 提供API密钥加密解密服务
+type EncryptionService struct {
+        gcm   cipher.AEAD
+        keyID string
+}
+
+// NewEncryptionService 创建加密服务实例
+func NewEncryptionService(key []byte, keyID string) (*EncryptionService, error) <span class="cov3" title="10">{
+        block, err := aes.NewCipher(key)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create cipher: %w", err)
+        }</span>
+
+        <span class="cov3" title="10">gcm, err := cipher.NewGCM(block)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create GCM: %w", err)
+        }</span>
+
+        <span class="cov3" title="10">return &amp;EncryptionService{
+                gcm:   gcm,
+                keyID: keyID,
+        }, nil</span>
+}
+
+// EncryptAPIKey 加密API密钥
+func (es *EncryptionService) EncryptAPIKey(plaintext string) (string, error) <span class="cov6" title="109">{
+        if plaintext == "" </span><span class="cov1" title="1">{
+                return "", errors.New("plaintext cannot be empty")
+        }</span>
+
+        // 生成随机nonce
+        <span class="cov6" title="108">nonce := make([]byte, es.gcm.NonceSize())
+        if _, err := io.ReadFull(rand.Reader, nonce); err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to generate nonce: %w", err)
+        }</span>
+
+        // 加密数据
+        <span class="cov6" title="108">ciphertext := es.gcm.Seal(nonce, nonce, []byte(plaintext), nil)
+
+        // 添加密钥ID前缀，格式: keyID:base64(ciphertext)
+        encrypted := fmt.Sprintf("%s:%s", es.keyID, base64.StdEncoding.EncodeToString(ciphertext))
+
+        return encrypted, nil</span>
+}
+
+// DecryptAPIKey 解密API密钥
+func (es *EncryptionService) DecryptAPIKey(encrypted string) (string, error) <span class="cov6" title="114">{
+        if encrypted == "" </span><span class="cov1" title="1">{
+                return "", errors.New("encrypted text cannot be empty")
+        }</span>
+
+        // 解析密钥ID和密文
+        <span class="cov6" title="113">keyID, ciphertextB64, found := parseEncryptedData(encrypted)
+        if !found </span><span class="cov1" title="1">{
+                return "", errors.New("invalid encrypted data format")
+        }</span>
+
+        // 验证密钥ID
+        <span class="cov6" title="112">if keyID != es.keyID </span><span class="cov2" title="3">{
+                return "", fmt.Errorf("key ID mismatch: expected %s, got %s", es.keyID, keyID)
+        }</span>
+
+        // Base64解码
+        <span class="cov6" title="109">ciphertext, err := base64.StdEncoding.DecodeString(ciphertextB64)
+        if err != nil </span><span class="cov1" title="1">{
+                return "", fmt.Errorf("failed to decode base64: %w", err)
+        }</span>
+
+        // 检查密文长度
+        <span class="cov6" title="108">nonceSize := es.gcm.NonceSize()
+        if len(ciphertext) &lt; nonceSize </span><span class="cov1" title="1">{
+                return "", errors.New("ciphertext too short")
+        }</span>
+
+        // 提取nonce和密文
+        <span class="cov6" title="107">nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+
+        // 解密
+        plaintext, err := es.gcm.Open(nil, nonce, ciphertext, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to decrypt: %w", err)
+        }</span>
+
+        <span class="cov6" title="107">return string(plaintext), nil</span>
+}
+
+// HashAPIKey 生成API密钥的SHA256哈希值
+func (es *EncryptionService) HashAPIKey(apiKey string) string <span class="cov3" title="6">{
+        hash := sha256.Sum256([]byte(apiKey))
+        return hex.EncodeToString(hash[:])
+}</span>
+
+// MaskAPIKey 脱敏显示API密钥
+func (es *EncryptionService) MaskAPIKey(apiKey string) string <span class="cov2" title="3">{
+        if len(apiKey) &lt;= 8 </span><span class="cov1" title="2">{
+                return "••••••••"
+        }</span>
+
+        // 显示前4位和后4位
+        <span class="cov1" title="1">prefix := apiKey[:4]
+        suffix := apiKey[len(apiKey)-4:]
+        middle := "••••••••••••••••" // 16个点
+
+        return fmt.Sprintf("%s%s%s", prefix, middle, suffix)</span>
+}
+
+// VerifyAPIKey 验证API密钥是否匹配
+func (es *EncryptionService) VerifyAPIKey(apiKey, hash string) bool <span class="cov1" title="2">{
+        return es.HashAPIKey(apiKey) == hash
+}</span>
+
+// GenerateEncryptionKey 生成新的AES-256密钥
+func GenerateEncryptionKey() ([]byte, error) <span class="cov4" title="12">{
+        key := make([]byte, 32) // 256位
+        if _, err := rand.Read(key); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to generate key: %w", err)
+        }</span>
+        <span class="cov4" title="12">return key, nil</span>
+}
+
+// EncodeKey 将密钥编码为Base64字符串
+func EncodeKey(key []byte) string <span class="cov1" title="1">{
+        return base64.StdEncoding.EncodeToString(key)
+}</span>
+
+// DecodeKey 从Base64字符串解码密钥
+func DecodeKey(encoded string) ([]byte, error) <span class="cov1" title="1">{
+        return base64.StdEncoding.DecodeString(encoded)
+}</span>
+
+// parseEncryptedData 解析加密数据格式 "keyID:ciphertext"
+func parseEncryptedData(encrypted string) (keyID, ciphertext string, found bool) <span class="cov6" title="113">{
+        for i, char := range encrypted </span><span class="cov10" title="1345">{
+                if char == ':' </span><span class="cov6" title="112">{
+                        return encrypted[:i], encrypted[i+1:], true
+                }</span>
+        }
+        <span class="cov1" title="1">return "", "", false</span>
+}
+
+// RotateEncryption 密钥轮换：使用新密钥重新加密
+func RotateEncryption(oldService, newService *EncryptionService, encryptedData string) (string, error) <span class="cov1" title="1">{
+        // 用旧密钥解密
+        plaintext, err := oldService.DecryptAPIKey(encryptedData)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to decrypt with old key: %w", err)
+        }</span>
+
+        // 用新密钥加密
+        <span class="cov1" title="1">newEncrypted, err := newService.EncryptAPIKey(plaintext)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to encrypt with new key: %w", err)
+        }</span>
+
+        <span class="cov1" title="1">return newEncrypted, nil</span>
+}
+
+// 辅助函数
+
+// HasPrefix 检查字符串是否有指定前缀
+func HasPrefix(s, prefix string) bool <span class="cov0" title="0">{
+        return len(s) &gt;= len(prefix) &amp;&amp; s[0:len(prefix)] == prefix
+}</span>
+
+// ContainsAny 检查字符串是否包含任意一个子字符串
+func ContainsAny(s string, substrs []string) bool <span class="cov0" title="0">{
+        for _, substr := range substrs </span><span class="cov0" title="0">{
+                if strings.Contains(strings.ToLower(s), strings.ToLower(substr)) </span><span class="cov0" title="0">{
+                        return true
+                }</span>
+        }
+        <span class="cov0" title="0">return false</span>
+}
+
+// RandomInt 生成指定范围内的随机整数
+func RandomInt(max int) int <span class="cov0" title="0">{
+        if max &lt;= 0 </span><span class="cov0" title="0">{
+                return 0
+        }</span>
+        <span class="cov0" title="0">return int(mathrand.Int31n(int32(max)))</span>
+}
+
+// RandomFloat 生成0-1之间的随机浮点数
+func RandomFloat() float64 <span class="cov0" title="0">{
+        return mathrand.Float64()
+}</span>
+
+// GetProviderName 获取AI提供商的友好名称
+func GetProviderName(provider string) string <span class="cov0" title="0">{
+        switch provider </span>{
+        case "deepseek":<span class="cov0" title="0">
+                return "DeepSeek"</span>
+        case "openai":<span class="cov0" title="0">
+                return "OpenAI"</span>
+        case "claude":<span class="cov0" title="0">
+                return "Claude"</span>
+        default:<span class="cov0" title="0">
+                return "AI Provider"</span>
+        }
+}
+
+// Global encryption functions for Google tokens
+
+// Encrypt 使用AES-256-GCM加密字符串
+func Encrypt(plaintext string) (string, error) <span class="cov0" title="0">{
+        if plaintext == "" </span><span class="cov0" title="0">{
+                return "", nil
+        }</span>
+
+        // 从环境变量获取加密密钥
+        <span class="cov0" title="0">key := os.Getenv("ENCRYPTION_KEY")
+        if key == "" </span><span class="cov0" title="0">{
+                return "", errors.New("ENCRYPTION_KEY environment variable is not set")
+        }</span>
+
+        // 如果密钥是十六进制字符串，需要解码
+        <span class="cov0" title="0">var keyBytes []byte
+        var err error
+        if len(key) == 64 </span><span class="cov0" title="0">{ // 32字节的十六进制表示
+                keyBytes, err = hex.DecodeString(key)
+                if err != nil </span><span class="cov0" title="0">{
+                        return "", fmt.Errorf("failed to decode hex key: %w", err)
+                }</span>
+        } else<span class="cov0" title="0"> {
+                // 对密钥进行SHA256哈希以获得固定长度的密钥
+                hash := sha256.Sum256([]byte(key))
+                keyBytes = hash[:]
+        }</span>
+
+        // 创建AES cipher
+        <span class="cov0" title="0">block, err := aes.NewCipher(keyBytes)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to create cipher: %w", err)
+        }</span>
+
+        // 创建GCM
+        <span class="cov0" title="0">gcm, err := cipher.NewGCM(block)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to create GCM: %w", err)
+        }</span>
+
+        // 生成随机nonce
+        <span class="cov0" title="0">nonce := make([]byte, gcm.NonceSize())
+        if _, err := io.ReadFull(rand.Reader, nonce); err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to generate nonce: %w", err)
+        }</span>
+
+        // 加密
+        <span class="cov0" title="0">ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
+
+        // 返回Base64编码的结果
+        return base64.StdEncoding.EncodeToString(ciphertext), nil</span>
+}
+
+// Decrypt 使用AES-256-GCM解密字符串
+func Decrypt(ciphertext string) (string, error) <span class="cov0" title="0">{
+        if ciphertext == "" </span><span class="cov0" title="0">{
+                return "", nil
+        }</span>
+
+        // 从环境变量获取加密密钥
+        <span class="cov0" title="0">key := os.Getenv("ENCRYPTION_KEY")
+        if key == "" </span><span class="cov0" title="0">{
+                return "", errors.New("ENCRYPTION_KEY environment variable is not set")
+        }</span>
+
+        // 如果密钥是十六进制字符串，需要解码
+        <span class="cov0" title="0">var keyBytes []byte
+        var err error
+        if len(key) == 64 </span><span class="cov0" title="0">{ // 32字节的十六进制表示
+                keyBytes, err = hex.DecodeString(key)
+                if err != nil </span><span class="cov0" title="0">{
+                        return "", fmt.Errorf("failed to decode hex key: %w", err)
+                }</span>
+        } else<span class="cov0" title="0"> {
+                // 对密钥进行SHA256哈希以获得固定长度的密钥
+                hash := sha256.Sum256([]byte(key))
+                keyBytes = hash[:]
+        }</span>
+
+        // Base64解码
+        <span class="cov0" title="0">data, err := base64.StdEncoding.DecodeString(ciphertext)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to decode base64: %w", err)
+        }</span>
+
+        // 创建AES cipher
+        <span class="cov0" title="0">block, err := aes.NewCipher(keyBytes)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to create cipher: %w", err)
+        }</span>
+
+        // 创建GCM
+        <span class="cov0" title="0">gcm, err := cipher.NewGCM(block)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to create GCM: %w", err)
+        }</span>
+
+        // 检查数据长度
+        <span class="cov0" title="0">nonceSize := gcm.NonceSize()
+        if len(data) &lt; nonceSize </span><span class="cov0" title="0">{
+                return "", errors.New("ciphertext too short")
+        }</span>
+
+        // 分离nonce和密文
+        <span class="cov0" title="0">nonce, cipherData := data[:nonceSize], data[nonceSize:]
+
+        // 解密
+        plaintext, err := gcm.Open(nil, nonce, cipherData, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to decrypt: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return string(plaintext), nil</span>
+}
+
+// GenerateRandomString 生成指定长度的随机字符串
+func GenerateRandomString(length int) (string, error) <span class="cov0" title="0">{
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+
+        bytes := make([]byte, length)
+        if _, err := rand.Read(bytes); err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to generate random bytes: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">for i, b := range bytes </span><span class="cov0" title="0">{
+                bytes[i] = charset[b%byte(len(charset))]
+        }</span>
+
+        <span class="cov0" title="0">return string(bytes), nil</span>
+}
+
+// GenerateSecureRandomString 生成用于OAuth state的安全随机字符串
+func GenerateSecureRandomString(length int) (string, error) <span class="cov0" title="0">{
+        bytes := make([]byte, length)
+        if _, err := rand.Read(bytes); err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to generate secure random bytes: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return base64.URLEncoding.EncodeToString(bytes), nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package utils
+
+import (
+        "encoding/json"
+        "fmt"
+        "net/mail"
+        "regexp"
+        "strconv"
+        "strings"
+        "time"
+        "unicode"
+)
+
+// ValidationResult represents the result of a validation operation
+type ValidationResult struct {
+        IsValid         bool        `json:"is_valid"`
+        Message         string      `json:"message,omitempty"`
+        NormalizedValue interface{} `json:"normalized_value,omitempty"`
+}
+
+// ValidationRule represents a single validation rule
+type ValidationRule func(interface{}) ValidationResult
+
+// FieldValidationConfig contains validation configuration for a field
+type FieldValidationConfig struct {
+        Required bool                        `json:"required"`
+        Rules    []ValidationRule            `json:"-"`
+        Custom   map[string]ValidationRule   `json:"-"`
+}
+
+// EnhancedDataValidator provides comprehensive data validation
+type EnhancedDataValidator struct {
+        configs map[string]FieldValidationConfig
+}
+
+// NewEnhancedDataValidator creates a new enhanced data validator
+func NewEnhancedDataValidator() *EnhancedDataValidator <span class="cov0" title="0">{
+        return &amp;EnhancedDataValidator{
+                configs: make(map[string]FieldValidationConfig),
+        }
+}</span>
+
+// Basic Data Type Validators
+
+// ValidateString validates string values with various options
+func ValidateString(value interface{}, required bool, minLength, maxLength int, pattern *regexp.Regexp) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                if required </span><span class="cov0" title="0">{
+                        return ValidationResult{IsValid: false, Message: "此字段为必填项"}
+                }</span>
+                <span class="cov0" title="0">return ValidationResult{IsValid: true}</span>
+        }
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">str = strings.TrimSpace(str)
+
+        if required &amp;&amp; str == "" </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "此字段不能为空"}
+        }</span>
+
+        <span class="cov0" title="0">if minLength &gt; 0 &amp;&amp; len(str) &lt; minLength </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: fmt.Sprintf("最少需要%d个字符", minLength)}
+        }</span>
+
+        <span class="cov0" title="0">if maxLength &gt; 0 &amp;&amp; len(str) &gt; maxLength </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: fmt.Sprintf("最多允许%d个字符", maxLength)}
+        }</span>
+
+        <span class="cov0" title="0">if pattern != nil &amp;&amp; str != "" &amp;&amp; !pattern.MatchString(str) </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "格式不正确"}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: str}</span>
+}
+
+// ValidateNumber validates numeric values
+func ValidateNumber(value interface{}, required bool, min, max *float64, integer, positive bool) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                if required </span><span class="cov0" title="0">{
+                        return ValidationResult{IsValid: false, Message: "此字段为必填项"}
+                }</span>
+                <span class="cov0" title="0">return ValidationResult{IsValid: true}</span>
+        }
+
+        <span class="cov0" title="0">var numValue float64
+        var err error
+
+        switch v := value.(type) </span>{
+        case float64:<span class="cov0" title="0">
+                numValue = v</span>
+        case float32:<span class="cov0" title="0">
+                numValue = float64(v)</span>
+        case int:<span class="cov0" title="0">
+                numValue = float64(v)</span>
+        case int64:<span class="cov0" title="0">
+                numValue = float64(v)</span>
+        case string:<span class="cov0" title="0">
+                numValue, err = strconv.ParseFloat(v, 64)
+                if err != nil </span><span class="cov0" title="0">{
+                        return ValidationResult{IsValid: false, Message: "必须是有效数字"}
+                }</span>
+        default:<span class="cov0" title="0">
+                return ValidationResult{IsValid: false, Message: "必须是数字类型"}</span>
+        }
+
+        <span class="cov0" title="0">if integer &amp;&amp; numValue != float64(int64(numValue)) </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "必须是整数"}
+        }</span>
+
+        <span class="cov0" title="0">if positive &amp;&amp; numValue &lt;= 0 </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "必须是正数"}
+        }</span>
+
+        <span class="cov0" title="0">if min != nil &amp;&amp; numValue &lt; *min </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: fmt.Sprintf("不能小于%.2f", *min)}
+        }</span>
+
+        <span class="cov0" title="0">if max != nil &amp;&amp; numValue &gt; *max </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: fmt.Sprintf("不能大于%.2f", *max)}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: numValue}</span>
+}
+
+// ValidateDate validates date values
+func ValidateDate(value interface{}, required bool, minDate, maxDate *time.Time, futureOnly, pastOnly bool) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                if required </span><span class="cov0" title="0">{
+                        return ValidationResult{IsValid: false, Message: "此字段为必填项"}
+                }</span>
+                <span class="cov0" title="0">return ValidationResult{IsValid: true}</span>
+        }
+
+        <span class="cov0" title="0">var dateValue time.Time
+        var err error
+
+        switch v := value.(type) </span>{
+        case time.Time:<span class="cov0" title="0">
+                dateValue = v</span>
+        case string:<span class="cov0" title="0">
+                // Try multiple date formats
+                formats := []string{
+                        time.RFC3339,
+                        "2006-01-02T15:04:05Z",
+                        "2006-01-02 15:04:05",
+                        "2006-01-02",
+                }
+                
+                for _, format := range formats </span><span class="cov0" title="0">{
+                        dateValue, err = time.Parse(format, v)
+                        if err == nil </span><span class="cov0" title="0">{
+                                break</span>
+                        }
+                }
+                
+                <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                        return ValidationResult{IsValid: false, Message: "无效的日期格式"}
+                }</span>
+        default:<span class="cov0" title="0">
+                return ValidationResult{IsValid: false, Message: "无效的日期类型"}</span>
+        }
+
+        <span class="cov0" title="0">now := time.Now()
+
+        if futureOnly &amp;&amp; !dateValue.After(now) </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "日期必须是未来时间"}
+        }</span>
+
+        <span class="cov0" title="0">if pastOnly &amp;&amp; !dateValue.Before(now) </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "日期必须是过去时间"}
+        }</span>
+
+        <span class="cov0" title="0">if minDate != nil &amp;&amp; dateValue.Before(*minDate) </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: fmt.Sprintf("日期不能早于%s", minDate.Format("2006-01-02"))}
+        }</span>
+
+        <span class="cov0" title="0">if maxDate != nil &amp;&amp; dateValue.After(*maxDate) </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: fmt.Sprintf("日期不能晚于%s", maxDate.Format("2006-01-02"))}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: dateValue}</span>
+}
+
+// ValidateArray validates array/slice values
+func ValidateArray(value interface{}, required bool, minLength, maxLength int, itemValidator ValidationRule) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                if required </span><span class="cov0" title="0">{
+                        return ValidationResult{IsValid: false, Message: "此字段为必填项"}
+                }</span>
+                <span class="cov0" title="0">return ValidationResult{IsValid: true}</span>
+        }
+
+        // Convert to slice of interface{}
+        <span class="cov0" title="0">var items []interface{}
+        
+        switch v := value.(type) </span>{
+        case []interface{}:<span class="cov0" title="0">
+                items = v</span>
+        case []string:<span class="cov0" title="0">
+                for _, item := range v </span><span class="cov0" title="0">{
+                        items = append(items, item)
+                }</span>
+        case []int:<span class="cov0" title="0">
+                for _, item := range v </span><span class="cov0" title="0">{
+                        items = append(items, item)
+                }</span>
+        default:<span class="cov0" title="0">
+                return ValidationResult{IsValid: false, Message: "必须是数组类型"}</span>
+        }
+
+        <span class="cov0" title="0">if minLength &gt; 0 &amp;&amp; len(items) &lt; minLength </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: fmt.Sprintf("至少需要%d个项目", minLength)}
+        }</span>
+
+        <span class="cov0" title="0">if maxLength &gt; 0 &amp;&amp; len(items) &gt; maxLength </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: fmt.Sprintf("最多允许%d个项目", maxLength)}
+        }</span>
+
+        <span class="cov0" title="0">if itemValidator != nil </span><span class="cov0" title="0">{
+                for i, item := range items </span><span class="cov0" title="0">{
+                        result := itemValidator(item)
+                        if !result.IsValid </span><span class="cov0" title="0">{
+                                return ValidationResult{IsValid: false, Message: fmt.Sprintf("第%d项：%s", i+1, result.Message)}
+                        }</span>
+                }
+        }
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: items}</span>
+}
+
+// Business-specific Format Validators
+
+// ValidateEmail validates email addresses
+func ValidateEmail(value interface{}) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "邮箱地址不能为空"}
+        }</span>
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "邮箱地址必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">str = strings.TrimSpace(str)
+        if str == "" </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "邮箱地址不能为空"}
+        }</span>
+
+        <span class="cov0" title="0">_, err := mail.ParseAddress(str)
+        if err != nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "邮箱格式不正确"}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: strings.ToLower(str)}</span>
+}
+
+// ValidatePhoneNumber validates Chinese phone numbers
+func ValidatePhoneNumber(value interface{}) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "手机号码必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">str = strings.TrimSpace(str)
+        if str == "" </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">phoneRegex := regexp.MustCompile(`^1[3-9]\d{9}$`)
+        if !phoneRegex.MatchString(str) </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "手机号码格式不正确"}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: str}</span>
+}
+
+// ValidateURL validates URLs
+func ValidateURL(value interface{}) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "URL必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">str = strings.TrimSpace(str)
+        if str == "" </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">urlRegex := regexp.MustCompile(`^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&amp;//=]*)$`)
+        if !urlRegex.MatchString(str) </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "URL格式不正确"}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: str}</span>
+}
+
+// ValidateIDCard validates Chinese ID cards
+func ValidateIDCard(value interface{}) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "身份证号码必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">str = strings.TrimSpace(strings.ToUpper(str))
+        if str == "" </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">idCardRegex := regexp.MustCompile(`^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dX]$`)
+        if !idCardRegex.MatchString(str) </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "身份证号码格式不正确"}
+        }</span>
+
+        // Validate check digit
+        <span class="cov0" title="0">factors := []int{7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2}
+        checkCodes := []string{"1", "0", "X", "9", "8", "7", "6", "5", "4", "3", "2"}
+
+        sum := 0
+        for i := 0; i &lt; 17; i++ </span><span class="cov0" title="0">{
+                digit, _ := strconv.Atoi(string(str[i]))
+                sum += digit * factors[i]
+        }</span>
+
+        <span class="cov0" title="0">expectedCheckCode := checkCodes[sum%11]
+        if string(str[17]) != expectedCheckCode </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "身份证号码校验位不正确"}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: str}</span>
+}
+
+// ValidateCreditCode validates unified social credit codes
+func ValidateCreditCode(value interface{}) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "统一社会信用代码必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">str = strings.TrimSpace(strings.ToUpper(str))
+        if str == "" </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">creditCodeRegex := regexp.MustCompile(`^[0-9A-HJ-NPQRTUWXY]{2}\d{6}[0-9A-HJ-NPQRTUWXY]{10}$`)
+        if !creditCodeRegex.MatchString(str) </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "统一社会信用代码格式不正确"}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: str}</span>
+}
+
+// ValidateTaskStatus validates task status values
+func ValidateTaskStatus(value interface{}) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "任务状态必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">validStatuses := map[string]bool{
+                "draft": true, "planning": true, "todo": true, "in_progress": true,
+                "testing": true, "completed": true, "cancelled": true, "on_hold": true,
+                "suspended": true, "blocked": true, "archived": true,
+        }
+
+        if !validStatuses[str] </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "无效的任务状态"}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: str}</span>
+}
+
+// ValidatePriority validates priority values
+func ValidatePriority(value interface{}) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "优先级必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">validPriorities := map[string]bool{
+                "low": true, "medium": true, "high": true, "urgent": true,
+        }
+
+        if !validPriorities[str] </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "无效的优先级"}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: str}</span>
+}
+
+// ValidateEnterpriseCode validates enterprise codes
+func ValidateEnterpriseCode(value interface{}) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "企业代码不能为空"}
+        }</span>
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "企业代码必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">str = strings.TrimSpace(strings.ToUpper(str))
+        if str == "" </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "企业代码不能为空"}
+        }</span>
+
+        <span class="cov0" title="0">if len(str) &lt; 2 || len(str) &gt; 20 </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "企业代码长度必须在2-20位之间"}
+        }</span>
+
+        <span class="cov0" title="0">for _, r := range str </span><span class="cov0" title="0">{
+                if !((r &gt;= 'A' &amp;&amp; r &lt;= 'Z') || (r &gt;= '0' &amp;&amp; r &lt;= '9') || r == '_') </span><span class="cov0" title="0">{
+                        return ValidationResult{IsValid: false, Message: "企业代码只能包含大写字母、数字和下划线"}
+                }</span>
+        }
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: str}</span>
+}
+
+// ValidateJSON validates JSON format
+func ValidateJSON(value interface{}) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "JSON必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">str = strings.TrimSpace(str)
+        if str == "" </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true, NormalizedValue: nil}
+        }</span>
+
+        <span class="cov0" title="0">var result interface{}
+        if err := json.Unmarshal([]byte(str), &amp;result); err != nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "JSON格式不正确"}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: result}</span>
+}
+
+// ValidatePassword validates password strength
+func ValidatePassword(value interface{}) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "密码不能为空"}
+        }</span>
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "密码必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">if len(str) &lt; 8 </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "密码长度至少8位"}
+        }</span>
+
+        <span class="cov0" title="0">hasLower := false
+        hasUpper := false
+        hasDigit := false
+        hasSpecial := false
+
+        for _, r := range str </span><span class="cov0" title="0">{
+                switch </span>{
+                case unicode.IsLower(r):<span class="cov0" title="0">
+                        hasLower = true</span>
+                case unicode.IsUpper(r):<span class="cov0" title="0">
+                        hasUpper = true</span>
+                case unicode.IsDigit(r):<span class="cov0" title="0">
+                        hasDigit = true</span>
+                case strings.ContainsRune("!@#$%^&amp;*(),.?\":{}|&lt;&gt;", r):<span class="cov0" title="0">
+                        hasSpecial = true</span>
+                }
+        }
+
+        <span class="cov0" title="0">if !hasLower </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "密码必须包含小写字母"}
+        }</span>
+        <span class="cov0" title="0">if !hasUpper </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "密码必须包含大写字母"}
+        }</span>
+        <span class="cov0" title="0">if !hasDigit </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "密码必须包含数字"}
+        }</span>
+        <span class="cov0" title="0">if !hasSpecial </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "密码必须包含特殊字符"}
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: str}</span>
+}
+
+// ValidateChineseName validates Chinese names
+func ValidateChineseName(value interface{}) ValidationResult <span class="cov0" title="0">{
+        if value == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">str, ok := value.(string)
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "姓名必须是字符串类型"}
+        }</span>
+
+        <span class="cov0" title="0">str = strings.TrimSpace(str)
+        if str == "" </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: true}
+        }</span>
+
+        <span class="cov0" title="0">if len(str) &lt; 2 || len(str) &gt; 20 </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "姓名长度必须在2-20个字符之间"}
+        }</span>
+
+        <span class="cov0" title="0">for _, r := range str </span><span class="cov0" title="0">{
+                if !unicode.Is(unicode.Scripts["Han"], r) &amp;&amp; r != ' ' </span><span class="cov0" title="0">{
+                        return ValidationResult{IsValid: false, Message: "姓名只能包含中文字符和空格"}
+                }</span>
+        }
+
+        <span class="cov0" title="0">return ValidationResult{IsValid: true, NormalizedValue: str}</span>
+}
+
+// Composite Validators
+
+// ValidateFields validates multiple fields according to their rules
+func ValidateFields(data map[string]interface{}, rules map[string]ValidationRule) (bool, map[string]string, map[string]interface{}) <span class="cov0" title="0">{
+        errors := make(map[string]string)
+        normalizedData := make(map[string]interface{})
+        isValid := true
+
+        for field, validator := range rules </span><span class="cov0" title="0">{
+                result := validator(data[field])
+                
+                if !result.IsValid </span><span class="cov0" title="0">{
+                        errors[field] = result.Message
+                        isValid = false
+                }</span> else<span class="cov0" title="0"> if result.NormalizedValue != nil </span><span class="cov0" title="0">{
+                        normalizedData[field] = result.NormalizedValue
+                }</span> else<span class="cov0" title="0"> {
+                        normalizedData[field] = data[field]
+                }</span>
+        }
+
+        <span class="cov0" title="0">return isValid, errors, normalizedData</span>
+}
+
+// ValidateNestedObject validates nested object structures
+func ValidateNestedObject(data interface{}, schema map[string]ValidationRule) ValidationResult <span class="cov0" title="0">{
+        if data == nil </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "数据不能为空"}
+        }</span>
+
+        <span class="cov0" title="0">dataMap, ok := data.(map[string]interface{})
+        if !ok </span><span class="cov0" title="0">{
+                return ValidationResult{IsValid: false, Message: "必须是对象类型"}
+        }</span>
+
+        <span class="cov0" title="0">errors := make([]string, 0)
+        normalizedData := make(map[string]interface{})
+
+        for key, validator := range schema </span><span class="cov0" title="0">{
+                result := validator(dataMap[key])
+                if !result.IsValid </span><span class="cov0" title="0">{
+                        errors = append(errors, fmt.Sprintf("%s: %s", key, result.Message))
+                }</span> else<span class="cov0" title="0"> {
+                        if result.NormalizedValue != nil </span><span class="cov0" title="0">{
+                                normalizedData[key] = result.NormalizedValue
+                        }</span> else<span class="cov0" title="0"> {
+                                normalizedData[key] = dataMap[key]
+                        }</span>
+                }
+        }
+
+        <span class="cov0" title="0">if len(errors) &gt; 0 </span><span class="cov0" title="0">{
+                return ValidationResult{
+                        IsValid: false,
+                        Message: strings.Join(errors, "; "),
+                }
+        }</span>
+
+        <span class="cov0" title="0">return ValidationResult{
+                IsValid:         true,
+                NormalizedValue: normalizedData,
+        }</span>
+}
+
+// FileValidators for file upload validation
+
+// FileValidationResult represents file validation result
+type FileValidationResult struct {
+        IsValid       bool   `json:"is_valid"`
+        Message       string `json:"message,omitempty"`
+        FileName      string `json:"file_name,omitempty"`
+        FileSize      int64  `json:"file_size,omitempty"`
+        MimeType      string `json:"mime_type,omitempty"`
+}
+
+// ValidateFileSize validates file size
+func ValidateFileSize(fileSize int64, maxSizeMB int) FileValidationResult <span class="cov0" title="0">{
+        maxSizeBytes := int64(maxSizeMB * 1024 * 1024)
+        
+        if fileSize &gt; maxSizeBytes </span><span class="cov0" title="0">{
+                return FileValidationResult{
+                        IsValid: false,
+                        Message: fmt.Sprintf("文件大小不能超过%dMB", maxSizeMB),
+                        FileSize: fileSize,
+                }
+        }</span>
+
+        <span class="cov0" title="0">return FileValidationResult{
+                IsValid:  true,
+                FileSize: fileSize,
+        }</span>
+}
+
+// ValidateFileExtension validates file extension
+func ValidateFileExtension(fileName string, allowedExtensions []string) FileValidationResult <span class="cov0" title="0">{
+        if fileName == "" </span><span class="cov0" title="0">{
+                return FileValidationResult{
+                        IsValid: false,
+                        Message: "文件名不能为空",
+                }
+        }</span>
+
+        <span class="cov0" title="0">parts := strings.Split(fileName, ".")
+        if len(parts) &lt; 2 </span><span class="cov0" title="0">{
+                return FileValidationResult{
+                        IsValid: false,
+                        Message: "文件必须有扩展名",
+                        FileName: fileName,
+                }
+        }</span>
+
+        <span class="cov0" title="0">extension := strings.ToLower(parts[len(parts)-1])
+        
+        for _, allowed := range allowedExtensions </span><span class="cov0" title="0">{
+                if strings.ToLower(allowed) == extension </span><span class="cov0" title="0">{
+                        return FileValidationResult{
+                                IsValid:  true,
+                                FileName: fileName,
+                        }
+                }</span>
+        }
+
+        <span class="cov0" title="0">return FileValidationResult{
+                IsValid:  false,
+                Message:  fmt.Sprintf("只允许上传%s格式的文件", strings.Join(allowedExtensions, ", ")),
+                FileName: fileName,
+        }</span>
+}
+
+// ValidateMimeType validates MIME type
+func ValidateMimeType(mimeType string, allowedTypes []string) FileValidationResult <span class="cov0" title="0">{
+        if mimeType == "" </span><span class="cov0" title="0">{
+                return FileValidationResult{
+                        IsValid: false,
+                        Message: "无法识别文件类型",
+                }
+        }</span>
+
+        <span class="cov0" title="0">for _, allowed := range allowedTypes </span><span class="cov0" title="0">{
+                if strings.Contains(mimeType, allowed) || strings.Contains(allowed, mimeType) </span><span class="cov0" title="0">{
+                        return FileValidationResult{
+                                IsValid:  true,
+                                MimeType: mimeType,
+                        }
+                }</span>
+        }
+
+        <span class="cov0" title="0">return FileValidationResult{
+                IsValid:  false,
+                Message:  fmt.Sprintf("不支持的文件类型: %s", mimeType),
+                MimeType: mimeType,
+        }</span>
+}
+
+// Sanitization Functions
+
+// SanitizeString removes potentially harmful characters from strings
+func SanitizeString(input string) string <span class="cov0" title="0">{
+        // Remove HTML tags
+        htmlRegex := regexp.MustCompile(`&lt;[^&gt;]*&gt;`)
+        cleaned := htmlRegex.ReplaceAllString(input, "")
+        
+        // Remove script tags and their content
+        scriptRegex := regexp.MustCompile(`(?i)&lt;script[^&gt;]*&gt;.*?&lt;/script&gt;`)
+        cleaned = scriptRegex.ReplaceAllString(cleaned, "")
+        
+        // Trim whitespace
+        cleaned = strings.TrimSpace(cleaned)
+        
+        return cleaned
+}</span>
+
+// SanitizeHTML removes or escapes potentially dangerous HTML
+func SanitizeHTML(input string) string <span class="cov0" title="0">{
+        // This is a basic implementation - in production you'd want to use a proper HTML sanitizer
+        input = strings.ReplaceAll(input, "&lt;script", "&amp;lt;script")
+        input = strings.ReplaceAll(input, "&lt;/script&gt;", "&amp;lt;/script&amp;gt;")
+        input = strings.ReplaceAll(input, "javascript:", "")
+        input = strings.ReplaceAll(input, "onclick", "")
+        input = strings.ReplaceAll(input, "onerror", "")
+        
+        return input
+}</pre>
+		
+		<pre class="file" id="file5" style="display: none">package utils
+
+import (
+        "crypto/rand"
+        "encoding/hex"
+        "errors"
+        "time"
+
+        "github.com/golang-jwt/jwt/v5"
+        "ai-project-backend/models"
+)
+
+// JWTClaims represents the JWT claims
+type JWTClaims struct {
+        UserID   int    `json:"user_id"`
+        Username string `json:"username"`
+        Role     string `json:"role"`
+        UserType string `json:"user_type"`
+        jwt.RegisteredClaims
+}
+
+// JWTManager manages JWT tokens
+type JWTManager struct {
+        secretKey  string
+        expiration time.Duration
+}
+
+// NewJWTManager creates a new JWT manager
+func NewJWTManager(secretKey string, expiration time.Duration) *JWTManager <span class="cov0" title="0">{
+        return &amp;JWTManager{
+                secretKey:  secretKey,
+                expiration: expiration,
+        }
+}</span>
+
+// GenerateToken generates a new JWT token
+func (m *JWTManager) GenerateToken(userID int, username, role, userType string) (string, error) <span class="cov0" title="0">{
+        // Generate a unique JWT ID
+        jti, err := generateJTI()
+        if err != nil </span><span class="cov0" title="0">{
+                return "", err
+        }</span>
+
+        <span class="cov0" title="0">claims := &amp;JWTClaims{
+                UserID:   userID,
+                Username: username,
+                Role:     role,
+                UserType: userType,
+                RegisteredClaims: jwt.RegisteredClaims{
+                        ID:        jti, // JWT ID
+                        ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.expiration)),
+                        IssuedAt:  jwt.NewNumericDate(time.Now()),
+                        NotBefore: jwt.NewNumericDate(time.Now()),
+                        Subject:   username,
+                },
+        }
+
+        token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+        return token.SignedString([]byte(m.secretKey))</span>
+}
+
+// GenerateTokenWithJTI generates a new JWT token with specified JTI
+func (m *JWTManager) GenerateTokenWithJTI(userID int, username, role, userType, jti string) (string, error) <span class="cov0" title="0">{
+        claims := &amp;JWTClaims{
+                UserID:   userID,
+                Username: username,
+                Role:     role,
+                UserType: userType,
+                RegisteredClaims: jwt.RegisteredClaims{
+                        ID:        jti,
+                        ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.expiration)),
+                        IssuedAt:  jwt.NewNumericDate(time.Now()),
+                        NotBefore: jwt.NewNumericDate(time.Now()),
+                        Subject:   username,
+                },
+        }
+
+        token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+        return token.SignedString([]byte(m.secretKey))
+}</span>
+
+// ValidateToken validates a JWT token and returns the claims
+func (m *JWTManager) ValidateToken(tokenString string) (*JWTClaims, error) <span class="cov0" title="0">{
+        token, err := jwt.ParseWithClaims(tokenString, &amp;JWTClaims{}, func(token *jwt.Token) (interface{}, error) </span><span class="cov0" title="0">{
+                if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok </span><span class="cov0" title="0">{
+                        return nil, errors.New("unexpected signing method")
+                }</span>
+                <span class="cov0" title="0">return []byte(m.secretKey), nil</span>
+        })
+        
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        
+        <span class="cov0" title="0">claims, ok := token.Claims.(*JWTClaims)
+        if !ok || !token.Valid </span><span class="cov0" title="0">{
+                return nil, errors.New("invalid token")
+        }</span>
+        
+        <span class="cov0" title="0">return claims, nil</span>
+}
+
+// ValidateTokenExtendedClaims validates a JWT token and returns ExtendedClaims (for impersonation support)
+func (m *JWTManager) ValidateTokenExtendedClaims(tokenString string) (*models.ExtendedClaims, error) <span class="cov0" title="0">{
+        token, err := jwt.ParseWithClaims(tokenString, &amp;models.ExtendedClaims{}, func(token *jwt.Token) (interface{}, error) </span><span class="cov0" title="0">{
+                if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok </span><span class="cov0" title="0">{
+                        return nil, errors.New("unexpected signing method")
+                }</span>
+                <span class="cov0" title="0">return []byte(m.secretKey), nil</span>
+        })
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">claims, ok := token.Claims.(*models.ExtendedClaims)
+        if !ok || !token.Valid </span><span class="cov0" title="0">{
+                return nil, errors.New("invalid token")
+        }</span>
+        <span class="cov0" title="0">if claims.IsImpersonating() &amp;&amp; claims.IsExpired() </span><span class="cov0" title="0">{
+                return nil, errors.New("impersonation session expired")
+        }</span>
+        <span class="cov0" title="0">return claims, nil</span>
+}
+
+// RefreshToken generates a new token with extended expiration
+func (m *JWTManager) RefreshToken(tokenString string) (string, error) <span class="cov0" title="0">{
+        claims, err := m.ValidateToken(tokenString)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", err
+        }</span>
+
+        // Generate new token with the same user info but new JTI
+        <span class="cov0" title="0">return m.GenerateToken(claims.UserID, claims.Username, claims.Role, claims.UserType)</span>
+}
+
+// ExtractTokenInfo extracts basic token information without full validation
+func (m *JWTManager) ExtractTokenInfo(tokenString string) (*JWTClaims, error) <span class="cov0" title="0">{
+        token, err := jwt.ParseWithClaims(tokenString, &amp;JWTClaims{}, func(token *jwt.Token) (interface{}, error) </span><span class="cov0" title="0">{
+                return []byte(m.secretKey), nil
+        }</span>)
+
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                // Try to extract claims even if token is invalid/expired
+                if errors.Is(err, jwt.ErrTokenExpired) </span><span class="cov0" title="0">{
+                        // Token is expired but we can still extract claims
+                        claims, ok := token.Claims.(*JWTClaims)
+                        if ok </span><span class="cov0" title="0">{
+                                return claims, nil
+                        }</span>
+                }
+                <span class="cov0" title="0">return nil, err</span>
+        }
+
+        <span class="cov0" title="0">claims, ok := token.Claims.(*JWTClaims)
+        if !ok </span><span class="cov0" title="0">{
+                return nil, errors.New("invalid token claims")
+        }</span>
+
+        <span class="cov0" title="0">return claims, nil</span>
+}
+
+// generateJTI generates a unique JWT ID
+func generateJTI() (string, error) <span class="cov0" title="0">{
+        bytes := make([]byte, 16)
+        if _, err := rand.Read(bytes); err != nil </span><span class="cov0" title="0">{
+                return "", err
+        }</span>
+        <span class="cov0" title="0">return hex.EncodeToString(bytes), nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package utils
+
+import (
+        "golang.org/x/crypto/bcrypt"
+)
+
+const (
+        // DefaultCost is the default cost for bcrypt hashing
+        DefaultCost = 12
+)
+
+// HashPassword hashes a password using bcrypt
+func HashPassword(password string) (string, error) <span class="cov0" title="0">{
+        bytes, err := bcrypt.GenerateFromPassword([]byte(password), DefaultCost)
+        return string(bytes), err
+}</span>
+
+// CheckPassword checks if a password matches the hash
+func CheckPassword(password, hash string) bool <span class="cov0" title="0">{
+        err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+        return err == nil
+}</span>
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package utils
+
+import (
+        "context"
+        "fmt"
+        "math"
+        "math/rand"
+        "time"
+)
+
+// RetryConfig 重试配置
+type RetryConfig struct {
+        MaxRetries     int              `json:"max_retries"`    // 最大重试次数
+        BaseDelay      time.Duration    `json:"base_delay"`     // 基础延迟时间
+        MaxDelay       time.Duration    `json:"max_delay"`      // 最大延迟时间
+        BackoffFactor  float64          `json:"backoff_factor"` // 退避因子
+        Jitter         bool             `json:"jitter"`         // 是否添加随机抖动
+        RetryCondition func(error) bool // 重试条件判断函数
+}
+
+// DefaultRetryConfig 默认重试配置
+func DefaultRetryConfig() *RetryConfig <span class="cov0" title="0">{
+        return &amp;RetryConfig{
+                MaxRetries:    3,
+                BaseDelay:     1 * time.Second,
+                MaxDelay:      30 * time.Second,
+                BackoffFactor: 2.0,
+                Jitter:        true,
+                RetryCondition: func(err error) bool </span><span class="cov0" title="0">{
+                        // 默认对所有错误进行重试
+                        return err != nil
+                }</span>,
+        }
+}
+
+// GoogleAPIRetryConfig Google API专用重试配置
+func GoogleAPIRetryConfig() *RetryConfig <span class="cov0" title="0">{
+        return &amp;RetryConfig{
+                MaxRetries:    5,
+                BaseDelay:     500 * time.Millisecond,
+                MaxDelay:      60 * time.Second,
+                BackoffFactor: 2.0,
+                Jitter:        true,
+                RetryCondition: func(err error) bool </span><span class="cov0" title="0">{
+                        if err == nil </span><span class="cov0" title="0">{
+                                return false
+                        }</span>
+
+                        // 对于Google API，重试特定的错误类型
+                        <span class="cov0" title="0">errStr := err.Error()
+
+                        // 429 - 配额限制
+                        if containsAny(errStr, []string{"429", "quotaExceeded", "rateLimitExceeded"}) </span><span class="cov0" title="0">{
+                                return true
+                        }</span>
+
+                        // 5xx - 服务器错误
+                        <span class="cov0" title="0">if containsAny(errStr, []string{"500", "502", "503", "504", "internalError", "backendError"}) </span><span class="cov0" title="0">{
+                                return true
+                        }</span>
+
+                        // 网络相关错误
+                        <span class="cov0" title="0">if containsAny(errStr, []string{"timeout", "connection reset", "network", "EOF"}) </span><span class="cov0" title="0">{
+                                return true
+                        }</span>
+
+                        // Token过期错误不重试，需要刷新token
+                        <span class="cov0" title="0">if containsAny(errStr, []string{"invalid_token", "token_expired", "unauthorized"}) </span><span class="cov0" title="0">{
+                                return false
+                        }</span>
+
+                        <span class="cov0" title="0">return false</span>
+                },
+        }
+}
+
+// RetryExecutor 重试执行器
+type RetryExecutor struct {
+        config *RetryConfig
+}
+
+// GetConfig 获取重试配置
+func (r *RetryExecutor) GetConfig() *RetryConfig <span class="cov0" title="0">{
+        return r.config
+}</span>
+
+// NewRetryExecutor 创建新的重试执行器
+func NewRetryExecutor(config *RetryConfig) *RetryExecutor <span class="cov0" title="0">{
+        if config == nil </span><span class="cov0" title="0">{
+                config = DefaultRetryConfig()
+        }</span>
+
+        <span class="cov0" title="0">return &amp;RetryExecutor{
+                config: config,
+        }</span>
+}
+
+// RetryableFunc 可重试的函数类型
+type RetryableFunc func() error
+
+// RetryableFuncWithResult 带结果的可重试函数类型
+type RetryableFuncWithResult[T any] func() (T, error)
+
+// Execute 执行重试逻辑
+func (r *RetryExecutor) Execute(ctx context.Context, fn RetryableFunc) error <span class="cov0" title="0">{
+        var lastErr error
+
+        for attempt := 0; attempt &lt;= r.config.MaxRetries; attempt++ </span><span class="cov0" title="0">{
+                // 检查上下文是否已取消
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return fmt.Errorf("context cancelled: %w", ctx.Err())</span>
+                default:<span class="cov0" title="0"></span>
+                }
+
+                // 执行函数
+                <span class="cov0" title="0">err := fn()
+                if err == nil </span><span class="cov0" title="0">{
+                        return nil // 成功，无需重试
+                }</span>
+
+                <span class="cov0" title="0">lastErr = err
+
+                // 检查是否应该重试
+                if !r.config.RetryCondition(err) </span><span class="cov0" title="0">{
+                        return fmt.Errorf("retry condition not met: %w", err)
+                }</span>
+
+                // 如果已经达到最大重试次数，返回最后的错误
+                <span class="cov0" title="0">if attempt &gt;= r.config.MaxRetries </span><span class="cov0" title="0">{
+                        break</span>
+                }
+
+                // 计算延迟时间
+                <span class="cov0" title="0">delay := r.calculateDelay(attempt)
+
+                // 等待指定时间后重试
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return fmt.Errorf("context cancelled during retry delay: %w", ctx.Err())</span>
+                case &lt;-time.After(delay):<span class="cov0" title="0"></span>
+                        // 继续下一次重试
+                }
+        }
+
+        <span class="cov0" title="0">return fmt.Errorf("max retries (%d) exceeded: %w", r.config.MaxRetries, lastErr)</span>
+}
+
+// ExecuteWithResult 执行带结果的重试逻辑
+func ExecuteWithResult[T any](ctx context.Context, r *RetryExecutor, fn RetryableFuncWithResult[T]) (T, error) <span class="cov0" title="0">{
+        var lastErr error
+        var zeroValue T
+
+        for attempt := 0; attempt &lt;= r.config.MaxRetries; attempt++ </span><span class="cov0" title="0">{
+                // 检查上下文是否已取消
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return zeroValue, fmt.Errorf("context cancelled: %w", ctx.Err())</span>
+                default:<span class="cov0" title="0"></span>
+                }
+
+                // 执行函数
+                <span class="cov0" title="0">result, err := fn()
+                if err == nil </span><span class="cov0" title="0">{
+                        return result, nil // 成功，无需重试
+                }</span>
+
+                <span class="cov0" title="0">lastErr = err
+
+                // 检查是否应该重试
+                if !r.config.RetryCondition(err) </span><span class="cov0" title="0">{
+                        return zeroValue, fmt.Errorf("retry condition not met: %w", err)
+                }</span>
+
+                // 如果已经达到最大重试次数，返回最后的错误
+                <span class="cov0" title="0">if attempt &gt;= r.config.MaxRetries </span><span class="cov0" title="0">{
+                        break</span>
+                }
+
+                // 计算延迟时间
+                <span class="cov0" title="0">delay := r.calculateDelay(attempt)
+
+                // 等待指定时间后重试
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return zeroValue, fmt.Errorf("context cancelled during retry delay: %w", ctx.Err())</span>
+                case &lt;-time.After(delay):<span class="cov0" title="0"></span>
+                        // 继续下一次重试
+                }
+        }
+
+        <span class="cov0" title="0">return zeroValue, fmt.Errorf("max retries (%d) exceeded: %w", r.config.MaxRetries, lastErr)</span>
+}
+
+// calculateDelay 计算延迟时间（指数退避 + 可选的随机抖动）
+func (r *RetryExecutor) calculateDelay(attempt int) time.Duration <span class="cov0" title="0">{
+        // 计算指数退避延迟
+        delay := float64(r.config.BaseDelay) * math.Pow(r.config.BackoffFactor, float64(attempt))
+
+        // 确保不超过最大延迟
+        if time.Duration(delay) &gt; r.config.MaxDelay </span><span class="cov0" title="0">{
+                delay = float64(r.config.MaxDelay)
+        }</span>
+
+        // 添加随机抖动以避免雷群效应
+        <span class="cov0" title="0">if r.config.Jitter </span><span class="cov0" title="0">{
+                jitterRange := delay * 0.1                         // 10%的抖动范围
+                jitter := (rand.Float64() - 0.5) * 2 * jitterRange // -10% 到 +10%
+                delay += jitter
+
+                // 确保延迟不为负数
+                if delay &lt; 0 </span><span class="cov0" title="0">{
+                        delay = float64(r.config.BaseDelay)
+                }</span>
+        }
+
+        <span class="cov0" title="0">return time.Duration(delay)</span>
+}
+
+// SimpleRetry 简单的重试函数，使用默认配置
+func SimpleRetry(ctx context.Context, fn RetryableFunc) error <span class="cov0" title="0">{
+        executor := NewRetryExecutor(DefaultRetryConfig())
+        return executor.Execute(ctx, fn)
+}</span>
+
+// SimpleRetryWithResult 简单的带结果重试函数，使用默认配置
+func SimpleRetryWithResult[T any](ctx context.Context, fn RetryableFuncWithResult[T]) (T, error) <span class="cov0" title="0">{
+        executor := NewRetryExecutor(DefaultRetryConfig())
+        return ExecuteWithResult(ctx, executor, fn)
+}</span>
+
+// GoogleAPIRetry Google API专用的重试函数
+func GoogleAPIRetry(ctx context.Context, fn RetryableFunc) error <span class="cov0" title="0">{
+        executor := NewRetryExecutor(GoogleAPIRetryConfig())
+        return executor.Execute(ctx, fn)
+}</span>
+
+// GoogleAPIRetryWithResult Google API专用的带结果重试函数
+func GoogleAPIRetryWithResult[T any](ctx context.Context, fn RetryableFuncWithResult[T]) (T, error) <span class="cov0" title="0">{
+        executor := NewRetryExecutor(GoogleAPIRetryConfig())
+        return ExecuteWithResult(ctx, executor, fn)
+}</span>
+
+// RetryStats 重试统计信息
+type RetryStats struct {
+        TotalAttempts     int           `json:"total_attempts"`
+        SuccessfulAttempt int           `json:"successful_attempt"`
+        TotalDelay        time.Duration `json:"total_delay"`
+        LastError         string        `json:"last_error,omitempty"`
+}
+
+// ExecuteWithStats 执行重试逻辑并返回统计信息
+func (r *RetryExecutor) ExecuteWithStats(ctx context.Context, fn RetryableFunc) (*RetryStats, error) <span class="cov0" title="0">{
+        stats := &amp;RetryStats{}
+        var lastErr error
+        startTime := time.Now()
+
+        for attempt := 0; attempt &lt;= r.config.MaxRetries; attempt++ </span><span class="cov0" title="0">{
+                stats.TotalAttempts = attempt + 1
+
+                // 检查上下文是否已取消
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        stats.TotalDelay = time.Since(startTime)
+                        stats.LastError = ctx.Err().Error()
+                        return stats, fmt.Errorf("context cancelled: %w", ctx.Err())</span>
+                default:<span class="cov0" title="0"></span>
+                }
+
+                // 执行函数
+                <span class="cov0" title="0">err := fn()
+                if err == nil </span><span class="cov0" title="0">{
+                        stats.SuccessfulAttempt = attempt + 1
+                        stats.TotalDelay = time.Since(startTime)
+                        return stats, nil // 成功，无需重试
+                }</span>
+
+                <span class="cov0" title="0">lastErr = err
+
+                // 检查是否应该重试
+                if !r.config.RetryCondition(err) </span><span class="cov0" title="0">{
+                        stats.TotalDelay = time.Since(startTime)
+                        stats.LastError = err.Error()
+                        return stats, fmt.Errorf("retry condition not met: %w", err)
+                }</span>
+
+                // 如果已经达到最大重试次数，返回最后的错误
+                <span class="cov0" title="0">if attempt &gt;= r.config.MaxRetries </span><span class="cov0" title="0">{
+                        break</span>
+                }
+
+                // 计算延迟时间
+                <span class="cov0" title="0">delay := r.calculateDelay(attempt)
+
+                // 等待指定时间后重试
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        stats.TotalDelay = time.Since(startTime)
+                        stats.LastError = ctx.Err().Error()
+                        return stats, fmt.Errorf("context cancelled during retry delay: %w", ctx.Err())</span>
+                case &lt;-time.After(delay):<span class="cov0" title="0"></span>
+                        // 继续下一次重试
+                }
+        }
+
+        <span class="cov0" title="0">stats.TotalDelay = time.Since(startTime)
+        stats.LastError = lastErr.Error()
+        return stats, fmt.Errorf("max retries (%d) exceeded: %w", r.config.MaxRetries, lastErr)</span>
+}
+
+// containsAny 检查字符串是否包含任何一个子字符串
+func containsAny(str string, substrings []string) bool <span class="cov0" title="0">{
+        for _, substr := range substrings </span><span class="cov0" title="0">{
+                if len(substr) &gt; 0 &amp;&amp; len(str) &gt;= len(substr) </span><span class="cov0" title="0">{
+                        for i := 0; i &lt;= len(str)-len(substr); i++ </span><span class="cov0" title="0">{
+                                if str[i:i+len(substr)] == substr </span><span class="cov0" title="0">{
+                                        return true
+                                }</span>
+                        }
+                }
+        }
+        <span class="cov0" title="0">return false</span>
+}
+
+// ExponentialBackoff 指数退避策略计算函数
+func ExponentialBackoff(attempt int, baseDelay time.Duration, maxDelay time.Duration, backoffFactor float64) time.Duration <span class="cov0" title="0">{
+        delay := float64(baseDelay) * math.Pow(backoffFactor, float64(attempt))
+        if time.Duration(delay) &gt; maxDelay </span><span class="cov0" title="0">{
+                return maxDelay
+        }</span>
+        <span class="cov0" title="0">return time.Duration(delay)</span>
+}
+
+// WithJitter 为延迟时间添加随机抖动
+func WithJitter(delay time.Duration, jitterPercent float64) time.Duration <span class="cov0" title="0">{
+        if jitterPercent &lt;= 0 || jitterPercent &gt; 100 </span><span class="cov0" title="0">{
+                return delay
+        }</span>
+
+        <span class="cov0" title="0">jitterRange := float64(delay) * (jitterPercent / 100.0)
+        jitter := (rand.Float64() - 0.5) * 2 * jitterRange
+        result := float64(delay) + jitter
+
+        if result &lt; 0 </span><span class="cov0" title="0">{
+                return delay
+        }</span>
+
+        <span class="cov0" title="0">return time.Duration(result)</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package utils
+
+import (
+        "ai-project-backend/models"
+        "reflect"
+        "strings"
+
+        "github.com/gin-gonic/gin/binding"
+        "github.com/go-playground/validator/v10"
+)
+
+// ValidatorManager manages request validation
+type ValidatorManager struct {
+        validator *validator.Validate
+}
+
+// NewValidatorManager creates a new validator manager
+func NewValidatorManager() *ValidatorManager <span class="cov0" title="0">{
+        return &amp;ValidatorManager{
+                validator: binding.Validator.Engine().(*validator.Validate),
+        }
+}</span>
+
+// ValidateStruct validates a struct and returns validation errors
+func (v *ValidatorManager) ValidateStruct(s interface{}) []models.ValidationError <span class="cov0" title="0">{
+        var validationErrors []models.ValidationError
+
+        err := v.validator.Struct(s)
+        if err != nil </span><span class="cov0" title="0">{
+                for _, err := range err.(validator.ValidationErrors) </span><span class="cov0" title="0">{
+                        validationErrors = append(validationErrors, models.ValidationError{
+                                Field:   getJSONFieldName(s, err.Field()),
+                                Message: getValidationMessage(err),
+                                Value:   err.Value().(string),
+                        })
+                }</span>
+        }
+
+        <span class="cov0" title="0">return validationErrors</span>
+}
+
+// getJSONFieldName gets the JSON field name from struct field name
+func getJSONFieldName(s interface{}, fieldName string) string <span class="cov0" title="0">{
+        t := reflect.TypeOf(s)
+        if t.Kind() == reflect.Ptr </span><span class="cov0" title="0">{
+                t = t.Elem()
+        }</span>
+
+        <span class="cov0" title="0">field, found := t.FieldByName(fieldName)
+        if !found </span><span class="cov0" title="0">{
+                return fieldName
+        }</span>
+
+        <span class="cov0" title="0">jsonTag := field.Tag.Get("json")
+        if jsonTag == "" </span><span class="cov0" title="0">{
+                return fieldName
+        }</span>
+
+        // Handle json:",omitempty" format
+        <span class="cov0" title="0">if strings.Contains(jsonTag, ",") </span><span class="cov0" title="0">{
+                jsonTag = strings.Split(jsonTag, ",")[0]
+        }</span>
+
+        <span class="cov0" title="0">if jsonTag == "-" </span><span class="cov0" title="0">{
+                return fieldName
+        }</span>
+
+        <span class="cov0" title="0">return jsonTag</span>
+}
+
+// getValidationMessage returns a user-friendly validation message
+func getValidationMessage(err validator.FieldError) string <span class="cov0" title="0">{
+        switch err.Tag() </span>{
+        case "required":<span class="cov0" title="0">
+                return "This field is required"</span>
+        case "min":<span class="cov0" title="0">
+                return "Value is too short (minimum " + err.Param() + " characters)"</span>
+        case "max":<span class="cov0" title="0">
+                return "Value is too long (maximum " + err.Param() + " characters)"</span>
+        case "email":<span class="cov0" title="0">
+                return "Invalid email format"</span>
+        case "oneof":<span class="cov0" title="0">
+                return "Value must be one of: " + err.Param()</span>
+        case "gte":<span class="cov0" title="0">
+                return "Value must be greater than or equal to " + err.Param()</span>
+        case "lte":<span class="cov0" title="0">
+                return "Value must be less than or equal to " + err.Param()</span>
+        case "gt":<span class="cov0" title="0">
+                return "Value must be greater than " + err.Param()</span>
+        case "lt":<span class="cov0" title="0">
+                return "Value must be less than " + err.Param()</span>
+        case "len":<span class="cov0" title="0">
+                return "Value must be exactly " + err.Param() + " characters"</span>
+        case "uuid":<span class="cov0" title="0">
+                return "Invalid UUID format"</span>
+        case "url":<span class="cov0" title="0">
+                return "Invalid URL format"</span>
+        default:<span class="cov0" title="0">
+                return "Invalid value"</span>
+        }
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

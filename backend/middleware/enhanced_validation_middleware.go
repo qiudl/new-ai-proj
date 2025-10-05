@@ -336,14 +336,14 @@ func (vm *EnhancedValidationMiddleware) validateTaskBusinessRules(task *models.T
 				errors = append(errors, models.ValidationError{
 					Field:   "progress",
 					Message: "Progress must be 100% when status is completed",
-					Value:   fmt.Sprintf("%.1f", progress),
+					Value:   fmt.Sprintf("%.1f", float64(progress)),
 				})
 			}
 			if status == "todo" && progress > 0 {
 				errors = append(errors, models.ValidationError{
 					Field:   "progress",
 					Message: "Progress should be 0% when status is todo",
-					Value:   fmt.Sprintf("%.1f", progress),
+					Value:   fmt.Sprintf("%.1f", float64(progress)),
 				})
 			}
 		}
