@@ -3,7 +3,7 @@
  * 包含: 完成统计、子任务树、详情Tab面板
  */
 
-import React, { useRef, useMemo, lazy, Suspense } from 'react';
+import React, { useRef, useMemo, lazy, Suspense, useState } from 'react';
 import {
   Card,
   Row,
@@ -44,6 +44,10 @@ import { EnhancedTaskHeaderCard } from '../Header/EnhancedTaskHeaderCard';
 import { useTaskDetailContext } from '../../hooks/useTaskDetailContext';
 import type { TaskRequest } from '../../types';
 import { TaskService } from '../../../../services/taskService';
+import AICreateDropdown from '../../../../components/TaskDetail/AICreateDropdown';
+import SubtaskPreviewModal, { SubtaskPreview } from '../../../../components/TaskDetail/SubtaskPreviewModal';
+import AIGeneratingModal from '../../../../components/TaskDetail/AIGeneratingModal';
+import type { AIModel } from '../../../../config/aiModels';
 
 const { Text } = Typography;
 
@@ -77,6 +81,13 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 }) => {
   const { task, relations, ui, statistics, actions } = useTaskDetailContext();
   const subtasksRef = useRef<TaskDetailDescendantsTreeRef>(null);
+
+  // AI生成相关状态
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showGeneratingModal, setShowGeneratingModal] = useState(false);
+  const [selectedAIModel, setSelectedAIModel] = useState<AIModel | null>(null);
+  const [previewSubtasks, setPreviewSubtasks] = useState<SubtaskPreview[]>([]);
+  const [creating, setCreating] = useState(false);
 
   // 如果没有任务数据，不渲染
   if (!task) {
@@ -201,6 +212,95 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   // 刷新子任务
   const refreshSubtasks = () => {
     subtasksRef.current?.refresh();
+  };
+
+  // AI模型选择回调
+  const handleAIModelSelect = async (modelKey: string, modelInfo: AIModel) => {
+    console.log('Selected AI model:', modelKey, modelInfo);
+    setSelectedAIModel(modelInfo);
+    setShowGeneratingModal(true);
+
+    // 模拟AI生成（实际API调用在任务#2702实现）
+    setTimeout(() => {
+      const mockSubtasks: SubtaskPreview[] = [
+        {
+          temp_id: 'temp_1',
+          title: '设计登录界面UI组件',
+          description: '包含用户名/密码输入框、记住我、登录按钮',
+          estimated_hours: 2,
+          priority: 'high',
+          tags: ['UI', '前端']
+        },
+        {
+          temp_id: 'temp_2',
+          title: '实现前端表单验证逻辑',
+          description: '验证邮箱格式、密码强度、必填项',
+          estimated_hours: 1.5,
+          priority: 'high'
+        },
+        {
+          temp_id: 'temp_3',
+          title: '开发后端登录API接口',
+          description: 'JWT认证、密码加密、Session管理',
+          estimated_hours: 3,
+          priority: 'high',
+          tags: ['API', '后端']
+        },
+        {
+          temp_id: 'temp_4',
+          title: '集成第三方登录（Google/GitHub）',
+          description: 'OAuth2.0集成、用户信息同步',
+          estimated_hours: 4,
+          priority: 'medium',
+          tags: ['OAuth', '集成']
+        },
+        {
+          temp_id: 'temp_5',
+          title: '编写单元测试和集成测试',
+          description: '测试登录流程、错误处理、安全性',
+          estimated_hours: 2.5,
+          priority: 'medium',
+          tags: ['测试']
+        }
+      ];
+
+      setPreviewSubtasks(mockSubtasks);
+      setShowGeneratingModal(false);
+      setShowPreviewModal(true);
+      message.success(`已生成 ${mockSubtasks.length} 个子任务`);
+    }, 2000);
+  };
+
+  // 重新生成
+  const handleRegenerate = async () => {
+    if (!selectedAIModel) return;
+    setShowPreviewModal(false);
+    await handleAIModelSelect(selectedAIModel.key, selectedAIModel);
+  };
+
+  // 确认创建子任务
+  const handleConfirmCreate = async (subtasks: SubtaskPreview[]) => {
+    setCreating(true);
+    try {
+      // TODO: 实际的批量创建API调用在任务#2703实现
+      console.log('Creating subtasks:', subtasks);
+
+      // 模拟API调用
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      message.success(`成功创建 ${subtasks.length} 个子任务`);
+      setShowPreviewModal(false);
+      setPreviewSubtasks([]);
+
+      // 刷新子任务列表
+      refreshSubtasks();
+      await actions.loadStatistics();
+    } catch (error) {
+      message.error('批量创建失败');
+      throw error;
+    } finally {
+      setCreating(false);
+    }
   };
 
   // Tab定义
@@ -533,6 +633,10 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             <Button type="primary" icon={<PlusOutlined />} onClick={onCreateSubtask}>
               添加子任务
             </Button>
+            <AICreateDropdown
+              taskId={task.id}
+              onModelSelect={handleAIModelSelect}
+            />
             <Button type="default" icon={<ImportOutlined />} onClick={onBulkImportSubtasks}>
               批量导入
             </Button>
@@ -559,6 +663,28 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           items={tabItems}
         />
       </Card>
+
+      {/* AI生成加载Modal */}
+      <AIGeneratingModal
+        visible={showGeneratingModal}
+        modelName={selectedAIModel?.label || 'AI'}
+      />
+
+      {/* 子任务预览Modal */}
+      <SubtaskPreviewModal
+        visible={showPreviewModal}
+        parentTask={task ? { id: task.id, title: task.title } : null}
+        aiModel={selectedAIModel?.label || ''}
+        initialSubtasks={previewSubtasks}
+        onClose={() => {
+          setShowPreviewModal(false);
+          setPreviewSubtasks([]);
+        }}
+        onConfirm={handleConfirmCreate}
+        onRegenerate={handleRegenerate}
+        loading={showGeneratingModal}
+        creating={creating}
+      />
     </>
   );
 };
