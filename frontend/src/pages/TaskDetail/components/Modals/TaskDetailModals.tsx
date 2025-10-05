@@ -3,11 +3,15 @@
  * 集成现有的模态框组件: TaskModal, TaskArchiveModal, BulkSubTaskCreator
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { Modal, message } from 'antd';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 import TaskModal from '../../../../components/TaskModal';
 import TaskArchiveModal from '../../../../components/TaskArchiveModal';
 import BulkSubTaskCreator from '../../../../components/BulkSubTaskCreator';
 import { useTaskDetailContext } from '../../hooks/useTaskDetailContext';
+import { TaskService } from '../../../../services/taskService';
+import { useNavigate } from 'react-router-dom';
 import type { TaskRequest } from '../../types';
 
 export interface TaskDetailModalsProps {
@@ -30,6 +34,7 @@ const TaskDetailModals: React.FC<TaskDetailModalsProps> = ({
   onEditDetails
 }) => {
   const { task, ui, actions } = useTaskDetailContext();
+  const navigate = useNavigate();
 
   if (!task) {
     return null;
@@ -49,6 +54,53 @@ const TaskDetailModals: React.FC<TaskDetailModalsProps> = ({
   const handleBulkSubTaskModalCancel = () => {
     actions.closeModal('bulkImport');
   };
+
+  // 删除任务处理
+  const handleDeleteTask = async () => {
+    if (!task) return;
+
+    try {
+      await TaskService.deleteTask(projectId, task.id);
+      message.success('任务已删除');
+      actions.closeModal('delete');
+
+      // 删除成功后跳转到任务列表
+      navigate(`/projects/${projectId}/tasks`);
+    } catch (error: any) {
+      message.error(error?.message || '删除任务失败');
+      console.error('Delete task error:', error);
+    }
+  };
+
+  // 监听删除模态框状态，使用Modal.confirm
+  useEffect(() => {
+    if (ui.modals.delete?.visible && task) {
+      Modal.confirm({
+        title: '确认删除任务',
+        icon: <ExclamationCircleOutlined />,
+        content: (
+          <div>
+            <p>您确定要删除任务 <strong>"{task.title}"</strong> 吗？</p>
+            <p style={{ color: '#ff4d4f', marginTop: '12px' }}>
+              ⚠️ 此操作不可撤销！删除后该任务及其所有相关数据将永久丢失。
+            </p>
+            {task.has_children && (
+              <p style={{ color: '#ff4d4f', marginTop: '8px' }}>
+                ⚠️ 该任务包含子任务，删除后所有子任务也将被删除。
+              </p>
+            )}
+          </div>
+        ),
+        okText: '确认删除',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk: handleDeleteTask,
+        onCancel: () => {
+          actions.closeModal('delete');
+        },
+      });
+    }
+  }, [ui.modals.delete?.visible, task, projectId, navigate, actions]);
 
   // 获取任务模态框的任务数据
   const getTaskForModal = () => {
