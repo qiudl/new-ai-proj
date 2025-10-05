@@ -1,6 +1,6 @@
 module ai-project-backend
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.24.4
 
@@ -81,6 +81,7 @@ require (
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
+	golang.org/x/time v0.13.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53 // indirect
 	google.golang.org/grpc v1.67.1 // indirect
 	google.golang.org/protobuf v1.35.1 // indirect

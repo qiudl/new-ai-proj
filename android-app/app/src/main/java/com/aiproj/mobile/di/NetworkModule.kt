@@ -2,6 +2,7 @@ package com.aiproj.mobile.di
 
 import android.content.Context
 import com.aiproj.mobile.BuildConfig
+import com.aiproj.mobile.data.api.AnalyticsApi
 import com.aiproj.mobile.data.api.AttachmentApi
 import com.aiproj.mobile.data.api.AuthApi
 import com.aiproj.mobile.data.api.AuthInterceptor
@@ -165,6 +166,15 @@ object NetworkModule {
     @Singleton
     fun provideDailyFocusTaskApi(retrofit: Retrofit): DailyFocusTaskApi {
         return retrofit.create(DailyFocusTaskApi::class.java)
+    }
+
+    /**
+     * 提供 AnalyticsApi
+     */
+    @Provides
+    @Singleton
+    fun provideAnalyticsApi(retrofit: Retrofit): AnalyticsApi {
+        return retrofit.create(AnalyticsApi::class.java)
     }
 
     /**

@@ -90,6 +90,7 @@ func registerDashboardRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 	{
 		dashboard.GET("/stats", app.GetDashboardHandler().GetStats)
 		dashboard.GET("/time-stats", app.GetDashboardHandler().GetTimeStats)
+		dashboard.GET("/weekly-stats", app.GetDashboardHandler().GetWeeklyStats)
 		dashboard.GET("/notifications", app.GetDashboardHandler().GetNotifications)
 	}
 }

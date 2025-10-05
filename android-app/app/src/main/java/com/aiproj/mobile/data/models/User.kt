@@ -43,11 +43,11 @@ data class LoginRequest(
 )
 
 /**
- * 登录响应
+ * 登录响应数据
  */
-data class LoginResponse(
-    @SerializedName("token")
-    val token: String,
+data class LoginResponseData(
+    @SerializedName("access_token")
+    val accessToken: String,
 
     @SerializedName("refresh_token")
     val refreshToken: String?,
@@ -61,3 +61,24 @@ data class LoginResponse(
     @SerializedName("expires_in")
     val expiresIn: Long?
 )
+
+/**
+ * 登录响应（包装层）
+ */
+data class LoginResponse(
+    @SerializedName("success")
+    val success: Boolean,
+
+    @SerializedName("message")
+    val message: String?,
+
+    @SerializedName("data")
+    val data: LoginResponseData
+) {
+    // 提供便捷访问属性
+    val token: String get() = data.accessToken
+    val refreshToken: String? get() = data.refreshToken
+    val user: User get() = data.user
+    val expiresAt: String? get() = data.expiresAt
+    val expiresIn: Long? get() = data.expiresIn
+}

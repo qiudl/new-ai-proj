@@ -68,19 +68,17 @@ class ProjectRepository @Inject constructor(
      * 获取活跃项目（用于仪表盘）
      */
     fun getActiveProjects(limit: Int = 5): Flow<Result<ProjectListResponse>> = flow {
-        try {
-            val response = projectApi.getActiveProjects(limit)
+        val response = projectApi.getActiveProjects(limit)
 
-            if (response.isSuccessful && response.body() != null) {
-                emit(Result.success(response.body()!!))
-            } else {
-                emit(Result.failure(
-                    Exception(response.errorBody()?.string() ?: "获取活跃项目失败")
-                ))
-            }
-        } catch (e: Exception) {
-            emit(Result.failure(e))
+        if (response.isSuccessful && response.body() != null) {
+            emit(Result.success(response.body()!!))
+        } else {
+            emit(Result.failure(
+                Exception(response.errorBody()?.string() ?: "获取活跃项目失败")
+            ))
         }
+    }.catch { e ->
+        emit(Result.failure(e as? Exception ?: Exception(e.message)))
     }
 
     /**
@@ -88,7 +86,7 @@ class ProjectRepository @Inject constructor(
      */
     suspend fun getProjectById(id: Int): Result<Project> {
         return try {
-            val response = projectApi.getProjectById(id)
+            val response = projectApi.getProject(id)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {

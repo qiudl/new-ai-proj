@@ -1,5 +1,6 @@
 package com.aiproj.mobile.ui.document.viewer
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -14,7 +15,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aiproj.mobile.data.models.Document
+import android.text.SpannableStringBuilder
+import android.widget.HorizontalScrollView
+import android.widget.TableLayout
 import io.noties.markwon.Markwon
+import io.noties.markwon.core.CorePlugin
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.ext.tasklist.TaskListPlugin
@@ -189,13 +194,35 @@ private fun DocumentContent(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    // 创建Markwon实例
+    // 创建增强版Markwon实例（启用所有插件）
     val markwon = remember {
+        val prism4j = Prism4j(Prism4jGrammarLocator.create())  // 代码语法识别器
+
         Markwon.builder(context)
+            // HTML支持
             .usePlugin(HtmlPlugin.create())
+
+            // 图片加载（Coil）
             .usePlugin(CoilImagesPlugin.create(context))
+
+            // 删除线
             .usePlugin(StrikethroughPlugin.create())
+
+            // 链接识别和点击
             .usePlugin(LinkifyPlugin.create())
+
+            // ✅ 表格支持（带水平滚动）
+            .usePlugin(TablePlugin.create(context))
+
+            // ✅ 任务列表（复选框）
+            .usePlugin(TaskListPlugin.create(context))
+
+            // ✅ 代码语法高亮
+            .usePlugin(SyntaxHighlightPlugin.create(
+                prism4j,
+                Prism4jThemeDefault.create()  // 使用默认高亮主题
+            ))
+
             .build()
     }
 
@@ -203,7 +230,7 @@ private fun DocumentContent(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         // 全屏退出按钮
         if (isFullScreen) {
@@ -223,13 +250,39 @@ private fun DocumentContent(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Markdown内容渲染
+        // Markdown内容渲染（优化版）
+        val isDarkMode = isSystemInDarkTheme()
         AndroidView(
             factory = { ctx ->
                 android.widget.TextView(ctx).apply {
+                    // 适配深色/浅色模式
+                    setTextColor(
+                        if (isDarkMode) {
+                            android.graphics.Color.parseColor("#E1E1E1")
+                        } else {
+                            android.graphics.Color.parseColor("#1F1F1F")
+                        }
+                    )
+
+                    // 字体大小（sp单位）
+                    textSize = 15f  // 从16sp减小到15sp，更紧凑
+
+                    // 行间距优化（从1.5倍减少到1.25倍，更紧凑）
+                    setLineSpacing(1f, 1.25f)
+
+                    // 内边距优化（减少底部内边距到16dp）
+                    setPadding(
+                        0,
+                        0,
+                        0,
+                        (16 * ctx.resources.displayMetrics.density).toInt()
+                    )
+
+                    // 启用文本选择
+                    setTextIsSelectable(true)
+
+                    // 渲染Markdown
                     markwon.setMarkdown(this, document.content)
-                    textSize = 16f
-                    setPadding(0, 0, 0, 32)
                 }
             },
             modifier = Modifier.fillMaxWidth()

@@ -549,6 +549,14 @@ func (app *Application) GetDailyFocusTaskHandler() *handlers.DailyFocusTaskHandl
 	return nil // 需要通过工厂创建
 }
 
+// GetTaskOrganizationHandler returns the task organization handler
+func (app *Application) GetTaskOrganizationHandler() *handlers.TaskOrganizationHandler {
+	if app.handlers != nil && app.handlers.TaskOrganizationHandler != nil {
+		return app.handlers.TaskOrganizationHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
 // GetTimelineHandler returns the timeline handler
 func (app *Application) GetTimelineHandler() *handlers.TimelineHandler {
 	if app.handlers != nil && app.handlers.TimelineHandler != nil {
@@ -671,6 +679,11 @@ func (app *Application) GetDashboardHandler() *handlers.DashboardHandler {
 		return app.handlers.DashboardHandler
 	}
 	return nil // 需要通过工厂创建
+}
+
+// GetAISubtaskHandler returns the AI subtask handler
+func (app *Application) GetAISubtaskHandler() *handlers.AISubtaskHandler {
+	return handlers.NewAISubtaskHandler(app.db)
 }
 
 // GetWebSocketHandler returns the WebSocket handler - COMPLETELY DISABLED

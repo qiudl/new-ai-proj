@@ -17,6 +17,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aiproj.mobile.data.models.Project
 import com.aiproj.mobile.data.models.Task
+import com.aiproj.mobile.ui.screens.projects.tabs.MembersTab
+import com.aiproj.mobile.ui.screens.projects.tabs.StatisticsTab
+import com.aiproj.mobile.ui.screens.projects.tabs.TaskListTab
 import com.aiproj.mobile.ui.screens.tasks.TaskListItem
 
 /**
@@ -31,7 +34,6 @@ fun ProjectDetailScreen(
     viewModel: ProjectDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val viewMode by viewModel.viewMode.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -44,27 +46,6 @@ fun ProjectDetailScreen(
                     }
                 },
                 actions = {
-                    // 视图切换
-                    IconButton(
-                        onClick = {
-                            val newMode = if (viewMode == ViewMode.DETAIL) {
-                                ViewMode.KANBAN
-                            } else {
-                                ViewMode.DETAIL
-                            }
-                            viewModel.switchViewMode(newMode)
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (viewMode == ViewMode.DETAIL) {
-                                Icons.Default.ViewKanban
-                            } else {
-                                Icons.Default.ViewList
-                            },
-                            contentDescription = "切换视图"
-                        )
-                    }
-
                     uiState.project?.let { project ->
                         IconButton(onClick = { onEdit(project.id) }) {
                             Icon(Icons.Default.Edit, contentDescription = "编辑")
@@ -94,7 +75,7 @@ fun ProjectDetailScreen(
             }
         }
     ) { paddingValues ->
-        if (uiState.isLoading) {
+        if (uiState.isLoadingProject) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -105,24 +86,41 @@ fun ProjectDetailScreen(
             }
         } else {
             uiState.project?.let { project ->
-                when (viewMode) {
-                    ViewMode.DETAIL -> {
-                        ProjectDetailContent(
-                            project = project,
-                            tasks = uiState.tasks,
-                            onTaskClick = onTaskClick,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(paddingValues)
-                        )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    // Tab导航
+                    TabRow(selectedTabIndex = uiState.selectedTabIndex) {
+                        ProjectDetailTab.values().forEachIndexed { index, tab ->
+                            Tab(
+                                selected = uiState.selectedTabIndex == index,
+                                onClick = { viewModel.selectTab(index) },
+                                text = { Text(tab.title) }
+                            )
+                        }
                     }
-                    ViewMode.KANBAN -> {
-                        ProjectKanbanView(
-                            tasks = uiState.tasks,
+
+                    // Tab内容
+                    when (uiState.selectedTabIndex) {
+                        0 -> TaskListTab(
+                            project = project,
+                            tasks = uiState.filteredTasks,
+                            isLoading = uiState.isLoadingTasks,
+                            searchQuery = uiState.taskSearchQuery,
+                            selectedStatus = uiState.selectedTaskStatus,
                             onTaskClick = onTaskClick,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(paddingValues)
+                            onSearch = { viewModel.searchTasks(it) },
+                            onFilterStatus = { viewModel.filterTasksByStatus(it) },
+                            onClearSearch = { viewModel.clearTaskSearch() }
+                        )
+                        1 -> StatisticsTab(
+                            project = project,
+                            tasks = uiState.tasks
+                        )
+                        2 -> MembersTab(
+                            project = project
                         )
                     }
                 }

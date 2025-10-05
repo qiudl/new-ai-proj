@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aiproj.mobile.data.models.Project
 import com.aiproj.mobile.data.models.Task
+import com.aiproj.mobile.data.models.TaskStatus
 import com.aiproj.mobile.data.repository.ProjectRepository
 import com.aiproj.mobile.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,12 +29,9 @@ class ProjectDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ProjectDetailUiState())
     val uiState: StateFlow<ProjectDetailUiState> = _uiState.asStateFlow()
 
-    // 视图模式
-    private val _viewMode = MutableStateFlow(ViewMode.DETAIL)
-    val viewMode: StateFlow<ViewMode> = _viewMode.asStateFlow()
-
     init {
         loadProjectDetail()
+        loadProjectTasks()
     }
 
     /**
@@ -41,27 +39,15 @@ class ProjectDetailViewModel @Inject constructor(
      */
     fun loadProjectDetail() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoadingProject = true, error = null) }
 
-            // 并行加载项目详情和任务列表
-            val projectDeferred = async { projectRepository.getProjectById(projectId) }
-            val tasksDeferred = async {
-                taskRepository.getTasks(
-                    page = 1,
-                    limit = 100,
-                    projectId = projectId
-                ).first()
-            }
-
-            val projectResult = projectDeferred.await()
-            val tasksResult = tasksDeferred.await()
+            val projectResult = projectRepository.getProjectById(projectId)
 
             projectResult.onSuccess { project ->
                 _uiState.update {
                     it.copy(
-                        isLoading = false,
+                        isLoadingProject = false,
                         project = project,
-                        tasks = tasksResult.getOrNull()?.tasks ?: emptyList(),
                         error = null
                     )
                 }
@@ -70,7 +56,7 @@ class ProjectDetailViewModel @Inject constructor(
             projectResult.onFailure { error ->
                 _uiState.update {
                     it.copy(
-                        isLoading = false,
+                        isLoadingProject = false,
                         error = error.message ?: "加载失败，请重试"
                     )
                 }
@@ -79,10 +65,86 @@ class ProjectDetailViewModel @Inject constructor(
     }
 
     /**
-     * 切换视图模式
+     * 加载项目任务列表
      */
-    fun switchViewMode(mode: ViewMode) {
-        _viewMode.update { mode }
+    fun loadProjectTasks() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingTasks = true) }
+
+            taskRepository.getTasks(
+                page = 1,
+                limit = 100,
+                projectId = projectId
+            ).first().onSuccess { taskListResponse ->
+                _uiState.update {
+                    it.copy(
+                        isLoadingTasks = false,
+                        tasks = taskListResponse.data?.tasks ?: emptyList(),
+                        totalTaskCount = taskListResponse.data?.pagination?.total ?: 0,
+                        filteredTasks = taskListResponse.data?.tasks ?: emptyList()
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoadingTasks = false,
+                        error = error.message ?: "加载任务失败"
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * 搜索任务
+     */
+    fun searchTasks(query: String) {
+        _uiState.update { it.copy(taskSearchQuery = query) }
+        applyTaskFilter()
+    }
+
+    /**
+     * 按状态过滤任务
+     */
+    fun filterTasksByStatus(status: TaskStatus?) {
+        _uiState.update { it.copy(selectedTaskStatus = status) }
+        applyTaskFilter()
+    }
+
+    /**
+     * 应用任务过滤
+     */
+    private fun applyTaskFilter() {
+        val currentState = _uiState.value
+        val filtered = currentState.tasks.filter { task ->
+            // 状态过滤
+            val matchesStatus = currentState.selectedTaskStatus == null ||
+                              task.status == currentState.selectedTaskStatus
+
+            // 搜索过滤
+            val matchesSearch = currentState.taskSearchQuery.isBlank() ||
+                               task.title.contains(currentState.taskSearchQuery, ignoreCase = true) ||
+                               task.description?.contains(currentState.taskSearchQuery, ignoreCase = true) == true
+
+            matchesStatus && matchesSearch
+        }
+
+        _uiState.update { it.copy(filteredTasks = filtered) }
+    }
+
+    /**
+     * 清除任务搜索
+     */
+    fun clearTaskSearch() {
+        _uiState.update { it.copy(taskSearchQuery = "") }
+        applyTaskFilter()
+    }
+
+    /**
+     * 选择Tab
+     */
+    fun selectTab(tabIndex: Int) {
+        _uiState.update { it.copy(selectedTabIndex = tabIndex) }
     }
 
     /**
@@ -121,16 +183,23 @@ class ProjectDetailViewModel @Inject constructor(
  * 项目详情 UI 状态
  */
 data class ProjectDetailUiState(
-    val isLoading: Boolean = false,
+    val isLoadingProject: Boolean = false,
     val project: Project? = null,
+    val isLoadingTasks: Boolean = false,
     val tasks: List<Task> = emptyList(),
+    val totalTaskCount: Int = 0,
+    val taskSearchQuery: String = "",
+    val selectedTaskStatus: TaskStatus? = null,
+    val filteredTasks: List<Task> = emptyList(),
+    val selectedTabIndex: Int = 0,
     val error: String? = null
 )
 
 /**
- * 视图模式
+ * 项目详情 Tab
  */
-enum class ViewMode {
-    DETAIL,  // 详情视图
-    KANBAN   // 看板视图
+enum class ProjectDetailTab(val title: String) {
+    TASKS("任务"),
+    STATISTICS("统计"),
+    MEMBERS("成员")
 }

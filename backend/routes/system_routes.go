@@ -65,8 +65,8 @@ func registerAIConfigRoutes(authorized *gin.RouterGroup, app ApplicationInterfac
 		aiConfigGroup := systemGroup.Group("/ai-configs", aiConfigRateLimiter.Middleware())
 		{
 			// ========== 基础查看权限 ==========
-			// 获取启用的AI配置 - 公司创建页面需要的API
-			aiConfigGroup.GET("/enabled", middleware.RequireView(), aiConfigHandler.GetEnabledConfig)
+			// 获取所有启用的AI配置列表 - 前端下拉框使用
+			aiConfigGroup.GET("/enabled", middleware.RequireView(), aiConfigHandler.GetEnabledConfigs)
 
 			// 获取AI配置统计 - 需要统计查看权限
 			aiConfigGroup.GET("/stats", permMiddleware.RequireAnyPermission(

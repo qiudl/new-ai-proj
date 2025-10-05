@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -32,6 +33,7 @@ fun TaskDetailScreen(
     onNavigateBack: () -> Unit,
     onEdit: (Int) -> Unit,
     onNavigateToDocuments: ((Int) -> Unit)? = null,
+    onNavigateToTask: ((Int) -> Unit)? = null,
     viewModel: TaskDetailViewModel = hiltViewModel()
 ) {
     Log.d("TaskDetailScreen", "TaskDetailScreen Composable 开始渲染")
@@ -119,7 +121,14 @@ fun TaskDetailScreen(
                     timeLogs = uiState.timeLogs,
                     attachments = uiState.attachments,
                     comments = uiState.comments,
+                    documents = uiState.documents,
                     currentUserId = currentUserId,
+                    onSubtaskClick = { subtaskId ->
+                        onNavigateToTask?.invoke(subtaskId)
+                    },
+                    onDocumentClick = { documentId ->
+                        onNavigateToDocuments?.invoke(task.id)
+                    },
                     onAttachmentDownload = { attachment ->
                         viewModel.downloadAttachment(attachment)
                     },
@@ -178,7 +187,10 @@ fun TaskDetailContent(
     timeLogs: List<TimeLog> = emptyList(),
     attachments: List<com.aiproj.mobile.data.models.Attachment> = emptyList(),
     comments: List<com.aiproj.mobile.data.models.Comment> = emptyList(),
+    documents: List<com.aiproj.mobile.data.models.Document> = emptyList(),
     currentUserId: Int? = null,
+    onSubtaskClick: (Int) -> Unit = {},
+    onDocumentClick: (Int) -> Unit = {},
     onAttachmentDownload: (com.aiproj.mobile.data.models.Attachment) -> Unit = {},
     onAttachmentDelete: (com.aiproj.mobile.data.models.Attachment) -> Unit = {},
     onCommentDelete: (com.aiproj.mobile.data.models.Comment) -> Unit = {},
@@ -275,6 +287,24 @@ fun TaskDetailContent(
             }
         }
 
+        // 任务文档
+        if (documents.isNotEmpty()) {
+            Divider()
+            DetailSection(
+                title = "任务文档 (${documents.size})",
+                icon = Icons.Default.Description
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    documents.forEach { document ->
+                        DocumentCard(
+                            document = document,
+                            onClick = { onDocumentClick(document.id) }
+                        )
+                    }
+                }
+            }
+        }
+
         // 子任务列表
         if (subtasks.isNotEmpty()) {
             Divider()
@@ -285,9 +315,8 @@ fun TaskDetailContent(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     subtasks.forEach { subtask ->
                         SubtaskItem(
-                            title = subtask.title,
-                            isCompleted = subtask.status == TaskStatus.COMPLETED,
-                            onToggle = { /* TODO: viewModel.toggleSubtask(subtask.id) */ }
+                            subtask = subtask,
+                            onClick = { onSubtaskClick(subtask.id) }
                         )
                     }
                 }
@@ -570,35 +599,127 @@ fun TaskActionBar(
  */
 @Composable
 fun SubtaskItem(
-    title: String,
-    isCompleted: Boolean,
-    onToggle: () -> Unit
+    subtask: Task,
+    onClick: () -> Unit
 ) {
-    Row(
+    Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Checkbox(
-            checked = isCompleted,
-            onCheckedChange = { onToggle() }
-        )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium,
-            textDecoration = if (isCompleted) {
-                androidx.compose.ui.text.style.TextDecoration.LineThrough
+            .fillMaxWidth(),
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = if (subtask.status == TaskStatus.COMPLETED) {
+                MaterialTheme.colorScheme.surfaceVariant
             } else {
-                null
-            },
-            color = if (isCompleted) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurface
+                MaterialTheme.colorScheme.surface
             }
         )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = if (subtask.status == TaskStatus.COMPLETED) {
+                    Icons.Default.CheckCircle
+                } else {
+                    Icons.Default.Circle
+                },
+                contentDescription = null,
+                tint = if (subtask.status == TaskStatus.COMPLETED) {
+                    Color(0xFF4CAF50)
+                } else {
+                    MaterialTheme.colorScheme.outline
+                },
+                modifier = Modifier.size(20.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = subtask.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    textDecoration = if (subtask.status == TaskStatus.COMPLETED) {
+                        androidx.compose.ui.text.style.TextDecoration.LineThrough
+                    } else {
+                        null
+                    },
+                    color = if (subtask.status == TaskStatus.COMPLETED) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+                subtask.description?.let { desc ->
+                    if (desc.isNotBlank()) {
+                        Text(
+                            text = desc,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                }
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "查看详情",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * 文档卡片
+ */
+@Composable
+fun DocumentCard(
+    document: com.aiproj.mobile.data.models.Document,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Description,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = document.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                document.updatedAt?.let {
+                    Text(
+                        text = "更新于 ${formatDate(it)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "查看文档",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

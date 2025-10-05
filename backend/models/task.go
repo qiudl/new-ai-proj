@@ -128,9 +128,10 @@ type Task struct {
 	ParentID         *int         `json:"parent_id" db:"parent_id"`
 	TaskLevel        int          `json:"task_level" db:"task_level"`
 	SortOrder        int          `json:"sort_order" db:"sort_order"`
-	TotalTimeSeconds int          `json:"total_time_seconds" db:"total_time_seconds"`
-	ChildrenCount    int          `json:"children_count" db:"children_count"`
-	HasChildren      bool         `json:"has_children" db:"has_children"`
+	TotalTimeSeconds       int          `json:"total_time_seconds" db:"total_time_seconds"`
+	ChildrenCount          int          `json:"children_count" db:"children_count"`
+	CompletedChildrenCount int          `json:"completed_children_count" db:"completed_children_count"`
+	HasChildren            bool         `json:"has_children" db:"has_children"`
 	// Enhanced time management fields
 	StartDatetime      *time.Time `json:"start_datetime" db:"start_datetime"`
 	DueDatetime        *time.Time `json:"due_datetime" db:"due_datetime"`
@@ -201,10 +202,11 @@ type TaskResponse struct {
 	ParentID      *int         `json:"parent_id"`
 	TaskLevel     int          `json:"task_level"`
 	SortOrder     int          `json:"sort_order"`
-	ParentTitle   string       `json:"parent_title,omitempty"`
-	ChildrenCount int          `json:"children_count"`
-	Depth         int          `json:"depth"`
-	HasChildren   bool         `json:"has_children"`
+	ParentTitle            string       `json:"parent_title,omitempty"`
+	ChildrenCount          int          `json:"children_count"`
+	CompletedChildrenCount int          `json:"completed_children_count"`
+	Depth                  int          `json:"depth"`
+	HasChildren            bool         `json:"has_children"`
 	// AI-enhanced fields
 	Dependencies     Dependencies `json:"dependencies"`
 	EstimatedHours   *float64     `json:"estimated_hours"`

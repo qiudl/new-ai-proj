@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -286,15 +287,25 @@ func (h *HybridDocumentHandler) CreateDocument(c *gin.Context) {
 
 // GetDocument 获取单个文档
 func (h *HybridDocumentHandler) GetDocument(c *gin.Context) {
-	idStr := c.Param("id")
+	// 尝试从documentId参数获取（用于短路由 /tasks/:id/documents/:documentId）
+	idStr := c.Param("documentId")
+	log.Printf("[DEBUG] GetDocument: documentId param = '%s'", idStr)
+	if idStr == "" {
+		// 如果documentId不存在，尝试从id参数获取（用于标准路由 /documents/:id）
+		idStr = c.Param("id")
+		log.Printf("[DEBUG] GetDocument: id param = '%s'", idStr)
+	}
+
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
+		log.Printf("[ERROR] GetDocument: Invalid document ID '%s': %v", idStr, err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"message": "Invalid document ID",
 		})
 		return
 	}
+	log.Printf("[DEBUG] GetDocument: Fetching document ID = %d", id)
 
 	sqlDB := h.db.GetDB().(*sql.DB)
 
@@ -373,7 +384,13 @@ func (h *HybridDocumentHandler) GetDocument(c *gin.Context) {
 
 // UpdateDocument 更新文档 - 修复版
 func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
-	idStr := c.Param("id")
+	// 尝试从documentId参数获取（用于短路由 /tasks/:id/documents/:documentId）
+	idStr := c.Param("documentId")
+	if idStr == "" {
+		// 如果documentId不存在，尝试从id参数获取（用于标准路由 /documents/:id）
+		idStr = c.Param("id")
+	}
+
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -545,7 +562,13 @@ func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 
 // DeleteDocument 删除文档
 func (h *HybridDocumentHandler) DeleteDocument(c *gin.Context) {
-	idStr := c.Param("id")
+	// 尝试从documentId参数获取（用于短路由 /tasks/:id/documents/:documentId）
+	idStr := c.Param("documentId")
+	if idStr == "" {
+		// 如果documentId不存在，尝试从id参数获取（用于标准路由 /documents/:id）
+		idStr = c.Param("id")
+	}
+
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -1148,5 +1171,245 @@ func (h *HybridDocumentHandler) HasTaskDocument(c *gin.Context) {
 			}
 			return "📄 任务暂无关联文档"
 		}(),
+	})
+}
+
+// GetTaskDocumentsWithoutProject 获取任务文档列表(不需要project_id参数,用于移动端API)
+func (h *HybridDocumentHandler) GetTaskDocumentsWithoutProject(c *gin.Context) {
+	taskIDStr := c.Param("id")
+
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid task ID",
+		})
+		return
+	}
+
+	sqlDB := h.db.GetDB().(*sql.DB)
+
+	// 查询任务关联的文档(不需要project_id过滤)
+	query := `
+		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
+		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
+		       d.owner_id, d.visibility, d.version, d.is_template,
+		       d.created_by, d.created_at, d.updated_at,
+		       u.username as owner_name, td.relationship_type
+		FROM documents d
+		INNER JOIN task_documents td ON d.id = td.document_id
+		LEFT JOIN users u ON d.owner_id = u.id
+		WHERE td.task_id = $1 AND d.deleted_at IS NULL AND td.deleted_at IS NULL
+		ORDER BY td.sort_order, td.created_at`
+
+	rows, err := sqlDB.Query(query, taskID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to retrieve task documents",
+			"error":   err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+
+	documents := []map[string]interface{}{}
+
+	for rows.Next() {
+		var doc models.Document
+		var ownerName sql.NullString
+		var relationshipType sql.NullString
+		var tagsJSON sql.NullString
+
+		err := rows.Scan(
+			&doc.ID, &doc.ProjectID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
+			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tagsJSON,
+			&doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
+			&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt,
+			&ownerName, &relationshipType,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Failed to parse document data",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		// 处理 tags 字段
+		var tags []string
+		if tagsJSON.Valid && tagsJSON.String != "" {
+			err := json.Unmarshal([]byte(tagsJSON.String), &tags)
+			if err != nil {
+				tags = []string{}
+			}
+		} else {
+			tags = []string{}
+		}
+
+		docData := map[string]interface{}{
+			"id":                doc.ID,
+			"project_id":        doc.ProjectID,
+			"title":             doc.Title,
+			"content":           doc.Content,
+			"type":              doc.Type,
+			"status":            doc.Status,
+			"file_url":          doc.FileURL,
+			"file_size":         doc.FileSize,
+			"mime_type":         doc.MimeType,
+			"description":       doc.Description,
+			"tags":              tags,
+			"owner_id":          doc.OwnerID,
+			"visibility":        doc.Visibility,
+			"version":           doc.Version,
+			"is_template":       doc.IsTemplate,
+			"created_by":        doc.CreatedBy,
+			"created_at":        doc.CreatedAt,
+			"updated_at":        doc.UpdatedAt,
+			"relationship_type": relationshipType.String,
+		}
+
+		if ownerName.Valid {
+			docData["owner_name"] = ownerName.String
+		}
+
+		documents = append(documents, docData)
+	}
+
+	if err = rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Error reading task documents",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Task documents retrieved successfully",
+		"data":    documents,
+	})
+}
+
+// CreateTaskDocumentWithoutProject 创建任务文档(不需要project_id参数,用于移动端API)
+func (h *HybridDocumentHandler) CreateTaskDocumentWithoutProject(c *gin.Context) {
+	taskIDStr := c.Param("id")
+
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid task ID",
+		})
+		return
+	}
+
+	// 获取用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "Unauthorized - user ID not found",
+		})
+		return
+	}
+
+	var req models.CreateDocumentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request data",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	sqlDB := h.db.GetDB().(*sql.DB)
+
+	// 1. 从任务获取project_id
+	var projectID int
+	err = sqlDB.QueryRow(`SELECT project_id FROM tasks WHERE id = $1`, taskID).Scan(&projectID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"message": "Task not found",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Failed to get task project",
+				"error":   err.Error(),
+			})
+		}
+		return
+	}
+
+	// 2. 创建文档
+	doc := models.Document{
+		ProjectID:   &projectID,
+		Title:       req.Title,
+		Content:     req.Content,
+		Type:        req.Type,
+		Status:      req.Status,
+		Description: req.Description,
+		Tags:        req.Tags,
+		OwnerID:     userID.(int),
+		Visibility:  req.Visibility,
+		IsTemplate:  req.IsTemplate,
+		CreatedBy:   userID.(int),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	var tagsJSON []byte
+	if len(doc.Tags) > 0 {
+		tagsJSON, _ = json.Marshal(doc.Tags)
+	} else {
+		tagsJSON = []byte("[]")
+	}
+
+	err = sqlDB.QueryRow(`
+		INSERT INTO documents (
+			project_id, title, content, type, status, description, tags,
+			owner_id, visibility, version, is_template, created_by, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		RETURNING id, created_at, updated_at
+	`,
+		doc.ProjectID, doc.Title, doc.Content, doc.Type, doc.Status, doc.Description,
+		tagsJSON, doc.OwnerID, doc.Visibility, 1, doc.IsTemplate,
+		doc.CreatedBy, doc.CreatedAt, doc.UpdatedAt,
+	).Scan(&doc.ID, &doc.CreatedAt, &doc.UpdatedAt)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to create document",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// 3. 关联文档到任务
+	_, err = sqlDB.Exec(`
+		INSERT INTO task_documents (task_id, document_id, relationship_type, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
+	`, taskID, doc.ID, "main", time.Now(), time.Now())
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to attach document to task",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Document created and attached to task successfully",
+		"data":    doc,
 	})
 }

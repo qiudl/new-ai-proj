@@ -33,6 +33,22 @@ data class Project(
     @SerializedName("completion_rate")
     val completionRate: Float? = 0f,
 
+    // 🆕 新增字段
+    @SerializedName("members")
+    val members: List<User>? = null,
+
+    @SerializedName("task_stats")
+    val taskStats: TaskStats? = null,
+
+    @SerializedName("is_favorite")
+    val isFavorite: Boolean = false,
+
+    @SerializedName("priority")
+    val priority: String? = null,
+
+    @SerializedName("tags")
+    val tags: List<String>? = null,
+
     @SerializedName("created_at")
     val createdAt: String,
 

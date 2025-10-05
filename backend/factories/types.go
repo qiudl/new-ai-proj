@@ -47,6 +47,7 @@ type AllHandlers struct {
 	TaskHierarchyHandler *handlers.TaskHierarchyHandler
 	TimelineHandler      *handlers.TimelineHandler
 	DailyFocusTaskHandler *handlers.DailyFocusTaskHandler
+	TaskOrganizationHandler *handlers.TaskOrganizationHandler
 	// TaskLTreeHierarchyHandler  *handlers.TaskLTreeHierarchyHandler // 暂时注释掉，handler缺失
 
 	// 用户管理处理器

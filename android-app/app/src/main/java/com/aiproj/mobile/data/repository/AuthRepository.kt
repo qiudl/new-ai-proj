@@ -31,6 +31,8 @@ class AuthRepository @Inject constructor(
 
             if (response.isSuccessful && response.body() != null) {
                 val loginResponse = response.body()!!
+                println("=== AuthRepository: Login success, token: ${loginResponse.token.take(20)}...")
+                println("=== AuthRepository: TokenProvider type: ${tokenProvider::class.java.simpleName}")
                 // 保存 Token 和 Refresh Token
                 if (tokenProvider is com.aiproj.mobile.data.local.TokenManager) {
                     tokenProvider.saveLoginResponse(
@@ -38,8 +40,10 @@ class AuthRepository @Inject constructor(
                         refreshToken = loginResponse.refreshToken,
                         expiresAt = loginResponse.expiresAt
                     )
+                    println("=== AuthRepository: Token saved via TokenManager")
                 } else {
                     tokenProvider.saveToken(loginResponse.token)
+                    println("=== AuthRepository: Token saved via TokenProvider")
                 }
                 Result.success(loginResponse)
             } else {

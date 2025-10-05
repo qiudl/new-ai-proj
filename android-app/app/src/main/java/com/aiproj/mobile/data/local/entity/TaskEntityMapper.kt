@@ -22,6 +22,7 @@ fun TaskEntity.toTask(assignee: User? = null): Task {
         estimatedMinutes = estimatedMinutes,
         actualMinutes = actualMinutes,
         childrenCount = childrenCount,
+        completedChildrenCount = completedChildrenCount,
         createdAt = createdAt,
         updatedAt = updatedAt
     )
@@ -45,6 +46,7 @@ fun Task.toEntity(
         estimatedMinutes = estimatedMinutes,
         actualMinutes = actualMinutes,
         childrenCount = childrenCount,
+        completedChildrenCount = completedChildrenCount,
         createdAt = createdAt,
         updatedAt = updatedAt,
         isSynced = isSynced,

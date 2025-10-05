@@ -14,6 +14,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aiproj.mobile.data.models.Project
+import com.aiproj.mobile.ui.components.ProjectProgressBar
+//import com.aiproj.mobile.ui.components.ProjectProgressBarWithStats
+//import com.aiproj.mobile.ui.components.MemberAvatarRow
+import com.aiproj.mobile.ui.components.ProjectStatusChip
+//import com.aiproj.mobile.ui.components.ProjectSearchBar
+//import com.aiproj.mobile.ui.components.ProjectFilterDialog
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
@@ -29,12 +35,18 @@ fun ProjectListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoading)
+    var showFilterDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("项目") },
                 actions = {
+                    // 过滤按钮
+                    IconButton(onClick = { showFilterDialog = true }) {
+                        Icon(Icons.Default.FilterList, contentDescription = "过滤")
+                    }
+                    // 刷新按钮
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "刷新")
                     }
@@ -61,33 +73,71 @@ fun ProjectListScreen(
             }
         }
     ) { paddingValues ->
-        SwipeRefresh(
-            state = swipeRefreshState,
-            onRefresh = { viewModel.refresh() },
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (uiState.isLoading && uiState.projects.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else if (uiState.projects.isEmpty()) {
-                EmptyProjectList()
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(uiState.projects) { project ->
-                        ProjectCard(
-                            project = project,
-                            onClick = { onProjectClick(project.id) }
-                        )
+            // TODO: 🆕 搜索栏 - 暂时注释掉缺失组件
+            /*
+            ProjectSearchBar(
+                query = uiState.searchQuery,
+                onQueryChange = { viewModel.searchProjects(it) },
+                onSearch = { viewModel.searchProjects(it) },
+                onClear = { viewModel.clearSearch() }
+            )
+            */
+
+            // TODO: 🆕 过滤对话框 - 暂时注释掉缺失组件
+            /*
+            if (showFilterDialog) {
+                ProjectFilterDialog(
+                    currentStatus = uiState.selectedStatus,
+                    currentSortType = uiState.sortBy,
+                    currentSortOrder = uiState.sortOrder,
+                    onDismiss = { showFilterDialog = false },
+                    onApply = { status, sortType, sortOrder ->
+                        viewModel.filterByStatus(status)
+                        viewModel.sortBy(sortType, sortOrder)
+                    }
+                )
+            }
+            */
+
+            SwipeRefresh(
+                state = swipeRefreshState,
+                onRefresh = { viewModel.refresh() },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // 🆕 使用 filteredProjects 而不是 projects
+                val displayProjects = uiState.filteredProjects
+
+                if (uiState.isLoading && uiState.projects.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else if (displayProjects.isEmpty()) {
+                    // 🆕 区分无数据和搜索无结果
+                    if (uiState.projects.isEmpty()) {
+                        EmptyProjectList()
+                    } else {
+                        EmptySearchResult()
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(displayProjects) { project ->
+                            ProjectCard(
+                                project = project,
+                                onClick = { onProjectClick(project.id) }
+                            )
+                        }
                     }
                 }
             }
@@ -114,22 +164,32 @@ fun ProjectCard(
                 .padding(16.dp)
                 .fillMaxWidth()
         ) {
-            // 项目名称
+            // 项目名称和状态
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Text(
-                    text = project.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = project.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // 🆕 添加状态标签
+                ProjectStatusChip(status = project.status)
             }
 
             // 项目描述
@@ -142,6 +202,27 @@ fun ProjectCard(
                     maxLines = 3
                 )
             }
+
+            // TODO: 🆕 添加进度条 - 暂时注释ProjectProgressBarWithStats
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 使用taskStats或completionRate
+            if (project.completionRate != null) {
+                ProjectProgressBar(
+                    progress = project.completionRate,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            // TODO: 实现ProjectProgressBarWithStats组件
+            /*
+            if (project.taskStats != null) {
+                ProjectProgressBarWithStats(
+                    completed = project.taskStats.completed,
+                    total = project.taskStats.total,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            */
 
             // 项目统计信息
             Spacer(modifier = Modifier.height(12.dp))
@@ -160,15 +241,27 @@ fun ProjectCard(
                 )
             }
 
-            // 创建时间
-            project.createdAt?.let { createdAt ->
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "创建于 ${formatDate(createdAt)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            // TODO: 🆕 添加成员头像组 - 暂时注释MemberAvatarRow
+            /*
+            project.members?.let { members ->
+                if (members.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    MemberAvatarRow(
+                        members = members,
+                        maxVisible = 5,
+                        avatarSize = 28
+                    )
+                }
             }
+            */
+
+            // 创建时间
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "创建于 ${formatDate(project.createdAt)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -223,6 +316,39 @@ fun EmptyProjectList() {
                 text = "暂无项目",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * 🆕 搜索无结果提示
+ */
+@Composable
+fun EmptySearchResult() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.SearchOff,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+            Text(
+                text = "未找到匹配的项目",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "试试其他搜索条件",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
         }
     }

@@ -279,14 +279,29 @@ const (
 	ActionSystemRestore      = "system.restore"
 	ActionSystemConfigChange = "system.config_change"
 	ActionSystemMaintenance  = "system.maintenance"
+
+	// AI Configuration actions
+	ActionAIConfigCreate           = "ai_config.create"
+	ActionAIConfigUpdate           = "ai_config.update"
+	ActionAIConfigDelete           = "ai_config.delete"
+	ActionAIConfigView             = "ai_config.view"
+	ActionAIConfigToggle           = "ai_config.toggle"
+	ActionAIConfigTest             = "ai_config.test"
+	ActionAIConfigRotateKey        = "ai_config.rotate_key"
+	ActionAIConfigSetExpiry        = "ai_config.set_expiry"
+	ActionAIConfigEnableAutoRotate = "ai_config.enable_auto_rotate"
+	ActionAIConfigDisableAutoRotate = "ai_config.disable_auto_rotate"
+	ActionAIConfigDisableExpired   = "ai_config.disable_expired"
+	ActionAIConfigSendWarnings     = "ai_config.send_warnings"
 )
 
 // Resource type constants
 const (
-	ResourceTypeUser    = "user"
-	ResourceTypeProject = "project"
-	ResourceTypeTask    = "task"
-	ResourceTypeSystem  = "system"
+	ResourceTypeUser     = "user"
+	ResourceTypeProject  = "project"
+	ResourceTypeTask     = "task"
+	ResourceTypeSystem   = "system"
+	ResourceTypeAIConfig = "ai_config"
 )
 
 // Status constants
@@ -353,5 +368,19 @@ func DefaultAuditConfigs() []*AuditConfig {
 		{ResourceType: ResourceTypeSystem, Action: ActionSystemConfigChange, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 2555},
 		{ResourceType: ResourceTypeSystem, Action: ActionSystemBackup, Enabled: true, LogBeforeData: false, LogAfterData: false, LogChanges: false, RetentionDays: 365},
 		{ResourceType: ResourceTypeSystem, Action: ActionSystemMaintenance, Enabled: true, LogBeforeData: false, LogAfterData: false, LogChanges: false, RetentionDays: 365},
+
+		// AI Configuration operations - 高安全级别，长期保留
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigCreate, Enabled: true, LogBeforeData: false, LogAfterData: true, LogChanges: true, RetentionDays: 2555, SensitiveFields: StringArray{"api_key", "api_key_encrypted", "secret"}},
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigUpdate, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 2555, SensitiveFields: StringArray{"api_key", "api_key_encrypted", "secret"}},
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigDelete, Enabled: true, LogBeforeData: true, LogAfterData: false, LogChanges: false, RetentionDays: 2555, SensitiveFields: StringArray{"api_key", "api_key_encrypted", "secret"}},
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigView, Enabled: true, LogBeforeData: false, LogAfterData: false, LogChanges: false, RetentionDays: 365},
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigToggle, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 2555},
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigTest, Enabled: true, LogBeforeData: false, LogAfterData: false, LogChanges: false, RetentionDays: 90},
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigRotateKey, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 2555, SensitiveFields: StringArray{"api_key", "new_api_key", "api_key_encrypted", "secret"}},
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigSetExpiry, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 2555},
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigEnableAutoRotate, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 2555},
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigDisableAutoRotate, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 2555},
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigDisableExpired, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 2555},
+		{ResourceType: ResourceTypeAIConfig, Action: ActionAIConfigSendWarnings, Enabled: true, LogBeforeData: false, LogAfterData: true, LogChanges: false, RetentionDays: 365},
 	}
 }

@@ -99,6 +99,9 @@ type ApplicationInterface interface {
 	// 今日主要任务处理器
 	GetDailyFocusTaskHandler() *handlers.DailyFocusTaskHandler
 
+	// 任务组织处理器
+	GetTaskOrganizationHandler() *handlers.TaskOrganizationHandler
+
 	// 各模块处理器
 	GetArchiveHandler() *handlers.ArchiveHandler
 	GetCalendarSyncHandler() *handlers.CalendarSyncHandler
@@ -183,6 +186,9 @@ type ApplicationInterface interface {
 
 	// Dashboard处理器
 	GetDashboardHandler() *handlers.DashboardHandler
+
+	// AI子任务处理器
+	GetAISubtaskHandler() *handlers.AISubtaskHandler
 
 	// 测试数据生成服务
 	GetTestDataGeneratorService() interface{}

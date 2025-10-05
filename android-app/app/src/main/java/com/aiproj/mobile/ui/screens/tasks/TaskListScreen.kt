@@ -4,8 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -17,14 +15,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.aiproj.mobile.data.models.Task
 import com.aiproj.mobile.data.models.TaskPriority
 import com.aiproj.mobile.data.models.TaskStatus
+import com.aiproj.mobile.ui.components.ExpandableHierarchicalTaskItem
+import com.aiproj.mobile.ui.components.HierarchicalTaskItem
+import com.aiproj.mobile.ui.components.SwipeableTaskItem
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
 /**
- * 任务列表页面
+ * 任务列表页面 (使用Paging 3)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +39,14 @@ fun TaskListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
-    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoading)
+
+    // 收集Paging数据
+    val tasksPagingItems = viewModel.tasksPagingData.collectAsLazyPagingItems()
+
+    // 刷新状态基于Paging LoadState
+    val isRefreshing = tasksPagingItems.loadState.refresh is LoadState.Loading
+    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = isRefreshing)
+
     var showFilterDialog by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
 
@@ -102,7 +113,7 @@ fun TaskListScreen(
                     }
 
                     // 刷新按钮
-                    IconButton(onClick = { viewModel.refresh() }) {
+                    IconButton(onClick = { tasksPagingItems.refresh() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "刷新")
                     }
                 }
@@ -140,86 +151,135 @@ fun TaskListScreen(
                 modifier = Modifier.padding(16.dp)
             )
 
-            // 任务列表
+            // 任务列表 (使用Paging 3)
             SwipeRefresh(
                 state = swipeRefreshState,
-                onRefresh = { viewModel.refresh() }
+                onRefresh = { tasksPagingItems.refresh() }
             ) {
-                if (uiState.isLoading && uiState.tasks.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                } else if (uiState.tasks.isEmpty()) {
-                    EmptyTaskList()
-                } else {
-                    val listState = rememberLazyListState()
-
-                    // 检测滚动到底部
-                    val shouldLoadMore = remember {
-                        derivedStateOf {
-                            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-                            lastVisibleItem != null &&
-                            lastVisibleItem.index >= listState.layoutInfo.totalItemsCount - 3 &&
-                            !uiState.isLoadingMore &&
-                            uiState.hasMore
+                when {
+                    // 初始加载中
+                    tasksPagingItems.loadState.refresh is LoadState.Loading && tasksPagingItems.itemCount == 0 -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
                         }
                     }
-
-                    // 触发加载更多
-                    LaunchedEffect(shouldLoadMore.value) {
-                        if (shouldLoadMore.value) {
-                            viewModel.loadMoreTasks()
-                        }
-                    }
-
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(
-                            items = uiState.tasks,
-                            key = { task -> task.id }
-                        ) { task ->
-                            TaskListItem(
-                                task = task,
-                                onClick = { onTaskClick(task.id) },
-                                onComplete = { viewModel.completeTask(task.id) }
-                            )
-                        }
-
-                        // 加载更多指示器
-                        if (uiState.isLoadingMore) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                    // 初始加载失败
+                    tasksPagingItems.loadState.refresh is LoadState.Error && tasksPagingItems.itemCount == 0 -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("加载失败")
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(onClick = { tasksPagingItems.retry() }) {
+                                    Text("重试")
                                 }
                             }
                         }
+                    }
+                    // 空列表
+                    tasksPagingItems.itemCount == 0 -> {
+                        EmptyTaskList()
+                    }
+                    // 显示列表
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(
+                                count = tasksPagingItems.itemCount,
+                                key = tasksPagingItems.itemKey { it.id }
+                            ) { index ->
+                                val task = tasksPagingItems[index]
+                                if (task != null) {
+                                    // 使用可展开的层级任务组件
+                                    val isExpanded = viewModel.isTaskExpanded(task.id)
+                                    val isLoading = viewModel.isLoadingChildren(task.id)
+                                    val children = viewModel.getChildTasks(task.id)
 
-                        // 已加载全部提示
-                        if (!uiState.hasMore && uiState.tasks.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "已加载全部任务",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                    // 动态计算完成度
+                                    val completedSubtasks = viewModel.getCompletedSubtasksCount(task.id)
+                                    val completionProgress = viewModel.getTaskCompletionProgress(task.id)
+
+                                    ExpandableHierarchicalTaskItem(
+                                        task = task,
+                                        children = children,
+                                        isExpanded = isExpanded,
+                                        isLoading = isLoading,
+                                        expandedTaskIds = uiState.expandedTaskIds,
+                                        completedSubtasks = completedSubtasks,
+                                        completionProgress = completionProgress,
+                                        onExpandClick = { taskId ->
+                                            viewModel.toggleTaskExpanded(taskId)
+                                        },
+                                        onTaskClick = { taskId ->
+                                            onTaskClick(taskId)
+                                        },
+                                        onStatusChange = { taskId, isCompleted ->
+                                            if (isCompleted) {
+                                                viewModel.completeTask(taskId)
+                                                // 如果是子任务，刷新父任务的进度
+                                                task.parentId?.let { parentId ->
+                                                    viewModel.refreshParentTask(parentId)
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                }
+                            }
+
+                            // 加载更多指示器
+                            when (tasksPagingItems.loadState.append) {
+                                is LoadState.Loading -> {
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                is LoadState.Error -> {
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            TextButton(onClick = { tasksPagingItems.retry() }) {
+                                                Text("加载失败，点击重试")
+                                            }
+                                        }
+                                    }
+                                }
+                                is LoadState.NotLoading -> {
+                                    if (tasksPagingItems.loadState.append.endOfPaginationReached) {
+                                        item {
+                                            Text(
+                                                text = "已加载全部任务",
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

@@ -74,14 +74,10 @@ private val DarkColorScheme = darkColorScheme(
  */
 @Composable
 fun AIProjMobileTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,  // 强制使用亮色主题
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) {
-        DarkColorScheme
-    } else {
-        LightColorScheme
-    }
+    val colorScheme = LightColorScheme  // 总是使用亮色主题
 
     val view = LocalView.current
     if (!view.isInEditMode) {

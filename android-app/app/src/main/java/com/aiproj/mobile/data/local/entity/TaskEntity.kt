@@ -56,6 +56,9 @@ data class TaskEntity(
     @ColumnInfo(name = "children_count")
     val childrenCount: Int?,
 
+    @ColumnInfo(name = "completed_children_count")
+    val completedChildrenCount: Int?,
+
     @ColumnInfo(name = "created_at")
     val createdAt: String,
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -167,10 +168,14 @@ func (h *UnifiedTimerHandler) StopTimer(c *gin.Context) {
 
 	response, err := h.timerService.StopTimer(ctx, uid, "User requested stop")
 	if err != nil {
-		if err.Error() == "no timer is currently running" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":   "No active timer",
-				"message": "No timer is currently running",
+		// Check for "no active timer" error (matches service layer error message)
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "no active timer found") || errMsg == "no timer is currently running" {
+			// Return success response with informative message instead of error
+			c.JSON(http.StatusOK, gin.H{
+				"success":  true,
+				"message":  "没有运行中的计时器，无需停止",
+				"timer_id": 0,
 			})
 			return
 		}

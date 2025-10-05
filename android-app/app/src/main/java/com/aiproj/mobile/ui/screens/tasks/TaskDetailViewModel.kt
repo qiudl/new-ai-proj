@@ -1,6 +1,7 @@
 package com.aiproj.mobile.ui.screens.tasks
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -31,6 +32,7 @@ class TaskDetailViewModel @Inject constructor(
     private val timeLogRepository: TimeLogRepository,
     private val attachmentRepository: AttachmentRepository,
     private val commentRepository: CommentRepository,
+    private val documentRepository: com.aiproj.mobile.data.repository.DocumentRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -40,37 +42,59 @@ class TaskDetailViewModel @Inject constructor(
     val uiState: StateFlow<TaskDetailUiState> = _uiState.asStateFlow()
 
     init {
+        Log.d(TAG, "TaskDetailViewModel 初始化 - taskId: $taskId")
         loadTaskDetail()
+    }
+
+    companion object {
+        private const val TAG = "TaskDetailViewModel"
     }
 
     /**
      * 加载任务详情（并行加载子任务和时间日志）
      */
     fun loadTaskDetail() {
+        Log.d(TAG, "开始加载任务详情 - taskId: $taskId")
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {
-                // 并行加载任务详情、子任务、时间日志、附件和评论
+                Log.d(TAG, "发起并行API调用...")
+                // 并行加载任务详情、子任务、时间日志、附件、评论和文档
                 val taskDeferred = async { taskRepository.getTaskById(taskId) }
                 val subtasksDeferred = async { taskRepository.getSubtasks(taskId).first() }
                 val timeLogsDeferred = async { timeLogRepository.getTaskTimeLogs(taskId) }
                 val attachmentsDeferred = async { attachmentRepository.getAttachments(taskId) }
                 val commentsDeferred = async { commentRepository.getComments(taskId) }
+                val documentsDeferred = async { documentRepository.getDocuments(taskId) }
 
+                Log.d(TAG, "等待API响应...")
                 val taskResult = taskDeferred.await()
+                Log.d(TAG, "任务详情API返回: success=${taskResult.isSuccess}, data=${taskResult.getOrNull()?.title}")
+
                 val subtasksResult = subtasksDeferred.await()
+                Log.d(TAG, "子任务API返回: success=${subtasksResult.isSuccess}, count=${subtasksResult.getOrNull()?.data?.tasks?.size ?: 0}")
+
                 val timeLogsResult = timeLogsDeferred.await()
+                Log.d(TAG, "时间日志API返回: success=${timeLogsResult.isSuccess}, count=${timeLogsResult.getOrNull()?.size ?: 0}")
+
                 val attachmentsResult = attachmentsDeferred.await()
+                Log.d(TAG, "附件API返回: success=${attachmentsResult.isSuccess}, count=${attachmentsResult.getOrNull()?.size ?: 0}")
+
                 val commentsResult = commentsDeferred.await()
+                Log.d(TAG, "评论API返回: success=${commentsResult.isSuccess}, count=${commentsResult.getOrNull()?.size ?: 0}")
+
+                val documentsResult = documentsDeferred.await()
+                Log.d(TAG, "文档API返回: success=${documentsResult.isSuccess}, count=${documentsResult.getOrNull()?.size ?: 0}")
 
                 if (taskResult.isSuccess) {
                     val task = taskResult.getOrNull()
-                    val subtasks = subtasksResult.getOrNull()?.tasks ?: emptyList()
+                    val subtasks = subtasksResult.getOrNull()?.data?.tasks ?: emptyList()
                     val timeLogs = timeLogsResult.getOrNull() ?: emptyList()
                     val attachments = attachmentsResult.getOrNull() ?: emptyList()
                     val comments = commentsResult.getOrNull() ?: emptyList()
 
+                    Log.d(TAG, "更新UI状态 - task: ${task?.title}, subtasks: ${subtasks.size}, timeLogs: ${timeLogs.size}")
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -82,15 +106,19 @@ class TaskDetailViewModel @Inject constructor(
                             error = null
                         )
                     }
+                    Log.d(TAG, "UI状态更新完成")
                 } else {
+                    val errorMsg = taskResult.exceptionOrNull()?.message ?: "加载失败，请重试"
+                    Log.e(TAG, "任务加载失败: $errorMsg", taskResult.exceptionOrNull())
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = taskResult.exceptionOrNull()?.message ?: "加载失败，请重试"
+                            error = errorMsg
                         )
                     }
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "加载任务详情异常", e)
                 _uiState.update {
                     it.copy(
                         isLoading = false,

@@ -2,18 +2,22 @@ package com.aiproj.mobile.ui.screens.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.aiproj.mobile.data.models.Task
 import com.aiproj.mobile.data.models.TaskPriority
 import com.aiproj.mobile.data.models.TaskStatus
 import com.aiproj.mobile.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * 任务列表 ViewModel
+ * 任务列表 ViewModel (使用Paging 3)
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TaskListViewModel @Inject constructor(
     private val taskRepository: TaskRepository
@@ -26,100 +30,22 @@ class TaskListViewModel @Inject constructor(
     private val _filterState = MutableStateFlow(TaskFilterState())
     val filterState: StateFlow<TaskFilterState> = _filterState.asStateFlow()
 
+    // Paging数据流
+    val tasksPagingData: Flow<PagingData<Task>> = filterState
+        .flatMapLatest { filter ->
+            val statusFilter = filter.selectedStatuses.firstOrNull()?.name?.lowercase()
+            val searchQuery = filter.searchQuery.ifEmpty { null }
+
+            taskRepository.getTasksPaging(
+                projectId = null,
+                status = statusFilter,
+                search = searchQuery
+            )
+        }
+        .cachedIn(viewModelScope)
+
     init {
-        loadTasks()
-    }
-
-    /**
-     * 加载任务列表
-     */
-    fun loadTasks() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null, currentPage = 1) }
-
-            val filter = _filterState.value
-            // Use first status/priority or null if empty
-            val statusFilter = filter.selectedStatuses.firstOrNull()
-            val priorityFilter = filter.selectedPriorities.firstOrNull()
-
-            taskRepository.getTasks(
-                page = 1,
-                limit = _uiState.value.pageSize,
-                status = statusFilter,
-                priority = priorityFilter,
-                search = filter.searchQuery.ifEmpty { null }
-            ).collect { result ->
-                result.onSuccess { response ->
-                    // 应用排序
-                    val sortedTasks = sortTasks(response.tasks, filter.sortBy, filter.sortAscending)
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            tasks = sortedTasks,
-                            totalCount = response.total,
-                            hasMore = sortedTasks.size >= it.pageSize,
-                            currentPage = 1,
-                            error = null
-                        )
-                    }
-                }
-
-                result.onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = error.message ?: "加载失败，请重试"
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * 加载更多任务
-     */
-    fun loadMoreTasks() {
-        if (_uiState.value.isLoadingMore || !_uiState.value.hasMore) return
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingMore = true) }
-
-            val filter = _filterState.value
-            val statusFilter = filter.selectedStatuses.firstOrNull()
-            val priorityFilter = filter.selectedPriorities.firstOrNull()
-            val nextPage = _uiState.value.currentPage + 1
-
-            taskRepository.getTasks(
-                page = nextPage,
-                limit = _uiState.value.pageSize,
-                status = statusFilter,
-                priority = priorityFilter,
-                search = filter.searchQuery.ifEmpty { null }
-            ).collect { result ->
-                result.onSuccess { response ->
-                    // 应用排序
-                    val sortedNewTasks = sortTasks(response.tasks, filter.sortBy, filter.sortAscending)
-                    _uiState.update { state ->
-                        state.copy(
-                            tasks = state.tasks + sortedNewTasks,
-                            currentPage = nextPage,
-                            hasMore = sortedNewTasks.size >= state.pageSize,
-                            isLoadingMore = false
-                        )
-                    }
-                }
-
-                result.onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoadingMore = false,
-                            error = error.message ?: "加载失败，请重试"
-                        )
-                    }
-                }
-            }
-        }
+        // 初始化时不需要立即加载，Paging会自动处理
     }
 
     /**
@@ -127,7 +53,7 @@ class TaskListViewModel @Inject constructor(
      */
     fun searchTasks(query: String) {
         _filterState.update { it.copy(searchQuery = query) }
-        loadTasks()
+        // flatMapLatest会自动触发新的Paging数据流
     }
 
     /**
@@ -135,7 +61,6 @@ class TaskListViewModel @Inject constructor(
      */
     fun filterByStatus(statuses: Set<TaskStatus>) {
         _filterState.update { it.copy(selectedStatuses = statuses) }
-        loadTasks()
     }
 
     /**
@@ -143,7 +68,6 @@ class TaskListViewModel @Inject constructor(
      */
     fun filterByPriority(priorities: Set<TaskPriority>) {
         _filterState.update { it.copy(selectedPriorities = priorities) }
-        loadTasks()
     }
 
     /**
@@ -151,7 +75,6 @@ class TaskListViewModel @Inject constructor(
      */
     fun clearFilters() {
         _filterState.update { TaskFilterState() }
-        loadTasks()
     }
 
     /**
@@ -161,7 +84,7 @@ class TaskListViewModel @Inject constructor(
         viewModelScope.launch {
             val result = taskRepository.completeTask(taskId)
             result.onSuccess {
-                loadTasks() // 重新加载列表
+                // Paging会通过数据库变化自动刷新
             }
             result.onFailure { error ->
                 _uiState.update {
@@ -178,12 +101,7 @@ class TaskListViewModel @Inject constructor(
         viewModelScope.launch {
             val result = taskRepository.deleteTask(taskId)
             result.onSuccess {
-                // 从列表中移除任务
-                _uiState.update { state ->
-                    state.copy(
-                        tasks = state.tasks.filter { it.id != taskId }
-                    )
-                }
+                // Paging会通过数据库变化自动刷新
             }
             result.onFailure { error ->
                 _uiState.update {
@@ -191,13 +109,6 @@ class TaskListViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    /**
-     * 刷新列表
-     */
-    fun refresh() {
-        loadTasks()
     }
 
     /**
@@ -209,6 +120,7 @@ class TaskListViewModel @Inject constructor(
 
     /**
      * 排序任务列表
+     * 注意: 当前Paging实现使用服务器排序，客户端排序需要在UI层使用map转换
      */
     fun sortBy(option: SortOption, toggleDirection: Boolean = false) {
         _filterState.update { state ->
@@ -222,47 +134,132 @@ class TaskListViewModel @Inject constructor(
                 sortAscending = newAscending
             )
         }
+        // Paging数据流会自动重新加载
+    }
 
-        // 对当前任务列表进行排序
-        _uiState.update { state ->
-            val sortedTasks = sortTasks(state.tasks, _filterState.value.sortBy, _filterState.value.sortAscending)
-            state.copy(tasks = sortedTasks)
+    /**
+     * 切换任务展开/收起状态
+     */
+    fun toggleTaskExpanded(taskId: Int) {
+        val currentState = _uiState.value
+        val isCurrentlyExpanded = currentState.expandedTaskIds.contains(taskId)
+
+        if (isCurrentlyExpanded) {
+            // 收起任务
+            _uiState.update {
+                it.copy(
+                    expandedTaskIds = it.expandedTaskIds - taskId
+                )
+            }
+        } else {
+            // 展开任务
+            _uiState.update {
+                it.copy(
+                    expandedTaskIds = it.expandedTaskIds + taskId
+                )
+            }
+
+            // 如果还未加载子任务，则加载
+            if (!currentState.loadedChildrenMap.containsKey(taskId)) {
+                loadChildTasks(taskId)
+            }
         }
     }
 
     /**
-     * 排序任务列表
+     * 加载子任务
      */
-    private fun sortTasks(tasks: List<Task>, sortBy: SortOption, ascending: Boolean): List<Task> {
-        val comparator: Comparator<Task> = when (sortBy) {
-            SortOption.CREATED_AT -> compareBy { it.createdAt ?: "" }
-            SortOption.UPDATED_AT -> compareBy { it.updatedAt ?: "" }
-            SortOption.DUE_DATE -> compareBy(nullsLast()) { it.dueDate }
-            SortOption.PRIORITY -> compareBy(nullsLast()) { it.priority?.ordinal }
-            SortOption.TITLE -> compareBy { it.title }
-            SortOption.STATUS -> compareBy { it.status.ordinal }
-        }
+    private fun loadChildTasks(parentId: Int) {
+        viewModelScope.launch {
+            // 标记为加载中
+            _uiState.update {
+                it.copy(loadingChildrenIds = it.loadingChildrenIds + parentId)
+            }
 
-        return if (ascending) {
-            tasks.sortedWith(comparator)
-        } else {
-            tasks.sortedWith(comparator.reversed())
+            val result = taskRepository.getTaskChildren(parentId)
+
+            result.onSuccess { children ->
+                _uiState.update {
+                    it.copy(
+                        loadedChildrenMap = it.loadedChildrenMap + (parentId to children),
+                        loadingChildrenIds = it.loadingChildrenIds - parentId
+                    )
+                }
+            }
+
+            result.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        error = "加载子任务失败: ${error.message}",
+                        loadingChildrenIds = it.loadingChildrenIds - parentId,
+                        expandedTaskIds = it.expandedTaskIds - parentId // 加载失败时自动收起
+                    )
+                }
+            }
         }
+    }
+
+    /**
+     * 计算任务的完成子任务数
+     */
+    fun getCompletedSubtasksCount(parentId: Int): Int {
+        val children = _uiState.value.loadedChildrenMap[parentId] ?: return 0
+        return children.count { it.status == TaskStatus.COMPLETED }
+    }
+
+    /**
+     * 计算任务的完成进度
+     */
+    fun getTaskCompletionProgress(parentId: Int): Float {
+        val children = _uiState.value.loadedChildrenMap[parentId] ?: return 0f
+        if (children.isEmpty()) return 0f
+        val completed = children.count { it.status == TaskStatus.COMPLETED }
+        return completed.toFloat() / children.size.toFloat()
+    }
+
+    /**
+     * 刷新父任务的子任务（用于状态更新后）
+     */
+    fun refreshParentTask(parentId: Int) {
+        // 如果父任务已展开且已加载子任务，重新加载以获取最新状态
+        val currentState = _uiState.value
+        if (currentState.expandedTaskIds.contains(parentId) &&
+            currentState.loadedChildrenMap.containsKey(parentId)) {
+            loadChildTasks(parentId)
+        }
+    }
+
+    /**
+     * 检查任务是否已展开
+     */
+    fun isTaskExpanded(taskId: Int): Boolean {
+        return _uiState.value.expandedTaskIds.contains(taskId)
+    }
+
+    /**
+     * 获取任务的子任务
+     */
+    fun getChildTasks(parentId: Int): List<Task> {
+        return _uiState.value.loadedChildrenMap[parentId] ?: emptyList()
+    }
+
+    /**
+     * 检查是否正在加载子任务
+     */
+    fun isLoadingChildren(taskId: Int): Boolean {
+        return _uiState.value.loadingChildrenIds.contains(taskId)
     }
 }
 
 /**
  * 任务列表 UI 状态
+ * 注意: Paging 3版本不再需要tasks, currentPage, hasMore, isLoadingMore字段
  */
 data class TaskListUiState(
-    val isLoading: Boolean = false,
-    val tasks: List<Task> = emptyList(),
-    val totalCount: Int = 0,
     val error: String? = null,
-    val currentPage: Int = 1,
-    val pageSize: Int = 20,
-    val hasMore: Boolean = true,
-    val isLoadingMore: Boolean = false
+    val expandedTaskIds: Set<Int> = emptySet(),
+    val loadedChildrenMap: Map<Int, List<Task>> = emptyMap(),
+    val loadingChildrenIds: Set<Int> = emptySet()
 )
 
 /**

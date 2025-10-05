@@ -44,3 +44,11 @@
 # Keep Compose
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
+
+# ErrorProne annotations (required by Tink/security-crypto)
+-keep class com.google.errorprone.annotations.** { *; }
+-dontwarn com.google.errorprone.annotations.**
+
+# Google Tink (used by security-crypto)
+-keep class com.google.crypto.tink.** { *; }
+-dontwarn com.google.crypto.tink.**

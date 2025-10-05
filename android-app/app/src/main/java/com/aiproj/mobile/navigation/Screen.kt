@@ -44,6 +44,9 @@ sealed class Screen(val route: String) {
     // 个人中心
     object Profile : Screen("profile")
 
+    // 数据统计
+    object Analytics : Screen("analytics")
+
     // 文档列表
     object DocumentList : Screen("document_list/{taskId}") {
         fun createRoute(taskId: Int) = "document_list/$taskId"

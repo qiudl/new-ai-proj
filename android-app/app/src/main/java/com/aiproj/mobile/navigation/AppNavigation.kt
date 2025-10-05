@@ -17,6 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.aiproj.mobile.ui.screens.analytics.AnalyticsScreen
 import com.aiproj.mobile.ui.screens.dashboard.DashboardScreen
 import com.aiproj.mobile.ui.screens.login.LoginScreen
 import com.aiproj.mobile.ui.screens.profile.ProfileScreen
@@ -157,6 +158,13 @@ fun MainScreen(
                 ProfileScreen(onLogout = onLogout)
             }
 
+            // 数据统计
+            composable(Screen.Analytics.route) {
+                AnalyticsScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
             // 文档列表
             composable(
                 route = Screen.DocumentList.route,
@@ -234,5 +242,6 @@ private val bottomNavItems = listOf(
     BottomNavItem(Screen.Dashboard.route, "首页", Icons.Default.Home),
     BottomNavItem(Screen.TaskList.route, "任务", Icons.Default.Assignment),
     BottomNavItem(Screen.Timer.route, "工时", Icons.Default.Timer),
+    BottomNavItem(Screen.Analytics.route, "统计", Icons.Default.BarChart),
     BottomNavItem(Screen.Profile.route, "我的", Icons.Default.Person)
 )

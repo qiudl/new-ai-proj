@@ -29,8 +29,11 @@ class AuthInterceptor @Inject constructor(
             tokenProvider.getToken()
         }
 
+        android.util.Log.d("AuthInterceptor", "Request: ${originalRequest.url}, Token: ${token?.take(20) ?: "null"}")
+
         // 如果没有 Token，直接执行请求
         if (token.isNullOrEmpty()) {
+            android.util.Log.w("AuthInterceptor", "No token available, proceeding without auth")
             return chain.proceed(originalRequest)
         }
 

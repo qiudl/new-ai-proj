@@ -48,6 +48,7 @@ import AICreateDropdown from '../../../../components/TaskDetail/AICreateDropdown
 import SubtaskPreviewModal, { SubtaskPreview } from '../../../../components/TaskDetail/SubtaskPreviewModal';
 import AIGeneratingModal from '../../../../components/TaskDetail/AIGeneratingModal';
 import type { AIModel } from '../../../../config/aiModels';
+import { aiTaskService } from '../../../../services/aiTaskService';
 
 const { Text } = Typography;
 
@@ -220,55 +221,26 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     setSelectedAIModel(modelInfo);
     setShowGeneratingModal(true);
 
-    // 模拟AI生成（实际API调用在任务#2702实现）
-    setTimeout(() => {
-      const mockSubtasks: SubtaskPreview[] = [
-        {
-          temp_id: 'temp_1',
-          title: '设计登录界面UI组件',
-          description: '包含用户名/密码输入框、记住我、登录按钮',
-          estimated_hours: 2,
-          priority: 'high',
-          tags: ['UI', '前端']
-        },
-        {
-          temp_id: 'temp_2',
-          title: '实现前端表单验证逻辑',
-          description: '验证邮箱格式、密码强度、必填项',
-          estimated_hours: 1.5,
-          priority: 'high'
-        },
-        {
-          temp_id: 'temp_3',
-          title: '开发后端登录API接口',
-          description: 'JWT认证、密码加密、Session管理',
-          estimated_hours: 3,
-          priority: 'high',
-          tags: ['API', '后端']
-        },
-        {
-          temp_id: 'temp_4',
-          title: '集成第三方登录（Google/GitHub）',
-          description: 'OAuth2.0集成、用户信息同步',
-          estimated_hours: 4,
-          priority: 'medium',
-          tags: ['OAuth', '集成']
-        },
-        {
-          temp_id: 'temp_5',
-          title: '编写单元测试和集成测试',
-          description: '测试登录流程、错误处理、安全性',
-          estimated_hours: 2.5,
-          priority: 'medium',
-          tags: ['测试']
+    try {
+      // 调用AI生成API
+      const result = await aiTaskService.generateSubtasks(task.id, {
+        model: modelKey,
+        context: {
+          include_description: true,
+          include_siblings: false,
+          max_subtasks: 10
         }
-      ];
+      });
 
-      setPreviewSubtasks(mockSubtasks);
+      setPreviewSubtasks(result.subtasks);
       setShowGeneratingModal(false);
       setShowPreviewModal(true);
-      message.success(`已生成 ${mockSubtasks.length} 个子任务`);
-    }, 2000);
+      message.success(`已生成 ${result.subtasks.length} 个子任务`);
+    } catch (error) {
+      setShowGeneratingModal(false);
+      message.error(error instanceof Error ? error.message : 'AI生成失败');
+      console.error('AI generate error:', error);
+    }
   };
 
   // 重新生成
@@ -282,13 +254,19 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   const handleConfirmCreate = async (subtasks: SubtaskPreview[]) => {
     setCreating(true);
     try {
-      // TODO: 实际的批量创建API调用在任务#2703实现
-      console.log('Creating subtasks:', subtasks);
+      // 调用批量创建API
+      const result = await aiTaskService.batchCreateSubtasks({
+        parent_id: task.id,
+        subtasks: subtasks.map(st => ({
+          title: st.title,
+          description: st.description,
+          estimated_hours: st.estimated_hours,
+          priority: st.priority,
+          tags: st.tags
+        }))
+      });
 
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      message.success(`成功创建 ${subtasks.length} 个子任务`);
+      message.success(`成功创建 ${result.created_count} 个子任务`);
       setShowPreviewModal(false);
       setPreviewSubtasks([]);
 
@@ -296,7 +274,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       refreshSubtasks();
       await actions.loadStatistics();
     } catch (error) {
-      message.error('批量创建失败');
+      message.error(error instanceof Error ? error.message : '批量创建失败');
       throw error;
     } finally {
       setCreating(false);

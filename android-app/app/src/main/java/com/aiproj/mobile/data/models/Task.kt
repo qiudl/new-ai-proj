@@ -45,12 +45,43 @@ data class Task(
     @SerializedName("children_count")
     val childrenCount: Int?,
 
+    @SerializedName("completed_children_count")
+    val completedChildrenCount: Int?,
+
+    @SerializedName("task_level")
+    val taskLevel: Int? = null,
+
+    @SerializedName("depth")
+    val depth: Int? = null,
+
+    @SerializedName("has_children")
+    val hasChildren: Boolean? = null,
+
     @SerializedName("created_at")
     val createdAt: String,
 
     @SerializedName("updated_at")
     val updatedAt: String
-)
+) {
+    val level: Int
+        get() = taskLevel ?: depth ?: 0
+
+    val hasSubtasks: Boolean
+        get() = hasChildren ?: ((childrenCount ?: 0) > 0)
+
+    val completedSubtasks: Int
+        get() = completedChildrenCount ?: 0
+
+    val totalSubtasks: Int
+        get() = childrenCount ?: 0
+
+    val completionProgress: Float
+        get() {
+            val total = totalSubtasks
+            val completed = completedSubtasks
+            return if (total > 0) completed.toFloat() / total.toFloat() else 0f
+        }
+}
 
 /**
  * 任务状态枚举
@@ -102,18 +133,20 @@ enum class TaskPriority {
 }
 
 /**
- * 任务列表响应
+ * 任务列表数据 (嵌套在 ApiResponse.data 中)
  */
-data class TaskListResponse(
-    @SerializedName("tasks")
+data class TaskListData(
+    @SerializedName("data")
     val tasks: List<Task>,
 
-    @SerializedName("total")
-    val total: Int,
-
     @SerializedName("pagination")
-    val pagination: Pagination?
+    val pagination: Pagination
 )
+
+/**
+ * 任务列表响应 (包含 ApiResponse 包装)
+ */
+typealias TaskListResponse = ApiResponse<TaskListData>
 
 /**
  * 创建/更新任务请求

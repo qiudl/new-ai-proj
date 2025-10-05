@@ -64,6 +64,7 @@ import { formatTaskStatus } from '../utils/formatters';
 import { useTimer } from '../contexts/TimerContext';
 import AllFieldsTableGuide from './AllFieldsTableGuide';
 import { TaskParentSelectorModal } from './TaskParentSelectorModal';
+import SmartOrganizeModal from './SmartOrganizeModal';
 import dayjs from 'dayjs';
 import '../styles/AllFieldsTaskList.css';
 import '../styles/EnhancedProjectTaskManager.css';
@@ -230,6 +231,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   const [columnConfigs, setColumnConfigs] = useState<ColumnConfig[]>([]);
   const [customFields] = useState<CustomFieldConfig[]>(DEFAULT_CUSTOM_FIELDS);
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [smartOrganizeVisible, setSmartOrganizeVisible] = useState(false);
   const [createForm] = Form.useForm();
   
   // 排序状态
@@ -1658,14 +1660,23 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             </Space>
           </Col>
           <Col>
-            <Button 
-              icon={<PlusOutlined />}
-              type="primary"
-              onClick={() => setCreateModalVisible(true)}
-              
-            >
-              新建任务
-            </Button>
+            <Space>
+              <Button
+                icon={<NodeIndexOutlined />}
+                onClick={() => setSmartOrganizeVisible(true)}
+
+              >
+                智能组织
+              </Button>
+              <Button
+                icon={<PlusOutlined />}
+                type="primary"
+                onClick={() => setCreateModalVisible(true)}
+
+              >
+                新建任务
+              </Button>
+            </Space>
           </Col>
         </Row>
       </Card>
@@ -2089,6 +2100,17 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         cancelText="取消"
         showValidation={true}
         allowClear={true}
+      />
+
+      {/* 智能组织模态框 */}
+      <SmartOrganizeModal
+        visible={smartOrganizeVisible}
+        projectId={parseInt(projectId)}
+        onCancel={() => setSmartOrganizeVisible(false)}
+        onComplete={() => {
+          setSmartOrganizeVisible(false);
+          loadData(); // 刷新任务列表
+        }}
       />
     </div>
   );

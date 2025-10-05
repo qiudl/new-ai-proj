@@ -231,4 +231,97 @@ interface TaskDao {
         LIMIT :limit OFFSET :offset
     """)
     suspend fun searchTasks(query: String, limit: Int, offset: Int): List<TaskEntity>
+
+    // ==================== 顶层任务查询（parent_id IS NULL）====================
+
+    /**
+     * 分页获取所有顶层任务（不包含子任务）
+     */
+    @Query("""
+        SELECT * FROM tasks
+        WHERE parent_id IS NULL
+        ORDER BY
+            CASE WHEN priority = 'high' THEN 0
+                 WHEN priority = 'medium' THEN 1
+                 WHEN priority = 'low' THEN 2
+                 ELSE 3
+            END,
+            updated_at DESC
+        LIMIT :limit OFFSET :offset
+    """)
+    suspend fun getTopLevelTasksPaged(limit: Int, offset: Int): List<TaskEntity>
+
+    /**
+     * 分页获取指定项目的顶层任务
+     */
+    @Query("""
+        SELECT * FROM tasks
+        WHERE parent_id IS NULL AND project_id = :projectId
+        ORDER BY
+            CASE WHEN priority = 'high' THEN 0
+                 WHEN priority = 'medium' THEN 1
+                 WHEN priority = 'low' THEN 2
+                 ELSE 3
+            END,
+            updated_at DESC
+        LIMIT :limit OFFSET :offset
+    """)
+    suspend fun getTopLevelTasksByProject(projectId: Int, limit: Int, offset: Int): List<TaskEntity>
+
+    /**
+     * 分页获取指定状态的顶层任务
+     */
+    @Query("""
+        SELECT * FROM tasks
+        WHERE parent_id IS NULL AND status = :status
+        ORDER BY
+            CASE WHEN priority = 'high' THEN 0
+                 WHEN priority = 'medium' THEN 1
+                 WHEN priority = 'low' THEN 2
+                 ELSE 3
+            END,
+            updated_at DESC
+        LIMIT :limit OFFSET :offset
+    """)
+    suspend fun getTopLevelTasksByStatus(status: String, limit: Int, offset: Int): List<TaskEntity>
+
+    /**
+     * 分页获取指定项目和状态的顶层任务
+     */
+    @Query("""
+        SELECT * FROM tasks
+        WHERE parent_id IS NULL AND project_id = :projectId AND status = :status
+        ORDER BY
+            CASE WHEN priority = 'high' THEN 0
+                 WHEN priority = 'medium' THEN 1
+                 WHEN priority = 'low' THEN 2
+                 ELSE 3
+            END,
+            updated_at DESC
+        LIMIT :limit OFFSET :offset
+    """)
+    suspend fun getTopLevelTasksByProjectAndStatus(
+        projectId: Int,
+        status: String,
+        limit: Int,
+        offset: Int
+    ): List<TaskEntity>
+
+    /**
+     * 分页搜索顶层任务
+     */
+    @Query("""
+        SELECT * FROM tasks
+        WHERE parent_id IS NULL
+          AND (title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%')
+        ORDER BY
+            CASE WHEN priority = 'high' THEN 0
+                 WHEN priority = 'medium' THEN 1
+                 WHEN priority = 'low' THEN 2
+                 ELSE 3
+            END,
+            updated_at DESC
+        LIMIT :limit OFFSET :offset
+    """)
+    suspend fun searchTopLevelTasks(query: String, limit: Int, offset: Int): List<TaskEntity>
 }

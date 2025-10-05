@@ -1,5 +1,6 @@
 package com.aiproj.mobile.data.api
 
+import com.aiproj.mobile.data.models.ApiResponse
 import com.aiproj.mobile.data.models.Task
 import com.aiproj.mobile.data.models.TaskListResponse
 import com.aiproj.mobile.data.models.TaskRequest
@@ -33,7 +34,7 @@ interface TaskApi {
     @GET("tasks/{id}")
     suspend fun getTask(
         @Path("id") taskId: Int
-    ): Response<Task>
+    ): Response<ApiResponse<Task>>
 
     /**
      * 创建任务
@@ -41,7 +42,7 @@ interface TaskApi {
     @POST("tasks")
     suspend fun createTask(
         @Body request: TaskRequest
-    ): Response<Task>
+    ): Response<ApiResponse<Task>>
 
     /**
      * 更新任务
@@ -50,7 +51,7 @@ interface TaskApi {
     suspend fun updateTask(
         @Path("id") taskId: Int,
         @Body request: TaskRequest
-    ): Response<Task>
+    ): Response<ApiResponse<Task>>
 
     /**
      * 删除任务
@@ -66,7 +67,7 @@ interface TaskApi {
     @POST("tasks/{id}/start")
     suspend fun startTask(
         @Path("id") taskId: Int
-    ): Response<Task>
+    ): Response<ApiResponse<Task>>
 
     /**
      * 完成任务
@@ -74,7 +75,15 @@ interface TaskApi {
     @POST("tasks/{id}/complete")
     suspend fun completeTask(
         @Path("id") taskId: Int
-    ): Response<Task>
+    ): Response<ApiResponse<Task>>
+
+    /**
+     * 获取任务的子任务列表
+     */
+    @GET("tasks/{id}/children")
+    suspend fun getTaskChildren(
+        @Path("id") taskId: Int
+    ): Response<ApiResponse<List<Task>>>
 
     /**
      * 获取子任务列表
@@ -90,5 +99,5 @@ interface TaskApi {
     @GET("tasks/{id}")
     suspend fun getTaskById(
         @Path("id") id: Int
-    ): Response<Task>
+    ): Response<ApiResponse<Task>>
 }

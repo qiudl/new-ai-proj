@@ -86,7 +86,11 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate)
 	allHandlers.TaskHierarchyHandler = handlers.NewTaskHierarchyHandler(f.db, f.logger, f.validate)
 	allHandlers.DailyFocusTaskHandler = handlers.NewDailyFocusTaskHandler(f.db, f.logger, f.validate)
-	
+
+	// 任务组织处理器
+	taskOrgService := services.NewTaskOrganizationService(f.db)
+	allHandlers.TaskOrganizationHandler = handlers.NewTaskOrganizationHandler(taskOrgService)
+
 	// 时间线处理器
 	allHandlers.TimelineHandler = handlers.NewTimelineHandler(f.db, f.logger, f.validate)
 
@@ -254,7 +258,34 @@ func (f *HandlerFactory) createAIHandlers(h *AllHandlers, sqlxDB *sqlx.DB) error
 		if err != nil {
 			return fmt.Errorf("failed to create AI config repository: %w", err)
 		}
-		h.AIConfigHandler = handlers.NewAIConfigHandler(aiConfigRepo)
+
+		// 创建加密服务
+		encryptionKey := os.Getenv("ENCRYPTION_KEY")
+		if encryptionKey == "" {
+			return fmt.Errorf("ENCRYPTION_KEY environment variable is not set")
+		}
+		// 确保密钥长度为32字节 (AES-256)
+		keyBytes := []byte(encryptionKey)
+		if len(keyBytes) < 32 {
+			// 如果密钥太短，用空字节填充到32字节
+			paddedKey := make([]byte, 32)
+			copy(paddedKey, keyBytes)
+			keyBytes = paddedKey
+		} else if len(keyBytes) > 32 {
+			// 如果密钥太长，截断到32字节
+			keyBytes = keyBytes[:32]
+		}
+
+		encryptionService, err := utils.NewEncryptionService(keyBytes, "default")
+		if err != nil {
+			return fmt.Errorf("failed to create encryption service: %w", err)
+		}
+
+		// 创建密钥轮换服务
+		keyRotationService := services.NewKeyRotationService(sqlxDB, encryptionService)
+
+		// 创建AI配置处理器（传入密钥轮换服务）
+		h.AIConfigHandler = handlers.NewAIConfigHandler(aiConfigRepo, keyRotationService)
 
 		// AI任务生成处理器
 		historyRepo := database.NewAIGenerationHistoryRepository(sqlxDB)

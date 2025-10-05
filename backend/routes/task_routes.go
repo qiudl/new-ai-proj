@@ -77,5 +77,12 @@ func RegisterTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 			// 创建工作笔记并关联到任务
 			taskWorkNotes.POST("/create-and-attach", workNotesHandler.CreateAndAttachWorkNoteToTask)
 		}
+
+		// AI生成子任务路由
+		aiSubtaskHandler := app.GetAISubtaskHandler()
+		tasks.POST("/:id/ai-generate-subtasks", aiSubtaskHandler.GenerateSubtasks)
+
+		// 批量创建子任务路由
+		tasks.POST("/batch-create-subtasks", aiSubtaskHandler.BatchCreateSubtasks)
 	}
 }

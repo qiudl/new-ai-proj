@@ -38,14 +38,6 @@ interface ProjectApi {
     ): Response<ProjectListResponse>
 
     /**
-     * 根据ID获取项目
-     */
-    @GET("projects/{id}")
-    suspend fun getProjectById(
-        @Path("id") id: Int
-    ): Response<Project>
-
-    /**
      * 创建项目
      */
     @POST("projects")

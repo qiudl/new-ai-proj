@@ -19,6 +19,7 @@ import { installPerformanceInterceptors, uninstallPerformanceInterceptors } from
 import { getCurrentPerformanceConfig, memoryMonitor } from './config/performance';
 import { setupModalCleanup } from './utils/modalCleanup';
 import { enableGlobalModalHeightManagement, disableGlobalModalHeightManagement } from './utils/modalHeightManager';
+import { initSecurityCheck } from './utils/securityCheck';
 import {
   ENTERPRISE_PERMISSIONS,
   USER_PERMISSIONS,
@@ -575,17 +576,20 @@ const AppContent: React.FC = () => {
 function App() {
   // 根据环境配置决定是否安装性能监控拦截器
   useEffect(() => {
+    // 初始化安全检查(HTTPS检测等)
+    initSecurityCheck();
+
     const config = getCurrentPerformanceConfig();
-    
+
     if (config.enablePerformanceMonitoring) {
       installPerformanceInterceptors();
     }
-    
+
     // 启动内存监控
     if (config.memoryCheckInterval > 0) {
       memoryMonitor.start();
     }
-    
+
     return () => {
       uninstallPerformanceInterceptors();
       memoryMonitor.cleanup();

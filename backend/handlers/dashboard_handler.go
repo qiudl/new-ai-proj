@@ -502,7 +502,7 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 			COUNT(*) FILTER (WHERE created_at >= $1 AND created_at < $2) as created_today,
 			COUNT(*) FILTER (WHERE status IN ('todo', 'planning', 'in_progress')) as pending_total
 		FROM tasks
-		WHERE (assignee_id = $3 OR creator_id = $3)
+		WHERE assignee_id = $3
 			AND deleted_at IS NULL`
 
 	err := db.QueryRow(taskStatsQuery, startOfDay, endOfDay, userID).Scan(
@@ -520,12 +520,12 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 
 	// 2. Get today's work time from time logs (in minutes)
 	workTimeQuery := `
-		SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (stopped_at - started_at)) / 60), 0)::int
-		FROM user_timers
+		SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 60), 0)::int
+		FROM unified_timer_logs
 		WHERE user_id = $1
-			AND started_at >= $2
-			AND started_at < $3
-			AND stopped_at IS NOT NULL`
+			AND start_time >= $2
+			AND start_time < $3
+			AND end_time IS NOT NULL`
 
 	err = db.QueryRow(workTimeQuery, userID, startOfDay, endOfDay).Scan(&stats.TodayWorkTime)
 	if err != nil {
@@ -613,20 +613,20 @@ func (h *DashboardHandler) GetTimeStats(c *gin.Context) {
 		),
 		daily_time AS (
 			SELECT
-				DATE(started_at) as work_date,
-				SUM(EXTRACT(EPOCH FROM (stopped_at - started_at)) / 3600)::float as hours
-			FROM user_timers
+				DATE(start_time) as work_date,
+				SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 3600)::float as hours
+			FROM unified_timer_logs
 			WHERE user_id = $3
-				AND started_at >= $1
-				AND stopped_at IS NOT NULL
-			GROUP BY DATE(started_at)
+				AND start_time >= $1
+				AND end_time IS NOT NULL
+			GROUP BY DATE(start_time)
 		),
 		daily_tasks AS (
 			SELECT
 				DATE(updated_at) as completion_date,
 				COUNT(*) as task_count
 			FROM tasks
-			WHERE (assignee_id = $3 OR creator_id = $3)
+			WHERE assignee_id = $3
 				AND status = 'completed'
 				AND updated_at >= $1
 				AND deleted_at IS NULL

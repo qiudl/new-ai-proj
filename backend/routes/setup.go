@@ -24,6 +24,10 @@ func SetupRouter(app ApplicationInterface) *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware(app.GetConfig()))
 
+	// 安全中间件
+	router.Use(middleware.SecurityHeadersMiddleware())
+	router.Use(middleware.HTTPSEnforcer())
+
 	// 注册简化的路由（专注于角色权限测试）
 	RegisterAllRoutes(router, app)
 
@@ -110,6 +114,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
 	// 注册今日主要任务路由
 	RegisterDailyFocusTaskRoutes(authorized, app)
+
+	// 注册任务组织路由
+	RegisterTaskOrganizationRoutes(authorized, app)
 
 	// 注册OKR路由
 	RegisterOKRRoutes(authorized, app)
