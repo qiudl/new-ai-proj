@@ -20,7 +20,9 @@ data class DashboardData(
     val recentProjects: List<Project>,
     val currentTimer: TimeLog?,
     val timeStats: TimeStatsData? = null,
-    val recentNotifications: List<Notification> = emptyList()
+    val recentNotifications: List<Notification> = emptyList(),
+    val dailyFocusTasks: List<DailyFocusTask> = emptyList(),
+    val focusTaskSuggestions: List<TaskSuggestion> = emptyList()
 )
 
 /**

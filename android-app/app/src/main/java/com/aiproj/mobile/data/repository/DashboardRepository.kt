@@ -25,6 +25,7 @@ class DashboardRepository @Inject constructor(
     private val taskRepository: TaskRepository,
     private val projectRepository: ProjectRepository,
     private val timeLogRepository: TimeLogRepository,
+    private val dailyFocusTaskRepository: DailyFocusTaskRepository,
     private val cacheManager: CacheManager
 ) {
     companion object {
@@ -76,6 +77,7 @@ class DashboardRepository @Inject constructor(
             val currentTimerDeferred = async { timeLogRepository.getCurrentTimer() }
             val timeStatsDeferred = async { getTimeStats(days = 7) }
             val notificationsDeferred = async { getRecentNotifications(limit = 5) }
+            val dailyFocusTasksDeferred = async { dailyFocusTaskRepository.getTodayActiveTasks() }
 
             // 等待所有数据加载完成（改为容错处理）
             val stats = statsDeferred.await().getOrNull() ?: DashboardStats(
@@ -85,11 +87,14 @@ class DashboardRepository @Inject constructor(
                 activeProjects = 0,
                 pendingTasks = 0
             )
-            val priorityTasks = priorityTasksDeferred.await().getOrNull()?.tasks ?: emptyList()
+            val priorityTasks = priorityTasksDeferred.await().getOrNull()?.data?.tasks ?: emptyList()
             val recentProjects = recentProjectsDeferred.await().getOrNull()?.projects ?: emptyList()
             val currentTimer = currentTimerDeferred.await().getOrNull()
             val timeStats = timeStatsDeferred.await().getOrNull()
             val notifications = notificationsDeferred.await().getOrNull() ?: emptyList()
+            val dailyFocusTasksResponse = dailyFocusTasksDeferred.await().getOrNull()
+            val dailyFocusTasks = dailyFocusTasksResponse?.tasks ?: emptyList()
+            val focusTaskSuggestions = dailyFocusTasksResponse?.suggestions ?: emptyList()
 
             val dashboardData = DashboardData(
                 stats = stats,
@@ -97,7 +102,9 @@ class DashboardRepository @Inject constructor(
                 recentProjects = recentProjects,
                 currentTimer = currentTimer,
                 timeStats = timeStats,
-                recentNotifications = notifications
+                recentNotifications = notifications,
+                dailyFocusTasks = dailyFocusTasks,
+                focusTaskSuggestions = focusTaskSuggestions
             )
 
             // 3. 保存到缓存

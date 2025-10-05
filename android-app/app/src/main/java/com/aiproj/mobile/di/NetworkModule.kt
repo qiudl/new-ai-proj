@@ -6,6 +6,7 @@ import com.aiproj.mobile.data.api.AttachmentApi
 import com.aiproj.mobile.data.api.AuthApi
 import com.aiproj.mobile.data.api.AuthInterceptor
 import com.aiproj.mobile.data.api.CommentApi
+import com.aiproj.mobile.data.api.DailyFocusTaskApi
 import com.aiproj.mobile.data.api.DashboardApi
 import com.aiproj.mobile.data.api.DocumentApi
 import com.aiproj.mobile.data.api.ProjectApi
@@ -155,6 +156,15 @@ object NetworkModule {
     @Singleton
     fun provideDocumentApi(retrofit: Retrofit): DocumentApi {
         return retrofit.create(DocumentApi::class.java)
+    }
+
+    /**
+     * 提供 DailyFocusTaskApi
+     */
+    @Provides
+    @Singleton
+    fun provideDailyFocusTaskApi(retrofit: Retrofit): DailyFocusTaskApi {
+        return retrofit.create(DailyFocusTaskApi::class.java)
     }
 
     /**

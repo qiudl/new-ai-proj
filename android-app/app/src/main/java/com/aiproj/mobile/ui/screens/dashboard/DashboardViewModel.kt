@@ -21,7 +21,8 @@ import javax.inject.Inject
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val dashboardRepository: DashboardRepository,
-    private val timeLogRepository: com.aiproj.mobile.data.repository.TimeLogRepository
+    private val timeLogRepository: com.aiproj.mobile.data.repository.TimeLogRepository,
+    private val dailyFocusTaskRepository: com.aiproj.mobile.data.repository.DailyFocusTaskRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -149,6 +150,93 @@ class DashboardViewModel @Inject constructor(
             } ?: state
         }
     }
+
+    /**
+     * 完成焦点任务
+     */
+    fun completeDailyFocusTask(focusTaskId: Int) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(error = null) }
+
+            try {
+                val result = dailyFocusTaskRepository.completeDailyFocusTask(focusTaskId)
+
+                result.onSuccess {
+                    // 成功后刷新Dashboard数据
+                    refresh()
+                }
+
+                result.onFailure { error ->
+                    _uiState.update {
+                        it.copy(error = "完成任务失败: ${error.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = "完成任务失败: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * 添加任务到焦点列表
+     */
+    fun addTaskToFocus(taskId: Int, priorityLevel: String = "medium") {
+        viewModelScope.launch {
+            _uiState.update { it.copy(error = null) }
+
+            try {
+                val result = dailyFocusTaskRepository.createDailyFocusTask(
+                    taskId = taskId,
+                    priorityLevel = priorityLevel
+                )
+
+                result.onSuccess {
+                    // 成功后刷新Dashboard数据
+                    refresh()
+                }
+
+                result.onFailure { error ->
+                    _uiState.update {
+                        it.copy(error = "添加焦点任务失败: ${error.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = "添加焦点任务失败: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * 删除焦点任务
+     */
+    fun removeDailyFocusTask(focusTaskId: Int) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(error = null) }
+
+            try {
+                val result = dailyFocusTaskRepository.deleteDailyFocusTask(focusTaskId)
+
+                result.onSuccess {
+                    // 成功后刷新Dashboard数据
+                    refresh()
+                }
+
+                result.onFailure { error ->
+                    _uiState.update {
+                        it.copy(error = "删除焦点任务失败: ${error.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = "删除焦点任务失败: ${e.message}")
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -163,4 +251,6 @@ data class DashboardUiState(
     val priorityTasks: List<Task> get() = dashboardData?.priorityTasks ?: emptyList()
     val recentProjects: List<Project> get() = dashboardData?.recentProjects ?: emptyList()
     val currentTimer: TimeLog? get() = dashboardData?.currentTimer
+    val dailyFocusTasks get() = dashboardData?.dailyFocusTasks ?: emptyList()
+    val focusTaskSuggestions get() = dashboardData?.focusTaskSuggestions ?: emptyList()
 }
