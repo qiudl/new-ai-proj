@@ -28,6 +28,9 @@ import com.aiproj.mobile.ui.screens.timer.TimerScreen
 import com.aiproj.mobile.ui.document.list.DocumentListScreen
 import com.aiproj.mobile.ui.document.viewer.DocumentViewerScreen
 import com.aiproj.mobile.ui.document.editor.DocumentEditorScreen
+import com.aiproj.mobile.ui.screens.notes.NotesScreen
+import com.aiproj.mobile.ui.screens.notes.NoteDetailScreen
+import com.aiproj.mobile.ui.screens.notes.NoteEditorScreen
 
 /**
  * 应用主导航
@@ -261,6 +264,59 @@ fun MainScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
+
+            // 笔记列表
+            composable(Screen.NoteList.route) {
+                NotesScreen(
+                    onNoteClick = { noteId ->
+                        navController.navigate(Screen.NoteDetail.createRoute(noteId))
+                    },
+                    onCreateNote = {
+                        navController.navigate(Screen.NoteEditor.createRoute())
+                    }
+                )
+            }
+
+            // 笔记详情
+            composable(
+                route = Screen.NoteDetail.route,
+                arguments = listOf(
+                    navArgument("noteId") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val noteId = backStackEntry.arguments?.getInt("noteId") ?: return@composable
+                NoteDetailScreen(
+                    noteId = noteId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onEditClick = { editNoteId ->
+                        navController.navigate(Screen.NoteEditor.createRoute(editNoteId))
+                    },
+                    onTaskClick = { taskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(taskId))
+                    },
+                    onNoteClick = { relatedNoteId ->
+                        navController.navigate(Screen.NoteDetail.createRoute(relatedNoteId))
+                    }
+                )
+            }
+
+            // 笔记编辑
+            composable(
+                route = Screen.NoteEditor.route,
+                arguments = listOf(
+                    navArgument("noteId") {
+                        type = NavType.IntType
+                        defaultValue = -1
+                    }
+                )
+            ) { backStackEntry ->
+                val noteIdArg = backStackEntry.arguments?.getInt("noteId") ?: -1
+                val noteId = if (noteIdArg == -1) null else noteIdArg
+                NoteEditorScreen(
+                    noteId = noteId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }
@@ -277,7 +333,7 @@ data class BottomNavItem(
 private val bottomNavItems = listOf(
     BottomNavItem(Screen.Dashboard.route, "首页", Icons.Default.Home),
     BottomNavItem(Screen.TaskList.route, "任务", Icons.Default.Assignment),
-    BottomNavItem(Screen.Timer.route, "工时", Icons.Default.Timer),
+    BottomNavItem(Screen.NoteList.route, "工作笔记", Icons.Default.Description),
     BottomNavItem(Screen.Analytics.route, "统计", Icons.Default.BarChart),
     BottomNavItem(Screen.Profile.route, "我的", Icons.Default.Person)
 )

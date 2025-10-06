@@ -75,4 +75,23 @@ sealed class Screen(val route: String) {
             "document_editor/$taskId"
         }
     }
+
+    // ========== 笔记模块 ==========
+
+    // 笔记列表
+    object NoteList : Screen("note_list")
+
+    // 笔记详情
+    object NoteDetail : Screen("note_detail/{noteId}") {
+        fun createRoute(noteId: Int) = "note_detail/$noteId"
+    }
+
+    // 笔记创建/编辑
+    object NoteEditor : Screen("note_editor?noteId={noteId}") {
+        fun createRoute(noteId: Int? = null) = if (noteId != null) {
+            "note_editor?noteId=$noteId"
+        } else {
+            "note_editor"
+        }
+    }
 }
