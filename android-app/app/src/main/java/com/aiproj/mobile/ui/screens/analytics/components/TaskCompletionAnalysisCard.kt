@@ -1,0 +1,130 @@
+package com.aiproj.mobile.ui.screens.analytics.components
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.aiproj.mobile.ui.screens.analytics.TaskStatusDistribution
+
+/**
+ * 任务完成分析卡片
+ */
+@Composable
+fun TaskCompletionAnalysisCard(
+    completedCount: Int,
+    totalCount: Int,
+    completionRate: Float,
+    statusDistribution: TaskStatusDistribution,
+    modifier: Modifier = Modifier,
+    onStatusClick: (String) -> Unit = {}
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // 标题
+            Text(
+                text = "🎯 任务完成分析",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 完成率摘要
+            Text(
+                text = "本周完成: $completedCount / $totalCount (${(completionRate * 100).toInt()}%)",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 完成率进度条
+            LinearProgressIndicator(
+                progress = { completionRate },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(12.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 状态分布
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatusDistributionItem(
+                    label = "✅ 已完成",
+                    count = statusDistribution.completed,
+                    percentage = statusDistribution.completedPercentage,
+                    color = MaterialTheme.colorScheme.primary,
+                    onClick = { onStatusClick("completed") }
+                )
+
+                StatusDistributionItem(
+                    label = "🔄 进行中",
+                    count = statusDistribution.inProgress,
+                    percentage = statusDistribution.inProgressPercentage,
+                    color = MaterialTheme.colorScheme.secondary,
+                    onClick = { onStatusClick("in_progress") }
+                )
+
+                StatusDistributionItem(
+                    label = "📋 待办",
+                    count = statusDistribution.todo,
+                    percentage = statusDistribution.todoPercentage,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    onClick = { onStatusClick("todo") }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusDistributionItem(
+    label: String,
+    count: Int,
+    percentage: Float,
+    color: Color,
+    onClick: () -> Unit = {}
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(12.dp),
+                shape = MaterialTheme.shapes.extraSmall,
+                color = color
+            ) {}
+
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
+        Text(
+            text = "$count 个 (${(percentage * 100).toInt()}%)",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}

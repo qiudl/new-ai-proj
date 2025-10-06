@@ -1,0 +1,83 @@
+package com.aiproj.mobile.ui.screens.analytics
+
+import androidx.compose.ui.graphics.Color
+
+/**
+ * Analytics页面UI状态
+ */
+data class AnalyticsUiState(
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val selectedTimeRange: TimeRange = TimeRange.THIS_WEEK,
+    val customStartDate: java.time.LocalDate? = null,        // 自定义开始日期
+    val customEndDate: java.time.LocalDate? = null,          // 自定义结束日期
+    val showDatePicker: Boolean = false,                     // 是否显示日期选择器
+
+    // 工作时长数据
+    val workTimeTrend: List<DailyWorkTime> = emptyList(),
+
+    // 任务统计数据
+    val completedTasksCount: Int = 0,
+    val totalTasksCount: Int = 0,
+    val taskCompletionRate: Float = 0f,
+    val taskStatusDistribution: TaskStatusDistribution = TaskStatusDistribution(
+        completed = 0,
+        completedPercentage = 0f,
+        inProgress = 0,
+        inProgressPercentage = 0f,
+        todo = 0,
+        todoPercentage = 0f
+    ),
+
+    // 项目分布数据
+    val projectTimeDistribution: List<ProjectTimeData> = emptyList(),
+
+    // 成就数据
+    val consecutiveWorkDays: Int = 0,
+    val totalFocusHours: Float = 0f
+)
+
+/**
+ * 时间范围枚举
+ */
+enum class TimeRange(val displayName: String) {
+    TODAY("今日"),
+    YESTERDAY("昨日"),
+    DAY_BEFORE_YESTERDAY("前日"),
+    THIS_WEEK("本周"),
+    THIS_MONTH("本月"),
+    LAST_MONTH("上月"),
+    CUSTOM_DATE("自定义日期")
+}
+
+/**
+ * 每日工作时长数据
+ */
+data class DailyWorkTime(
+    val date: String,       // "2025-10-05"
+    val dayLabel: String,   // "周一" 或 "10/5"
+    val hours: Float        // 工作小时数
+)
+
+/**
+ * 任务状态分布数据
+ */
+data class TaskStatusDistribution(
+    val completed: Int,
+    val completedPercentage: Float,
+    val inProgress: Int,
+    val inProgressPercentage: Float,
+    val todo: Int,
+    val todoPercentage: Float
+)
+
+/**
+ * 项目时间数据
+ */
+data class ProjectTimeData(
+    val projectId: Int,
+    val projectName: String,
+    val hours: Float,
+    val percentage: Float,  // 0.0 ~ 1.0
+    val color: Color
+)
