@@ -69,7 +69,8 @@ fun AnalyticsScreen(
                         uiState = uiState,
                         viewModel = viewModel,
                         onNavigateToTaskStatusDetail = onNavigateToTaskStatusDetail,
-                        onShowOtherStatusDetail = { showOtherStatusDetail = true }
+                        onShowOtherStatusDetail = { showOtherStatusDetail = true },
+                        onNavigateToTaskDetail = onNavigateToTaskDetail
                     )
                 }
                 AnalyticsTab.TASK_STATS -> {
@@ -195,7 +196,8 @@ private fun OverviewTabContent(
     uiState: AnalyticsUiState,
     viewModel: AnalyticsViewModel,
     onNavigateToTaskStatusDetail: (status: String, startDate: String, endDate: String, projectId: Int?) -> Unit,
-    onShowOtherStatusDetail: () -> Unit
+    onShowOtherStatusDetail: () -> Unit,
+    onNavigateToTaskDetail: (taskId: Int) -> Unit = {}
 ) {
     if (uiState.isLoading) {
         Box(
@@ -268,7 +270,7 @@ private fun OverviewTabContent(
                 // 显示单日详情卡片
                 item {
                     DailyDetailCard(
-                        date = uiState.selectedDate,
+                        date = uiState.selectedDate!!,
                         dayDetail = uiState.selectedDayDetail,
                         onTaskClick = onNavigateToTaskDetail
                     )
