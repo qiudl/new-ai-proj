@@ -33,13 +33,14 @@ type DashboardWeeklyStatsRequest struct {
 
 // DashboardWeeklyStatsResponse represents the weekly dashboard statistics
 type DashboardWeeklyStatsResponse struct {
-	DateRange    DateRange          `json:"date_range"`
-	Summary      WeeklySummary      `json:"summary"`
-	TaskStats    TaskStatsByStatus  `json:"task_stats"`
-	ProjectStats []ProjectStatsItem `json:"project_stats"`
-	DailyStats   []DailyStatsItem   `json:"daily_stats"`
-	TopTasks     []TaskSummaryItem  `json:"top_tasks"`
-	Trends       WeeklyTrends       `json:"trends"`
+	DateRange            DateRange             `json:"date_range"`
+	Summary              WeeklySummary         `json:"summary"`
+	TaskStats            TaskStatsByStatus     `json:"task_stats"`
+	ProjectStats         []ProjectStatsItem    `json:"project_stats"`
+	DailyStats           []DailyStatsItem      `json:"daily_stats"`
+	TopTasks             []TaskSummaryItem     `json:"top_tasks"`
+	Trends               WeeklyTrends          `json:"trends"`
+	PriorityDistribution PriorityDistribution  `json:"priority_distribution"`
 }
 
 // DateRange represents a date period
@@ -110,6 +111,14 @@ type WeeklyTrends struct {
 	TaskCreationTrend   float64 `json:"task_creation_trend"`   // % change from last week
 	CompletionRateTrend float64 `json:"completion_rate_trend"` // % change from last week
 	ProductivityTrend   string  `json:"productivity_trend"`    // "improving", "stable", "declining"
+}
+
+// PriorityDistribution represents task count grouped by priority
+type PriorityDistribution struct {
+	Urgent int `json:"urgent"`
+	High   int `json:"high"`
+	Medium int `json:"medium"`
+	Low    int `json:"low"`
 }
 
 // GetWeeklyStats handles GET /api/v1/dashboard/weekly-stats
@@ -476,7 +485,45 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		stats.TopTasks = append(stats.TopTasks, item)
 	}
 
-	// 6. Calculate trends (simplified for now)
+	// 6. Get priority distribution
+	priorityQuery := `
+		SELECT
+			COALESCE(t.custom_fields->>'priority', 'medium') as priority,
+			COUNT(*) as count
+		FROM tasks t
+		WHERE t.deleted_at IS NULL
+		AND ` + timeFilter + projectFilter + `
+		GROUP BY COALESCE(t.custom_fields->>'priority', 'medium')
+	`
+
+	priorityRows, err := db.Query(priorityQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer priorityRows.Close()
+
+	priorityDist := PriorityDistribution{}
+	for priorityRows.Next() {
+		var priority string
+		var count int
+		if err := priorityRows.Scan(&priority, &count); err != nil {
+			return nil, err
+		}
+
+		switch priority {
+		case "urgent":
+			priorityDist.Urgent = count
+		case "high":
+			priorityDist.High = count
+		case "medium":
+			priorityDist.Medium = count
+		case "low":
+			priorityDist.Low = count
+		}
+	}
+	stats.PriorityDistribution = priorityDist
+
+	// 7. Calculate trends (simplified for now)
 	stats.Trends = WeeklyTrends{
 		TaskCreationTrend:   0,        // TODO: Calculate compared to previous week
 		CompletionRateTrend: 0,        // TODO: Calculate compared to previous week
@@ -911,6 +958,150 @@ func (h *DashboardHandler) GetNotifications(c *gin.Context) {
 		Notifications: notifications,
 		Total:         total,
 		UnreadCount:   unreadCount,
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// PriorityDistributionItem 优先级分布项
+type PriorityDistributionItem struct {
+	Priority string `json:"priority"` // "low", "medium", "high"
+	Count    int    `json:"count"`    // 任务数量
+	Label    string `json:"label"`    // 显示标签
+}
+
+// PriorityDistributionStatsResponse 优先级分布统计响应
+type PriorityDistributionStatsResponse struct {
+	Total        int                        `json:"total"`        // 总任务数
+	Distribution []PriorityDistributionItem `json:"distribution"` // 优先级分布
+}
+
+// GetPriorityDistributionStats 获取任务优先级分布统计
+// GET /api/v1/dashboard/priority-distribution
+func (h *DashboardHandler) GetPriorityDistributionStats(c *gin.Context) {
+	// Get project_id from query parameter (optional)
+	projectIDStr := c.Query("project_id")
+	var projectID int
+	if projectIDStr != "" {
+		var err error
+		projectID, err = strconv.Atoi(projectIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid project_id parameter",
+			})
+			return
+		}
+	} else {
+		projectID = 1 // Default project
+	}
+
+	db := h.db.GetDB().(*sql.DB)
+
+	// Query priority distribution from tasks table
+	query := `
+		SELECT
+			COALESCE(custom_fields->>'priority', 'low') as priority,
+			COUNT(*) as count
+		FROM tasks
+		WHERE project_id = $1
+			AND deleted_at IS NULL
+			AND status NOT IN ('completed', 'cancelled', 'archived')
+		GROUP BY priority
+		ORDER BY
+			CASE priority
+				WHEN 'high' THEN 1
+				WHEN 'medium' THEN 2
+				WHEN 'low' THEN 3
+				ELSE 4
+			END
+	`
+
+	rows, err := db.Query(query, projectID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch priority distribution",
+			"details": err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+
+	// Priority labels mapping
+	priorityLabels := map[string]string{
+		"high":   "高优先级",
+		"medium": "中优先级",
+		"low":    "低优先级",
+	}
+
+	distribution := []PriorityDistributionItem{}
+	total := 0
+
+	for rows.Next() {
+		var priority string
+		var count int
+		if err := rows.Scan(&priority, &count); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to parse priority data",
+				"details": err.Error(),
+			})
+			return
+		}
+
+		label, ok := priorityLabels[priority]
+		if !ok {
+			label = "未知优先级"
+		}
+
+		distribution = append(distribution, PriorityDistributionItem{
+			Priority: priority,
+			Count:    count,
+			Label:    label,
+		})
+
+		total += count
+	}
+
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Error iterating priority data",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Ensure all priorities exist (even if count is 0)
+	existingPriorities := make(map[string]bool)
+	for _, d := range distribution {
+		existingPriorities[d.Priority] = true
+	}
+
+	for _, p := range []string{"high", "medium", "low"} {
+		if !existingPriorities[p] {
+			distribution = append(distribution, PriorityDistributionItem{
+				Priority: p,
+				Count:    0,
+				Label:    priorityLabels[p],
+			})
+		}
+	}
+
+	// Re-sort to ensure correct order
+	// Sort by priority: high -> medium -> low
+	for i := 0; i < len(distribution); i++ {
+		for j := i + 1; j < len(distribution); j++ {
+			order := map[string]int{"high": 1, "medium": 2, "low": 3}
+			if order[distribution[i].Priority] > order[distribution[j].Priority] {
+				distribution[i], distribution[j] = distribution[j], distribution[i]
+			}
+		}
+	}
+
+	response := PriorityDistributionStatsResponse{
+		Total:        total,
+		Distribution: distribution,
 	}
 
 	c.JSON(http.StatusOK, gin.H{

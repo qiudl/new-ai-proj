@@ -190,12 +190,12 @@ class AnalyticsViewModel @Inject constructor(
                     }
 
                     // 优先级分布（Task Stats Tab需要）
-                    // 注意：API的TaskStatsByStatus没有priority字段，这里需要通过其他方式获取
-                    // 暂时使用占位数据，后续可以通过任务列表API过滤统计
+                    // 使用API返回的priority_distribution数据
+                    val pd = weeklyStats.priority_distribution
                     val priorityStats = PriorityStats(
-                        highPriority = 0,  // TODO: 需要从任务列表API统计
-                        mediumPriority = 0,
-                        lowPriority = 0
+                        highPriority = pd.urgent + pd.high,  // 合并urgent和high
+                        mediumPriority = pd.medium,
+                        lowPriority = pd.low
                     )
 
                     _uiState.update { state ->

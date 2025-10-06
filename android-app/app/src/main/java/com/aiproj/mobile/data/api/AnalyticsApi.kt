@@ -89,7 +89,8 @@ data class WeeklyStatsResponse(
     val project_stats: List<ProjectStatsItem>? = null,  // Gson不会使用默认值，必须用可空类型
     val daily_stats: List<DailyStatsItem>? = null,
     val top_tasks: List<TaskSummaryItem>? = null,
-    val trends: WeeklyTrends
+    val trends: WeeklyTrends,
+    val priority_distribution: PriorityDistribution = PriorityDistribution()
 )
 
 data class DateRange(
@@ -153,4 +154,11 @@ data class WeeklyTrends(
     val task_creation_trend: Float = 0f,
     val completion_rate_trend: Float = 0f,
     val productivity_trend: String = ""
+)
+
+data class PriorityDistribution(
+    val urgent: Int = 0,
+    val high: Int = 0,
+    val medium: Int = 0,
+    val low: Int = 0
 )
