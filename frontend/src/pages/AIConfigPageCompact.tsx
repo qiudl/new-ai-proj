@@ -42,10 +42,12 @@ import {
   MessageOutlined,
   SendOutlined,
   UserOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  HistoryOutlined
 } from '@ant-design/icons';
 import { AIProvider, AI_PROVIDER_INFO, AI_PROVIDER_DEFAULTS } from '../types/ai';
 import aiConfigDatabaseService, { AIConfigRequest, AIConfigUpdateRequest, AIConfigResponse } from '../services/aiConfigDatabaseService';
+import { TestHistoryDrawer } from '../components/AIConfig/TestHistoryDrawer';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -110,6 +112,10 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
   const [testingProvider, setTestingProvider] = useState<AIProvider | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
+
+  // 测试历史抽屉状态
+  const [historyDrawerVisible, setHistoryDrawerVisible] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<AIProvider | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   
   const loadingRef = useRef(false);
@@ -762,7 +768,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               <Button
                 type="primary"
-                
+
                 icon={<MessageOutlined />}
                 onClick={() => openTestModal(provider)}
                 disabled={!hasConfig}
@@ -771,11 +777,24 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
               >
                 对话测试
               </Button>
-              
+
+              <Button
+
+                icon={<HistoryOutlined />}
+                onClick={() => {
+                  setSelectedProvider(provider);
+                  setHistoryDrawerVisible(true);
+                }}
+                block
+                style={{ fontSize: '12px' }}
+              >
+                查看历史
+              </Button>
+
               {hasConfig && (
                 <Button
                   danger
-                  
+
                   icon={<DeleteOutlined />}
                   onClick={() => handleDelete(provider)}
                   block
@@ -991,9 +1010,9 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                 发送
               </Button>
             </div>
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#8c8c8c', 
+            <div style={{
+              fontSize: '11px',
+              color: '#8c8c8c',
               marginTop: '8px',
               textAlign: 'center'
             }}>
@@ -1002,6 +1021,13 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
           </div>
         </div>
       </Modal>
+
+      {/* 测试历史抽屉 */}
+      <TestHistoryDrawer
+        provider={selectedProvider || 'openai'}
+        visible={historyDrawerVisible}
+        onClose={() => setHistoryDrawerVisible(false)}
+      />
     </div>
   );
 });

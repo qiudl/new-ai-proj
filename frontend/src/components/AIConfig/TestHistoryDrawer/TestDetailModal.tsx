@@ -7,8 +7,8 @@ import {
   CloseCircleOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons';
-import type { TestLog } from '@/types/aiConfig';
-import { AIConfigTestService } from '@/services/aiConfigTestService';
+import type { TestLog } from '../../../types/aiConfig';
+import { AIConfigTestService } from '../../../services/aiConfigTestService';
 import dayjs from 'dayjs';
 
 interface TestDetailModalProps {

@@ -72,12 +72,12 @@ export const TestLogCard: React.FC<TestLogCardProps> = ({
    * 获取状态对应的边框颜色
    */
   const getBorderColor = () => {
-    const colorMap = {
+    const colorMap: Record<string, string> = {
       success: '#52c41a', // 绿色
       failed: '#ff4d4f',  // 红色
       timeout: '#faad14'  // 橙色
     };
-    return colorMap[log.testStatus];
+    return colorMap[log.testStatus] || '#d9d9d9'; // 默认灰色
   };
 
   /**

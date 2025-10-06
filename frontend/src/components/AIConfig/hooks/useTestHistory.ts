@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { message } from 'antd';
-import { AIConfigTestService } from '@/services/aiConfigTestService';
+import { AIConfigTestService } from '../../../services/aiConfigTestService';
 import type {
   TestLog,
   TestHistoryFilters,
   TestHistoryPagination,
   AIProvider,
   TestStatistics
-} from '@/types/aiConfig';
+} from '../../../types/aiConfig';
 
 export interface UseTestHistoryReturn {
   logs: TestLog[];

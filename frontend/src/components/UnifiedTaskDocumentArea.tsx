@@ -47,7 +47,8 @@ import {
   ArrowsAltOutlined,
   ShrinkOutlined,
   LeftOutlined,
-  RightOutlined
+  RightOutlined,
+  RobotOutlined
 } from '@ant-design/icons';
 
 // 懒加载组件以减少初始渲染负担
@@ -55,6 +56,7 @@ const TaskDocumentEditor = lazy(() => import('./TaskDocumentEditor'));
 const TaskDocumentManager = lazy(() => import('./TaskDocumentManager'));
 const TaskDocumentVersionHistoryButton = lazy(() => import('./TaskDocumentVersionHistoryButton'));
 const TaskMarkdownEditor = lazy(() => import('./TaskMarkdownEditor'));
+const CreateAIDocDialog = lazy(() => import('./CreateAIDocDialog'));
 import { documentService, UnifiedDocument } from '../services/documentService';
 import { taskDocumentService } from '../services/taskDocumentService';
 import { TaskService } from '../services/taskService';
@@ -322,6 +324,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   const [documentListView, setDocumentListView] = useState<'grouped' | 'list' | 'timeline' | 'grid'>('grouped');
   const [documentSortBy, setDocumentSortBy] = useState<'created_at' | 'updated_at'>('created_at');
   const [documentSortOrder, setDocumentSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [aiDocDialogVisible, setAiDocDialogVisible] = useState(false); // AI文档创建对话框
 
   // 编辑内容和标题状态
   const [editContent, setEditContent] = useState('');
@@ -1858,6 +1861,22 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         extra={
           showToolbar && (
             <Space>
+              {/* 创建AI文档按钮 */}
+              <Tooltip title="使用AI生成文档">
+                <Button
+                  type="primary"
+                  icon={<RobotOutlined />}
+                  onClick={() => setAiDocDialogVisible(true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    borderColor: 'transparent',
+                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+                  }}
+                >
+                  创建AI文档
+                </Button>
+              </Tooltip>
+
               {/* 仅保留刷新按钮 */}
               <Tooltip title="刷新">
                 <Button
@@ -2199,6 +2218,21 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
           />
         </Space>
       </Modal>
+
+      {/* AI文档创建对话框 */}
+      <Suspense fallback={<Spin />}>
+        <CreateAIDocDialog
+          visible={aiDocDialogVisible}
+          taskId={taskId}
+          projectId={projectId}
+          onClose={() => setAiDocDialogVisible(false)}
+          onSuccess={() => {
+            message.success('AI文档创建成功');
+            loadDocuments(); // 刷新文档列表
+            setAiDocDialogVisible(false);
+          }}
+        />
+      </Suspense>
     </div>
   );
 
