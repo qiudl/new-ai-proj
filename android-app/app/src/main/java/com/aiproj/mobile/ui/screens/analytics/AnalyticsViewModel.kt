@@ -275,21 +275,38 @@ class AnalyticsViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {
-                // TODO: 实现获取单日详情数据的逻辑
-                // 目前使用模拟数据
-                val mockDayDetail = DayDetail(
-                    date = date,
-                    weekday = getWeekdayLabel(date),
-                    hours = 0f,  // TODO: 从API获取
-                    tasksCompleted = 0,
-                    efficiency = 0f,
-                    taskEntries = emptyList()
-                )
+                // 从workTimeTrend中找到对应日期的数据
+                val dayWorkTime = _uiState.value.workTimeTrend.find { it.date == date }
+
+                // 调用dashboard stats API获取当天的统计数据
+                val dashboardStatsResult = analyticsRepository.getDashboardStats(date)
+
+                val dayDetail = if (dashboardStatsResult.isSuccess && dayWorkTime != null) {
+                    val stats = dashboardStatsResult.getOrNull()
+                    DayDetail(
+                        date = date,
+                        weekday = getWeekdayLabel(date),
+                        hours = dayWorkTime.hours,
+                        tasksCompleted = stats?.today_tasks_completed ?: dayWorkTime.taskCount,
+                        efficiency = 0f,  // TODO: 计算效率
+                        taskEntries = emptyList()  // TODO: 需要后端提供任务列表API
+                    )
+                } else {
+                    // 如果API调用失败，使用workTimeTrend的数据
+                    DayDetail(
+                        date = date,
+                        weekday = getWeekdayLabel(date),
+                        hours = dayWorkTime?.hours ?: 0f,
+                        tasksCompleted = dayWorkTime?.taskCount ?: 0,
+                        efficiency = 0f,
+                        taskEntries = emptyList()
+                    )
+                }
 
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        selectedDayDetail = mockDayDetail
+                        selectedDayDetail = dayDetail
                     )
                 }
             } catch (e: Exception) {
