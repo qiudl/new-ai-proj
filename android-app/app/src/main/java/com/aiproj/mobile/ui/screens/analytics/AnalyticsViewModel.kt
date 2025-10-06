@@ -234,13 +234,91 @@ class AnalyticsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 选择时间范围（与selectedDate互斥）
+     */
     fun selectTimeRange(range: TimeRange) {
         if (range == TimeRange.CUSTOM_DATE) {
             // 显示日期选择器
-            _uiState.update { it.copy(showDatePicker = true) }
+            _uiState.update { it.copy(showDatePicker = true, selectedDate = null) }
         } else {
-            _uiState.update { it.copy(selectedTimeRange = range) }
+            _uiState.update {
+                it.copy(
+                    selectedTimeRange = range,
+                    selectedDate = null  // 清空单日选择
+                )
+            }
             loadAnalyticsData()
+        }
+    }
+
+    /**
+     * 选择单个日期（与selectedTimeRange互斥）
+     */
+    fun selectDate(date: String) {
+        _uiState.update {
+            it.copy(
+                selectedDate = date,
+                selectedTimeRange = null  // 清空范围选择
+            )
+        }
+        loadDataForDate(date)
+    }
+
+    /**
+     * 加载指定日期的详细数据
+     */
+    private fun loadDataForDate(date: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            try {
+                // TODO: 实现获取单日详情数据的逻辑
+                // 目前使用模拟数据
+                val mockDayDetail = DayDetail(
+                    date = date,
+                    weekday = getWeekdayLabel(date),
+                    hours = 0f,  // TODO: 从API获取
+                    tasksCompleted = 0,
+                    efficiency = 0f,
+                    taskEntries = emptyList()
+                )
+
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        selectedDayDetail = mockDayDetail
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "加载数据失败: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * 获取星期标签
+     */
+    private fun getWeekdayLabel(dateString: String): String {
+        return try {
+            val date = LocalDate.parse(dateString)
+            when (date.dayOfWeek.value) {
+                1 -> "周一"
+                2 -> "周二"
+                3 -> "周三"
+                4 -> "周四"
+                5 -> "周五"
+                6 -> "周六"
+                7 -> "周日"
+                else -> ""
+            }
+        } catch (e: Exception) {
+            ""
         }
     }
 
@@ -285,6 +363,12 @@ class AnalyticsViewModel @Inject constructor(
     }
 
     fun getDateRangeText(): String {
+        val selectedDate = _uiState.value.selectedDate
+        if (selectedDate != null) {
+            // 单日选择模式
+            return selectedDate
+        }
+
         val (startDate, endDate) = calculateDateRange(
             _uiState.value.selectedTimeRange,
             _uiState.value.customStartDate,
@@ -294,7 +378,7 @@ class AnalyticsViewModel @Inject constructor(
         return if (_uiState.value.selectedTimeRange == TimeRange.CUSTOM_DATE) {
             "$startDate ~ $endDate"
         } else {
-            _uiState.value.selectedTimeRange.displayName
+            _uiState.value.selectedTimeRange?.displayName ?: "本周"
         }
     }
 
@@ -315,14 +399,14 @@ class AnalyticsViewModel @Inject constructor(
      * 根据TimeRange计算日期范围
      */
     fun calculateDateRange(
-        timeRange: TimeRange,
+        timeRange: TimeRange?,
         customStart: LocalDate? = null,
         customEnd: LocalDate? = null
     ): Pair<String, String> {
         val today = LocalDate.now()
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
-        return when (timeRange) {
+        return when (timeRange ?: TimeRange.THIS_WEEK) {
             TimeRange.TODAY -> {
                 val dateStr = today.format(formatter)
                 dateStr to dateStr
@@ -372,7 +456,7 @@ class AnalyticsViewModel @Inject constructor(
      * Bug修复: 只有"今日"显示HOUR视图，昨日/前日显示最近7天的DAY视图
      * 本月/上月等长时间段显示WEEK视图
      */
-    private fun determineTimeGranularity(days: Int, timeRange: TimeRange): TimeGranularity {
+    private fun determineTimeGranularity(days: Int, timeRange: TimeRange?): TimeGranularity {
         return when {
             timeRange == TimeRange.TODAY -> TimeGranularity.HOUR  // 只有今日显示小时粒度（0-当前小时）
             days <= 14 -> TimeGranularity.DAY     // 昨日/前日/本周：按天显示（会显示7天趋势）

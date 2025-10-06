@@ -18,10 +18,11 @@ import com.aiproj.mobile.ui.screens.analytics.components.*
  * 独立的统计分析页面
  *
  * 采用Tab结构:
- * - 概览: 工作时长趋势、任务完成分析、项目分布、成就展示
- * - 每日: 每日工作记录、任务时间条目
+ * - 概览: 工作时长趋势、任务完成分析、项目分布、成就展示、每日统计与明细
  * - 任务: 任务统计、Top任务、完成趋势
  * - 效率: 效率趋势、智能分析建议
+ *
+ * 注: 原"每日"Tab已合并到"概览"Tab中，使用统一时间选择器支持单日/范围选择
  */
 @Composable
 fun AnalyticsScreen(
@@ -51,10 +52,12 @@ fun AnalyticsScreen(
                 onTabSelected = { viewModel.selectTab(it) }
             )
 
-            // 时间范围选择器 V2
-            TimeRangeSelectorV2(
-                selectedRange = uiState.selectedTimeRange,
-                onRangeSelected = { viewModel.selectTimeRange(it) },
+            // 统一时间选择器（支持单日/范围选择）
+            UnifiedTimeSelector(
+                selectedTimeRange = uiState.selectedTimeRange,
+                selectedDate = uiState.selectedDate,
+                onTimeRangeSelected = { viewModel.selectTimeRange(it) },
+                onDateSelected = { viewModel.selectDate(it) },
                 modifier = Modifier.padding(vertical = 8.dp)
             )
 
@@ -66,12 +69,6 @@ fun AnalyticsScreen(
                         viewModel = viewModel,
                         onNavigateToTaskStatusDetail = onNavigateToTaskStatusDetail,
                         onShowOtherStatusDetail = { showOtherStatusDetail = true }
-                    )
-                }
-                AnalyticsTab.DAILY_DETAIL -> {
-                    DailyDetailTabContent(
-                        uiState = uiState,
-                        viewModel = viewModel
                     )
                 }
                 AnalyticsTab.TASK_STATS -> {
@@ -252,6 +249,28 @@ private fun OverviewTabContent(
                         }
                     }
                 )
+            }
+
+            // 每日概览/详情卡片（条件渲染）
+            // 范围选择时显示每日概览，单日选择时显示每日详情
+            if (uiState.selectedDate == null && uiState.selectedTimeRange != null) {
+                // 显示每日概览卡片
+                item {
+                    DailyOverviewCard(
+                        dailyStats = uiState.workTimeTrend,
+                        onDateClick = { date -> viewModel.selectDate(date) }
+                    )
+                }
+            }
+
+            if (uiState.selectedDate != null) {
+                // 显示单日详情卡片
+                item {
+                    DailyDetailCard(
+                        date = uiState.selectedDate,
+                        dayDetail = uiState.selectedDayDetail
+                    )
+                }
             }
 
             // 项目时间分布

@@ -193,15 +193,7 @@ const PromptInputDialog: React.FC<PromptInputDialogProps> = ({
         </Tag>
       </div>
 
-      {/* 提示信息 */}
-      <Alert
-        message="提示"
-        description="输入您的自定义提示词，告诉AI如何分解任务。留空则使用系统默认的智能分解Prompt。"
-        type="info"
-        showIcon
-        icon={<BulbOutlined />}
-        style={{ marginBottom: 16 }}
-      />
+  
 
       {/* 智能推荐区域 */}
       {loadingRecommendations && (
@@ -358,22 +350,7 @@ const PromptInputDialog: React.FC<PromptInputDialogProps> = ({
         )}
       </div>
 
-      {/* 使用建议 */}
-      <Alert
-        message="💡 Prompt编写建议"
-        description={
-          <ul style={{ margin: 0, paddingLeft: 20 }}>
-            <li>明确说明如何拆分任务（如：按阶段、按模块、按职能等）</li>
-            <li>指定需要关注的要点（如：技术栈、时间节点、质量标准等）</li>
-            <li>可以参考系统模板或快速示例，根据项目特点调整</li>
-            <li>包含任务相关关键词可以提高AI理解准确度</li>
-            <li style={{ color: '#1890ff' }}>⌨️ 快捷键：Ctrl+Enter 生成 | Esc 取消</li>
-          </ul>
-        }
-        type="warning"
-        showIcon
-        style={{ marginTop: 16, fontSize: 12 }}
-      />
+
     </Modal>
   );
 };

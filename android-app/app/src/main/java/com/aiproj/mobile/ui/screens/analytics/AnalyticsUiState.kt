@@ -9,7 +9,10 @@ data class AnalyticsUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val selectedTab: AnalyticsTab = AnalyticsTab.OVERVIEW,   // 当前选中的Tab
-    val selectedTimeRange: TimeRange = TimeRange.THIS_WEEK,
+
+    // 时间选择：selectedDate 和 selectedTimeRange 互斥
+    val selectedDate: String? = null,                        // 单日选择 "2025-10-06" (与selectedTimeRange互斥)
+    val selectedTimeRange: TimeRange? = TimeRange.THIS_WEEK, // 范围选择 (与selectedDate互斥)
     val customStartDate: java.time.LocalDate? = null,        // 自定义开始日期
     val customEndDate: java.time.LocalDate? = null,          // 自定义结束日期
     val showDatePicker: Boolean = false,                     // 是否显示日期选择器
@@ -43,7 +46,10 @@ data class AnalyticsUiState(
     val todoTasksCount: Int = 0,
     val topTasks: List<TopTask> = emptyList(),
     val dailyCompletionTrend: List<DailyCompletion> = emptyList(),
-    val priorityDistribution: PriorityStats = PriorityStats()
+    val priorityDistribution: PriorityStats = PriorityStats(),
+
+    // 每日详情数据（单日选择时使用）
+    val selectedDayDetail: DayDetail? = null
 )
 
 /**

@@ -30,7 +30,7 @@ import kotlin.math.roundToInt
 @Composable
 fun WorkTimeTrendCard(
     data: List<DailyWorkTime>,
-    timeRange: TimeRange,
+    timeRange: TimeRange?,
     modifier: Modifier = Modifier,
     granularity: TimeGranularity = TimeGranularity.DAY
 ) {
@@ -56,7 +56,7 @@ fun WorkTimeTrendCard(
                 )
 
                 Text(
-                    text = "📈 ${timeRange.displayName}: ${calculateTotalHours(data)}",
+                    text = "📈 ${timeRange?.displayName ?: "本周"}: ${calculateTotalHours(data)}",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
