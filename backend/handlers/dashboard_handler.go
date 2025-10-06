@@ -1009,9 +1009,9 @@ func (h *DashboardHandler) GetPriorityDistributionStats(c *gin.Context) {
 		WHERE project_id = $1
 			AND deleted_at IS NULL
 			AND status NOT IN ('completed', 'cancelled', 'archived')
-		GROUP BY priority
+		GROUP BY COALESCE(custom_fields->>'priority', 'low')
 		ORDER BY
-			CASE priority
+			CASE COALESCE(custom_fields->>'priority', 'low')
 				WHEN 'high' THEN 1
 				WHEN 'medium' THEN 2
 				WHEN 'low' THEN 3

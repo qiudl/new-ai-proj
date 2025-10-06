@@ -92,6 +92,7 @@ func registerDashboardRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		dashboard.GET("/time-stats", app.GetDashboardHandler().GetTimeStats)
 		dashboard.GET("/weekly-stats", app.GetDashboardHandler().GetWeeklyStats)
 		dashboard.GET("/notifications", app.GetDashboardHandler().GetNotifications)
+		dashboard.GET("/priority-distribution", app.GetDashboardHandler().GetPriorityDistributionStats)
 	}
 }
 
