@@ -5,6 +5,7 @@ import com.aiproj.mobile.data.api.DashboardStatsData
 import com.aiproj.mobile.data.api.TaskApi
 import com.aiproj.mobile.data.api.TimeStatsData
 import com.aiproj.mobile.data.api.WeeklyStatsResponse
+import com.aiproj.mobile.data.models.DailyTasksWithTimersResponse
 import com.aiproj.mobile.data.models.Task
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -116,6 +117,30 @@ class AnalyticsRepository @Inject constructor(
                 }
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch tasks by work date"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 获取每日任务及其计时记录
+     * @param date 日期（YYYY-MM-DD格式）
+     */
+    suspend fun getDailyTasksWithTimers(
+        date: String
+    ): Result<DailyTasksWithTimersResponse> {
+        return try {
+            val response = analyticsApi.getDailyTasksWithTimers(date)
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                if (body.success && body.data != null) {
+                    Result.success(body.data)
+                } else {
+                    Result.failure(Exception(body.message ?: "Failed to fetch daily tasks"))
+                }
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch daily tasks"))
             }
         } catch (e: Exception) {
             Result.failure(e)

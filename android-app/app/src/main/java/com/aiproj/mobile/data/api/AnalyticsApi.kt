@@ -1,5 +1,7 @@
 package com.aiproj.mobile.data.api
 
+import com.aiproj.mobile.data.models.ApiResponse
+import com.aiproj.mobile.data.models.DailyTasksWithTimersResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
@@ -37,6 +39,15 @@ interface AnalyticsApi {
         @Query("project_id") projectId: Int? = null,
         @Query("user_id") userId: Int? = null
     ): Response<WeeklyStatsResponse>
+
+    /**
+     * 获取每日任务及其计时记录
+     * GET /api/v1/dashboard/daily-tasks?date=2025-02-05
+     */
+    @GET("dashboard/daily-tasks")
+    suspend fun getDailyTasksWithTimers(
+        @Query("date") date: String  // YYYY-MM-DD
+    ): Response<ApiResponse<DailyTasksWithTimersResponse>>
 }
 
 /**

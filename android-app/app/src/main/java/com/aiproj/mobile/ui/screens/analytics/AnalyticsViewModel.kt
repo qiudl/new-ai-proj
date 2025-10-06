@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aiproj.mobile.data.api.PriorityDistribution
 import com.aiproj.mobile.data.models.TaskStatus
+import com.aiproj.mobile.data.models.TimerLogEntry
 import com.aiproj.mobile.data.repository.AnalyticsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -279,27 +280,26 @@ class AnalyticsViewModel @Inject constructor(
                 // 从workTimeTrend中找到对应日期的数据
                 val dayWorkTime = _uiState.value.workTimeTrend.find { it.date == date }
 
-                // 调用dashboard stats API获取当天的统计数据
-                val dashboardStatsResult = analyticsRepository.getDashboardStats(date)
+                // 调用新的API获取任务及timer logs
+                val tasksWithTimersResult = analyticsRepository.getDailyTasksWithTimers(date)
 
-                // 调用任务列表API获取当天的任务明细
-                val tasksResult = analyticsRepository.getTasksByWorkDate(date)
+                val dayDetail = if (tasksWithTimersResult.isSuccess && dayWorkTime != null) {
+                    val tasksData = tasksWithTimersResult.getOrNull()!!
 
-                val dayDetail = if (dashboardStatsResult.isSuccess && dayWorkTime != null) {
-                    val stats = dashboardStatsResult.getOrNull()
-                    val tasks = tasksResult.getOrNull() ?: emptyList()
+                    // 将TaskWithTimerLogs转换为TaskTimeEntry
+                    val taskEntries = tasksData.tasks.map { task ->
+                        // 从timer_logs中提取开始和结束时间
+                        val (startTime, endTime) = extractTimeRange(task.timerLogs)
 
-                    // 将Task转换为TaskTimeEntry
-                    val taskEntries = tasks.map { task ->
                         TaskTimeEntry(
                             taskId = task.id,
                             taskTitle = task.title,
-                            projectName = task.projectName ?: "项目#${task.projectId}",
-                            duration = 0f,  // TODO: 从work_hours字段获取
-                            startTime = "00:00",  // TODO: 从timer logs获取
-                            endTime = "00:00",
-                            status = task.status.name.lowercase(),
-                            isCompleted = task.status == TaskStatus.COMPLETED
+                            projectName = task.projectName,
+                            duration = task.workHours,
+                            startTime = startTime,
+                            endTime = endTime,
+                            status = task.status,
+                            isCompleted = task.status == "completed"
                         )
                     }
 
@@ -307,7 +307,7 @@ class AnalyticsViewModel @Inject constructor(
                         date = date,
                         weekday = getWeekdayLabel(date),
                         hours = dayWorkTime.hours,
-                        tasksCompleted = stats?.today_tasks_completed ?: dayWorkTime.taskCount,
+                        tasksCompleted = taskEntries.count { it.isCompleted },
                         efficiency = 0f,  // TODO: 计算效率
                         taskEntries = taskEntries
                     )
@@ -338,6 +338,26 @@ class AnalyticsViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * 从timer logs中提取时间范围
+     * 返回最早的开始时间和最晚的结束时间
+     */
+    private fun extractTimeRange(timerLogs: List<TimerLogEntry>): Pair<String, String> {
+        if (timerLogs.isEmpty()) {
+            return Pair("00:00", "00:00")
+        }
+
+        // 获取最早的开始时间
+        val startTime = timerLogs.minByOrNull { it.startTime }?.startTime ?: "00:00"
+
+        // 获取最晚的结束时间（过滤掉null值）
+        val endTime = timerLogs
+            .mapNotNull { it.endTime }
+            .maxOrNull() ?: "00:00"
+
+        return Pair(startTime, endTime)
     }
 
     /**

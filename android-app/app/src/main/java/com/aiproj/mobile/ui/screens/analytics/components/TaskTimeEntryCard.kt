@@ -99,16 +99,14 @@ fun TaskTimeEntryCard(
                         )
                     }
 
-                    // 只在有有效时间时显示时间段
-                    if (taskEntry.startTime != "00:00" || taskEntry.endTime != "00:00") {
-                        Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                        Text(
-                            text = "${taskEntry.startTime} - ${taskEntry.endTime}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    // 时间段显示
+                    Text(
+                        text = "${taskEntry.startTime} - ${taskEntry.endTime}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
