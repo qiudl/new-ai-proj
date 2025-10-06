@@ -23,6 +23,7 @@ import com.aiproj.mobile.ui.screens.dashboard.DashboardScreen
 import com.aiproj.mobile.ui.screens.login.LoginScreen
 import com.aiproj.mobile.ui.screens.profile.ProfileScreen
 import com.aiproj.mobile.ui.screens.tasks.TaskDetailScreen
+import com.aiproj.mobile.ui.screens.tasks.TaskFormScreen
 import com.aiproj.mobile.ui.screens.tasks.TaskListScreen
 import com.aiproj.mobile.ui.screens.timer.TimerScreen
 import com.aiproj.mobile.ui.document.list.DocumentListScreen
@@ -31,6 +32,13 @@ import com.aiproj.mobile.ui.document.editor.DocumentEditorScreen
 import com.aiproj.mobile.ui.screens.notes.NotesScreen
 import com.aiproj.mobile.ui.screens.notes.NoteDetailScreen
 import com.aiproj.mobile.ui.screens.notes.NoteEditorScreen
+import com.aiproj.mobile.ui.screens.details.todaytasks.TodayTasksDetailScreen
+import com.aiproj.mobile.ui.screens.details.worktime.WorkTimeDetailScreen
+import com.aiproj.mobile.ui.screens.details.todayworktime.TodayWorkTimeDetailScreen
+import com.aiproj.mobile.ui.screens.details.activeprojects.ActiveProjectsDetailScreen
+import com.aiproj.mobile.ui.screens.details.pendingtasks.PendingTasksDetailScreen
+import com.aiproj.mobile.ui.screens.projects.ProjectListScreen
+import com.aiproj.mobile.ui.screens.projects.ProjectDetailScreen
 
 /**
  * 应用主导航
@@ -115,6 +123,111 @@ fun MainScreen(
                     },
                     onProjectClick = { projectId ->
                         // TODO: 导航到项目详情
+                    },
+                    onTodayTasksClick = { date, projectId ->
+                        navController.navigate(Screen.TodayTasksDetail.createRoute(date, projectId))
+                    },
+                    onWorkTimeClick = { projectId ->
+                        navController.navigate(Screen.WorkTimeDetail.createRoute(projectId))
+                    },
+                    onTodayWorkTimeClick = {
+                        navController.navigate(Screen.TodayWorkTimeDetail.createRoute())
+                    },
+                    onActiveProjectsClick = {
+                        navController.navigate(Screen.ProjectList.route)
+                    },
+                    onPendingTasksClick = { projectId ->
+                        navController.navigate(Screen.PendingTasksDetail.createRoute(projectId))
+                    }
+                )
+            }
+
+            // ========== Dashboard 详情页 ==========
+
+            // 今日任务详情
+            composable(
+                route = Screen.TodayTasksDetail.route,
+                arguments = listOf(
+                    navArgument("date") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                    navArgument("projectId") {
+                        type = NavType.IntType
+                        defaultValue = 0
+                    }
+                )
+            ) {
+                TodayTasksDetailScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onTaskClick = { taskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(taskId))
+                    }
+                )
+            }
+
+            // 工作时长详情
+            composable(
+                route = Screen.WorkTimeDetail.route,
+                arguments = listOf(
+                    navArgument("projectId") {
+                        type = NavType.IntType
+                        defaultValue = 0
+                    }
+                )
+            ) {
+                WorkTimeDetailScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onTaskClick = { taskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(taskId))
+                    }
+                )
+            }
+
+            // 今日工作时长详情
+            composable(
+                route = Screen.TodayWorkTimeDetail.route,
+                arguments = listOf(
+                    navArgument("date") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) {
+                TodayWorkTimeDetailScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onTaskClick = { taskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(taskId))
+                    }
+                )
+            }
+
+            // 活跃项目详情
+            composable(Screen.ActiveProjectsDetail.route) {
+                ActiveProjectsDetailScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onProjectClick = { projectId ->
+                        // TODO: 导航到项目详情
+                    }
+                )
+            }
+
+            // 待办任务详情
+            composable(
+                route = Screen.PendingTasksDetail.route,
+                arguments = listOf(
+                    navArgument("projectId") {
+                        type = NavType.IntType
+                        defaultValue = 0
+                    }
+                )
+            ) {
+                PendingTasksDetailScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onTaskClick = { taskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(taskId))
                     }
                 )
             }
@@ -126,8 +239,7 @@ fun MainScreen(
                         navController.navigate(Screen.TaskDetail.createRoute(taskId))
                     },
                     onCreateTask = {
-                        // TODO: 创建TaskEditScreen后启用
-                        // navController.navigate(Screen.TaskEdit.createRoute())
+                        navController.navigate(Screen.TaskEdit.createRoute())
                     }
                 )
             }
@@ -143,8 +255,7 @@ fun MainScreen(
                 TaskDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onEdit = { editTaskId ->
-                        // TODO: 创建TaskEditScreen后启用
-                        // navController.navigate(Screen.TaskEdit.createRoute(editTaskId))
+                        navController.navigate(Screen.TaskEdit.createRoute(editTaskId))
                     },
                     onNavigateToDocuments = { navigateTaskId ->
                         navController.navigate(Screen.DocumentList.createRoute(navigateTaskId))
@@ -155,6 +266,23 @@ fun MainScreen(
                     onNavigateToDocumentViewer = { navigateTaskId, documentId ->
                         navController.navigate(Screen.DocumentViewer.createRoute(navigateTaskId, documentId))
                     }
+                )
+            }
+
+            // 任务创建/编辑
+            composable(
+                route = Screen.TaskEdit.route,
+                arguments = listOf(
+                    navArgument("taskId") {
+                        type = NavType.IntType
+                        defaultValue = -1
+                    }
+                )
+            ) { backStackEntry ->
+                val taskIdArg = backStackEntry.arguments?.getInt("taskId") ?: -1
+                // taskId 通过 SavedStateHandle 传递给 TaskFormViewModel
+                TaskFormScreen(
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -315,6 +443,41 @@ fun MainScreen(
                 NoteEditorScreen(
                     noteId = noteId,
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // ========== 项目模块 ==========
+
+            // 项目列表
+            composable(Screen.ProjectList.route) {
+                ProjectListScreen(
+                    onProjectClick = { projectId ->
+                        navController.navigate(Screen.ProjectDetail.createRoute(projectId))
+                    },
+                    onCreateProject = {
+                        // TODO: 创建ProjectFormScreen后启用
+                        // navController.navigate(Screen.ProjectForm.createRoute())
+                    }
+                )
+            }
+
+            // 项目详情
+            composable(
+                route = Screen.ProjectDetail.route,
+                arguments = listOf(
+                    navArgument("projectId") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val projectId = backStackEntry.arguments?.getInt("projectId") ?: return@composable
+                ProjectDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onTaskClick = { taskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(taskId))
+                    },
+                    onEdit = { editProjectId ->
+                        // TODO: 创建ProjectFormScreen后启用
+                        // navController.navigate(Screen.ProjectForm.createRoute(editProjectId))
+                    }
                 )
             }
         }

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
+	"ai-project-backend/cache"
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 )
@@ -16,6 +18,7 @@ type AIDocumentGenerationService struct {
 	db                *sql.DB
 	aiGenerateService *AIGenerateService
 	promptRepo        *database.PromptRepository
+	cacheService      *cache.AICacheService
 }
 
 // NewAIDocumentGenerationService 创建AI文档生成服务
@@ -23,11 +26,13 @@ func NewAIDocumentGenerationService(
 	db *sql.DB,
 	aiGenerateService *AIGenerateService,
 	promptRepo *database.PromptRepository,
+	cacheService *cache.AICacheService,
 ) *AIDocumentGenerationService {
 	return &AIDocumentGenerationService{
 		db:                db,
 		aiGenerateService: aiGenerateService,
 		promptRepo:        promptRepo,
+		cacheService:      cacheService,
 	}
 }
 
@@ -69,7 +74,30 @@ func (s *AIDocumentGenerationService) GenerateDocument(ctx context.Context, para
 		return nil, fmt.Errorf("参数验证失败: %w", err)
 	}
 
-	// 2. 获取任务信息
+	// 2. 尝试从缓存获取
+	if s.cacheService != nil {
+		cacheKey := &cache.DocumentCacheKey{
+			TaskID:       params.TaskID,
+			Model:        params.Model,
+			DocumentType: params.DocumentType,
+			CustomPrompt: "",
+		}
+		if params.CustomPrompt != nil {
+			cacheKey.CustomPrompt = *params.CustomPrompt
+		}
+
+		if cached, found := s.cacheService.GetDocument(ctx, cacheKey); found {
+			return &DocumentData{
+				Title:   cached.Title,
+				Content: cached.Content,
+				Metadata: DocumentMetadata{
+					WordCount: len(cached.Content),
+				},
+			}, nil
+		}
+	}
+
+	// 3. 获取任务信息
 	task, err := s.getTaskInfo(ctx, params.TaskID)
 	if err != nil {
 		return nil, fmt.Errorf("获取任务信息失败: %w", err)
@@ -99,7 +127,27 @@ func (s *AIDocumentGenerationService) GenerateDocument(ctx context.Context, para
 		return nil, fmt.Errorf("解析响应失败: %w", err)
 	}
 
-	// 7. 异步保存历史记录
+	// 7. 缓存生成结果
+	if s.cacheService != nil {
+		cacheKey := &cache.DocumentCacheKey{
+			TaskID:       params.TaskID,
+			Model:        params.Model,
+			DocumentType: params.DocumentType,
+			CustomPrompt: "",
+		}
+		if params.CustomPrompt != nil {
+			cacheKey.CustomPrompt = *params.CustomPrompt
+		}
+
+		// 文档缓存较长时间（2小时）
+		go func() {
+			if err := s.cacheService.SetDocument(ctx, cacheKey, docData.Title, docData.Content, 2*time.Hour); err != nil {
+				// Log error but don't fail the request
+			}
+		}()
+	}
+
+	// 8. 异步保存历史记录
 	go s.savePromptHistory(params, docData, prompt)
 
 	return docData, nil
@@ -134,7 +182,7 @@ func (s *AIDocumentGenerationService) validateParams(params *DocumentGenParams) 
 func (s *AIDocumentGenerationService) getTaskInfo(ctx context.Context, taskID int) (*models.Task, error) {
 	query := `
 		SELECT id, title, description, status, priority,
-		       parent_task_id, project_id, assignee_id,
+		       parent_id, project_id, assignee_id,
 		       created_at, updated_at
 		FROM tasks
 		WHERE id = $1
@@ -163,7 +211,7 @@ func (s *AIDocumentGenerationService) getSubtasks(ctx context.Context, parentTas
 	query := `
 		SELECT id, title, description, status, priority
 		FROM tasks
-		WHERE parent_task_id = $1
+		WHERE parent_id = $1
 		ORDER BY created_at ASC
 	`
 

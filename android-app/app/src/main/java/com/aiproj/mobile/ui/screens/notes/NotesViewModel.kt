@@ -48,6 +48,9 @@ class NotesViewModel @Inject constructor(
     private val _isBookmarkedOnly = MutableStateFlow(false)
     val isBookmarkedOnly: StateFlow<Boolean> = _isBookmarkedOnly.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     init {
         loadNotes()
         loadFolders()
@@ -58,10 +61,15 @@ class NotesViewModel @Inject constructor(
      */
     fun loadNotes(
         page: Int = 1,
-        limit: Int = 100
+        limit: Int = 100,
+        isRefresh: Boolean = false
     ) {
         viewModelScope.launch {
-            _uiState.value = UiState.Loading
+            if (isRefresh) {
+                _isRefreshing.value = true
+            } else {
+                _uiState.value = UiState.Loading
+            }
 
             val result = repository.getNotes(
                 page = page,
@@ -83,7 +91,18 @@ class NotesViewModel @Inject constructor(
                     _uiState.value = UiState.Error(error.message ?: "加载工作笔记失败")
                 }
             )
+
+            if (isRefresh) {
+                _isRefreshing.value = false
+            }
         }
+    }
+
+    /**
+     * 刷新笔记列表
+     */
+    fun refresh() {
+        loadNotes(isRefresh = true)
     }
 
     /**

@@ -13,22 +13,22 @@ data class User(
     val username: String,
 
     @SerializedName("email")
-    val email: String?,
+    val email: String? = null,
 
     @SerializedName("display_name")
-    val displayName: String?,
+    val displayName: String? = null,
 
     @SerializedName("avatar_url")
-    val avatarUrl: String?,
+    val avatarUrl: String? = null,
 
     @SerializedName("role")
-    val role: String?,
+    val role: String? = null,
 
     @SerializedName("created_at")
-    val createdAt: String?,
+    val createdAt: String? = null,
 
     @SerializedName("updated_at")
-    val updatedAt: String?
+    val updatedAt: String? = null
 )
 
 /**
@@ -50,16 +50,16 @@ data class LoginResponseData(
     val accessToken: String,
 
     @SerializedName("refresh_token")
-    val refreshToken: String?,
+    val refreshToken: String? = null,
 
     @SerializedName("user")
     val user: User,
 
     @SerializedName("expires_at")
-    val expiresAt: String?,
+    val expiresAt: String? = null,
 
     @SerializedName("expires_in")
-    val expiresIn: Long?
+    val expiresIn: Long? = null
 )
 
 /**
@@ -70,7 +70,7 @@ data class LoginResponse(
     val success: Boolean,
 
     @SerializedName("message")
-    val message: String?,
+    val message: String? = null,
 
     @SerializedName("data")
     val data: LoginResponseData

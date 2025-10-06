@@ -9,11 +9,11 @@ import com.aiproj.mobile.data.api.AuthInterceptor
 import com.aiproj.mobile.data.api.CommentApi
 import com.aiproj.mobile.data.api.DailyFocusTaskApi
 import com.aiproj.mobile.data.api.DashboardApi
+import com.aiproj.mobile.data.api.DetailApi
 import com.aiproj.mobile.data.api.DocumentApi
 import com.aiproj.mobile.data.api.ProjectApi
 import com.aiproj.mobile.data.api.TaskApi
 import com.aiproj.mobile.data.api.TimeLogApi
-import com.aiproj.mobile.data.api.TokenProvider
 import com.aiproj.mobile.data.network.ConnectivityObserver
 import com.aiproj.mobile.data.network.ConnectivityObserverImpl
 import com.google.gson.Gson
@@ -23,10 +23,13 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -37,6 +40,20 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+
+    /**
+     * 提供 Kotlin Serialization Json
+     */
+    @Provides
+    @Singleton
+    fun provideJson(): Json {
+        return Json {
+            ignoreUnknownKeys = true // 忽略 JSON 中存在但数据类中没有的字段
+            isLenient = true
+            coerceInputValues = true // 将 null 强制转换为默认值
+            encodeDefaults = true
+        }
+    }
 
     /**
      * 提供 Gson
@@ -81,11 +98,18 @@ object NetworkModule {
      */
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit {
+    fun provideRetrofit(
+        okHttpClient: OkHttpClient,
+        gson: Gson,
+        json: Json
+    ): Retrofit {
         return Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
             .client(okHttpClient)
+            // Use Gson as primary converter for models with @SerializedName
             .addConverterFactory(GsonConverterFactory.create(gson))
+            // Keep Kotlinx Serialization as fallback for @Serializable models
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
     }
 
@@ -177,6 +201,16 @@ object NetworkModule {
     @Singleton
     fun provideAnalyticsApi(retrofit: Retrofit): AnalyticsApi {
         return retrofit.create(AnalyticsApi::class.java)
+    }
+
+    /**
+     * 提供 DetailApi
+     * 用于获取仪表盘统计详情数据
+     */
+    @Provides
+    @Singleton
+    fun provideDetailApi(retrofit: Retrofit): DetailApi {
+        return retrofit.create(DetailApi::class.java)
     }
 
     /**

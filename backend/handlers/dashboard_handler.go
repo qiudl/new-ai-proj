@@ -582,21 +582,64 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 	db := h.db.GetDB().(*sql.DB)
 	stats := &DashboardStatsResponse{}
 
-	// 1. Get today's task statistics
-	taskStatsQuery := `
-		SELECT
-			COUNT(*) FILTER (WHERE status = 'completed' AND updated_at >= $1 AND updated_at < $2) as completed_today,
-			COUNT(*) FILTER (WHERE created_at >= $1 AND created_at < $2) as created_today,
-			COUNT(*) FILTER (WHERE status IN ('todo', 'planning', 'in_progress')) as pending_total
+	// 1. Get today's task statistics (based on timer logs for the user)
+	var todayWorkedTasks, todayCompletedTasks int
+
+	// Count tasks with timer logs today (tasks worked on)
+	workedTasksQuery := `
+		SELECT COUNT(DISTINCT target_id)
+		FROM unified_timer_logs
+		WHERE user_id = $1
+			AND target_type = 'project_task'
+			AND start_time >= $2
+			AND start_time < $3
+			AND end_time IS NOT NULL
+			AND target_id IS NOT NULL`
+
+	err := db.QueryRow(workedTasksQuery, userID, startOfDay, endOfDay).Scan(&todayWorkedTasks)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch worked tasks count",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Count completed tasks today (from timer logs)
+	completedTasksQuery := `
+		SELECT COUNT(DISTINCT utl.target_id)
+		FROM unified_timer_logs utl
+		INNER JOIN tasks t ON t.id = utl.target_id
+		WHERE utl.user_id = $1
+			AND utl.target_type = 'project_task'
+			AND utl.start_time >= $2
+			AND utl.start_time < $3
+			AND utl.end_time IS NOT NULL
+			AND utl.target_id IS NOT NULL
+			AND t.status = 'completed'
+			AND t.deleted_at IS NULL`
+
+	err = db.QueryRow(completedTasksQuery, userID, startOfDay, endOfDay).Scan(&todayCompletedTasks)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch completed tasks count",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	stats.TodayTasksTotal = todayWorkedTasks
+	stats.TodayTasksCompleted = todayCompletedTasks
+
+	// Get pending tasks count for the user
+	pendingTasksQuery := `
+		SELECT COUNT(*)
 		FROM tasks
-		WHERE assignee_id = $3
+		WHERE assignee_id = $1
+			AND status IN ('todo', 'planning', 'in_progress')
 			AND deleted_at IS NULL`
 
-	err := db.QueryRow(taskStatsQuery, startOfDay, endOfDay, userID).Scan(
-		&stats.TodayTasksCompleted,
-		&stats.TodayTasksTotal,
-		&stats.PendingTasks,
-	)
+	err = db.QueryRow(pendingTasksQuery, userID).Scan(&stats.PendingTasks)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to fetch task statistics",
@@ -1107,5 +1150,205 @@ func (h *DashboardHandler) GetPriorityDistributionStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    response,
+	})
+}
+
+// TaskWithTimerLogs represents a task with its timer logs
+type TaskWithTimerLogs struct {
+	ID          int                `json:"id"`
+	ProjectID   int                `json:"project_id"`
+	ProjectName string             `json:"project_name"`
+	Title       string             `json:"title"`
+	Status      string             `json:"status"`
+	Priority    string             `json:"priority"`
+	WorkHours   float64            `json:"work_hours"`
+	TimerLogs   []TimerLogEntry    `json:"timer_logs"`
+	CreatedAt   string             `json:"created_at"`
+	UpdatedAt   string             `json:"updated_at"`
+}
+
+// TimerLogEntry represents a single timer log entry
+type TimerLogEntry struct {
+	ID               int      `json:"id"`
+	StartTime        string   `json:"start_time"`
+	EndTime          *string  `json:"end_time"`
+	ActualWorkSeconds int     `json:"actual_work_seconds"`
+	Status           string   `json:"status"`
+}
+
+// GetDailyTasksWithTimers returns tasks for a specific date with their timer logs
+// GET /api/v1/dashboard/daily-tasks?date=2025-02-05
+func (h *DashboardHandler) GetDailyTasksWithTimers(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	date := c.Query("date")
+	if date == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "date parameter is required (format: YYYY-MM-DD)",
+		})
+		return
+	}
+
+	// Parse date and calculate time range for the day
+	targetDate, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid date format, use YYYY-MM-DD",
+		})
+		return
+	}
+
+	startOfDay := targetDate.Format("2006-01-02 00:00:00")
+	endOfDay := targetDate.Add(24 * time.Hour).Format("2006-01-02 00:00:00")
+
+	// Query to get tasks with timer logs for the specified date
+	query := `
+		WITH task_work_time AS (
+			SELECT
+				target_id as task_id,
+				SUM(actual_work_seconds) / 3600.0 as work_hours
+			FROM unified_timer_logs
+			WHERE user_id = $1
+				AND target_type = 'project_task'
+				AND start_time >= $2
+				AND start_time < $3
+				AND status = 'completed'
+			GROUP BY target_id
+		)
+		SELECT
+			t.id,
+			t.project_id,
+			COALESCE(p.name, '') as project_name,
+			t.title,
+			t.status,
+			COALESCE(t.custom_fields->>'priority', 'medium') as priority,
+			COALESCE(twt.work_hours, 0) as work_hours,
+			t.created_at,
+			t.updated_at
+		FROM tasks t
+		JOIN projects p ON t.project_id = p.id
+		INNER JOIN task_work_time twt ON t.id = twt.task_id
+		WHERE t.deleted_at IS NULL
+			AND p.deleted_at IS NULL
+		ORDER BY twt.work_hours DESC, t.updated_at DESC
+	`
+
+	sqlDB, ok := h.db.GetDB().(*sql.DB)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Database type assertion failed",
+		})
+		return
+	}
+
+	rows, err := sqlDB.QueryContext(c.Request.Context(), query, userID, startOfDay, endOfDay)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch tasks",
+			"details": err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+
+	tasks := make([]TaskWithTimerLogs, 0)
+	taskIDs := make([]int, 0)
+
+	for rows.Next() {
+		var task TaskWithTimerLogs
+		var createdAt, updatedAt time.Time
+
+		err := rows.Scan(
+			&task.ID,
+			&task.ProjectID,
+			&task.ProjectName,
+			&task.Title,
+			&task.Status,
+			&task.Priority,
+			&task.WorkHours,
+			&createdAt,
+			&updatedAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		task.CreatedAt = createdAt.Format(time.RFC3339)
+		task.UpdatedAt = updatedAt.Format(time.RFC3339)
+		task.TimerLogs = make([]TimerLogEntry, 0)
+
+		tasks = append(tasks, task)
+		taskIDs = append(taskIDs, task.ID)
+	}
+
+	// If we have tasks, fetch their timer logs
+	if len(taskIDs) > 0 {
+		timerQuery := `
+			SELECT
+				id,
+				target_id as task_id,
+				start_time,
+				end_time,
+				actual_work_seconds,
+				status
+			FROM unified_timer_logs
+			WHERE user_id = $1
+				AND target_type = 'project_task'
+				AND target_id = ANY($2)
+				AND start_time >= $3
+				AND start_time < $4
+			ORDER BY start_time ASC
+		`
+
+		timerRows, err := sqlDB.QueryContext(c.Request.Context(), timerQuery, userID, taskIDs, startOfDay, endOfDay)
+		if err == nil {
+			defer timerRows.Close()
+
+			// Create a map of task_id -> timer logs
+			timerLogsByTask := make(map[int][]TimerLogEntry)
+
+			for timerRows.Next() {
+				var log TimerLogEntry
+				var taskID int
+				var startTime, endTime sql.NullTime
+
+				err := timerRows.Scan(
+					&log.ID,
+					&taskID,
+					&startTime,
+					&endTime,
+					&log.ActualWorkSeconds,
+					&log.Status,
+				)
+				if err != nil {
+					continue
+				}
+
+				if startTime.Valid {
+					log.StartTime = startTime.Time.Format("15:04")
+				}
+				if endTime.Valid {
+					endTimeStr := endTime.Time.Format("15:04")
+					log.EndTime = &endTimeStr
+				}
+
+				timerLogsByTask[taskID] = append(timerLogsByTask[taskID], log)
+			}
+
+			// Assign timer logs to tasks
+			for i := range tasks {
+				if logs, ok := timerLogsByTask[tasks[i].ID]; ok {
+					tasks[i].TimerLogs = logs
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"date":  date,
+			"tasks": tasks,
+			"count": len(tasks),
+		},
 	})
 }

@@ -55,14 +55,14 @@ fun NoteCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = getNoteTypeIcon(note.workNoteType),
+                    imageVector = getNoteTypeIcon(note.workNoteType ?: WorkNoteType.MARKDOWN),
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
-                    tint = getPriorityColor(note.priority)
+                    tint = getPriorityColor(note.priority ?: WorkNotePriority.MEDIUM)
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (note.isPinned) {
+                    if (note.isPinned == true) {
                         Icon(
                             imageVector = Icons.Default.PushPin,
                             contentDescription = null,
@@ -70,7 +70,7 @@ fun NoteCard(
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
-                    if (note.isBookmarked) {
+                    if (note.isBookmarked == true) {
                         Icon(
                             imageVector = Icons.Default.Bookmark,
                             contentDescription = null,

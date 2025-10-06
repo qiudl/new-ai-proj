@@ -65,7 +65,9 @@ const CreateAIDocDialog: React.FC<CreateAIDocDialogProps> = ({
       setLoadingTask(true);
       api.get(`/tasks/${taskId}`)
         .then(response => {
-          const taskData = response.data.data || response.data;
+          // API响应拦截器已经自动解包，response就是任务数据
+          // 兼容处理：如果response有data属性则使用，否则直接使用response
+          const taskData = response?.data || response;
           setTask({
             id: taskData.id,
             title: taskData.title,

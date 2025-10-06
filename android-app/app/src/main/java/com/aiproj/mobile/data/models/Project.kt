@@ -72,18 +72,21 @@ data class Project(
 )
 
 /**
- * 项目列表响应
+ * 项目列表数据
  */
-data class ProjectListResponse(
+data class ProjectListData(
     @SerializedName("data")
     val data: List<Project>,
-
-    @SerializedName("total")
-    val total: Int,
 
     @SerializedName("pagination")
     val pagination: Pagination?
 ) {
     // 提供便捷属性以兼容旧代码
     val projects: List<Project> get() = data
+    val total: Int get() = pagination?.total ?: data.size
 }
+
+/**
+ * 项目列表响应 (包含 ApiResponse 包装)
+ */
+typealias ProjectListResponse = ApiResponse<ProjectListData>

@@ -56,7 +56,7 @@ fun NoteListItem(
                     .width(4.dp)
                     .height(56.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(getPriorityColor(note.priority))
+                    .background(getPriorityColor(note.priority ?: WorkNotePriority.MEDIUM))
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -69,7 +69,7 @@ fun NoteListItem(
                 ) {
                     // 笔记类型图标
                     Icon(
-                        imageVector = getNoteTypeIcon(note.workNoteType),
+                        imageVector = getNoteTypeIcon(note.workNoteType ?: WorkNoteType.GENERAL),
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary

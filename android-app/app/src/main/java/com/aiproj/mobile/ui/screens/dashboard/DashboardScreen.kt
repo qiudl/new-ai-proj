@@ -42,6 +42,11 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 fun DashboardScreen(
     onTaskClick: (Int) -> Unit,
     onProjectClick: (Int) -> Unit,
+    onTodayTasksClick: (date: String?, projectId: Int?) -> Unit = { _, _ -> },
+    onWorkTimeClick: (projectId: Int?) -> Unit = {},
+    onTodayWorkTimeClick: () -> Unit = {},
+    onActiveProjectsClick: () -> Unit = {},
+    onPendingTasksClick: (projectId: Int?) -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -102,7 +107,12 @@ fun DashboardScreen(
                                 todayTasksTotal = stats.todayTasksTotal,
                                 todayWorkTime = stats.todayWorkTime,
                                 activeProjects = stats.activeProjects,
-                                pendingTasks = stats.pendingTasks
+                                pendingTasks = stats.pendingTasks,
+                                onTodayTasksClick = { onTodayTasksClick(null, null) },
+                                onWorkTimeClick = { onWorkTimeClick(null) },
+                                onTodayWorkTimeClick = onTodayWorkTimeClick,
+                                onActiveProjectsClick = onActiveProjectsClick,
+                                onPendingTasksClick = { onPendingTasksClick(null) }
                             )
                         }
                     }
@@ -243,7 +253,12 @@ fun StatsSection(
     todayTasksTotal: Int,
     todayWorkTime: Long,
     activeProjects: Int,
-    pendingTasks: Int
+    pendingTasks: Int,
+    onTodayTasksClick: () -> Unit = {},
+    onWorkTimeClick: () -> Unit = {},
+    onTodayWorkTimeClick: () -> Unit = {},
+    onActiveProjectsClick: () -> Unit = {},
+    onPendingTasksClick: () -> Unit = {}
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -263,7 +278,8 @@ fun StatsSection(
                 icon = Icons.Default.CheckCircle,
                 title = "今日任务",
                 value = "$todayTasksCompleted/$todayTasksTotal",
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                onClick = onTodayTasksClick
             )
 
             StatCard(
@@ -271,7 +287,8 @@ fun StatsSection(
                 icon = Icons.Default.AccessTime,
                 title = "工作时长",
                 value = formatWorkTime(todayWorkTime),
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.secondary,
+                onClick = onTodayWorkTimeClick
             )
         }
 
@@ -284,7 +301,8 @@ fun StatsSection(
                 icon = Icons.Default.Folder,
                 title = "活跃项目",
                 value = activeProjects.toString(),
-                color = MaterialTheme.colorScheme.tertiary
+                color = MaterialTheme.colorScheme.tertiary,
+                onClick = onActiveProjectsClick
             )
 
             StatCard(
@@ -292,7 +310,8 @@ fun StatsSection(
                 icon = Icons.Default.Assignment,
                 title = "待办任务",
                 value = pendingTasks.toString(),
-                color = Color(0xFFFF9800)
+                color = Color(0xFFFF9800),
+                onClick = onPendingTasksClick
             )
         }
     }
@@ -307,10 +326,11 @@ fun StatCard(
     icon: ImageVector,
     title: String,
     value: String,
-    color: Color
+    color: Color,
+    onClick: () -> Unit = {}
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = color.copy(alpha = 0.1f)
         )

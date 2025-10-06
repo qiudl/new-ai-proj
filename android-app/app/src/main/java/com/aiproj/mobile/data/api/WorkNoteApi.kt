@@ -27,18 +27,18 @@ interface WorkNoteApi {
     @GET("work-notes/{id}")
     suspend fun getWorkNote(
         @Path("id") id: Int
-    ): Response<WorkNote>
+    ): Response<WorkNoteResponse>
 
     @POST("work-notes")
     suspend fun createWorkNote(
         @Body request: CreateWorkNoteRequest
-    ): Response<WorkNote>
+    ): Response<WorkNoteResponse>
 
     @PUT("work-notes/{id}")
     suspend fun updateWorkNote(
         @Path("id") id: Int,
         @Body request: UpdateWorkNoteRequest
-    ): Response<WorkNote>
+    ): Response<WorkNoteResponse>
 
     @DELETE("work-notes/{id}")
     suspend fun deleteWorkNote(

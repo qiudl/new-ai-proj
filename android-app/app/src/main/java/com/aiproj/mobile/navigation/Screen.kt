@@ -47,6 +47,43 @@ sealed class Screen(val route: String) {
     // 数据统计
     object Analytics : Screen("analytics")
 
+    // ========== Dashboard 详情页 ==========
+
+    // 今日任务详情
+    object TodayTasksDetail : Screen("today_tasks_detail?date={date}&projectId={projectId}") {
+        fun createRoute(date: String? = null, projectId: Int? = null): String {
+            val params = buildList {
+                date?.let { add("date=$it") }
+                projectId?.let { add("projectId=$it") }
+            }.joinToString("&")
+            return if (params.isEmpty()) "today_tasks_detail" else "today_tasks_detail?$params"
+        }
+    }
+
+    // 工作时长详情
+    object WorkTimeDetail : Screen("work_time_detail?projectId={projectId}") {
+        fun createRoute(projectId: Int? = null): String {
+            return projectId?.let { "work_time_detail?projectId=$it" } ?: "work_time_detail"
+        }
+    }
+
+    // 今日工作时长详情
+    object TodayWorkTimeDetail : Screen("today_work_time_detail?date={date}") {
+        fun createRoute(date: String? = null): String {
+            return date?.let { "today_work_time_detail?date=$it" } ?: "today_work_time_detail"
+        }
+    }
+
+    // 活跃项目详情
+    object ActiveProjectsDetail : Screen("active_projects_detail")
+
+    // 待办任务详情
+    object PendingTasksDetail : Screen("pending_tasks_detail?projectId={projectId}") {
+        fun createRoute(projectId: Int? = null): String {
+            return projectId?.let { "pending_tasks_detail?projectId=$it" } ?: "pending_tasks_detail"
+        }
+    }
+
     // 任务状态详情
     object TaskStatusDetail : Screen("task_status_detail/{status}/{startDate}/{endDate}/{projectId}") {
         fun createRoute(

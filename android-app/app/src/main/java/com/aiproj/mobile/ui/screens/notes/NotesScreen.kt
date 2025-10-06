@@ -6,6 +6,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -26,7 +30,7 @@ import kotlinx.coroutines.launch
  *
  * 支持列表/网格视图切换、搜索、筛选、文件夹导航等
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun NotesScreen(
     onNoteClick: (Int) -> Unit,
@@ -43,6 +47,7 @@ fun NotesScreen(
     val selectedPriority by viewModel.selectedPriority.collectAsState()
     val isPinnedOnly by viewModel.isPinnedOnly.collectAsState()
     val isBookmarkedOnly by viewModel.isBookmarkedOnly.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
 
     // 本地UI状态
     var expandedFolderIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -53,6 +58,12 @@ fun NotesScreen(
 
     var showFilterSheet by remember { mutableStateOf(false) }
     var selectedNote by remember { mutableStateOf<WorkNote?>(null) }
+
+    // Pull-to-refresh state
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = { viewModel.refresh() }
+    )
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -132,39 +143,53 @@ fun NotesScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
-                // 工作笔记列表
-                when (uiState) {
-                    is NotesViewModel.UiState.Loading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
+                // 工作笔记列表 with pull-to-refresh
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when (uiState) {
+                        is NotesViewModel.UiState.Loading -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
                         }
-                    }
 
-                    is NotesViewModel.UiState.Error -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = (uiState as NotesViewModel.UiState.Error).message,
-                                color = MaterialTheme.colorScheme.error
-                            )
+                        is NotesViewModel.UiState.Error -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = (uiState as NotesViewModel.UiState.Error).message,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
-                    }
 
-                    is NotesViewModel.UiState.Success -> {
-                        if (notes.isEmpty()) {
-                            EmptyNotesView(onCreateNote = onCreateNote)
-                        } else {
-                            ShowNotesList(
-                                notes = notes,
-                                isGridView = isGridView,
-                                onNoteClick = onNoteClick,
-                                onNoteLongClick = { selectedNote = it }
-                            )
+                        is NotesViewModel.UiState.Success -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pullRefresh(pullRefreshState)
+                            ) {
+                                if (notes.isEmpty()) {
+                                    EmptyNotesView(onCreateNote = onCreateNote)
+                                } else {
+                                    ShowNotesList(
+                                        notes = notes,
+                                        isGridView = isGridView,
+                                        onNoteClick = onNoteClick,
+                                        onNoteLongClick = { selectedNote = it }
+                                    )
+                                }
+
+                                PullRefreshIndicator(
+                                    refreshing = isRefreshing,
+                                    state = pullRefreshState,
+                                    modifier = Modifier.align(Alignment.TopCenter)
+                                )
+                            }
                         }
                     }
                 }

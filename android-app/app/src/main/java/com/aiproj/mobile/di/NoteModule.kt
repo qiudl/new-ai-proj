@@ -17,17 +17,6 @@ object NoteModule {
 
     @Provides
     @Singleton
-    fun provideJson(): Json {
-        return Json {
-            ignoreUnknownKeys = true
-            coerceInputValues = true
-            isLenient = true
-            encodeDefaults = true
-        }
-    }
-
-    @Provides
-    @Singleton
     fun provideWorkNoteApi(retrofit: Retrofit): WorkNoteApi {
         return retrofit.create(WorkNoteApi::class.java)
     }

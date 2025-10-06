@@ -75,7 +75,8 @@ class WorkNoteRepository @Inject constructor(
         return try {
             val response = api.getWorkNote(id)
             if (response.isSuccessful && response.body() != null) {
-                val note = response.body()!!
+                val noteResponse = response.body()!!
+                val note = noteResponse.data
                 cacheNote(note)
                 Result.success(note)
             } else {
@@ -96,7 +97,8 @@ class WorkNoteRepository @Inject constructor(
         return try {
             val response = api.createWorkNote(request)
             if (response.isSuccessful && response.body() != null) {
-                val note = response.body()!!
+                val noteResponse = response.body()!!
+                val note = noteResponse.data
                 cacheNote(note)
                 Result.success(note)
             } else {
@@ -111,7 +113,8 @@ class WorkNoteRepository @Inject constructor(
         return try {
             val response = api.updateWorkNote(id, request)
             if (response.isSuccessful && response.body() != null) {
-                val note = response.body()!!
+                val noteResponse = response.body()!!
+                val note = noteResponse.data
                 cacheNote(note)
                 Result.success(note)
             } else {

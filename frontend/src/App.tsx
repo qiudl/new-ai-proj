@@ -115,6 +115,8 @@ const VersionHistoryPage = React.lazy(() => import('./pages/VersionHistoryPage')
 const VersionHistoryDemoPage = React.lazy(() => import('./pages/VersionHistoryDemoPage'));
 const EnhancedTaskHeaderCardDemo = React.lazy(() => import('./pages/TaskDetail/demo/EnhancedTaskHeaderCardDemo'));
 const TaskDetailComponentsDemo = React.lazy(() => import('./pages/TaskDetail/demo/TaskDetailComponentsDemo'));
+const TodayTasksDashboard = React.lazy(() => import('./pages/TodayTasksDashboard'));
+const TodayTasksDetailPage = React.lazy(() => import('./pages/TodayTasksDetailPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -202,6 +204,18 @@ const AppContent: React.FC = () => {
                   </PermissionRoute>
                 } />
 
+                {/* 今日任务路由 */}
+                <Route path="/today-tasks" element={
+                  <PermissionRoute permission={TASK_PERMISSIONS.READ}>
+                    <TodayTasksDashboard />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/today-tasks/detail" element={
+                  <PermissionRoute permission={TASK_PERMISSIONS.READ}>
+                    <TodayTasksDetailPage />
+                  </PermissionRoute>
+                } />
 
                 <Route path="/projects" element={
                   <PermissionRoute permission={PROJECT_PERMISSIONS.READ}>

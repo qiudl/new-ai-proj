@@ -88,7 +88,7 @@ class DashboardRepository @Inject constructor(
                 pendingTasks = 0
             )
             val priorityTasks = priorityTasksDeferred.await().getOrNull()?.data?.tasks ?: emptyList()
-            val recentProjects = recentProjectsDeferred.await().getOrNull()?.projects ?: emptyList()
+            val recentProjects = recentProjectsDeferred.await().getOrNull()?.data?.projects ?: emptyList()
             val currentTimer = currentTimerDeferred.await().getOrNull()
             val timeStats = timeStatsDeferred.await().getOrNull()
             val notifications = notificationsDeferred.await().getOrNull() ?: emptyList()

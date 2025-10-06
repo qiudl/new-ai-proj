@@ -26,6 +26,7 @@ class TaskEditViewModel @Inject constructor(
     val uiState: StateFlow<TaskEditUiState> = _uiState.asStateFlow()
 
     private var currentTaskId: Int? = null
+    private var originalProjectId: Int? = null
 
     /**
      * 加载任务(编辑模式)
@@ -37,6 +38,9 @@ class TaskEditViewModel @Inject constructor(
 
             val result = taskRepository.getTaskById(taskId)
             result.onSuccess { task ->
+                // 保存原始projectId
+                originalProjectId = task.projectId
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -44,6 +48,7 @@ class TaskEditViewModel @Inject constructor(
                         description = task.description ?: "",
                         status = task.status ?: TaskStatus.TODO,
                         priority = task.priority,
+                        projectId = task.projectId,
                         dueDate = task.dueDate
                     )
                 }
@@ -100,6 +105,13 @@ class TaskEditViewModel @Inject constructor(
     }
 
     /**
+     * 更新项目ID
+     */
+    fun updateProjectId(projectId: Int?) {
+        _uiState.update { it.copy(projectId = projectId) }
+    }
+
+    /**
      * 切换状态下拉菜单
      */
     fun toggleStatusDropdown() {
@@ -119,9 +131,17 @@ class TaskEditViewModel @Inject constructor(
     fun saveTask(onSuccess: () -> Unit) {
         val state = _uiState.value
 
-        // 验证
+        // 验证标题
         if (state.title.isBlank()) {
             _uiState.update { it.copy(titleError = "标题不能为空") }
+            return
+        }
+
+        // 验证并获取projectId
+        val projectIdToUse = state.projectId ?: originalProjectId
+
+        if (projectIdToUse == null || projectIdToUse <= 0) {
+            _uiState.update { it.copy(error = "项目ID无效，无法保存任务") }
             return
         }
 
@@ -133,6 +153,7 @@ class TaskEditViewModel @Inject constructor(
                 description = state.description.ifBlank { null },
                 status = state.status,
                 priority = state.priority,
+                projectId = projectIdToUse,
                 dueDate = state.dueDate
             )
 
@@ -181,6 +202,7 @@ data class TaskEditUiState(
     val description: String = "",
     val status: TaskStatus = TaskStatus.TODO,
     val priority: TaskPriority? = null,
+    val projectId: Int? = null,
     val dueDate: String? = null,
     val titleError: String? = null,
     val showStatusDropdown: Boolean = false,

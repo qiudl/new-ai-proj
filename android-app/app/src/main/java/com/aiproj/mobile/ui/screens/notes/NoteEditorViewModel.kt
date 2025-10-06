@@ -109,12 +109,12 @@ class NoteEditorViewModel @Inject constructor(
                     originalNote = note
                     _title.value = note.title
                     _content.value = note.content ?: ""
-                    _noteType.value = note.workNoteType
-                    _priority.value = note.priority
-                    _visibility.value = note.visibility
+                    _noteType.value = note.workNoteType ?: WorkNoteType.MARKDOWN
+                    _priority.value = note.priority ?: WorkNotePriority.MEDIUM
+                    _visibility.value = note.visibility ?: WorkNoteVisibility.PRIVATE
                     _tags.value = note.tags ?: emptyList()
-                    _isPinned.value = note.isPinned
-                    _isBookmarked.value = note.isBookmarked
+                    _isPinned.value = note.isPinned ?: false
+                    _isBookmarked.value = note.isBookmarked ?: false
 
                     // 加载文件夹信息
                     note.workNoteFolderId?.let { workNoteFolderId ->

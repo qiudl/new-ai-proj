@@ -126,7 +126,7 @@ class NoteDetailViewModel @Inject constructor(
         val note = currentNote ?: return
 
         val request = UpdateWorkNoteRequest(
-            isPinned = !note.isPinned
+            isPinned = !(note.isPinned ?: false)
         )
 
         repository.updateNote(note.id, request).fold(
@@ -147,7 +147,7 @@ class NoteDetailViewModel @Inject constructor(
         val note = currentNote ?: return
 
         val request = UpdateWorkNoteRequest(
-            isBookmarked = !note.isBookmarked
+            isBookmarked = !(note.isBookmarked ?: false)
         )
 
         repository.updateNote(note.id, request).fold(

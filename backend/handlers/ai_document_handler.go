@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"ai-project-backend/cache"
 	"ai-project-backend/database"
 	"ai-project-backend/services"
 )
@@ -22,11 +23,11 @@ type AIDocumentHandler struct {
 }
 
 // NewAIDocumentHandler 创建AI文档处理器
-func NewAIDocumentHandler(db database.DB) *AIDocumentHandler {
+func NewAIDocumentHandler(db database.DB, cacheService *cache.AICacheService) *AIDocumentHandler {
 	sqlDB := db.GetDB().(*sql.DB)
 	aiGenerateService := services.NewAIGenerateService(sqlDB)
 	promptRepo := database.NewPromptRepository(sqlDB)
-	docGenService := services.NewAIDocumentGenerationService(sqlDB, aiGenerateService, promptRepo)
+	docGenService := services.NewAIDocumentGenerationService(sqlDB, aiGenerateService, promptRepo, cacheService)
 
 	return &AIDocumentHandler{
 		db:                db,
@@ -286,28 +287,42 @@ func (h *AIDocumentHandler) SaveDocumentToTask(c *gin.Context) {
 		}
 	}
 
-	// 保存文档到数据库
-	insertQuery := `
+	// 开始事务
+	tx, err := h.db.GetDB().(*sql.DB).Begin()
+	if err != nil {
+		log.Printf("[AIDocumentHandler] Begin transaction error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "开始事务失败",
+			"error":   err.Error(),
+		})
+		return
+	}
+	defer tx.Rollback()
+
+	// 1. 保存文档到documents表
+	insertDocQuery := `
 		INSERT INTO documents (
-			title, content, type, project_id, task_id,
-			owner_id, created_by, status, visibility
+			title, content, type, project_id,
+			owner_id, created_by, status, visibility,
+			generated_by_ai
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at
 	`
 
 	var docID int
 	var createdAt time.Time
-	err := h.db.GetDB().(*sql.DB).QueryRow(
-		insertQuery,
+	err = tx.QueryRow(
+		insertDocQuery,
 		req.Title,
 		req.Content,
 		"markdown",
 		projectID,
-		req.TaskID,
 		userIDInt,
 		userIDInt,
 		"published",
 		"team",
+		true, // generated_by_ai
 	).Scan(&docID, &createdAt)
 
 	if err != nil {
@@ -315,6 +330,35 @@ func (h *AIDocumentHandler) SaveDocumentToTask(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "保存文档失败",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// 2. 在task_documents关联表中创建记录
+	insertRelQuery := `
+		INSERT INTO task_documents (
+			task_id, document_id, relationship_type, created_by
+		) VALUES ($1, $2, $3, $4)
+	`
+
+	_, err = tx.Exec(insertRelQuery, req.TaskID, docID, "attachment", userIDInt)
+	if err != nil {
+		log.Printf("[AIDocumentHandler] Create task-document relationship error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "关联文档到任务失败",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// 提交事务
+	if err = tx.Commit(); err != nil {
+		log.Printf("[AIDocumentHandler] Commit transaction error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "提交事务失败",
 			"error":   err.Error(),
 		})
 		return
@@ -329,6 +373,6 @@ func (h *AIDocumentHandler) SaveDocumentToTask(c *gin.Context) {
 			"task_id":     req.TaskID,
 			"created_at":  createdAt,
 		},
-		"message": fmt.Sprintf("文档已保存（ID: %d）", docID),
+		"message": fmt.Sprintf("文档已保存并关联到任务（文档ID: %d）", docID),
 	})
 }

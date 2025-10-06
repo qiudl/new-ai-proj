@@ -1,5 +1,6 @@
 package com.aiproj.mobile.ui.screens.tasks
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +25,32 @@ fun TaskFormScreen(
     viewModel: TaskFormViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val projects by viewModel.projects.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // 显示错误消息
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Long,
+                actionLabel = "关闭"
+            )
+            viewModel.clearError()
+        }
+    }
+
+    // 显示成功消息并返回
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+            kotlinx.coroutines.delay(500)
+            onNavigateBack()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -36,20 +63,7 @@ fun TaskFormScreen(
                 }
             )
         },
-        snackbarHost = {
-            if (uiState.error != null) {
-                Snackbar(
-                    modifier = Modifier.padding(16.dp),
-                    action = {
-                        TextButton(onClick = { viewModel.clearError() }) {
-                            Text("关闭")
-                        }
-                    }
-                ) {
-                    Text(uiState.error!!)
-                }
-            }
-        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             Surface(tonalElevation = 3.dp) {
                 Row(
@@ -87,28 +101,66 @@ fun TaskFormScreen(
             }
         }
     ) { paddingValues ->
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            if (uiState.isLoading) {
+                // 加载状态
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            text = "加载中...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                TaskFormContent(
+                    uiState = uiState,
+                    projects = projects,
+                    onTitleChanged = viewModel::onTitleChanged,
+                    onDescriptionChanged = viewModel::onDescriptionChanged,
+                    onStatusChanged = viewModel::onStatusChanged,
+                    onPriorityChanged = viewModel::onPriorityChanged,
+                    onProjectIdChanged = viewModel::onProjectIdChanged,
+                    onDueDateChanged = viewModel::onDueDateChanged,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
-        } else {
-            TaskFormContent(
-                uiState = uiState,
-                onTitleChanged = viewModel::onTitleChanged,
-                onDescriptionChanged = viewModel::onDescriptionChanged,
-                onStatusChanged = viewModel::onStatusChanged,
-                onPriorityChanged = viewModel::onPriorityChanged,
-                onProjectIdChanged = viewModel::onProjectIdChanged,
-                onDueDateChanged = viewModel::onDueDateChanged,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            )
+
+            // 保存中遮罩层
+            if (uiState.isSaving) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            text = if (viewModel.isEditMode) "保存中..." else "创建中...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -120,6 +172,7 @@ fun TaskFormScreen(
 @Composable
 fun TaskFormContent(
     uiState: TaskFormUiState,
+    projects: List<com.aiproj.mobile.data.models.Project>,
     onTitleChanged: (String) -> Unit,
     onDescriptionChanged: (String) -> Unit,
     onStatusChanged: (TaskStatus) -> Unit,
@@ -234,15 +287,86 @@ fun TaskFormContent(
             }
         }
 
-        // 项目ID
-        OutlinedTextField(
-            value = uiState.projectId,
-            onValueChange = onProjectIdChanged,
-            label = { Text("项目ID（可选）") },
-            placeholder = { Text("输入项目ID...") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
+        // 项目选择器
+        var projectExpanded by remember { mutableStateOf(false) }
+        val selectedProject = projects.find { it.id.toString() == uiState.projectId }
+
+        ExposedDropdownMenuBox(
+            expanded = projectExpanded,
+            onExpandedChange = { projectExpanded = it }
+        ) {
+            OutlinedTextField(
+                value = selectedProject?.name ?: if (uiState.projectId.isBlank()) "请选择项目" else "项目 #${uiState.projectId}",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("所属项目 *") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = projectExpanded)
+                },
+                isError = uiState.projectIdError != null,
+                supportingText = {
+                    if (uiState.projectIdError != null) {
+                        Text(
+                            text = uiState.projectIdError!!,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor()
+            )
+
+            ExposedDropdownMenu(
+                expanded = projectExpanded,
+                onDismissRequest = { projectExpanded = false }
+            ) {
+                if (projects.isEmpty()) {
+                    DropdownMenuItem(
+                        text = { Text("暂无项目") },
+                        onClick = { },
+                        enabled = false
+                    )
+                } else {
+                    projects.forEach { project ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(project.name)
+                                    project.description?.let {
+                                        Text(
+                                            text = it,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                onProjectIdChanged(project.id.toString())
+                                projectExpanded = false
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (project.id.toString() == uiState.projectId) {
+                                        Icons.Default.CheckCircle
+                                    } else {
+                                        Icons.Default.Circle
+                                    },
+                                    contentDescription = null,
+                                    tint = if (project.id.toString() == uiState.projectId) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        }
 
         // 截止日期
         OutlinedTextField(

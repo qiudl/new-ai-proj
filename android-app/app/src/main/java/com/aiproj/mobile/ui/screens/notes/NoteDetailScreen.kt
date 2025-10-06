@@ -69,7 +69,7 @@ fun NoteDetailScreen(
                             Icon(
                                 imageVector = Icons.Default.PushPin,
                                 contentDescription = "置顶",
-                                tint = if (note.isPinned) {
+                                tint = if (note.isPinned == true) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant
@@ -86,13 +86,13 @@ fun NoteDetailScreen(
                             }
                         ) {
                             Icon(
-                                imageVector = if (note.isBookmarked) {
+                                imageVector = if (note.isBookmarked == true) {
                                     Icons.Default.Bookmark
                                 } else {
                                     Icons.Default.BookmarkBorder
                                 },
                                 contentDescription = "收藏",
-                                tint = if (note.isBookmarked) {
+                                tint = if (note.isBookmarked == true) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant

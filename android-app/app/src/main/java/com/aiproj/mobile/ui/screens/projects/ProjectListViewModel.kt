@@ -42,8 +42,8 @@ class ProjectListViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            projects = response.projects,
-                            totalCount = response.total,
+                            projects = response.data?.projects ?: emptyList(),
+                            totalCount = response.data?.total ?: 0,
                             error = null
                         )
                     }

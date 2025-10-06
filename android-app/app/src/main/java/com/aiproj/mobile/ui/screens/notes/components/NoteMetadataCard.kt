@@ -53,7 +53,7 @@ fun NoteMetadataCard(
             MetadataRow(
                 icon = Icons.Default.Category,
                 label = "类型",
-                value = when (note.workNoteType) {
+                value = when (note.workNoteType ?: WorkNoteType.GENERAL) {
                     WorkNoteType.GENERAL -> "通用"
                     WorkNoteType.MARKDOWN -> "Markdown"
                     WorkNoteType.TEXT -> "纯文本"
@@ -67,13 +67,13 @@ fun NoteMetadataCard(
             MetadataRow(
                 icon = Icons.Default.PriorityHigh,
                 label = "优先级",
-                value = when (note.priority) {
+                value = when (note.priority ?: WorkNotePriority.MEDIUM) {
                     WorkNotePriority.CRITICAL -> "紧急"
                     WorkNotePriority.HIGH -> "高"
                     WorkNotePriority.MEDIUM -> "中"
                     WorkNotePriority.LOW -> "低"
                 },
-                valueColor = when (note.priority) {
+                valueColor = when (note.priority ?: WorkNotePriority.MEDIUM) {
                     WorkNotePriority.CRITICAL -> MaterialTheme.colorScheme.error
                     WorkNotePriority.HIGH -> MaterialTheme.colorScheme.tertiary
                     WorkNotePriority.MEDIUM -> MaterialTheme.colorScheme.primary
@@ -82,13 +82,13 @@ fun NoteMetadataCard(
             )
 
             MetadataRow(
-                icon = when (note.visibility) {
+                icon = when (note.visibility ?: WorkNoteVisibility.PRIVATE) {
                     WorkNoteVisibility.PRIVATE -> Icons.Default.Lock
                     WorkNoteVisibility.TEAM -> Icons.Default.Group
                     WorkNoteVisibility.PUBLIC -> Icons.Default.Public
                 },
                 label = "可见性",
-                value = when (note.visibility) {
+                value = when (note.visibility ?: WorkNoteVisibility.PRIVATE) {
                     WorkNoteVisibility.PRIVATE -> "私有"
                     WorkNoteVisibility.TEAM -> "团队"
                     WorkNoteVisibility.PUBLIC -> "公开"
@@ -98,7 +98,7 @@ fun NoteMetadataCard(
             MetadataRow(
                 icon = Icons.Default.Info,
                 label = "状态",
-                value = when (note.status) {
+                value = when (note.status ?: WorkNoteStatus.DRAFT) {
                     WorkNoteStatus.DRAFT -> "草稿"
                     WorkNoteStatus.PUBLISHED -> "已发布"
                     WorkNoteStatus.ARCHIVED -> "已归档"

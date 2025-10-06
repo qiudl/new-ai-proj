@@ -3,9 +3,11 @@ package com.aiproj.mobile.ui.screens.tasks
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aiproj.mobile.data.models.Project
 import com.aiproj.mobile.data.models.TaskPriority
 import com.aiproj.mobile.data.models.TaskRequest
 import com.aiproj.mobile.data.models.TaskStatus
+import com.aiproj.mobile.data.repository.ProjectRepository
 import com.aiproj.mobile.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,18 +23,45 @@ import javax.inject.Inject
 @HiltViewModel
 class TaskFormViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
+    private val projectRepository: ProjectRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val taskId: Int? = savedStateHandle["taskId"]
+    private val taskId: Int? = savedStateHandle.get<Int>("taskId")?.takeIf { it > 0 }
     val isEditMode: Boolean = taskId != null
 
     private val _uiState = MutableStateFlow(TaskFormUiState())
     val uiState: StateFlow<TaskFormUiState> = _uiState.asStateFlow()
 
+    private val _projects = MutableStateFlow<List<Project>>(emptyList())
+    val projects: StateFlow<List<Project>> = _projects.asStateFlow()
+
     init {
+        loadProjects()
         if (isEditMode && taskId != null) {
             loadTask(taskId)
+        }
+    }
+
+    /**
+     * 加载项目列表
+     */
+    private fun loadProjects() {
+        viewModelScope.launch {
+            projectRepository.getProjects(page = 1, limit = 100).collect { result ->
+                result.onSuccess { response ->
+                    _projects.value = response.data?.projects ?: emptyList()
+
+                    // 如果只有一个项目，自动选中
+                    if (_projects.value.size == 1 && _uiState.value.projectId.isBlank()) {
+                        _uiState.update { it.copy(projectId = _projects.value.first().id.toString()) }
+                    }
+                }
+                result.onFailure { error ->
+                    // 加载失败不影响主流程，只记录错误
+                    android.util.Log.e("TaskFormViewModel", "加载项目列表失败", error)
+                }
+            }
         }
     }
 
@@ -104,6 +133,25 @@ class TaskFormViewModel @Inject constructor(
      */
     fun onProjectIdChanged(projectId: String) {
         _uiState.update { it.copy(projectId = projectId) }
+        // 实时验证
+        validateProjectId()
+    }
+
+    /**
+     * 验证项目ID
+     */
+    private fun validateProjectId(): Boolean {
+        val state = _uiState.value
+        val projectIdInt = state.projectId.toIntOrNull()
+
+        val error = when {
+            state.projectId.isBlank() -> "请选择项目"
+            projectIdInt == null || projectIdInt <= 0 -> "项目ID无效"
+            else -> null
+        }
+
+        _uiState.update { it.copy(projectIdError = error) }
+        return error == null
     }
 
     /**
@@ -119,9 +167,15 @@ class TaskFormViewModel @Inject constructor(
     fun saveTask(onSuccess: () -> Unit) {
         val state = _uiState.value
 
-        // 验证
+        // 验证标题
         if (state.title.isBlank()) {
             _uiState.update { it.copy(error = "请输入任务标题") }
+            return
+        }
+
+        // 验证项目ID
+        if (!validateProjectId()) {
+            _uiState.update { it.copy(error = "请选择有效的项目") }
             return
         }
 
@@ -146,15 +200,32 @@ class TaskFormViewModel @Inject constructor(
             }
 
             result.onSuccess {
-                _uiState.update { it.copy(isSaving = false) }
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        successMessage = if (isEditMode) "任务更新成功" else "任务创建成功"
+                    )
+                }
                 onSuccess()
             }
 
             result.onFailure { error ->
+                val errorMessage = when {
+                    error is java.net.UnknownHostException -> "网络连接失败，请检查网络设置"
+                    error is java.net.SocketTimeoutException -> "网络请求超时，请稍后重试"
+                    error.message?.contains("400") == true -> "请求参数错误，请检查输入内容"
+                    error.message?.contains("401") == true -> "登录已过期，请重新登录"
+                    error.message?.contains("403") == true -> "没有权限执行此操作"
+                    error.message?.contains("404") == true -> "项目不存在，请选择其他项目"
+                    error.message?.contains("500") == true -> "服务器错误，请稍后重试"
+                    error.message?.contains("project_id") == true -> "项目ID无效，请重新选择项目"
+                    else -> error.message ?: if (isEditMode) "更新任务失败" else "创建任务失败"
+                }
+
                 _uiState.update {
                     it.copy(
                         isSaving = false,
-                        error = error.message ?: "保存失败"
+                        error = errorMessage
                     )
                 }
             }
@@ -180,6 +251,8 @@ data class TaskFormUiState(
     val status: TaskStatus = TaskStatus.TODO,
     val priority: TaskPriority? = null,
     val projectId: String = "",
+    val projectIdError: String? = null,
     val dueDate: String = "",
-    val error: String? = null
+    val error: String? = null,
+    val successMessage: String? = null
 )
