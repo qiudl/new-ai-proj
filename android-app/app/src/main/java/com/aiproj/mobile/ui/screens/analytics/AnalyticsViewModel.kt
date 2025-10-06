@@ -39,7 +39,9 @@ class AnalyticsViewModel @Inject constructor(
                 ).toInt() + 1
 
                 // 1. 获取工作时长趋势数据
-                val timeStatsResult = analyticsRepository.getTimeStats(days)
+                // Bug修复: 时间段小于7天时，始终显示最近7天的工作时长趋势
+                val trendDays = if (days < 7) 7 else days
+                val timeStatsResult = analyticsRepository.getTimeStats(trendDays)
 
                 // 2. 获取周统计数据
                 val weeklyStatsResult = analyticsRepository.getWeeklyStats(startDate, endDate)
@@ -72,17 +74,21 @@ class AnalyticsViewModel @Inject constructor(
                     val taskStats = weeklyStats.task_stats
                     val total = taskStats.todo + taskStats.in_progress + taskStats.completed
 
-                    // 如果总数为0，使用daily_stats计算的值
-                    val actualTotal = if (total > 0) total else totalCreated
-                    val actualCompleted = if (taskStats.completed > 0) taskStats.completed else totalCompleted
+                    // Bug修复: 统一使用task_stats作为数据源，避免completed和total来自不同数据源导致完成率>100%
+                    // 只有当task_stats全为0时才使用daily_stats作为fallback
+                    val useTaskStats = total > 0
+                    val actualTotal = if (useTaskStats) total else totalCreated
+                    val actualCompleted = if (useTaskStats) taskStats.completed else totalCompleted
+                    val actualInProgress = if (useTaskStats) taskStats.in_progress else 0
+                    val actualTodo = if (useTaskStats) taskStats.todo else 0
 
                     val taskStatusDistribution = TaskStatusDistribution(
                         completed = actualCompleted,
                         completedPercentage = if (actualTotal > 0) actualCompleted.toFloat() / actualTotal else 0f,
-                        inProgress = taskStats.in_progress,
-                        inProgressPercentage = if (actualTotal > 0) taskStats.in_progress.toFloat() / actualTotal else 0f,
-                        todo = taskStats.todo,
-                        todoPercentage = if (actualTotal > 0) taskStats.todo.toFloat() / actualTotal else 0f
+                        inProgress = actualInProgress,
+                        inProgressPercentage = if (actualTotal > 0) actualInProgress.toFloat() / actualTotal else 0f,
+                        todo = actualTodo,
+                        todoPercentage = if (actualTotal > 0) actualTodo.toFloat() / actualTotal else 0f
                     )
 
                     // 转换项目时间分布（从任务分布推算）
@@ -91,8 +97,10 @@ class AnalyticsViewModel @Inject constructor(
                         Color(0xFFFFD54F), Color(0xFFBA68C8), Color(0xFF4DD0E1)
                     )
                     val projectStats = weeklyStats.project_stats ?: emptyList()
-                    val projectDistribution = projectStats.take(6).mapIndexed { index, project ->
-                        val totalTaskCount = projectStats.sumOf { it.task_count }
+                    // Bug修复: 过滤掉task_count为0的项目，避免显示空数据
+                    val validProjectStats = projectStats.filter { it.task_count > 0 }
+                    val projectDistribution = validProjectStats.take(6).mapIndexed { index, project ->
+                        val totalTaskCount = validProjectStats.sumOf { it.task_count }
                         val percentage = if (totalTaskCount > 0) {
                             project.task_count.toFloat() / totalTaskCount
                         } else 0f
@@ -109,19 +117,9 @@ class AnalyticsViewModel @Inject constructor(
                     // 计算连续工作天数（从daily stats中计算）
                     val consecutiveDays = calculateConsecutiveDays((timeStats.dailyStats ?: emptyList()).map { it.hours })
 
-                    // 如果summary数据为0，使用计算值
-                    val summaryTotal = if (weeklyStats.summary.total_tasks > 0) {
-                        weeklyStats.summary.total_tasks
-                    } else {
-                        actualTotal
-                    }
-
-                    val summaryCompleted = if (weeklyStats.summary.completed_tasks > 0) {
-                        weeklyStats.summary.completed_tasks
-                    } else {
-                        actualCompleted
-                    }
-
+                    // Bug修复: summary使用与task_stats相同的数据源，确保一致性
+                    val summaryTotal = actualTotal
+                    val summaryCompleted = actualCompleted
                     val summaryRate = if (summaryTotal > 0) {
                         summaryCompleted.toFloat() / summaryTotal
                     } else {
