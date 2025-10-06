@@ -40,7 +40,9 @@ class AnalyticsViewModel @Inject constructor(
 
                 // 1. 确定时间粒度和获取工作时长趋势数据
                 val granularity = determineTimeGranularity(days)
-                val timeStatsResult = analyticsRepository.getTimeStats(days)
+                // Bug修复: 时间段小于7天时，始终显示最近7天的工作时长趋势
+                val trendDays = if (days < 7) 7 else days
+                val timeStatsResult = analyticsRepository.getTimeStats(trendDays)
 
                 // 2. 获取周统计数据
                 val weeklyStatsResult = analyticsRepository.getWeeklyStats(startDate, endDate)
@@ -58,7 +60,9 @@ class AnalyticsViewModel @Inject constructor(
                     val workTimeTrend = processWorkTimeTrend(
                         dailyStats = timeStats.dailyStats ?: emptyList(),
                         granularity = granularity,
-                        days = days
+                        days = days,
+                        startDate = startDate,
+                        endDate = endDate
                     )
 
                     // 计算任务状态分布
@@ -294,14 +298,18 @@ class AnalyticsViewModel @Inject constructor(
     private fun processWorkTimeTrend(
         dailyStats: List<com.aiproj.mobile.data.api.DailyTimeStat>,
         granularity: TimeGranularity,
-        days: Int
+        days: Int,
+        startDate: String,
+        endDate: String
     ): List<DailyWorkTime> {
         return when (granularity) {
             TimeGranularity.HOUR -> {
-                // 单日按小时显示：将日总时长均分到24小时（模拟数据）
-                val totalHours = dailyStats.firstOrNull()?.hours ?: 0f
+                // 单日按小时显示：使用用户选择的日期（endDate）而不是dailyStats第一条
+                // 从dailyStats中找到用户选择日期的数据
+                val selectedDayData = dailyStats.find { it.date == endDate }
+                val totalHours = selectedDayData?.hours ?: 0f
                 val hourlyHours = totalHours / 8 // 假设工作8小时
-                val selectedDate = dailyStats.firstOrNull()?.date ?: ""
+                val selectedDate = endDate  // 使用用户选择的日期
                 val today = LocalDate.now().toString()
                 val isToday = selectedDate == today
 
@@ -320,7 +328,7 @@ class AnalyticsViewModel @Inject constructor(
                         date = selectedDate,
                         dayLabel = String.format("%02d:00", hour),
                         hours = if (isWorkHour) hourlyHours else 0f,
-                        taskCount = if (isWorkHour) dailyStats.firstOrNull()?.taskCount?.div(8) ?: 0 else 0,
+                        taskCount = if (isWorkHour) selectedDayData?.taskCount?.div(8) ?: 0 else 0,
                         detailInfo = if (isWorkHour) "工作时段" else "非工作时段"
                     )
                 }

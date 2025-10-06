@@ -9,20 +9,70 @@ import (
 	"strings"
 
 	"ai-project-backend/models"
+	"ai-project-backend/utils"
 )
 
 // AIGenerateService AI生成服务
 type AIGenerateService struct {
-	db              *sql.DB
-	anthropicClient *AnthropicClient
+	db                *sql.DB
+	anthropicClient   *AnthropicClient
+	encryptionService *utils.EncryptionService
 }
 
 // NewAIGenerateService 创建AI生成服务
 func NewAIGenerateService(db *sql.DB) *AIGenerateService {
-	return &AIGenerateService{
+	service := &AIGenerateService{
 		db:              db,
 		anthropicClient: NewAnthropicClient(),
 	}
+
+	// 初始化加密服务
+	if err := service.initEncryptionService(); err != nil {
+		fmt.Printf("[AIGenerateService] Warning: Failed to initialize encryption service: %v\n", err)
+	}
+
+	return service
+}
+
+// initEncryptionService 初始化加密服务
+func (s *AIGenerateService) initEncryptionService() error {
+	// 获取活跃的加密密钥
+	var keyName, keyValue string
+	query := `SELECT key_name, key_value FROM encryption_keys WHERE is_active = true ORDER BY created_at DESC LIMIT 1`
+
+	err := s.db.QueryRow(query).Scan(&keyName, &keyValue)
+	if err != nil {
+		return fmt.Errorf("failed to get encryption key: %w", err)
+	}
+
+	// 解码密钥
+	key, err := utils.DecodeKey(keyValue)
+	if err != nil {
+		return fmt.Errorf("failed to decode encryption key: %w", err)
+	}
+
+	// 创建加密服务
+	encryptionService, err := utils.NewEncryptionService(key, keyName)
+	if err != nil {
+		return fmt.Errorf("failed to create encryption service: %w", err)
+	}
+
+	s.encryptionService = encryptionService
+	return nil
+}
+
+// decryptAPIKey 解密API密钥
+func (s *AIGenerateService) decryptAPIKey(encrypted string) (string, error) {
+	if s.encryptionService == nil {
+		return "", fmt.Errorf("encryption service not initialized")
+	}
+
+	decrypted, err := s.encryptionService.DecryptAPIKey(encrypted)
+	if err != nil {
+		return "", fmt.Errorf("failed to decrypt API key: %w", err)
+	}
+
+	return decrypted, nil
 }
 
 // GenerateSubtasksParams 生成子任务参数
@@ -91,22 +141,30 @@ func (s *AIGenerateService) GenerateSubtasks(ctx context.Context, params *Genera
 		return nil, err
 	}
 
-	// 2. 构建Prompt
+	// 2. 解密API密钥
+	decryptedKey, err := s.decryptAPIKey(aiConfig.APIKeyEncrypted)
+	if err != nil {
+		return nil, fmt.Errorf("解密API密钥失败: %w", err)
+	}
+	// 将解密后的密钥放回config (临时使用)
+	aiConfig.APIKeyEncrypted = decryptedKey
+
+	// 3. 构建Prompt
 	prompt := s.buildPrompt(params)
 
-	// 3. 调用AI模型（暂时只支持Anthropic兼容的API）
+	// 4. 调用AI模型（暂时只支持Anthropic兼容的API）
 	response, err := s.anthropicClient.GenerateWithConfig(ctx, prompt, aiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("AI调用失败: %w", err)
 	}
 
-	// 4. 解析AI响应
+	// 5. 解析AI响应
 	subtasks, err := s.parseAIResponse(response, params.MaxSubtasks)
 	if err != nil {
 		return nil, fmt.Errorf("解析AI响应失败: %w", err)
 	}
 
-	// 5. 计算统计信息
+	// 6. 计算统计信息
 	statistics := s.calculateStatistics(subtasks)
 
 	return &models.AIGenerateResponse{

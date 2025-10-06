@@ -7,7 +7,7 @@ export interface AIModel {
   description: string;
   enabled: boolean;
   provider: 'openai' | 'anthropic' | 'google' | 'deepseek';
-  modelName?: string; // 实际的模型名称，如 gpt-4o, claude-3-5-sonnet-20241022
+  modelName?: string; // 实际的模型名称，如 gpt-4o, claude-sonnet-4-5-20250929
 }
 
 // 默认的AI模型配置（作为备选）
@@ -24,12 +24,12 @@ export const DEFAULT_AI_MODELS: AIModel[] = [
   },
   {
     key: 'claude',  // anthropic的别名
-    label: 'Claude 3.5 Sonnet',
+    label: 'Claude 4.5 Sonnet',
     icon: '🔷',
-    description: '专业的代码理解和任务规划',
+    description: '最强代码能力和任务规划',
     enabled: true,
     provider: 'anthropic',
-    modelName: 'claude-3-5-sonnet-20241022'
+    modelName: 'claude-sonnet-4-5-20250929'
   },
   {
     key: 'google',
@@ -59,12 +59,16 @@ export const fetchAIModelsFromAPI = async (): Promise<AIModel[]> => {
   try {
     // 使用配置好认证拦截器的api实例
     const response = await api.get('/system/ai-configs/enabled');
-    const result = response.data;
 
-    // 处理后端响应格式: { success: true, data: AIConfigResponse[], ... }
-    if (result.success && result.data && Array.isArray(result.data)) {
+    // 注意：axios拦截器已经解包了响应，response.data 直接是数据数组
+    // 实际API返回: { success: true, data: [...] }
+    // 拦截器解包后: response.data = [...]
+    const configs = response.data;
+
+    // 检查是否是数组
+    if (Array.isArray(configs) && configs.length > 0) {
       // /enabled端点返回的都是启用的配置,无需filter
-      return result.data.map((config: any) => ({
+      return configs.map((config: any) => ({
         key: config.provider,
         label: getProviderLabel(config.provider),
         icon: getProviderIcon(config.provider),

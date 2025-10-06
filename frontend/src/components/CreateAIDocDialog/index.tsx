@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Modal, Button, Alert } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
+import { Modal, Button, Alert, Spin, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import {
   CreateAIDocDialogProps,
@@ -12,6 +12,7 @@ import { useDocumentSave } from './hooks/useDocumentSave';
 import StepIndicator from './components/StepIndicator';
 import LoadingOverlay from './components/LoadingOverlay';
 import { DIALOG_CONFIG } from './constants';
+import api from '../../services/api';
 
 // 这些组件将在后续任务中实现
 const AIModelSelector = React.lazy(() => import('./steps/AIModelSelector'));
@@ -19,14 +20,26 @@ const DocumentPreview = React.lazy(() => import('./steps/DocumentPreview'));
 const MarkdownEditor = React.lazy(() => import('./steps/MarkdownEditor'));
 
 /**
+ * 任务详情接口
+ */
+interface TaskDetail {
+  id: number;
+  title: string;
+  description?: string;
+}
+
+/**
  * 创建AI文档对话框
  */
 const CreateAIDocDialog: React.FC<CreateAIDocDialogProps> = ({
-  open,
-  task,
+  visible,
+  taskId,
+  projectId,
   onClose,
   onSuccess,
 }) => {
+  const [task, setTask] = useState<TaskDetail | null>(null);
+  const [loadingTask, setLoadingTask] = useState(false);
   const {
     state,
     setCurrentStep,
@@ -46,13 +59,36 @@ const CreateAIDocDialog: React.FC<CreateAIDocDialogProps> = ({
   // 保存生成的文档ID
   const documentIdRef = useRef<number | null>(null);
 
+  // 获取任务详情
+  useEffect(() => {
+    if (visible && taskId) {
+      setLoadingTask(true);
+      api.get(`/tasks/${taskId}`)
+        .then(response => {
+          const taskData = response.data.data || response.data;
+          setTask({
+            id: taskData.id,
+            title: taskData.title,
+            description: taskData.description
+          });
+          setLoadingTask(false);
+        })
+        .catch(error => {
+          console.error('获取任务详情失败:', error);
+          message.error('获取任务详情失败');
+          setLoadingTask(false);
+          onClose();
+        });
+    }
+  }, [visible, taskId, onClose]);
+
   // 对话框打开时重置状态
   useEffect(() => {
-    if (open) {
+    if (visible) {
       resetState();
       documentIdRef.current = null;
     }
-  }, [open, resetState]);
+  }, [visible, resetState]);
 
   /**
    * 验证当前步骤
@@ -279,10 +315,29 @@ const CreateAIDocDialog: React.FC<CreateAIDocDialogProps> = ({
     return buttons;
   };
 
+  // 如果正在加载任务或任务不存在，显示加载状态
+  if (loadingTask || !task) {
+    return (
+      <Modal
+        title="创建AI文档"
+        open={visible}
+        onCancel={onClose}
+        footer={null}
+        width={DIALOG_CONFIG.width}
+        maskClosable={false}
+        destroyOnClose
+      >
+        <div style={{ textAlign: 'center', padding: '50px 0' }}>
+          <Spin tip="加载任务信息..." />
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       title={`为任务 "${task.title}" 创建AI文档`}
-      open={open}
+      open={visible}
       onCancel={handleClose}
       footer={renderFooter()}
       width={DIALOG_CONFIG.width}

@@ -25,7 +25,7 @@ export const setNavigateFunction = (navigate: (path: string) => void) => {
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 120000, // 增加到120秒，AI请求可能需要更长时间
   headers: {
     'Content-Type': 'application/json',
   },

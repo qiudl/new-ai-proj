@@ -832,16 +832,20 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
               >
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
                   <span>查看历史</span>
-                  {latestTests[provider] && (
-                    <span style={{ fontSize: '10px', color: '#8c8c8c', marginTop: '2px' }}>
-                      (最近: {new Date(latestTests[provider]!.date).toLocaleDateString('zh-CN', {
-                        month: 'numeric',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}, {latestTests[provider]!.status === 'success' ? '✓ 成功' : '✗ 失败'})
-                    </span>
-                  )}
+                  <span style={{ fontSize: '10px', color: '#8c8c8c', marginTop: '2px', visibility: latestTests[provider] ? 'visible' : 'hidden' }}>
+                    {latestTests[provider] ? (
+                      <>
+                        (最近: {new Date(latestTests[provider]!.date).toLocaleDateString('zh-CN', {
+                          month: 'numeric',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}, {latestTests[provider]!.status === 'success' ? '✓ 成功' : '✗ 失败'})
+                      </>
+                    ) : (
+                      '\u00A0'
+                    )}
+                  </span>
                 </div>
               </Button>
 

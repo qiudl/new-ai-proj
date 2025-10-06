@@ -175,8 +175,8 @@ func (c *AnthropicClient) generateWithAnthropic(ctx context.Context, prompt stri
 	req.Header.Set("x-api-key", config.APIKeyEncrypted)
 	req.Header.Set("anthropic-version", "2023-06-01")
 
-	// 使用配置中的超时时间
-	timeout := 60 * time.Second
+	// 使用配置中的超时时间，AI生成需要更长时间
+	timeout := 120 * time.Second // 增加到120秒
 	if config.Metadata.Timeout > 0 {
 		timeout = time.Duration(config.Metadata.Timeout) * time.Second
 	}
@@ -271,8 +271,8 @@ func (c *AnthropicClient) generateWithOpenAICompatible(ctx context.Context, prom
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+config.APIKeyEncrypted)
 
-	// 使用配置中的超时时间
-	timeout := 60 * time.Second
+	// 使用配置中的超时时间，AI生成需要更长时间
+	timeout := 120 * time.Second // 增加到120秒
 	if config.Metadata.Timeout > 0 {
 		timeout = time.Duration(config.Metadata.Timeout) * time.Second
 	}

@@ -53,8 +53,9 @@ export interface DocumentTemplate {
  * 对话框Props
  */
 export interface CreateAIDocDialogProps {
-  open: boolean;
-  task: TaskDetail;
+  visible: boolean;  // 改为 visible 以匹配 Ant Design Modal
+  taskId: number;
+  projectId: number;
   onClose: () => void;
   onSuccess?: (documentId: number) => void;
 }

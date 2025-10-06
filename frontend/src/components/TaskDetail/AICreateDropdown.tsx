@@ -94,18 +94,28 @@ const AICreateDropdown: React.FC<AICreateDropdownProps> = ({
     );
   }
 
-  return (
-    <Tooltip title={enabledModelsCount > 0 ? "使用AI智能生成子任务" : "暂无可用的AI模型"}>
-      <Dropdown
-        menu={{ items: menuItems, onClick: handleMenuClick }}
-        placement="bottomRight"
-        disabled={disabled || loading || enabledModelsCount === 0}
-      >
-        <Button loading={loading}>
+  // 如果没有可用模型，显示禁用状态的按钮和提示
+  if (enabledModelsCount === 0) {
+    return (
+      <Tooltip title="暂无可用的AI模型">
+        <Button disabled>
           <RobotOutlined /> AI创建 <DownOutlined />
         </Button>
-      </Dropdown>
-    </Tooltip>
+      </Tooltip>
+    );
+  }
+
+  // 正常状态：只使用 Dropdown，不嵌套 Tooltip
+  return (
+    <Dropdown
+      menu={{ items: menuItems, onClick: handleMenuClick }}
+      placement="bottomRight"
+      disabled={disabled || loading}
+    >
+      <Button loading={loading}>
+        <RobotOutlined /> AI创建 <DownOutlined />
+      </Button>
+    </Dropdown>
   );
 };
 
