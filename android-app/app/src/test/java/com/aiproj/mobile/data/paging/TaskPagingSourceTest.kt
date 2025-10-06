@@ -49,7 +49,7 @@ class TaskPagingSourceTest {
         )
 
         val taskListData = TaskListData(
-            tasks = mockTasks,
+            data = mockTasks,
             pagination = Pagination(
                 page = 1,
                 limit = 20,
@@ -170,6 +170,7 @@ class TaskPagingSourceTest {
         actualMinutes = null,
         parentId = null,
         assignee = null,
-        childrenCount = 0
+        childrenCount = 0,
+        completedChildrenCount = 0
     )
 }

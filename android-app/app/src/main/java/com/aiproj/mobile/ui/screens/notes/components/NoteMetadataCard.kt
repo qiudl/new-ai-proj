@@ -166,13 +166,13 @@ fun NoteMetadataCard(
             MetadataRow(
                 icon = Icons.Default.Create,
                 label = "创建时间",
-                value = formatDateTime(note.createdAt)
+                value = note.createdAt?.let { formatDateTime(it) } ?: "未知"
             )
 
             MetadataRow(
                 icon = Icons.Default.Update,
                 label = "更新时间",
-                value = formatDateTime(note.updatedAt)
+                value = note.updatedAt?.let { formatDateTime(it) } ?: "未知"
             )
 
             note.lastReadAt?.let {

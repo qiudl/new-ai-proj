@@ -43,13 +43,22 @@ fun NoteEditorScreen(
     LaunchedEffect(uiState) {
         when (uiState) {
             is NoteEditorViewModel.UiState.SaveSuccess -> {
-                snackbarHostState.showSnackbar("保存成功")
+                // 显示保存成功提示
+                val message = if (noteId == null) "笔记创建成功" else "保存成功"
+                snackbarHostState.showSnackbar(
+                    message = message,
+                    duration = SnackbarDuration.Short
+                )
+                // 延迟重置状态，确保snackbar有时间显示
+                kotlinx.coroutines.delay(500)
                 viewModel.resetSaveState()
             }
             is NoteEditorViewModel.UiState.Error -> {
                 snackbarHostState.showSnackbar(
-                    (uiState as NoteEditorViewModel.UiState.Error).message
+                    message = (uiState as NoteEditorViewModel.UiState.Error).message,
+                    duration = SnackbarDuration.Long
                 )
+                viewModel.resetSaveState()
             }
             else -> {}
         }
@@ -133,6 +142,13 @@ fun NoteEditorScreen(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(24.dp),
                                     strokeWidth = 2.dp
+                                )
+                            }
+                            is NoteEditorViewModel.UiState.SaveSuccess -> {
+                                Icon(
+                                    Icons.Default.Check,
+                                    "保存成功",
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                             }
                             else -> {

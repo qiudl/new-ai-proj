@@ -14,8 +14,7 @@ import {
 import { Task } from '../types/task';
 import TaskMarkdownEditor from './TaskMarkdownEditor';
 import MarkdownRenderer from './MarkdownRenderer';
-import AIDescriptionButton from './AI/AIDescriptionButton';
-import AIDescriptionModal from './AI/AIDescriptionModal';
+import { AIDescriptionButton, UnifiedAIDescriptionModal } from './AI';
 
 const { Title, Text } = Typography;
 
@@ -35,7 +34,6 @@ const TaskInfoEditor: React.FC<TaskInfoEditorProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [description, setDescription] = useState(task.description || '');
   const [aiModalVisible, setAiModalVisible] = useState(false);
-  const [aiGenerateMode, setAiGenerateMode] = useState<'quick' | 'custom' | 'suggestions'>('quick');
 
   const handleEdit = () => {
     setDescription(task.description || '');
@@ -62,8 +60,7 @@ const TaskInfoEditor: React.FC<TaskInfoEditorProps> = ({
     }
   };
 
-  const handleAIGenerate = (mode: 'quick' | 'custom' | 'suggestions') => {
-    setAiGenerateMode(mode);
+  const handleAIGenerate = () => {
     setAiModalVisible(true);
   };
 
@@ -101,7 +98,7 @@ const TaskInfoEditor: React.FC<TaskInfoEditorProps> = ({
           </Title>
           <Space>
             <AIDescriptionButton
-              onGenerate={handleAIGenerate}
+              onClick={handleAIGenerate}
               loading={loading}
               size="middle"
             />
@@ -144,7 +141,7 @@ const TaskInfoEditor: React.FC<TaskInfoEditorProps> = ({
         </Title>
         <Space>
           <AIDescriptionButton
-            onGenerate={handleAIGenerate}
+            onClick={handleAIGenerate}
             loading={loading}
             size="middle"
           />
@@ -194,12 +191,11 @@ const TaskInfoEditor: React.FC<TaskInfoEditorProps> = ({
       </div>
 
       {/* AI生成描述对话框 */}
-      <AIDescriptionModal
+      <UnifiedAIDescriptionModal
         visible={aiModalVisible}
         taskId={task.id}
         taskTitle={task.title}
         currentDescription={task.description}
-        mode={aiGenerateMode}
         onCancel={() => setAiModalVisible(false)}
         onApply={handleAIApply}
       />

@@ -240,7 +240,7 @@ fun NoteDetailScreen(
                 ) {
                     // 标题
                     Text(
-                        text = state.note.title,
+                        text = state.note.title ?: "无标题",
                         style = MaterialTheme.typography.headlineMedium
                     )
 

@@ -446,6 +446,53 @@ fun MainScreen(
                 )
             }
 
+            // ========== AI功能模块 ==========
+
+            // AI文档生成
+            composable(
+                route = Screen.AIDocumentGenerate.route,
+                arguments = listOf(
+                    navArgument("taskId") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+                com.aiproj.mobile.ui.screens.ai.document.AIDocumentGenerateScreen(
+                    taskId = taskId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onDocumentSaved = { navController.popBackStack() }
+                )
+            }
+
+            // AI子任务生成
+            composable(
+                route = Screen.AISubtaskGenerate.route,
+                arguments = listOf(
+                    navArgument("taskId") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+                com.aiproj.mobile.ui.screens.ai.subtask.AISubtaskGenerateScreen(
+                    taskId = taskId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onSubtasksCreated = { navController.popBackStack() }
+                )
+            }
+
+            // AI描述生成
+            composable(
+                route = Screen.AIDescriptionGenerate.route,
+                arguments = listOf(
+                    navArgument("taskId") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+                com.aiproj.mobile.ui.screens.ai.description.AIDescriptionGenerateScreen(
+                    taskId = taskId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onDescriptionApplied = { navController.popBackStack() }
+                )
+            }
+
             // ========== 项目模块 ==========
 
             // 项目列表

@@ -131,4 +131,21 @@ sealed class Screen(val route: String) {
             "note_editor"
         }
     }
+
+    // ========== AI功能模块 ==========
+
+    // AI文档生成
+    object AIDocumentGenerate : Screen("ai_document_generate/{taskId}") {
+        fun createRoute(taskId: Int) = "ai_document_generate/$taskId"
+    }
+
+    // AI子任务生成
+    object AISubtaskGenerate : Screen("ai_subtask_generate/{taskId}") {
+        fun createRoute(taskId: Int) = "ai_subtask_generate/$taskId"
+    }
+
+    // AI描述生成
+    object AIDescriptionGenerate : Screen("ai_description_generate/{taskId}") {
+        fun createRoute(taskId: Int) = "ai_description_generate/$taskId"
+    }
 }

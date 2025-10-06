@@ -77,7 +77,7 @@ fun NoteListItem(
 
                     // 标题
                     Text(
-                        text = note.title,
+                        text = note.title ?: "无标题",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -127,7 +127,7 @@ fun NoteListItem(
                 ) {
                     // 时间
                     Text(
-                        text = formatTime(note.updatedAt),
+                        text = note.updatedAt?.let { formatTime(it) } ?: "未知时间",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

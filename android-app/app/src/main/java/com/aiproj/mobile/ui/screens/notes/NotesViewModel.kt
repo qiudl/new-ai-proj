@@ -195,6 +195,46 @@ class NotesViewModel @Inject constructor(
     }
 
     /**
+     * 切换置顶状态
+     */
+    fun togglePinned(noteId: Int) {
+        viewModelScope.launch {
+            // 查找当前笔记
+            val note = _notes.value.find { it.id == noteId } ?: return@launch
+
+            // 更新置顶状态
+            val updateRequest = UpdateWorkNoteRequest(
+                isPinned = !note.isPinned
+            )
+
+            repository.updateNote(noteId, updateRequest).onSuccess {
+                // 重新加载列表
+                loadNotes()
+            }
+        }
+    }
+
+    /**
+     * 切换收藏状态
+     */
+    fun toggleBookmarked(noteId: Int) {
+        viewModelScope.launch {
+            // 查找当前笔记
+            val note = _notes.value.find { it.id == noteId } ?: return@launch
+
+            // 更新收藏状态
+            val updateRequest = UpdateWorkNoteRequest(
+                isBookmarked = !note.isBookmarked
+            )
+
+            repository.updateNote(noteId, updateRequest).onSuccess {
+                // 重新加载列表
+                loadNotes()
+            }
+        }
+    }
+
+    /**
      * UI状态
      */
     sealed class UiState {

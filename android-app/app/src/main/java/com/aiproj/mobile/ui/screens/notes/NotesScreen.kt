@@ -219,6 +219,147 @@ fun NotesScreen(
             )
         }
     }
+
+    // 笔记操作菜单
+    selectedNote?.let { note ->
+        var showDeleteDialog by remember { mutableStateOf(false) }
+
+        ModalBottomSheet(
+            onDismissRequest = { selectedNote = null }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = note.title ?: "无标题",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                HorizontalDivider()
+
+                // 置顶/取消置顶
+                Surface(
+                    onClick = {
+                        scope.launch {
+                            viewModel.togglePinned(note.id)
+                            selectedNote = null
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ListItem(
+                        headlineContent = {
+                            Text(if (note.isPinned) "取消置顶" else "置顶")
+                        },
+                        leadingContent = {
+                            Icon(Icons.Default.PushPin, null)
+                        }
+                    )
+                }
+
+                // 收藏/取消收藏
+                Surface(
+                    onClick = {
+                        scope.launch {
+                            viewModel.toggleBookmarked(note.id)
+                            selectedNote = null
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ListItem(
+                        headlineContent = {
+                            Text(if (note.isBookmarked) "取消收藏" else "收藏")
+                        },
+                        leadingContent = {
+                            Icon(
+                                if (note.isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                null
+                            )
+                        }
+                    )
+                }
+
+                // 编辑
+                Surface(
+                    onClick = {
+                        onNoteClick(note.id)
+                        selectedNote = null
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ListItem(
+                        headlineContent = { Text("编辑") },
+                        leadingContent = {
+                            Icon(Icons.Default.Edit, null)
+                        }
+                    )
+                }
+
+                HorizontalDivider()
+
+                // 删除
+                Surface(
+                    onClick = {
+                        showDeleteDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                "删除",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.Delete,
+                                null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+
+        // 删除确认对话框
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("删除笔记") },
+                text = { Text("确定要删除这条笔记吗？此操作无法撤销。") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                viewModel.deleteNote(note.id)
+                                showDeleteDialog = false
+                                selectedNote = null
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("删除")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("取消")
+                    }
+                }
+            )
+        }
+    }
 }
 
 /**

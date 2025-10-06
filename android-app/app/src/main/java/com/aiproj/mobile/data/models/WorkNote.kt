@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class WorkNote(
     @SerialName("id") val id: Int,
-    @SerialName("title") val title: String,
+    @SerialName("title") val title: String? = "",
     @SerialName("content") val content: String? = null,
     @SerialName("description") val description: String? = null,
     // 使用 work_note_type 字段（后端主要字段），忽略 type 字段
@@ -26,8 +26,8 @@ data class WorkNote(
     @SerialName("related_notes") val relatedNotes: List<Int>? = null,
     @SerialName("owner_id") val ownerId: Int = 0,
     @SerialName("owner_name") val ownerName: String? = null,
-    @SerialName("created_at") val createdAt: String = "",
-    @SerialName("updated_at") val updatedAt: String = ""
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
     // 忽略其他额外字段: project_id, folder_id, type, file_url, file_size, mime_type,
     // version, parent_document_id, is_template, created_by, deleted_at, archived,
     // archived_at, archived_by, unarchived_at, unarchived_by

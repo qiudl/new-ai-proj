@@ -107,14 +107,14 @@ class NoteEditorViewModel @Inject constructor(
             repository.getNoteById(id).fold(
                 onSuccess = { note ->
                     originalNote = note
-                    _title.value = note.title
+                    _title.value = note.title ?: ""
                     _content.value = note.content ?: ""
                     _noteType.value = note.workNoteType ?: WorkNoteType.MARKDOWN
                     _priority.value = note.priority ?: WorkNotePriority.MEDIUM
                     _visibility.value = note.visibility ?: WorkNoteVisibility.PRIVATE
                     _tags.value = note.tags ?: emptyList()
-                    _isPinned.value = note.isPinned ?: false
-                    _isBookmarked.value = note.isBookmarked ?: false
+                    _isPinned.value = note.isPinned
+                    _isBookmarked.value = note.isBookmarked
 
                     // 加载文件夹信息
                     note.workNoteFolderId?.let { workNoteFolderId ->
@@ -250,17 +250,26 @@ class NoteEditorViewModel @Inject constructor(
     fun hasUnsavedChanges(): Boolean {
         val original = originalNote ?: return _title.value.isNotBlank() || _content.value.isNotBlank()
 
-        val originalTags: List<String> = original.tags ?: emptyList()
+        // 标准化比较：确保null值和默认值等价
+        val originalTitle = original.title ?: ""
+        val originalContent = original.content ?: ""
+        val originalType = original.workNoteType ?: WorkNoteType.MARKDOWN
+        val originalPriority = original.priority ?: WorkNotePriority.MEDIUM
+        val originalVisibility = original.visibility ?: WorkNoteVisibility.PRIVATE
+        val originalTags = original.tags ?: emptyList()
+        val originalIsPinned = original.isPinned
+        val originalIsBookmarked = original.isBookmarked
+        val originalFolderId = original.workNoteFolderId
 
-        return _title.value != original.title ||
-                _content.value != (original.content ?: "") ||
-                _noteType.value != original.workNoteType ||
-                _priority.value != original.priority ||
-                _visibility.value != original.visibility ||
+        return _title.value != originalTitle ||
+                _content.value != originalContent ||
+                _noteType.value != originalType ||
+                _priority.value != originalPriority ||
+                _visibility.value != originalVisibility ||
                 _tags.value != originalTags ||
-                _isPinned.value != original.isPinned ||
-                _isBookmarked.value != original.isBookmarked ||
-                _selectedFolder.value?.id != original.workNoteFolderId
+                _isPinned.value != originalIsPinned ||
+                _isBookmarked.value != originalIsBookmarked ||
+                _selectedFolder.value?.id != originalFolderId
     }
 
     /**

@@ -312,6 +312,7 @@ class HierarchicalTaskItemTest {
         parentId = parentId,
         assignee = null,
         childrenCount = childrenCount,
+        completedChildrenCount = 0,
         taskLevel = taskLevel,
         depth = depth,
         hasChildren = hasChildren

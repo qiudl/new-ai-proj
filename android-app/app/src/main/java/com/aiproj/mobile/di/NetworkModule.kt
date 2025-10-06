@@ -2,6 +2,9 @@ package com.aiproj.mobile.di
 
 import android.content.Context
 import com.aiproj.mobile.BuildConfig
+import com.aiproj.mobile.data.api.AIDescriptionApi
+import com.aiproj.mobile.data.api.AIDocumentApi
+import com.aiproj.mobile.data.api.AISubtaskApi
 import com.aiproj.mobile.data.api.AnalyticsApi
 import com.aiproj.mobile.data.api.AttachmentApi
 import com.aiproj.mobile.data.api.AuthApi
@@ -211,6 +214,36 @@ object NetworkModule {
     @Singleton
     fun provideDetailApi(retrofit: Retrofit): DetailApi {
         return retrofit.create(DetailApi::class.java)
+    }
+
+    /**
+     * 提供 AIDocumentApi
+     * 用于AI文档生成功能
+     */
+    @Provides
+    @Singleton
+    fun provideAIDocumentApi(retrofit: Retrofit): AIDocumentApi {
+        return retrofit.create(AIDocumentApi::class.java)
+    }
+
+    /**
+     * 提供 AISubtaskApi
+     * 用于AI子任务生成功能
+     */
+    @Provides
+    @Singleton
+    fun provideAISubtaskApi(retrofit: Retrofit): AISubtaskApi {
+        return retrofit.create(AISubtaskApi::class.java)
+    }
+
+    /**
+     * 提供 AIDescriptionApi
+     * 用于AI描述生成功能
+     */
+    @Provides
+    @Singleton
+    fun provideAIDescriptionApi(retrofit: Retrofit): AIDescriptionApi {
+        return retrofit.create(AIDescriptionApi::class.java)
     }
 
     /**

@@ -424,6 +424,7 @@ class TaskListViewModelTest {
         parentId = parentId,
         assignee = null,
         childrenCount = childrenCount,
+        completedChildrenCount = 0,
         taskLevel = if (parentId != null) 1 else 0,
         depth = if (parentId != null) 1 else 0,
         hasChildren = hasChildren
