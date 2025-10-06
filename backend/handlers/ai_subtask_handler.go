@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -16,13 +18,16 @@ import (
 type AISubtaskHandler struct {
 	db                database.DB
 	aiGenerateService *services.AIGenerateService
+	promptRepo        *database.PromptRepository
 }
 
 // NewAISubtaskHandler 创建AI子任务处理器
 func NewAISubtaskHandler(db database.DB) *AISubtaskHandler {
+	sqlDB := db.GetDB().(*sql.DB)
 	return &AISubtaskHandler{
 		db:                db,
-		aiGenerateService: services.NewAIGenerateService(db.GetDB().(*sql.DB)),
+		aiGenerateService: services.NewAIGenerateService(sqlDB),
+		promptRepo:        database.NewPromptRepository(sqlDB),
 	}
 }
 
@@ -66,6 +71,7 @@ func (h *AISubtaskHandler) GenerateSubtasks(c *gin.Context) {
 	result, err := h.aiGenerateService.GenerateSubtasks(c.Request.Context(), &services.GenerateSubtasksParams{
 		ParentTask:         task,
 		Model:              req.Model,
+		CustomPrompt:       req.CustomPrompt, // 传递自定义提示词
 		IncludeDescription: req.Context.IncludeDescription,
 		IncludeSiblings:    req.Context.IncludeSiblings,
 		MaxSubtasks:        req.Context.MaxSubtasks,
@@ -78,6 +84,27 @@ func (h *AISubtaskHandler) GenerateSubtasks(c *gin.Context) {
 		})
 		return
 	}
+
+	// 🆕 自动保存提示词历史（异步）
+	go func() {
+		// 获取用户ID（从上下文中）
+		userID := c.GetInt("user_id")
+		if userID == 0 {
+			userID = 1 // 默认管理员用户
+		}
+
+		if err := h.savePromptHistory(
+			userID,
+			taskID,
+			req.Model,
+			req.CustomPrompt,
+			result,
+		); err != nil {
+			log.Printf("[警告] 保存提示词历史失败 (任务ID=%d): %v", taskID, err)
+		} else {
+			log.Printf("[信息] 成功保存提示词历史 (任务ID=%d, 用户ID=%d)", taskID, userID)
+		}
+	}()
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -179,4 +206,48 @@ func (h *AISubtaskHandler) BatchCreateSubtasks(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// savePromptHistory 保存用户提示词历史记录（辅助函数）
+func (h *AISubtaskHandler) savePromptHistory(
+	userID int,
+	taskID int64,
+	model string,
+	customPrompt *string,
+	result *models.AIGenerateResponse,
+) error {
+	// 构建历史记录
+	history := &models.UserPromptHistory{
+		UserID:       userID,
+		ParentTaskID: int(taskID),
+		AIProvider:   extractProvider(model),
+		AIModel:      model,
+		SubtasksGenerated: len(result.Subtasks),
+		TotalEstimatedHours: &result.Statistics.TotalHours,
+	}
+
+	// 设置提示词内容
+	if customPrompt != nil && strings.TrimSpace(*customPrompt) != "" {
+		history.PromptText = strings.TrimSpace(*customPrompt)
+	} else {
+		history.PromptText = "[系统默认Prompt]"
+	}
+
+	// 保存到数据库
+	return h.promptRepo.CreatePromptHistory(history)
+}
+
+// extractProvider 从模型名称提取提供商
+func extractProvider(model string) string {
+	// 简单映射
+	if strings.Contains(model, "claude") {
+		return "claude"
+	}
+	if strings.Contains(model, "deepseek") {
+		return "deepseek"
+	}
+	if strings.Contains(model, "gpt") || strings.Contains(model, "openai") {
+		return "openai"
+	}
+	return model
 }
