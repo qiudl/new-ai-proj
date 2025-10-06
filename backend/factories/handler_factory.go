@@ -83,7 +83,8 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.RoleTemplateHandler = handlers.NewRoleTemplateHandler(roleTemplateService, f.logger)
 
 	// 任务管理处理器
-	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate)
+	// Note: Factory uses nil cache service - automatic cache invalidation not available in factory mode
+	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, nil, f.logger, f.validate)
 	allHandlers.TaskHierarchyHandler = handlers.NewTaskHierarchyHandler(f.db, f.logger, f.validate)
 	allHandlers.DailyFocusTaskHandler = handlers.NewDailyFocusTaskHandler(f.db, f.logger, f.validate)
 

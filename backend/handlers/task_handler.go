@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"ai-project-backend/cache"
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/services"
@@ -19,12 +20,16 @@ import (
 
 // TaskHandler handles all task-related operations
 type TaskHandler struct {
-	db database.DB
+	db             database.DB
+	aiCacheService *cache.AICacheService
 }
 
 // NewTaskHandler creates a new task handler
-func NewTaskHandler(db database.DB, logger *log.Logger, validate interface{}) *TaskHandler {
-	return &TaskHandler{db: db}
+func NewTaskHandler(db database.DB, aiCacheService *cache.AICacheService, logger *log.Logger, validate interface{}) *TaskHandler {
+	return &TaskHandler{
+		db:             db,
+		aiCacheService: aiCacheService,
+	}
 }
 
 // GetTasks godoc
@@ -837,6 +842,18 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
+	// 智能缓存失效：任务更新后自动清理相关AI缓存
+	if h.aiCacheService != nil {
+		go func() {
+			ctx := context.Background()
+			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, updatedTask.ID); err != nil {
+				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for task %d: %v", updatedTask.ID, err)
+			} else {
+				log.Printf("[CACHE_INVALIDATION] Successfully invalidated AI cache for task %d", updatedTask.ID)
+			}
+		}()
+	}
+
 	// If task status changed to completed, stop any running timer for this task
 	if originalStatus != "completed" && updatedTask.Status == "completed" {
 		if err := h.stopTimerForCompletedTask(c.Request.Context(), updatedTask.ID); err != nil {
@@ -909,6 +926,18 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 			"error_detail": err.Error(),
 		}))
 		return
+	}
+
+	// 智能缓存失效：任务删除后自动清理相关AI缓存
+	if h.aiCacheService != nil {
+		go func() {
+			ctx := context.Background()
+			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, taskID); err != nil {
+				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for deleted task %d: %v", taskID, err)
+			} else {
+				log.Printf("[CACHE_INVALIDATION] Successfully invalidated AI cache for deleted task %d", taskID)
+			}
+		}()
 	}
 
 	log.Printf("[DeleteTask] 任务删除成功: taskID=%d", taskID)
@@ -1646,6 +1675,16 @@ func (h *TaskHandler) UpdateTaskById(c *gin.Context) {
 		return
 	}
 
+	// 智能缓存失效：任务更新后自动清理相关AI缓存
+	if h.aiCacheService != nil {
+		go func() {
+			ctx := context.Background()
+			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, updatedTask.ID); err != nil {
+				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for task %d: %v", updatedTask.ID, err)
+			}
+		}()
+	}
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务更新成功"))
 }
 
@@ -1684,6 +1723,16 @@ func (h *TaskHandler) DeleteTaskById(c *gin.Context) {
 		return
 	}
 
+	// 智能缓存失效：任务删除后自动清理相关AI缓存
+	if h.aiCacheService != nil {
+		go func() {
+			ctx := context.Background()
+			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, taskID); err != nil {
+				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for deleted task %d: %v", taskID, err)
+			}
+		}()
+	}
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "任务删除成功"))
 }
 
@@ -1720,6 +1769,16 @@ func (h *TaskHandler) UpdateTaskStatus(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("UPDATE_FAILED", "Failed to update task status", err.Error()))
 		return
+	}
+
+	// 智能缓存失效：任务状态更新后自动清理相关AI缓存
+	if h.aiCacheService != nil {
+		go func() {
+			ctx := context.Background()
+			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, updatedTask.ID); err != nil {
+				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for task %d: %v", updatedTask.ID, err)
+			}
+		}()
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务状态更新成功"))

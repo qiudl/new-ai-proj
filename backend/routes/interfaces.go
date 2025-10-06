@@ -193,6 +193,12 @@ type ApplicationInterface interface {
 	// AI文档生成处理器
 	GetAIDocumentHandler() *handlers.AIDocumentHandler
 
+	// AI描述生成处理器
+	GetAIDescriptionHandler() *handlers.AIDescriptionHandler
+
+	// AI限流器
+	GetAIRateLimiter() interface{}
+
 	// 测试数据生成服务
 	GetTestDataGeneratorService() interface{}
 }
