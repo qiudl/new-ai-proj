@@ -20,6 +20,7 @@ fun TaskCompletionAnalysisCard(
     completionRate: Float,
     statusDistribution: TaskStatusDistribution,
     modifier: Modifier = Modifier,
+    dateRangeText: String = "",  // 新增：日期范围文本
     onStatusClick: (String) -> Unit = {}
 ) {
     Card(
@@ -38,9 +39,13 @@ fun TaskCompletionAnalysisCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 完成率摘要
+            // 完成率摘要 - 动态显示日期范围
             Text(
-                text = "本周完成: $completedCount / $totalCount (${(completionRate * 100).toInt()}%)",
+                text = if (dateRangeText.isNotEmpty()) {
+                    "$dateRangeText 完成: $completedCount / $totalCount (${(completionRate * 100).toInt()}%)"
+                } else {
+                    "完成: $completedCount / $totalCount (${(completionRate * 100).toInt()}%)"
+                },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )

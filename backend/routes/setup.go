@@ -127,6 +127,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册文档管理路由（包含工作笔记路由）
 	RegisterDocumentRoutes(authorized, app)
 
+	// 注册提示词管理路由
+	RegisterPromptRoutes(authorized, app)
+
 	// 注册MCP专用路由
 	RegisterMCPRoutes(authorized, app)
 

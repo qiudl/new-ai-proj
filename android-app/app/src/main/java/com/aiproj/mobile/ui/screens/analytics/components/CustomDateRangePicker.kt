@@ -27,18 +27,25 @@ fun CustomDateRangePicker(
     var tempStartDate by remember { mutableStateOf(initialStartDate) }
     var tempEndDate by remember { mutableStateOf(initialEndDate) }
 
-    // DatePicker状态
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = when {
-            selectingStartDate && tempStartDate != null -> {
-                tempStartDate!!.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            }
-            !selectingStartDate && tempEndDate != null -> {
-                tempEndDate!!.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            }
-            else -> null
+    // DatePicker状态 - 根据当前选择阶段动态设置初始日期
+    val initialMillis = when {
+        selectingStartDate && tempStartDate != null -> {
+            tempStartDate!!.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         }
-    )
+        !selectingStartDate && tempEndDate != null -> {
+            tempEndDate!!.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+        !selectingStartDate && tempStartDate != null -> {
+            // 如果正在选择结束日期，但还没选过，默认显示开始日期的下一天
+            tempStartDate!!.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+        else -> null
+    }
+
+    // 使用key强制重新创建DatePickerState，确保状态切换时UI更新
+    val datePickerState = key(selectingStartDate) {
+        rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+    }
 
     DatePickerDialog(
         onDismissRequest = onDismiss,
@@ -63,7 +70,13 @@ fun CustomDateRangePicker(
                         tempEndDate = selectedDate
 
                         if (tempStartDate != null && tempEndDate != null) {
-                            onDateRangeSelected(tempStartDate!!, tempEndDate!!)
+                            // 验证日期范围：结束日期必须 >= 开始日期
+                            if (tempEndDate!! < tempStartDate!!) {
+                                // 如果选择了错误的日期，交换它们
+                                onDateRangeSelected(tempEndDate!!, tempStartDate!!)
+                            } else {
+                                onDateRangeSelected(tempStartDate!!, tempEndDate!!)
+                            }
                         }
                     }
                 },

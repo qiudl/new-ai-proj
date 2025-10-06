@@ -8,14 +8,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * 本周成就展示卡片
+ * 成就展示卡片
  */
 @Composable
 fun WeeklyAchievementsCard(
     consecutiveDays: Int,
     totalFocusHours: Float,
     completedTasks: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    dateRangeText: String = ""  // 新增：日期范围文本
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -27,9 +28,13 @@ fun WeeklyAchievementsCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // 标题
+            // 标题 - 添加日期范围
             Text(
-                text = "🏆 本周成就",
+                text = if (dateRangeText.isNotEmpty()) {
+                    "🏆 成就 ($dateRangeText)"
+                } else {
+                    "🏆 成就"
+                },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )

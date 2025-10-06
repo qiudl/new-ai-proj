@@ -79,8 +79,11 @@ func registerAIConfigRoutes(authorized *gin.RouterGroup, app ApplicationInterfac
 			aiConfigGroup.POST("", middleware.RequireCreate(), aiConfigHandler.CreateConfig)
 
 			// ========== 测试历史查询 (Task #2780) ==========
-			// 获取单条测试日志详情 - 静态路径，需要在 /:provider 之前
-			aiConfigGroup.GET("/test-logs/:id", middleware.RequireView(), aiConfigHandler.GetTestLogDetail)
+			// 获取单条测试日志详情 - 使用单独的子组避免与 /:provider 参数冲突
+			testLogsGroup := aiConfigGroup.Group("/test-logs")
+			{
+				testLogsGroup.GET("/:id", middleware.RequireView(), aiConfigHandler.GetTestLogDetail)
+			}
 
 			// 按provider操作
 			aiConfigGroup.GET("/:provider", middleware.RequireView(), aiConfigHandler.GetConfig)

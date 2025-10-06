@@ -39,9 +39,10 @@ class AnalyticsViewModel @Inject constructor(
                 ).toInt() + 1
 
                 // 1. 确定时间粒度和获取工作时长趋势数据
-                val granularity = determineTimeGranularity(days)
                 // Bug修复: 时间段小于7天时，始终显示最近7天的工作时长趋势
                 val trendDays = if (days < 7) 7 else days
+                // 粒度应该根据trendDays（实际获取的数据天数）来决定，而不是days（用户选择的天数）
+                val granularity = determineTimeGranularity(trendDays, timeRange)
                 val timeStatsResult = analyticsRepository.getTimeStats(trendDays)
 
                 // 2. 获取周统计数据
@@ -115,8 +116,12 @@ class AnalyticsViewModel @Inject constructor(
                         )
                     }
 
-                    // 计算连续工作天数（从daily stats中计算）
-                    val consecutiveDays = calculateConsecutiveDays((timeStats.dailyStats ?: emptyList()).map { it.hours })
+                    // Bug修复: 计算连续工作天数应该从workTimeTrend（已按日期范围过滤的数据）计算
+                    // 而不是从timeStats计算（timeStats是最近N天的原始数据）
+                    val consecutiveDays = calculateConsecutiveDays(workTimeTrend.map { it.hours })
+
+                    // Bug修复: 工作总时长应该从workTimeTrend（已按日期范围过滤）计算，而不是timeStats
+                    val totalFocusHours = workTimeTrend.sumOf { it.hours.toDouble() }.toFloat()
 
                     // Bug修复: summary使用与task_stats相同的数据源，确保一致性
                     val summaryTotal = actualTotal
@@ -138,7 +143,7 @@ class AnalyticsViewModel @Inject constructor(
                             taskStatusDistribution = taskStatusDistribution,
                             projectTimeDistribution = projectDistribution,
                             consecutiveWorkDays = consecutiveDays,
-                            totalFocusHours = timeStats.totalHours
+                            totalFocusHours = totalFocusHours
                         )
                     }
                 } else {
@@ -283,12 +288,14 @@ class AnalyticsViewModel @Inject constructor(
 
     /**
      * 确定时间粒度
+     * Bug修复: 只有"今日"显示HOUR视图，昨日/前日显示最近7天的DAY视图
+     * 本月/上月等长时间段显示WEEK视图
      */
-    private fun determineTimeGranularity(days: Int): TimeGranularity {
+    private fun determineTimeGranularity(days: Int, timeRange: TimeRange): TimeGranularity {
         return when {
-            days == 1 -> TimeGranularity.HOUR     // 单日：按小时
-            days <= 30 -> TimeGranularity.DAY     // 2-30天：按天
-            else -> TimeGranularity.WEEK          // 30天以上：按周
+            timeRange == TimeRange.TODAY -> TimeGranularity.HOUR  // 只有今日显示小时粒度（0-当前小时）
+            days <= 14 -> TimeGranularity.DAY     // 昨日/前日/本周：按天显示（会显示7天趋势）
+            else -> TimeGranularity.WEEK          // 本月/上月等：按周显示
         }
     }
 

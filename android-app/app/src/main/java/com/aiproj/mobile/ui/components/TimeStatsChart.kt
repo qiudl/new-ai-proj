@@ -36,7 +36,7 @@ fun TimeStatsChart(
         ) {
             // 标题
             Text(
-                text = "本周工作时间",
+                text = "工作时间",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )

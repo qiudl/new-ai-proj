@@ -44,8 +44,8 @@ fun AnalyticsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // 时间范围选择器
-            TimeRangeSelector(
+            // 时间范围选择器 V2
+            TimeRangeSelectorV2(
                 selectedRange = uiState.selectedTimeRange,
                 onRangeSelected = { viewModel.selectTimeRange(it) },
                 modifier = Modifier.padding(vertical = 8.dp)
@@ -75,17 +75,27 @@ fun AnalyticsScreen(
 
                     // 任务完成分析
                     item {
+                        val (startDate, endDate) = viewModel.calculateDateRange(
+                            uiState.selectedTimeRange,
+                            uiState.customStartDate,
+                            uiState.customEndDate
+                        )
+
                         TaskCompletionAnalysisCard(
                             completedCount = uiState.completedTasksCount,
                             totalCount = uiState.totalTasksCount,
                             completionRate = uiState.taskCompletionRate,
                             statusDistribution = uiState.taskStatusDistribution,
+                            dateRangeText = when (uiState.selectedTimeRange) {
+                                TimeRange.TODAY, TimeRange.YESTERDAY, TimeRange.DAY_BEFORE_YESTERDAY -> {
+                                    startDate  // 单日显示：2025-10-06
+                                }
+                                else -> {
+                                    // 本周/本月/上月/自定义日期：始终显示范围格式
+                                    "$startDate ~ $endDate"  // 日期范围：2025-10-01 ~ 2025-10-06（即使起止相同）
+                                }
+                            },
                             onStatusClick = { status ->
-                                val (startDate, endDate) = viewModel.calculateDateRange(
-                                    uiState.selectedTimeRange,
-                                    uiState.customStartDate,
-                                    uiState.customEndDate
-                                )
                                 onNavigateToTaskStatusDetail(status, startDate, endDate, null)
                             }
                         )
@@ -98,12 +108,27 @@ fun AnalyticsScreen(
                         )
                     }
 
-                    // 本周成就
+                    // 成就
                     item {
+                        val (startDate, endDate) = viewModel.calculateDateRange(
+                            uiState.selectedTimeRange,
+                            uiState.customStartDate,
+                            uiState.customEndDate
+                        )
+
                         WeeklyAchievementsCard(
                             consecutiveDays = uiState.consecutiveWorkDays,
                             totalFocusHours = uiState.totalFocusHours,
-                            completedTasks = uiState.completedTasksCount
+                            completedTasks = uiState.completedTasksCount,
+                            dateRangeText = when (uiState.selectedTimeRange) {
+                                TimeRange.TODAY, TimeRange.YESTERDAY, TimeRange.DAY_BEFORE_YESTERDAY -> {
+                                    startDate  // 单日显示：2025-10-06
+                                }
+                                else -> {
+                                    // 本周/本月/上月/自定义日期：始终显示范围格式
+                                    "$startDate ~ $endDate"  // 日期范围：2025-10-01 ~ 2025-10-06（即使起止相同）
+                                }
+                            }
                         )
                     }
 
