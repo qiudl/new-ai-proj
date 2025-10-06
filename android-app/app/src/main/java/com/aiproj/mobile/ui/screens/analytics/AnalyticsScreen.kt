@@ -28,7 +28,8 @@ import com.aiproj.mobile.ui.screens.analytics.components.*
 fun AnalyticsScreen(
     viewModel: AnalyticsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit = {},
-    onNavigateToTaskStatusDetail: (status: String, startDate: String, endDate: String, projectId: Int?) -> Unit = { _, _, _, _ -> }
+    onNavigateToTaskStatusDetail: (status: String, startDate: String, endDate: String, projectId: Int?) -> Unit = { _, _, _, _ -> },
+    onNavigateToTaskDetail: (taskId: Int) -> Unit = {}  // 添加任务详情导航回调
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showOtherStatusDetail by remember { mutableStateOf(false) }
@@ -268,7 +269,8 @@ private fun OverviewTabContent(
                 item {
                     DailyDetailCard(
                         date = uiState.selectedDate,
-                        dayDetail = uiState.selectedDayDetail
+                        dayDetail = uiState.selectedDayDetail,
+                        onTaskClick = onNavigateToTaskDetail
                     )
                 }
             }

@@ -173,6 +173,9 @@ fun MainScreen(
                         navController.navigate(
                             Screen.TaskStatusDetail.createRoute(status, startDate, endDate, projectId)
                         )
+                    },
+                    onNavigateToTaskDetail = { taskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(taskId))
                     }
                 )
             }

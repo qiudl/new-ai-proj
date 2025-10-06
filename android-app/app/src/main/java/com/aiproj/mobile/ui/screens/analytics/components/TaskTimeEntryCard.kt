@@ -1,5 +1,6 @@
 package com.aiproj.mobile.ui.screens.analytics.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,10 +27,15 @@ import com.aiproj.mobile.ui.screens.analytics.TaskTimeEntry
 @Composable
 fun TaskTimeEntryCard(
     taskEntry: TaskTimeEntry,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onTaskClick: ((Int) -> Unit)? = null  // 任务点击回调，传递taskId
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(enabled = onTaskClick != null) {
+                onTaskClick?.invoke(taskEntry.taskId)
+            },
         colors = CardDefaults.cardColors(
             containerColor = if (taskEntry.isCompleted) {
                 MaterialTheme.colorScheme.secondaryContainer

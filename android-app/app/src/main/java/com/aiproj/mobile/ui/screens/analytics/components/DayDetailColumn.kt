@@ -25,7 +25,8 @@ fun DayDetailColumn(
     // dayDetail: DayDetail?,
     // isLoading: Boolean,
     // error: String?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onTaskClick: ((Int) -> Unit)? = null  // 任务点击回调
 ) {
     // 生成模拟数据
     val today = LocalDate.now()
@@ -138,7 +139,10 @@ fun DayDetailColumn(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(mockDayDetail.taskEntries) { taskEntry ->
-                            TaskTimeEntryCard(taskEntry = taskEntry)
+                            TaskTimeEntryCard(
+                                taskEntry = taskEntry,
+                                onTaskClick = onTaskClick
+                            )
                         }
                     }
                 }
