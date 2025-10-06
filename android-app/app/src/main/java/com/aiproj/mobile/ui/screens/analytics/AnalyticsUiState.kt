@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 data class AnalyticsUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
+    val selectedTab: AnalyticsTab = AnalyticsTab.OVERVIEW,   // 当前选中的Tab
     val selectedTimeRange: TimeRange = TimeRange.THIS_WEEK,
     val customStartDate: java.time.LocalDate? = null,        // 自定义开始日期
     val customEndDate: java.time.LocalDate? = null,          // 自定义结束日期
@@ -80,8 +81,27 @@ data class TaskStatusDistribution(
     val inProgress: Int,
     val inProgressPercentage: Float,
     val todo: Int,
-    val todoPercentage: Float
+    val todoPercentage: Float,
+    val others: Int = 0,  // 其他状态(删除、取消、阻塞等)
+    val othersPercentage: Float = 0f,
+    val othersBreakdown: OtherStatusBreakdown = OtherStatusBreakdown()  // 其他状态的详细分类
 )
+
+/**
+ * 其他状态详细分类
+ */
+data class OtherStatusBreakdown(
+    val draft: Int = 0,          // 草稿
+    val planning: Int = 0,       // 计划中
+    val testing: Int = 0,        // 测试中
+    val cancelled: Int = 0,      // 已取消
+    val onHold: Int = 0,         // 暂停
+    val blocked: Int = 0,        // 阻塞
+    val archived: Int = 0        // 已归档
+) {
+    val total: Int
+        get() = draft + planning + testing + cancelled + onHold + blocked + archived
+}
 
 /**
  * 项目时间数据

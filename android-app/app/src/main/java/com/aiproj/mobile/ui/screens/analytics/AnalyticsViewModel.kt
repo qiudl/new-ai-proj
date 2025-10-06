@@ -66,31 +66,51 @@ class AnalyticsViewModel @Inject constructor(
                         endDate = endDate
                     )
 
-                    // 计算任务状态分布
-                    // 注意：由于后端summary数据可能为0，我们从daily_stats计算实际值
-                    val dailyStats = weeklyStats.daily_stats ?: emptyList()
-                    val totalCreated = dailyStats.sumOf { it.tasks_created }
-                    val totalCompleted = dailyStats.sumOf { it.tasks_completed }
-
-                    // 使用task_stats作为基础数据
+                    // 计算任务状态分布 - 使用后端返回的详细状态数据
                     val taskStats = weeklyStats.task_stats
-                    val total = taskStats.todo + taskStats.in_progress + taskStats.completed
 
-                    // Bug修复: 统一使用task_stats作为数据源，避免completed和total来自不同数据源导致完成率>100%
-                    // 只有当task_stats全为0时才使用daily_stats作为fallback
-                    val useTaskStats = total > 0
-                    val actualTotal = if (useTaskStats) total else totalCreated
-                    val actualCompleted = if (useTaskStats) taskStats.completed else totalCompleted
-                    val actualInProgress = if (useTaskStats) taskStats.in_progress else 0
-                    val actualTodo = if (useTaskStats) taskStats.todo else 0
+                    // 计算所有状态的总任务数
+                    val total = taskStats.draft + taskStats.planning + taskStats.todo +
+                                taskStats.in_progress + taskStats.testing + taskStats.completed +
+                                taskStats.cancelled + taskStats.on_hold + taskStats.blocked +
+                                taskStats.archived
+
+                    // 计算"其他"状态的总数(非主要状态的任务)
+                    val othersTotal = taskStats.draft + taskStats.planning + taskStats.testing +
+                                     taskStats.cancelled + taskStats.on_hold + taskStats.blocked +
+                                     taskStats.archived
+
+                    android.util.Log.d(
+                        "AnalyticsViewModel",
+                        "TaskStats - draft: ${taskStats.draft}, planning: ${taskStats.planning}, " +
+                        "todo: ${taskStats.todo}, inProgress: ${taskStats.in_progress}, " +
+                        "testing: ${taskStats.testing}, completed: ${taskStats.completed}, " +
+                        "cancelled: ${taskStats.cancelled}, onHold: ${taskStats.on_hold}, " +
+                        "blocked: ${taskStats.blocked}, archived: ${taskStats.archived}, " +
+                        "total: $total, others: $othersTotal"
+                    )
+
+                    // 构建详细的其他状态分类
+                    val othersBreakdown = OtherStatusBreakdown(
+                        draft = taskStats.draft,
+                        planning = taskStats.planning,
+                        testing = taskStats.testing,
+                        cancelled = taskStats.cancelled,
+                        onHold = taskStats.on_hold,
+                        blocked = taskStats.blocked,
+                        archived = taskStats.archived
+                    )
 
                     val taskStatusDistribution = TaskStatusDistribution(
-                        completed = actualCompleted,
-                        completedPercentage = if (actualTotal > 0) actualCompleted.toFloat() / actualTotal else 0f,
-                        inProgress = actualInProgress,
-                        inProgressPercentage = if (actualTotal > 0) actualInProgress.toFloat() / actualTotal else 0f,
-                        todo = actualTodo,
-                        todoPercentage = if (actualTotal > 0) actualTodo.toFloat() / actualTotal else 0f
+                        completed = taskStats.completed,
+                        completedPercentage = if (total > 0) taskStats.completed.toFloat() / total else 0f,
+                        inProgress = taskStats.in_progress,
+                        inProgressPercentage = if (total > 0) taskStats.in_progress.toFloat() / total else 0f,
+                        todo = taskStats.todo,
+                        todoPercentage = if (total > 0) taskStats.todo.toFloat() / total else 0f,
+                        others = othersTotal,
+                        othersPercentage = if (total > 0) othersTotal.toFloat() / total else 0f,
+                        othersBreakdown = othersBreakdown
                     )
 
                     // 转换项目时间分布（从任务分布推算）
@@ -123,9 +143,9 @@ class AnalyticsViewModel @Inject constructor(
                     // Bug修复: 工作总时长应该从workTimeTrend（已按日期范围过滤）计算，而不是timeStats
                     val totalFocusHours = workTimeTrend.sumOf { it.hours.toDouble() }.toFloat()
 
-                    // Bug修复: summary使用与task_stats相同的数据源，确保一致性
-                    val summaryTotal = actualTotal
-                    val summaryCompleted = actualCompleted
+                    // Summary使用详细状态统计后的总数
+                    val summaryTotal = total
+                    val summaryCompleted = taskStats.completed
                     val summaryRate = if (summaryTotal > 0) {
                         summaryCompleted.toFloat() / summaryTotal
                     } else {
@@ -228,6 +248,15 @@ class AnalyticsViewModel @Inject constructor(
 
     fun refresh() {
         loadAnalyticsData()
+    }
+
+    /**
+     * 选择Tab（目前所有Tab都共享同一个数据加载逻辑）
+     */
+    fun selectTab(tab: AnalyticsTab) {
+        _uiState.update { it.copy(selectedTab = tab) }
+        // Phase 1: 暂时不实现懒加载，所有Tab都使用Overview的数据
+        // Phase 2-5: 会为每个Tab实现独立的数据加载逻辑
     }
 
     /**

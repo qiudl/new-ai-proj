@@ -64,31 +64,51 @@ fun TaskCompletionAnalysisCard(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 状态分布
+            // 状态分布 - 只显示数量大于0的状态
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatusDistributionItem(
-                    label = "✅ 已完成",
-                    count = statusDistribution.completed,
-                    percentage = statusDistribution.completedPercentage,
-                    color = MaterialTheme.colorScheme.primary,
-                    onClick = { onStatusClick("completed") }
-                )
+                // 已完成
+                if (statusDistribution.completed > 0) {
+                    StatusDistributionItem(
+                        label = "✅ 已完成",
+                        count = statusDistribution.completed,
+                        percentage = statusDistribution.completedPercentage,
+                        color = MaterialTheme.colorScheme.primary,
+                        onClick = { onStatusClick("completed") }
+                    )
+                }
 
-                StatusDistributionItem(
-                    label = "🔄 进行中",
-                    count = statusDistribution.inProgress,
-                    percentage = statusDistribution.inProgressPercentage,
-                    color = MaterialTheme.colorScheme.secondary,
-                    onClick = { onStatusClick("in_progress") }
-                )
+                // 进行中
+                if (statusDistribution.inProgress > 0) {
+                    StatusDistributionItem(
+                        label = "🔄 进行中",
+                        count = statusDistribution.inProgress,
+                        percentage = statusDistribution.inProgressPercentage,
+                        color = MaterialTheme.colorScheme.secondary,
+                        onClick = { onStatusClick("in_progress") }
+                    )
+                }
 
-                StatusDistributionItem(
-                    label = "📋 待办",
-                    count = statusDistribution.todo,
-                    percentage = statusDistribution.todoPercentage,
-                    color = MaterialTheme.colorScheme.tertiary,
-                    onClick = { onStatusClick("todo") }
-                )
+                // 待办
+                if (statusDistribution.todo > 0) {
+                    StatusDistributionItem(
+                        label = "📋 待办",
+                        count = statusDistribution.todo,
+                        percentage = statusDistribution.todoPercentage,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        onClick = { onStatusClick("todo") }
+                    )
+                }
+
+                // 其他状态(删除、取消、阻塞等)
+                if (statusDistribution.others > 0) {
+                    StatusDistributionItem(
+                        label = "🗑️ 其他",
+                        count = statusDistribution.others,
+                        percentage = statusDistribution.othersPercentage,
+                        color = MaterialTheme.colorScheme.outline,
+                        onClick = { onStatusClick("others") }
+                    )
+                }
             }
         }
     }

@@ -110,10 +110,16 @@ data class WeeklySummary(
 )
 
 data class TaskStatsByStatus(
-    val todo: Int,
-    val in_progress: Int,
-    val completed: Int,
-    val cancelled: Int
+    val draft: Int = 0,
+    val planning: Int = 0,
+    val todo: Int = 0,
+    val in_progress: Int = 0,
+    val testing: Int = 0,
+    val completed: Int = 0,
+    val cancelled: Int = 0,
+    val on_hold: Int = 0,
+    val blocked: Int = 0,
+    val archived: Int = 0
 )
 
 data class ProjectStatsItem(
