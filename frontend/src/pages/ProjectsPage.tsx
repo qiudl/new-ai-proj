@@ -191,6 +191,20 @@ const ProjectsPage: React.FC = () => {
       width: 150
     },
     {
+      key: 'task_count',
+      title: '任务数',
+      visible: true,
+      description: '项目中的任务数量',
+      width: 80
+    },
+    {
+      key: 'member_count',
+      title: '成员数',
+      visible: true,
+      description: '项目中的成员数量',
+      width: 80
+    },
+    {
       key: 'status',
       title: '状态',
       visible: true,
@@ -273,6 +287,14 @@ const ProjectsPage: React.FC = () => {
         case 'company_name':
           aValue = a.company_name || '未分配企业';
           bValue = b.company_name || '未分配企业';
+          break;
+        case 'task_count':
+          aValue = a.task_count || 0;
+          bValue = b.task_count || 0;
+          break;
+        case 'member_count':
+          aValue = a.member_count || 0;
+          bValue = b.member_count || 0;
           break;
         case 'status':
           aValue = a.status || 'active';
@@ -379,6 +401,28 @@ const ProjectsPage: React.FC = () => {
                 <span style={{ color: record.company_name && record.company_name !== '未分配企业' ? '#000' : '#8c8c8c' }}>
                   {text || '未分配企业'}
                 </span>
+              </Space>
+            ),
+          };
+        case 'task_count':
+          return {
+            ...baseColumn,
+            dataIndex: 'task_count',
+            render: (count: number) => (
+              <Space align="center">
+                <BuildOutlined style={{ color: '#1890ff' }} />
+                <span style={{ fontWeight: 500 }}>{count || 0}</span>
+              </Space>
+            ),
+          };
+        case 'member_count':
+          return {
+            ...baseColumn,
+            dataIndex: 'member_count',
+            render: (count: number) => (
+              <Space align="center">
+                <UserOutlined style={{ color: '#52c41a' }} />
+                <span style={{ fontWeight: 500 }}>{count || 0}</span>
               </Space>
             ),
           };
@@ -555,12 +599,24 @@ const ProjectsPage: React.FC = () => {
             <div style={{ marginBottom: 12 }}>
               <Space align="center">
                 <BankOutlined style={{ color: '#52c41a' }} />
-                <span style={{ 
+                <span style={{
                   fontSize: '13px',
-                  color: project.company_name && project.company_name !== '未分配企业' ? '#000' : '#8c8c8c' 
+                  color: project.company_name && project.company_name !== '未分配企业' ? '#000' : '#8c8c8c'
                 }}>
                   {project.company_name || '未分配企业'}
                 </span>
+              </Space>
+            </div>
+
+            {/* 任务数和成员数 */}
+            <div style={{ display: 'flex', gap: '16px', marginBottom: 12 }}>
+              <Space align="center">
+                <BuildOutlined style={{ color: '#1890ff' }} />
+                <span style={{ fontSize: '13px' }}>任务: <strong>{project.task_count || 0}</strong></span>
+              </Space>
+              <Space align="center">
+                <UserOutlined style={{ color: '#52c41a' }} />
+                <span style={{ fontSize: '13px' }}>成员: <strong>{project.member_count || 0}</strong></span>
               </Space>
             </div>
 

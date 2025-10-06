@@ -14,6 +14,8 @@ export interface Project {
   start_date?: string;
   end_date?: string;
   progress?: number; // 项目进度百分比
+  task_count?: number; // 任务数量
+  member_count?: number; // 成员数量
   created_at: string;
   updated_at: string;
 }

@@ -342,14 +342,27 @@ func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context,
 		}
 	}
 
-	// Get projects with pagination and company join (including enterprise info)
+	// Get projects with pagination and company join (including enterprise info, task count, member count)
 	query := fmt.Sprintf(`
-		SELECT 
+		SELECT
 			p.id, p.project_number, p.name, p.description, p.owner_id, p.company_id, p.status, p.priority, p.progress, p.start_date, p.end_date, p.budget, p.created_at, p.updated_at, p.deleted_at,
-			COALESCE(e.name, c.company_name, '未分配企业') AS company_name
+			COALESCE(e.name, c.company_name, '未分配企业') AS company_name,
+			COALESCE(task_counts.task_count, 0) AS task_count,
+			COALESCE(member_counts.member_count, 0) AS member_count
 		FROM projects p
 		LEFT JOIN customers c ON p.company_id = c.id AND c.deleted_at IS NULL
 		LEFT JOIN enterprises e ON p.enterprise_id = e.id AND e.deleted_at IS NULL
+		LEFT JOIN (
+			SELECT project_id, COUNT(*) AS task_count
+			FROM tasks
+			WHERE deleted_at IS NULL
+			GROUP BY project_id
+		) task_counts ON task_counts.project_id = p.id
+		LEFT JOIN (
+			SELECT project_id, COUNT(DISTINCT user_id) AS member_count
+			FROM project_users
+			GROUP BY project_id
+		) member_counts ON member_counts.project_id = p.id
 		%s
 		%s
 		LIMIT $%d OFFSET $%d`, whereClause, orderBy, argIndex, argIndex+1)
@@ -373,6 +386,8 @@ func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context,
 			&projectWithCompany.EndDate, &projectWithCompany.Budget, &projectWithCompany.CreatedAt,
 			&projectWithCompany.UpdatedAt, &projectWithCompany.DeletedAt,
 			&projectWithCompany.CompanyName,
+			&projectWithCompany.TaskCount,
+			&projectWithCompany.MemberCount,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan project with company: %w", err)
