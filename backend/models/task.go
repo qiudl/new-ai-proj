@@ -262,7 +262,8 @@ type TaskListOptions struct {
 	CompanyID    *int   // 企业数据隔离过滤 (旧系统)
 	EnterpriseID *int   // 企业数据隔离过滤 (新系统)
 	OnlyRoots    bool   // if true, only return root tasks (parent_id IS NULL)
-	SortBy       string // updated_at | due_date | created_at
+	WorkDate     string // YYYY-MM-DD format, filter tasks with work hours on this date
+	SortBy       string // updated_at | due_date | created_at | work_hours
 	SortOrder    string // asc | desc
 }
 

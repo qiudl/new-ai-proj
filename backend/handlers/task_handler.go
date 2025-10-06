@@ -68,6 +68,7 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 	assigneeID := c.Query("assignee_id")
 	priority := c.Query("priority")
 	taskIDParam := c.Query("task_id")
+	workDate := c.Query("work_date") // YYYY-MM-DD format
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 	onlyRootsParam := c.DefaultQuery("only_roots", "false")
@@ -105,6 +106,7 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 		ProjectID: &projectID,
 		TaskID:    taskIDPtr,
 		OnlyRoots: onlyRoots,
+		WorkDate:  workDate,
 		SortBy:    sortBy,
 		SortOrder: sortOrder,
 	}
@@ -168,6 +170,7 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	priority := c.Query("priority")
 	taskIDParam := c.Query("task_id")
 	enterpriseIDParam := c.Query("enterprise_id")
+	workDate := c.Query("work_date") // YYYY-MM-DD format
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 	preset := c.DefaultQuery("preset", "") // overdue | planning | on_hold
@@ -229,6 +232,7 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 		CompanyID:    companyIDPtr, // 企业数据隔离 (旧系统)
 		EnterpriseID: enterpriseIDPtr, // 企业数据隔离 (新系统)
 		OnlyRoots:    onlyRoots,
+		WorkDate:     workDate,
 		SortBy:       sortBy,
 		SortOrder:    sortOrder,
 	}

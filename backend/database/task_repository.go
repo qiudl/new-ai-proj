@@ -536,6 +536,19 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 			argIdx += 2
 		}
 
+		// Work date filtering - tasks that have work hours on a specific date
+		if opts.WorkDate != "" {
+			conditions = append(conditions, fmt.Sprintf(`
+				EXISTS (
+					SELECT 1 FROM unified_timer_logs utl
+					WHERE utl.task_id = t.id
+					AND DATE(utl.start_time) = $%d
+				)
+			`, argIdx))
+			args = append(args, opts.WorkDate)
+			argIdx++
+		}
+
 		if opts.Preset != "" {
 			switch opts.Preset {
 			case "overdue":
@@ -591,6 +604,9 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 			case "updated_at":
 				// explicit mapping for clarity
 				sortBy = "t.updated_at"
+			case "work_hours":
+				// Will be handled in query SELECT with subquery
+				sortBy = "work_hours"
 			default:
 				// fallback to updated_at for unknown values
 				sortBy = "t.updated_at"
@@ -601,8 +617,24 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 		}
 	}
 
-	// 构建ORDER BY子句
+	// 构建ORDER BY子句和额外的SELECT字段
 	var orderByClause string
+	var additionalSelectFields string
+	var additionalJoins string
+
+	needsWorkHours := sortBy == "work_hours"
+	if needsWorkHours {
+		additionalSelectFields = `, COALESCE(wh.work_hours, 0) as work_hours`
+		additionalJoins = `
+		LEFT JOIN (
+			SELECT task_id,
+			       SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 3600.0) as work_hours
+			FROM unified_timer_logs
+			WHERE deleted_at IS NULL
+			GROUP BY task_id
+		) wh ON t.id = wh.task_id`
+	}
+
 	if useRootTaskOrder {
 		// 使用根任务优先的复杂排序逻辑：
 		// 1. 先按是否为根任务排序（根任务在前）
@@ -624,7 +656,7 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 		       t.created_at, t.updated_at, t.deleted_at,
 		       p.name as project_name, u.username as assignee_name,
 		       COALESCE(c.children_count, 0) as children_count,
-		       COALESCE(c.completed_children_count, 0) as completed_children_count
+		       COALESCE(c.completed_children_count, 0) as completed_children_count%s
 		FROM tasks t
 		LEFT JOIN projects p ON t.project_id = p.id
 		LEFT JOIN users u ON t.assignee_id = u.id
@@ -635,10 +667,10 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 			FROM tasks
 			WHERE deleted_at IS NULL AND parent_id IS NOT NULL
 			GROUP BY parent_id
-		) c ON t.id = c.parent_id
+		) c ON t.id = c.parent_id%s
 		%s
 		ORDER BY %s
-		LIMIT $%d OFFSET $%d`, where, orderByClause, len(args)+1, len(args)+2)
+		LIMIT $%d OFFSET $%d`, additionalSelectFields, additionalJoins, where, orderByClause, len(args)+1, len(args)+2)
 
 	args = append(args, limit, offset)
 	rows, err := exec.QueryContext(ctx, query, args...)
@@ -664,17 +696,33 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 		var assigneeName sql.NullString
 		var childrenCount int
 		var completedChildrenCount int
+		var workHours sql.NullFloat64
 
-		if err := rows.Scan(
-			&task.ID, &task.ProjectID, &task.Title, &task.Description,
-			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-			&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
-			&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
-			&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
-			&task.CreatedAt, &updatedAt, &task.DeletedAt,
-			&projectName, &assigneeName, &childrenCount, &completedChildrenCount,
-		); err != nil {
-			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
+		if needsWorkHours {
+			if err := rows.Scan(
+				&task.ID, &task.ProjectID, &task.Title, &task.Description,
+				&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
+				&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
+				&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
+				&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
+				&task.CreatedAt, &updatedAt, &task.DeletedAt,
+				&projectName, &assigneeName, &childrenCount, &completedChildrenCount,
+				&workHours,
+			); err != nil {
+				return nil, 0, fmt.Errorf("failed to scan task: %w", err)
+			}
+		} else {
+			if err := rows.Scan(
+				&task.ID, &task.ProjectID, &task.Title, &task.Description,
+				&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
+				&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
+				&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
+				&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
+				&task.CreatedAt, &updatedAt, &task.DeletedAt,
+				&projectName, &assigneeName, &childrenCount, &completedChildrenCount,
+			); err != nil {
+				return nil, 0, fmt.Errorf("failed to scan task: %w", err)
+			}
 		}
 
 		if assigneeID.Valid {
