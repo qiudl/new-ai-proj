@@ -154,12 +154,12 @@ class AnalyticsViewModel @Inject constructor(
 
                     // 转换Top任务数据（Task Stats Tab需要）
                     // 注意：API返回的是TaskSummaryItem，需要转换为TopTask
-                    // 由于API不返回工作时长，这里暂时用0.0f占位，后续可以通过其他API获取
+                    // work_hours字段现在由后端通过JOIN unified_timer_logs返回
                     val topTasks = (weeklyStats.top_tasks ?: emptyList()).take(5).map { task ->
                         TopTask(
                             taskId = task.id,
                             title = task.title,
-                            hours = 0.0f,  // TODO: 需要从time logs API获取
+                            hours = task.work_hours,  // 使用后端返回的真实工作时长
                             status = task.status,
                             priority = task.priority
                         )

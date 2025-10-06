@@ -145,7 +145,8 @@ data class TaskSummaryItem(
     val status: String,
     val priority: String = "",
     val due_date: String? = null,
-    val updated_at: String = ""
+    val updated_at: String = "",
+    val work_hours: Float = 0f  // Total work hours from unified_timer_logs
 )
 
 data class WeeklyTrends(

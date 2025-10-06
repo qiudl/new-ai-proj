@@ -102,6 +102,7 @@ type TaskSummaryItem struct {
 	Priority    string  `json:"priority"`
 	DueDate     *string `json:"due_date"`
 	UpdatedAt   string  `json:"updated_at"`
+	WorkHours   float64 `json:"work_hours"` // Total work hours from time logs
 }
 
 // WeeklyTrends represents trend data compared to previous periods
@@ -417,9 +418,9 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		stats.DailyStats = append(stats.DailyStats, item)
 	}
 
-	// 5. Get top tasks (high priority or recently updated)
+	// 5. Get top tasks (high priority or recently updated) with work hours
 	topTasksQuery := `
-		SELECT 
+		SELECT
 			t.id,
 			t.project_id,
 			p.name as project_name,
@@ -427,13 +428,19 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 			t.status,
 			COALESCE(t.custom_fields->>'priority', 'medium') as priority,
 			t.due_date,
-			t.updated_at
+			t.updated_at,
+			COALESCE(SUM(utl.actual_work_seconds) / 3600.0, 0) as work_hours
 		FROM tasks t
 		JOIN projects p ON t.project_id = p.id
-		WHERE t.deleted_at IS NULL 
-		AND p.deleted_at IS NULL 
+		LEFT JOIN unified_timer_logs utl ON t.id = utl.target_id
+			AND utl.target_type = 'project_task'
+			AND utl.status = 'completed'
+		WHERE t.deleted_at IS NULL
+		AND p.deleted_at IS NULL
 		AND ` + timeFilter + projectFilter + `
-		ORDER BY 
+		GROUP BY t.id, t.project_id, p.name, t.title, t.status, t.custom_fields, t.due_date, t.updated_at
+		ORDER BY
+			work_hours DESC,
 			CASE WHEN t.custom_fields->>'priority' = 'urgent' THEN 1
 				 WHEN t.custom_fields->>'priority' = 'high' THEN 2
 				 WHEN t.custom_fields->>'priority' = 'medium' THEN 3
@@ -454,7 +461,7 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 
 		err := topTasksRows.Scan(
 			&item.ID, &item.ProjectID, &item.ProjectName, &item.Title,
-			&item.Status, &item.Priority, &dueDate, &updatedAt,
+			&item.Status, &item.Priority, &dueDate, &updatedAt, &item.WorkHours,
 		)
 		if err != nil {
 			return nil, err
