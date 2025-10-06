@@ -85,4 +85,16 @@ func RegisterTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 		// 批量创建子任务路由
 		tasks.POST("/batch-create-subtasks", aiSubtaskHandler.BatchCreateSubtasks)
 	}
+
+	// AI相关路由（文档生成、描述生成等）
+	ai := authorized.Group("/ai")
+	{
+		aiDocHandler := app.GetAIDocumentHandler()
+
+		// 文档生成
+		ai.POST("/generate-document", aiDocHandler.GenerateDocument)
+		ai.GET("/document-templates", aiDocHandler.GetDocumentTemplates)
+		ai.GET("/document-types", aiDocHandler.GetDocumentTypeInfo)
+		ai.POST("/save-document", aiDocHandler.SaveDocumentToTask)
+	}
 }

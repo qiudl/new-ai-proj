@@ -21,7 +21,7 @@ func NewPromptRepository(db *sql.DB) *PromptRepository {
 // GetActiveTemplates 获取所有启用的提示词模板
 func (r *PromptRepository) GetActiveTemplates() ([]models.PromptTemplate, error) {
 	query := `
-		SELECT id, name, description, content, category, tags, usage_count,
+		SELECT id, name, description, content, category, prompt_type, tags, usage_count,
 		       success_rate, recommended_models, is_system, is_active,
 		       created_by, created_at, updated_at
 		FROM prompt_templates
@@ -42,7 +42,7 @@ func (r *PromptRepository) GetActiveTemplates() ([]models.PromptTemplate, error)
 		var recommendedModels models.StringArray
 
 		err := rows.Scan(
-			&t.ID, &t.Name, &t.Description, &t.Content, &t.Category,
+			&t.ID, &t.Name, &t.Description, &t.Content, &t.Category, &t.PromptType,
 			&tags, &t.UsageCount, &t.SuccessRate, &recommendedModels,
 			&t.IsSystem, &t.IsActive, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt,
 		)
@@ -65,7 +65,7 @@ func (r *PromptRepository) GetActiveTemplates() ([]models.PromptTemplate, error)
 // GetTemplatesByCategory 按分类获取提示词模板
 func (r *PromptRepository) GetTemplatesByCategory(category string) ([]models.PromptTemplate, error) {
 	query := `
-		SELECT id, name, description, content, category, tags, usage_count,
+		SELECT id, name, description, content, category, prompt_type, tags, usage_count,
 		       success_rate, recommended_models, is_system, is_active,
 		       created_by, created_at, updated_at
 		FROM prompt_templates
@@ -86,7 +86,7 @@ func (r *PromptRepository) GetTemplatesByCategory(category string) ([]models.Pro
 		var recommendedModels models.StringArray
 
 		err := rows.Scan(
-			&t.ID, &t.Name, &t.Description, &t.Content, &t.Category,
+			&t.ID, &t.Name, &t.Description, &t.Content, &t.Category, &t.PromptType,
 			&tags, &t.UsageCount, &t.SuccessRate, &recommendedModels,
 			&t.IsSystem, &t.IsActive, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt,
 		)
@@ -109,7 +109,7 @@ func (r *PromptRepository) GetTemplatesByCategory(category string) ([]models.Pro
 // GetTemplateByID 根据ID获取提示词模板
 func (r *PromptRepository) GetTemplateByID(id int) (*models.PromptTemplate, error) {
 	query := `
-		SELECT id, name, description, content, category, tags, usage_count,
+		SELECT id, name, description, content, category, prompt_type, tags, usage_count,
 		       success_rate, recommended_models, is_system, is_active,
 		       created_by, created_at, updated_at
 		FROM prompt_templates
@@ -121,7 +121,7 @@ func (r *PromptRepository) GetTemplateByID(id int) (*models.PromptTemplate, erro
 	var recommendedModels models.StringArray
 
 	err := r.db.QueryRow(query, id).Scan(
-		&t.ID, &t.Name, &t.Description, &t.Content, &t.Category,
+		&t.ID, &t.Name, &t.Description, &t.Content, &t.Category, &t.PromptType,
 		&tags, &t.UsageCount, &t.SuccessRate, &recommendedModels,
 		&t.IsSystem, &t.IsActive, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt,
 	)
@@ -168,9 +168,10 @@ func (r *PromptRepository) CreatePromptHistory(history *models.UserPromptHistory
 	query := `
 		INSERT INTO user_prompt_history (
 			user_id, parent_task_id, prompt_text, template_id,
-			ai_provider, ai_model, subtasks_generated, subtasks_accepted,
+			ai_provider, ai_model, prompt_type, document_type,
+			subtasks_generated, subtasks_accepted,
 			total_estimated_hours, is_successful, user_rating, user_feedback
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING id, created_at
 	`
 
@@ -182,6 +183,8 @@ func (r *PromptRepository) CreatePromptHistory(history *models.UserPromptHistory
 		history.TemplateID,
 		history.AIProvider,
 		history.AIModel,
+		history.PromptType,
+		history.DocumentType,
 		history.SubtasksGenerated,
 		history.SubtasksAccepted,
 		history.TotalEstimatedHours,
@@ -205,7 +208,8 @@ func (r *PromptRepository) GetUserPromptHistory(userID int, limit int) ([]models
 
 	query := `
 		SELECT id, user_id, parent_task_id, prompt_text, template_id,
-		       ai_provider, ai_model, subtasks_generated, subtasks_accepted,
+		       ai_provider, ai_model, prompt_type, document_type,
+		       subtasks_generated, subtasks_accepted,
 		       total_estimated_hours, is_successful, user_rating, user_feedback, created_at
 		FROM user_prompt_history
 		WHERE user_id = $1
@@ -224,7 +228,8 @@ func (r *PromptRepository) GetUserPromptHistory(userID int, limit int) ([]models
 		var h models.UserPromptHistory
 		err := rows.Scan(
 			&h.ID, &h.UserID, &h.ParentTaskID, &h.PromptText, &h.TemplateID,
-			&h.AIProvider, &h.AIModel, &h.SubtasksGenerated, &h.SubtasksAccepted,
+			&h.AIProvider, &h.AIModel, &h.PromptType, &h.DocumentType,
+			&h.SubtasksGenerated, &h.SubtasksAccepted,
 			&h.TotalEstimatedHours, &h.IsSuccessful, &h.UserRating, &h.UserFeedback, &h.CreatedAt,
 		)
 		if err != nil {
@@ -341,7 +346,8 @@ func (r *PromptRepository) GetSuccessfulHistoryForUser(userID int, limit int) ([
 
 	query := `
 		SELECT id, user_id, parent_task_id, prompt_text, template_id,
-		       ai_provider, ai_model, subtasks_generated, subtasks_accepted,
+		       ai_provider, ai_model, prompt_type, document_type,
+		       subtasks_generated, subtasks_accepted,
 		       total_estimated_hours, is_successful, user_rating, user_feedback, created_at
 		FROM user_prompt_history
 		WHERE user_id = $1 AND is_successful = true
@@ -360,7 +366,8 @@ func (r *PromptRepository) GetSuccessfulHistoryForUser(userID int, limit int) ([
 		var h models.UserPromptHistory
 		err := rows.Scan(
 			&h.ID, &h.UserID, &h.ParentTaskID, &h.PromptText, &h.TemplateID,
-			&h.AIProvider, &h.AIModel, &h.SubtasksGenerated, &h.SubtasksAccepted,
+			&h.AIProvider, &h.AIModel, &h.PromptType, &h.DocumentType,
+			&h.SubtasksGenerated, &h.SubtasksAccepted,
 			&h.TotalEstimatedHours, &h.IsSuccessful, &h.UserRating, &h.UserFeedback, &h.CreatedAt,
 		)
 		if err != nil {
@@ -374,4 +381,48 @@ func (r *PromptRepository) GetSuccessfulHistoryForUser(userID int, limit int) ([
 	}
 
 	return histories, nil
+}
+
+// GetTemplatesByType 按提示词类型获取模板
+func (r *PromptRepository) GetTemplatesByType(promptType string) ([]models.PromptTemplate, error) {
+	query := `
+		SELECT id, name, description, content, category, prompt_type, tags, usage_count,
+		       success_rate, recommended_models, is_system, is_active,
+		       created_by, created_at, updated_at
+		FROM prompt_templates
+		WHERE is_active = true AND prompt_type = $1
+		ORDER BY usage_count DESC, success_rate DESC
+	`
+
+	rows, err := r.db.Query(query, promptType)
+	if err != nil {
+		return nil, fmt.Errorf("查询类型提示词模板失败: %w", err)
+	}
+	defer rows.Close()
+
+	var templates []models.PromptTemplate
+	for rows.Next() {
+		var t models.PromptTemplate
+		var tags models.StringArray
+		var recommendedModels models.StringArray
+
+		err := rows.Scan(
+			&t.ID, &t.Name, &t.Description, &t.Content, &t.Category, &t.PromptType,
+			&tags, &t.UsageCount, &t.SuccessRate, &recommendedModels,
+			&t.IsSystem, &t.IsActive, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描类型提示词模板失败: %w", err)
+		}
+
+		t.Tags = tags
+		t.RecommendedModels = recommendedModels
+		templates = append(templates, t)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("遍历类型提示词模板失败: %w", err)
+	}
+
+	return templates, nil
 }

@@ -190,6 +190,9 @@ type ApplicationInterface interface {
 	// AI子任务处理器
 	GetAISubtaskHandler() *handlers.AISubtaskHandler
 
+	// AI文档生成处理器
+	GetAIDocumentHandler() *handlers.AIDocumentHandler
+
 	// 测试数据生成服务
 	GetTestDataGeneratorService() interface{}
 }

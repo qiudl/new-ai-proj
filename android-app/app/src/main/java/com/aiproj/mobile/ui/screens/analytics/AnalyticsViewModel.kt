@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aiproj.mobile.data.api.PriorityDistribution
+import com.aiproj.mobile.data.models.TaskStatus
 import com.aiproj.mobile.data.repository.AnalyticsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -281,15 +282,34 @@ class AnalyticsViewModel @Inject constructor(
                 // 调用dashboard stats API获取当天的统计数据
                 val dashboardStatsResult = analyticsRepository.getDashboardStats(date)
 
+                // 调用任务列表API获取当天的任务明细
+                val tasksResult = analyticsRepository.getTasksByWorkDate(date)
+
                 val dayDetail = if (dashboardStatsResult.isSuccess && dayWorkTime != null) {
                     val stats = dashboardStatsResult.getOrNull()
+                    val tasks = tasksResult.getOrNull() ?: emptyList()
+
+                    // 将Task转换为TaskTimeEntry
+                    val taskEntries = tasks.map { task ->
+                        TaskTimeEntry(
+                            taskId = task.id,
+                            taskTitle = task.title,
+                            projectName = task.projectName ?: "项目#${task.projectId}",
+                            duration = 0f,  // TODO: 从work_hours字段获取
+                            startTime = "00:00",  // TODO: 从timer logs获取
+                            endTime = "00:00",
+                            status = task.status.name.lowercase(),
+                            isCompleted = task.status == TaskStatus.COMPLETED
+                        )
+                    }
+
                     DayDetail(
                         date = date,
                         weekday = getWeekdayLabel(date),
                         hours = dayWorkTime.hours,
                         tasksCompleted = stats?.today_tasks_completed ?: dayWorkTime.taskCount,
                         efficiency = 0f,  // TODO: 计算效率
-                        taskEntries = emptyList()  // TODO: 需要后端提供任务列表API
+                        taskEntries = taskEntries
                     )
                 } else {
                     // 如果API调用失败，使用workTimeTrend的数据

@@ -2,8 +2,10 @@ package com.aiproj.mobile.data.repository
 
 import com.aiproj.mobile.data.api.AnalyticsApi
 import com.aiproj.mobile.data.api.DashboardStatsData
+import com.aiproj.mobile.data.api.TaskApi
 import com.aiproj.mobile.data.api.TimeStatsData
 import com.aiproj.mobile.data.api.WeeklyStatsResponse
+import com.aiproj.mobile.data.models.Task
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -12,7 +14,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class AnalyticsRepository @Inject constructor(
-    private val analyticsApi: AnalyticsApi
+    private val analyticsApi: AnalyticsApi,
+    private val taskApi: TaskApi
 ) {
     /**
      * 获取工作时长统计（用于趋势图表）
@@ -77,6 +80,42 @@ class AnalyticsRepository @Inject constructor(
                 Result.success(response.body()!!)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch weekly stats"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 获取指定日期的任务列表
+     * @param workDate 工作日期（YYYY-MM-DD格式）
+     * @param projectId 项目ID（可选）
+     * @param limit 返回数量限制（默认100）
+     */
+    suspend fun getTasksByWorkDate(
+        workDate: String,
+        projectId: Int? = null,
+        limit: Int = 100
+    ): Result<List<Task>> {
+        return try {
+            val response = taskApi.getTasks(
+                page = 1,
+                limit = limit,
+                workDate = workDate,
+                projectId = projectId,
+                sortBy = "work_hours",
+                sortOrder = "desc"
+            )
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                if (body.success && body.data != null) {
+                    val tasks = body.data.tasks
+                    Result.success(tasks)
+                } else {
+                    Result.failure(Exception(body.error ?: "API returned success=false or null data"))
+                }
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch tasks by work date"))
             }
         } catch (e: Exception) {
             Result.failure(e)

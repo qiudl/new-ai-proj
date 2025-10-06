@@ -25,7 +25,8 @@ interface TaskApi {
         @Query("assignee_id") assigneeId: Int? = null,
         @Query("search") search: String? = null,
         @Query("sort_by") sortBy: String? = null,
-        @Query("sort_order") sortOrder: String? = null
+        @Query("sort_order") sortOrder: String? = null,
+        @Query("work_date") workDate: String? = null  // YYYY-MM-DD format, filter tasks by work date
     ): Response<TaskListResponse>
 
     /**

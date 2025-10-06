@@ -11,6 +11,7 @@ type PromptTemplate struct {
 	Description       *string   `json:"description,omitempty"`
 	Content           string    `json:"content"`
 	Category          string    `json:"category"`
+	PromptType        string    `json:"prompt_type"`        // subtask, document, description
 	Tags              []string  `json:"tags"`
 	UsageCount        int       `json:"usage_count"`
 	SuccessRate       float64   `json:"success_rate"`
@@ -31,6 +32,8 @@ type UserPromptHistory struct {
 	TemplateID          *int      `json:"template_id,omitempty"`
 	AIProvider          string    `json:"ai_provider"`
 	AIModel             string    `json:"ai_model"`
+	PromptType          string    `json:"prompt_type"`             // subtask, document, description
+	DocumentType        *string   `json:"document_type,omitempty"` // 仅用于document类型
 	SubtasksGenerated   int       `json:"subtasks_generated"`
 	SubtasksAccepted    int       `json:"subtasks_accepted"`
 	TotalEstimatedHours *float64  `json:"total_estimated_hours,omitempty"`

@@ -686,6 +686,11 @@ func (app *Application) GetAISubtaskHandler() *handlers.AISubtaskHandler {
 	return handlers.NewAISubtaskHandler(app.db)
 }
 
+// GetAIDocumentHandler returns the AI document generation handler
+func (app *Application) GetAIDocumentHandler() *handlers.AIDocumentHandler {
+	return handlers.NewAIDocumentHandler(app.db)
+}
+
 // GetWebSocketHandler returns the WebSocket handler - COMPLETELY DISABLED
 // func (app *Application) GetWebSocketHandler() gin.HandlerFunc {
 // 	// Temporarily disabled WebSocket functionality
