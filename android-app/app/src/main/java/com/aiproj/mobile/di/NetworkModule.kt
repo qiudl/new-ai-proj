@@ -46,6 +46,8 @@ object NetworkModule {
     fun provideGson(): Gson {
         return GsonBuilder()
             .setLenient()
+            // Gson会将null赋值给有默认值的字段，这是已知问题
+            // 最好的解决方案是在数据类中使用可空类型或在Repository层做null检查
             .create()
     }
 
