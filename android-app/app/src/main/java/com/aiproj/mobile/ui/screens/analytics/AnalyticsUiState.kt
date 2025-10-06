@@ -15,6 +15,7 @@ data class AnalyticsUiState(
 
     // 工作时长数据
     val workTimeTrend: List<DailyWorkTime> = emptyList(),
+    val timeGranularity: TimeGranularity = TimeGranularity.DAY, // 当前时间粒度
 
     // 任务统计数据
     val completedTasksCount: Int = 0,
@@ -54,10 +55,21 @@ enum class TimeRange(val displayName: String) {
  * 每日工作时长数据
  */
 data class DailyWorkTime(
-    val date: String,       // "2025-10-05"
-    val dayLabel: String,   // "周一" 或 "10/5"
-    val hours: Float        // 工作小时数
+    val date: String,       // "2025-10-05" 或 "2025-10-05 14:00"（小时粒度）
+    val dayLabel: String,   // "周一" 或 "10/5" 或 "14:00"（小时粒度）
+    val hours: Float,       // 工作小时数
+    val taskCount: Int = 0, // 该时段完成的任务数
+    val detailInfo: String? = null // 详细信息（用于点击显示）
 )
+
+/**
+ * 时间粒度枚举
+ */
+enum class TimeGranularity {
+    HOUR,    // 按小时显示（单日）
+    DAY,     // 按天显示（2-30天）
+    WEEK     // 按周显示（30天以上）
+}
 
 /**
  * 任务状态分布数据

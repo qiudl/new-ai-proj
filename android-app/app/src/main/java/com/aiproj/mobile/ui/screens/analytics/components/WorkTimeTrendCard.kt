@@ -2,14 +2,13 @@ package com.aiproj.mobile.ui.screens.analytics.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiproj.mobile.ui.screens.analytics.DailyWorkTime
+import com.aiproj.mobile.ui.screens.analytics.TimeGranularity
 import com.aiproj.mobile.ui.screens.analytics.TimeRange
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
@@ -32,8 +31,11 @@ import kotlin.math.roundToInt
 fun WorkTimeTrendCard(
     data: List<DailyWorkTime>,
     timeRange: TimeRange,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    granularity: TimeGranularity = TimeGranularity.DAY
 ) {
+    var showDetailDialog by remember { mutableStateOf(false) }
+    var selectedDataPoint by remember { mutableStateOf<DailyWorkTime?>(null) }
     Card(
         modifier = modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -91,7 +93,14 @@ fun WorkTimeTrendCard(
                                 textSize = 10.sp
                             ),
                             valueFormatter = { value, _, _ ->
-                                data.getOrNull(value.toInt())?.dayLabel ?: ""
+                                // 优化X轴刻度显示：确保间隔合理
+                                val index = value.toInt()
+                                val stepSize = calculateXAxisStep(data.size, granularity)
+                                if (index % stepSize == 0 || index == data.size - 1) {
+                                    data.getOrNull(index)?.dayLabel ?: ""
+                                } else {
+                                    ""
+                                }
                             }
                         )
                     ),
@@ -131,6 +140,32 @@ fun WorkTimeTrendCard(
             }
         }
     }
+
+    // 详情对话框
+    if (showDetailDialog && selectedDataPoint != null) {
+        AlertDialog(
+            onDismissRequest = { showDetailDialog = false },
+            title = { Text("时段详情") },
+            text = {
+                Column {
+                    Text("时间: ${selectedDataPoint!!.dayLabel}")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("工作时长: ${String.format("%.1f", selectedDataPoint!!.hours)}小时")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("任务数: ${selectedDataPoint!!.taskCount}个")
+                    if (!selectedDataPoint!!.detailInfo.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("备注: ${selectedDataPoint!!.detailInfo}")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDetailDialog = false }) {
+                    Text("关闭")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -161,4 +196,29 @@ private fun calculateTotalHours(data: List<DailyWorkTime>): String {
 private fun calculateAverageHours(data: List<DailyWorkTime>): Float {
     if (data.isEmpty()) return 0f
     return data.map { it.hours }.average().toFloat()
+}
+
+/**
+ * 计算X轴刻度步长（确保不超过7个刻度）
+ */
+private fun calculateXAxisStep(dataSize: Int, granularity: TimeGranularity): Int {
+    return when (granularity) {
+        TimeGranularity.HOUR -> {
+            // 24小时：每4小时一个刻度 (0, 4, 8, 12, 16, 20)
+            4
+        }
+        TimeGranularity.DAY -> {
+            // 按天：确保不超过7个刻度
+            when {
+                dataSize <= 7 -> 1      // 7天内：每天显示
+                dataSize <= 14 -> 2     // 8-14天：每2天
+                dataSize <= 21 -> 3     // 15-21天：每3天
+                else -> dataSize / 7    // 更长：最多7个刻度
+            }
+        }
+        TimeGranularity.WEEK -> {
+            // 按周：通常不会超过7个刻度
+            1
+        }
+    }
 }

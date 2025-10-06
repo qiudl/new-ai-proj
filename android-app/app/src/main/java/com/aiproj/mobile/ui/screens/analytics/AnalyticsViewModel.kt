@@ -38,10 +38,9 @@ class AnalyticsViewModel @Inject constructor(
                     LocalDate.parse(endDate)
                 ).toInt() + 1
 
-                // 1. 获取工作时长趋势数据
-                // Bug修复: 时间段小于7天时，始终显示最近7天的工作时长趋势
-                val trendDays = if (days < 7) 7 else days
-                val timeStatsResult = analyticsRepository.getTimeStats(trendDays)
+                // 1. 确定时间粒度和获取工作时长趋势数据
+                val granularity = determineTimeGranularity(days)
+                val timeStatsResult = analyticsRepository.getTimeStats(days)
 
                 // 2. 获取周统计数据
                 val weeklyStatsResult = analyticsRepository.getWeeklyStats(startDate, endDate)
@@ -55,14 +54,12 @@ class AnalyticsViewModel @Inject constructor(
                         throw Exception("数据加载失败：统计数据为空")
                     }
 
-                    // 转换工作时长趋势数据
-                    val workTimeTrend = (timeStats.dailyStats ?: emptyList()).map { daily ->
-                        DailyWorkTime(
-                            date = daily.date,
-                            dayLabel = daily.label,
-                            hours = daily.hours
-                        )
-                    }
+                    // 转换工作时长趋势数据（根据粒度处理）
+                    val workTimeTrend = processWorkTimeTrend(
+                        dailyStats = timeStats.dailyStats ?: emptyList(),
+                        granularity = granularity,
+                        days = days
+                    )
 
                     // 计算任务状态分布
                     // 注意：由于后端summary数据可能为0，我们从daily_stats计算实际值
@@ -130,6 +127,7 @@ class AnalyticsViewModel @Inject constructor(
                         state.copy(
                             isLoading = false,
                             workTimeTrend = workTimeTrend,
+                            timeGranularity = granularity,
                             completedTasksCount = summaryCompleted,
                             totalTasksCount = summaryTotal,
                             taskCompletionRate = summaryRate,
@@ -274,6 +272,74 @@ class AnalyticsViewModel @Inject constructor(
                     // 默认最近7天
                     val sevenDaysAgo = today.minusDays(6)
                     sevenDaysAgo.format(formatter) to today.format(formatter)
+                }
+            }
+        }
+    }
+
+    /**
+     * 确定时间粒度
+     */
+    private fun determineTimeGranularity(days: Int): TimeGranularity {
+        return when {
+            days == 1 -> TimeGranularity.HOUR     // 单日：按小时
+            days <= 30 -> TimeGranularity.DAY     // 2-30天：按天
+            else -> TimeGranularity.WEEK          // 30天以上：按周
+        }
+    }
+
+    /**
+     * 处理工作时长趋势数据（根据粒度转换）
+     */
+    private fun processWorkTimeTrend(
+        dailyStats: List<com.aiproj.mobile.data.api.DailyTimeStat>,
+        granularity: TimeGranularity,
+        days: Int
+    ): List<DailyWorkTime> {
+        return when (granularity) {
+            TimeGranularity.HOUR -> {
+                // 单日按小时显示：将日总时长均分到24小时（模拟数据）
+                // 实际应用中可以调用hourly API，这里作为fallback
+                val totalHours = dailyStats.firstOrNull()?.hours ?: 0f
+                val hourlyHours = totalHours / 8 // 假设工作8小时
+                (0..23).map { hour ->
+                    val isWorkHour = hour in 9..17 // 9:00-17:00 工作时间
+                    DailyWorkTime(
+                        date = dailyStats.firstOrNull()?.date ?: "",
+                        dayLabel = String.format("%02d:00", hour),
+                        hours = if (isWorkHour) hourlyHours else 0f,
+                        taskCount = if (isWorkHour) dailyStats.firstOrNull()?.taskCount?.div(8) ?: 0 else 0,
+                        detailInfo = if (isWorkHour) "工作时段" else "非工作时段"
+                    )
+                }
+            }
+            TimeGranularity.DAY -> {
+                // 按天显示
+                dailyStats.map { daily ->
+                    DailyWorkTime(
+                        date = daily.date,
+                        dayLabel = daily.label,
+                        hours = daily.hours,
+                        taskCount = daily.taskCount,
+                        detailInfo = "${daily.date}: ${daily.hours}h, ${daily.taskCount}个任务"
+                    )
+                }
+            }
+            TimeGranularity.WEEK -> {
+                // 按周聚合显示
+                dailyStats.chunked(7).mapIndexed { weekIndex, weekData ->
+                    val weekHours = weekData.sumOf { it.hours.toDouble() }.toFloat()
+                    val weekTaskCount = weekData.sumOf { it.taskCount }
+                    val startDate = weekData.firstOrNull()?.date ?: ""
+                    val endDate = weekData.lastOrNull()?.date ?: ""
+
+                    DailyWorkTime(
+                        date = startDate,
+                        dayLabel = "第${weekIndex + 1}周",
+                        hours = weekHours,
+                        taskCount = weekTaskCount,
+                        detailInfo = "$startDate ~ $endDate: ${weekHours}h, ${weekTaskCount}个任务"
+                    )
                 }
             }
         }

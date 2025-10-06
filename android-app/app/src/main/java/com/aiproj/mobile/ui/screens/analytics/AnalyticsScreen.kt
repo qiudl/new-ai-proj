@@ -68,7 +68,8 @@ fun AnalyticsScreen(
                     item {
                         WorkTimeTrendCard(
                             data = uiState.workTimeTrend,
-                            timeRange = uiState.selectedTimeRange
+                            timeRange = uiState.selectedTimeRange,
+                            granularity = uiState.timeGranularity
                         )
                     }
 
