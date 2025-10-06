@@ -99,9 +99,11 @@ Thumbs.db
 debug_files/
 */debug_files/
 
-# Build executables
+# Build executables (but allow Android src directories)
+!android-app/app/src/main/**
 main
 */main
+!android-app/app/src/main
 app
 */app
 # But allow android-app/app directory
