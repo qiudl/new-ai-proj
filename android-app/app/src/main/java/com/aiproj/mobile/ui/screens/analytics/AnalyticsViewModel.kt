@@ -152,6 +152,52 @@ class AnalyticsViewModel @Inject constructor(
                         0f
                     }
 
+                    // 转换Top任务数据（Task Stats Tab需要）
+                    // 注意：API返回的是TaskSummaryItem，需要转换为TopTask
+                    // 由于API不返回工作时长，这里暂时用0.0f占位，后续可以通过其他API获取
+                    val topTasks = (weeklyStats.top_tasks ?: emptyList()).take(5).map { task ->
+                        TopTask(
+                            taskId = task.id,
+                            title = task.title,
+                            hours = 0.0f,  // TODO: 需要从time logs API获取
+                            status = task.status,
+                            priority = task.priority
+                        )
+                    }
+
+                    // 转换每日完成趋势数据（Task Stats Tab需要）
+                    val dailyCompletion = (weeklyStats.daily_stats ?: emptyList()).map { dailyStat ->
+                        val dateObj = try {
+                            java.time.LocalDate.parse(dailyStat.date)
+                        } catch (e: Exception) {
+                            java.time.LocalDate.now()
+                        }
+                        val weekday = when (dateObj.dayOfWeek.value) {
+                            1 -> "周一"
+                            2 -> "周二"
+                            3 -> "周三"
+                            4 -> "周四"
+                            5 -> "周五"
+                            6 -> "周六"
+                            7 -> "周日"
+                            else -> ""
+                        }
+                        DailyCompletion(
+                            date = dailyStat.date,
+                            weekday = weekday,
+                            completedCount = dailyStat.tasks_completed
+                        )
+                    }
+
+                    // 优先级分布（Task Stats Tab需要）
+                    // 注意：API的TaskStatsByStatus没有priority字段，这里需要通过其他方式获取
+                    // 暂时使用占位数据，后续可以通过任务列表API过滤统计
+                    val priorityStats = PriorityStats(
+                        highPriority = 0,  // TODO: 需要从任务列表API统计
+                        mediumPriority = 0,
+                        lowPriority = 0
+                    )
+
                     _uiState.update { state ->
                         state.copy(
                             isLoading = false,
@@ -163,7 +209,13 @@ class AnalyticsViewModel @Inject constructor(
                             taskStatusDistribution = taskStatusDistribution,
                             projectTimeDistribution = projectDistribution,
                             consecutiveWorkDays = consecutiveDays,
-                            totalFocusHours = totalFocusHours
+                            totalFocusHours = totalFocusHours,
+                            // Task Stats Tab数据
+                            inProgressTasksCount = taskStats.in_progress,
+                            todoTasksCount = taskStats.todo,
+                            topTasks = topTasks,
+                            dailyCompletionTrend = dailyCompletion,
+                            priorityDistribution = priorityStats
                         )
                     }
                 } else {

@@ -298,6 +298,27 @@ var AIConfigRolePermissions = map[string][]string{
 		PermissionAIConfigSendWarnings,
 	},
 
+	// Admin角色：拥有所有权限（与system_admin相同）
+	"admin": {
+		PermissionAIConfigAdminAll,
+		PermissionAIConfigView,
+		PermissionAIConfigCreate,
+		PermissionAIConfigUpdate,
+		PermissionAIConfigDelete,
+		PermissionAIConfigViewAPIKey,
+		PermissionAIConfigManageAPIKey,
+		PermissionAIConfigTest,
+		PermissionAIConfigToggle,
+		PermissionAIConfigRotateKey,
+		PermissionAIConfigViewRotationHistory,
+		PermissionAIConfigManageExpiry,
+		PermissionAIConfigAutoRotate,
+		PermissionAIConfigViewStats,
+		PermissionAIConfigCheckExpiry,
+		PermissionAIConfigDisableExpired,
+		PermissionAIConfigSendWarnings,
+	},
+
 	// AI管理员：除超级管理员权限外的所有AI配置权限
 	"ai_admin": {
 		PermissionAIConfigView,

@@ -48,7 +48,7 @@ import AICreateDropdown from '../../../../components/TaskDetail/AICreateDropdown
 import SubtaskPreviewModal, { SubtaskPreview } from '../../../../components/TaskDetail/SubtaskPreviewModal';
 import AIGeneratingModal from '../../../../components/TaskDetail/AIGeneratingModal';
 import type { AIModel } from '../../../../config/aiModels';
-import { aiTaskService } from '../../../../services/aiTaskService';
+import { aiTaskService, buildGenerateRequest } from '../../../../services/aiTaskService';
 
 const { Text } = Typography;
 
@@ -216,26 +216,40 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   };
 
   // AI模型选择回调
-  const handleAIModelSelect = async (modelKey: string, modelInfo: AIModel) => {
+  const handleAIModelSelect = async (
+    modelKey: string,
+    modelInfo: AIModel,
+    customPrompt: string | null
+  ) => {
     console.log('Selected AI model:', modelKey, modelInfo);
+    console.log('Custom prompt:', customPrompt ? customPrompt.substring(0, 50) + '...' : 'using system default');
     setSelectedAIModel(modelInfo);
     setShowGeneratingModal(true);
 
     try {
-      // 调用AI生成API
-      const result = await aiTaskService.generateSubtasks(task.id, {
-        model: modelKey,
-        context: {
-          include_description: true,
-          include_siblings: false,
-          max_subtasks: 10
+      // 使用buildGenerateRequest构建请求
+      const request = buildGenerateRequest(
+        modelKey,
+        customPrompt || undefined,
+        {
+          includeDescription: true,
+          includeSiblings: false,
+          maxSubtasks: 10
         }
-      });
+      );
+
+      // 调用AI生成API
+      const result = await aiTaskService.generateSubtasks(task.id, request);
 
       setPreviewSubtasks(result.subtasks);
       setShowGeneratingModal(false);
       setShowPreviewModal(true);
-      message.success(`已生成 ${result.subtasks.length} 个子任务`);
+
+      message.success(
+        customPrompt
+          ? `使用自定义提示词生成了 ${result.subtasks.length} 个子任务`
+          : `使用系统默认Prompt生成了 ${result.subtasks.length} 个子任务`
+      );
     } catch (error) {
       setShowGeneratingModal(false);
       message.error(error instanceof Error ? error.message : 'AI生成失败');
@@ -596,6 +610,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             </Button>
             <AICreateDropdown
               taskId={task.id}
+              taskTitle={task.title}
               onModelSelect={handleAIModelSelect}
             />
             <Button type="default" icon={<ImportOutlined />} onClick={onBulkImportSubtasks}>

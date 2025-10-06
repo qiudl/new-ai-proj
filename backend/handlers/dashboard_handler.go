@@ -63,10 +63,16 @@ type WeeklySummary struct {
 
 // TaskStatsByStatus represents task statistics grouped by status
 type TaskStatsByStatus struct {
+	Draft      int `json:"draft"`
+	Planning   int `json:"planning"`
 	Todo       int `json:"todo"`
 	InProgress int `json:"in_progress"`
+	Testing    int `json:"testing"`
 	Completed  int `json:"completed"`
 	Cancelled  int `json:"cancelled"`
+	OnHold     int `json:"on_hold"`
+	Blocked    int `json:"blocked"`
+	Archived   int `json:"archived"`
 }
 
 // ProjectStatsItem represents statistics for a single project
@@ -251,12 +257,39 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		stats.Summary.CompletionRate = float64(stats.Summary.CompletedTasks) / float64(stats.Summary.TotalTasks) * 100
 	}
 
-	// 2. Get task stats by status
-	stats.TaskStats = TaskStatsByStatus{
-		Todo:       stats.Summary.PendingTasks,
-		InProgress: stats.Summary.InProgressTasks,
-		Completed:  stats.Summary.CompletedTasks,
-		Cancelled:  stats.Summary.TotalTasks - stats.Summary.PendingTasks - stats.Summary.InProgressTasks - stats.Summary.CompletedTasks,
+	// 2. Get task stats by status - 详细统计所有状态
+	taskStatsQuery := `
+		SELECT
+			COUNT(CASE WHEN t.status = 'draft' THEN 1 END) as draft,
+			COUNT(CASE WHEN t.status = 'planning' THEN 1 END) as planning,
+			COUNT(CASE WHEN t.status = 'todo' THEN 1 END) as todo,
+			COUNT(CASE WHEN t.status = 'in_progress' THEN 1 END) as in_progress,
+			COUNT(CASE WHEN t.status = 'testing' THEN 1 END) as testing,
+			COUNT(CASE WHEN t.status = 'completed' THEN 1 END) as completed,
+			COUNT(CASE WHEN t.status = 'cancelled' THEN 1 END) as cancelled,
+			COUNT(CASE WHEN t.status = 'on_hold' THEN 1 END) as on_hold,
+			COUNT(CASE WHEN t.status = 'blocked' THEN 1 END) as blocked,
+			COUNT(CASE WHEN t.status = 'archived' THEN 1 END) as archived
+		FROM tasks t
+		JOIN projects p ON t.project_id = p.id
+		WHERE t.deleted_at IS NULL
+		AND p.deleted_at IS NULL
+		AND ` + timeFilter + projectFilter
+
+	err = db.QueryRow(taskStatsQuery, args...).Scan(
+		&stats.TaskStats.Draft,
+		&stats.TaskStats.Planning,
+		&stats.TaskStats.Todo,
+		&stats.TaskStats.InProgress,
+		&stats.TaskStats.Testing,
+		&stats.TaskStats.Completed,
+		&stats.TaskStats.Cancelled,
+		&stats.TaskStats.OnHold,
+		&stats.TaskStats.Blocked,
+		&stats.TaskStats.Archived,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	// 3. Get project statistics

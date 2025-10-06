@@ -12,8 +12,9 @@ type SubtaskPreview struct {
 
 // AIGenerateRequest AI生成子任务请求
 type AIGenerateRequest struct {
-	Model   string                 `json:"model" binding:"required"`
-	Context AIGenerateContext      `json:"context"`
+	Model        string            `json:"model" binding:"required"`
+	CustomPrompt *string           `json:"custom_prompt"` // 用户自定义提示词（可选）
+	Context      AIGenerateContext `json:"context"`
 }
 
 // AIGenerateContext AI生成上下文

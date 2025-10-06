@@ -79,6 +79,7 @@ func (s *AIGenerateService) decryptAPIKey(encrypted string) (string, error) {
 type GenerateSubtasksParams struct {
 	ParentTask         *models.Task
 	Model              string
+	CustomPrompt       *string // 用户自定义提示词（可选）
 	IncludeDescription bool
 	IncludeSiblings    bool
 	MaxSubtasks        int
@@ -177,6 +178,42 @@ func (s *AIGenerateService) GenerateSubtasks(ctx context.Context, params *Genera
 
 // buildPrompt 构建AI提示词
 func (s *AIGenerateService) buildPrompt(params *GenerateSubtasksParams) string {
+	// 如果用户提供了自定义提示词，优先使用
+	if params.CustomPrompt != nil && strings.TrimSpace(*params.CustomPrompt) != "" {
+		return s.buildCustomPrompt(params)
+	}
+
+	// 否则使用系统默认Prompt
+	return s.buildSystemPrompt(params)
+}
+
+// buildCustomPrompt 基于用户自定义提示词构建完整Prompt
+func (s *AIGenerateService) buildCustomPrompt(params *GenerateSubtasksParams) string {
+	var prompt strings.Builder
+
+	// 1. 用户的自定义指令
+	prompt.WriteString("=== 用户指令 ===\n")
+	prompt.WriteString(strings.TrimSpace(*params.CustomPrompt))
+	prompt.WriteString("\n\n")
+
+	// 2. 父任务信息
+	prompt.WriteString("=== 父任务信息 ===\n")
+	prompt.WriteString(fmt.Sprintf("标题: %s\n", params.ParentTask.Title))
+
+	if params.IncludeDescription && params.ParentTask.Description != nil && *params.ParentTask.Description != "" {
+		prompt.WriteString(fmt.Sprintf("描述: %s\n", *params.ParentTask.Description))
+	}
+
+	prompt.WriteString("\n")
+
+	// 3. 输出格式约束（确保JSON格式一致）
+	prompt.WriteString(s.getOutputFormatConstraint(params.MaxSubtasks))
+
+	return prompt.String()
+}
+
+// buildSystemPrompt 构建系统默认Prompt
+func (s *AIGenerateService) buildSystemPrompt(params *GenerateSubtasksParams) string {
 	prompt := fmt.Sprintf(`你是一个专业的项目管理和任务分解专家。请根据以下父任务信息，生成合理的子任务列表。
 
 父任务信息:
@@ -217,6 +254,38 @@ func (s *AIGenerateService) buildPrompt(params *GenerateSubtasksParams) string {
 请确保返回的是有效的JSON格式，不要包含其他说明文字。`
 
 	return prompt
+}
+
+// getOutputFormatConstraint 获取输出格式约束
+func (s *AIGenerateService) getOutputFormatConstraint(maxSubtasks int) string {
+	return fmt.Sprintf(`=== 输出格式要求 ===
+请生成 3-%d 个子任务，严格按照以下JSON格式返回（不要包含其他文字）：
+
+{
+  "subtasks": [
+    {
+      "title": "子任务标题（简洁明确，动宾结构）",
+      "description": "子任务描述（详细说明要做什么、怎么做、验收标准）",
+      "estimated_hours": 2.5,
+      "priority": "high",
+      "tags": ["标签1", "标签2"]
+    }
+  ]
+}
+
+字段说明：
+- title: 必填，子任务标题，10-100字符
+- description: 必填，子任务详细描述，包含具体步骤和验收标准
+- estimated_hours: 必填，预估工时，范围0.5-20小时，按AI开发效率评估
+- priority: 必填，优先级，只能是 "high" | "medium" | "low"
+- tags: 可选，标签数组，如 ["前端", "UI", "紧急"]
+
+重要提醒：
+1. 只返回JSON，不要包含任何其他说明文字
+2. 确保JSON格式正确，可以被解析
+3. 任务数量控制在3-%d个之间
+4. 预估时长要合理，考虑AI的开发效率
+`, maxSubtasks, maxSubtasks)
 }
 
 // parseAIResponse 解析AI响应

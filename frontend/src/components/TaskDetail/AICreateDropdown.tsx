@@ -2,22 +2,29 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Dropdown, Button, message, Tooltip, Spin } from 'antd';
 import { RobotOutlined, DownOutlined } from '@ant-design/icons';
 import { fetchAIModelsFromAPI, DEFAULT_AI_MODELS, AIModel } from '../../config/aiModels';
+import PromptInputDialog from './PromptInputDialog';
 import type { MenuProps } from 'antd';
 
 interface AICreateDropdownProps {
   taskId: number;
-  onModelSelect: (modelKey: string, modelInfo: AIModel) => void;
+  taskTitle: string;
+  onModelSelect: (modelKey: string, modelInfo: AIModel, customPrompt: string | null) => void;
   disabled?: boolean;
 }
 
 const AICreateDropdown: React.FC<AICreateDropdownProps> = ({
   taskId,
+  taskTitle,
   onModelSelect,
   disabled = false
 }) => {
   const [loading, setLoading] = useState(false);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [models, setModels] = useState<AIModel[]>(DEFAULT_AI_MODELS);
+
+  // 对话框状态
+  const [promptDialogVisible, setPromptDialogVisible] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<AIModel | null>(null);
 
   // 加载AI模型配置
   useEffect(() => {
@@ -38,20 +45,37 @@ const AICreateDropdown: React.FC<AICreateDropdownProps> = ({
   }, []);
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
-    const selectedModel = models.find(m => m.key === key);
+    const model = models.find(m => m.key === key);
 
-    if (!selectedModel) return;
+    if (!model) return;
 
-    if (!selectedModel.enabled) {
-      message.warning(`${selectedModel.label} 未配置，请联系管理员`);
+    if (!model.enabled) {
+      message.warning(`${model.label} 未配置，请联系管理员`);
       return;
     }
 
-    setLoading(true);
-    onModelSelect(key, selectedModel);
+    // 保存选中的模型并显示对话框
+    setSelectedModel(model);
+    setPromptDialogVisible(true);
+  };
 
-    // 模拟加载完成（实际由父组件控制）
-    setTimeout(() => setLoading(false), 500);
+  // 处理对话框确认
+  const handlePromptConfirm = (customPrompt: string | null) => {
+    setPromptDialogVisible(false);
+
+    if (selectedModel) {
+      setLoading(true);
+      onModelSelect(selectedModel.key, selectedModel, customPrompt);
+
+      // 模拟加载完成（实际由父组件控制）
+      setTimeout(() => setLoading(false), 500);
+    }
+  };
+
+  // 处理对话框取消
+  const handlePromptCancel = () => {
+    setPromptDialogVisible(false);
+    setSelectedModel(null);
   };
 
   // 使用useMemo缓存menuItems，避免每次渲染都重新创建导致DOM错误
@@ -107,15 +131,29 @@ const AICreateDropdown: React.FC<AICreateDropdownProps> = ({
 
   // 正常状态：只使用 Dropdown，不嵌套 Tooltip
   return (
-    <Dropdown
-      menu={{ items: menuItems, onClick: handleMenuClick }}
-      placement="bottomRight"
-      disabled={disabled || loading}
-    >
-      <Button loading={loading}>
-        <RobotOutlined /> AI创建 <DownOutlined />
-      </Button>
-    </Dropdown>
+    <>
+      <Dropdown
+        menu={{ items: menuItems, onClick: handleMenuClick }}
+        placement="bottomRight"
+        disabled={disabled || loading}
+      >
+        <Button loading={loading}>
+          <RobotOutlined /> AI创建 <DownOutlined />
+        </Button>
+      </Dropdown>
+
+      {/* 提示词输入对话框 */}
+      {selectedModel && (
+        <PromptInputDialog
+          visible={promptDialogVisible}
+          taskId={taskId}
+          taskTitle={taskTitle}
+          selectedModel={selectedModel}
+          onConfirm={handlePromptConfirm}
+          onCancel={handlePromptCancel}
+        />
+      )}
+    </>
   );
 };
 

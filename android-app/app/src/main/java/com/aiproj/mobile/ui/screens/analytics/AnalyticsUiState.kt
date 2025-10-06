@@ -36,7 +36,14 @@ data class AnalyticsUiState(
 
     // 成就数据
     val consecutiveWorkDays: Int = 0,
-    val totalFocusHours: Float = 0f
+    val totalFocusHours: Float = 0f,
+
+    // Task Stats Tab 数据
+    val inProgressTasksCount: Int = 0,
+    val todoTasksCount: Int = 0,
+    val topTasks: List<TopTask> = emptyList(),
+    val dailyCompletionTrend: List<DailyCompletion> = emptyList(),
+    val priorityDistribution: PriorityStats = PriorityStats()
 )
 
 /**
