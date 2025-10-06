@@ -299,13 +299,25 @@ class AnalyticsViewModel @Inject constructor(
         return when (granularity) {
             TimeGranularity.HOUR -> {
                 // 单日按小时显示：将日总时长均分到24小时（模拟数据）
-                // 实际应用中可以调用hourly API，这里作为fallback
                 val totalHours = dailyStats.firstOrNull()?.hours ?: 0f
                 val hourlyHours = totalHours / 8 // 假设工作8小时
-                (0..23).map { hour ->
+                val selectedDate = dailyStats.firstOrNull()?.date ?: ""
+                val today = LocalDate.now().toString()
+                val isToday = selectedDate == today
+
+                // 计算显示的小时范围
+                val endHour = if (isToday) {
+                    // 今日：显示0点到当前小时
+                    LocalDate.now().atStartOfDay().plusHours(java.time.LocalTime.now().hour.toLong()).hour
+                } else {
+                    // 其他日期：显示完整24小时
+                    23
+                }
+
+                (0..endHour).map { hour ->
                     val isWorkHour = hour in 9..17 // 9:00-17:00 工作时间
                     DailyWorkTime(
-                        date = dailyStats.firstOrNull()?.date ?: "",
+                        date = selectedDate,
                         dayLabel = String.format("%02d:00", hour),
                         hours = if (isWorkHour) hourlyHours else 0f,
                         taskCount = if (isWorkHour) dailyStats.firstOrNull()?.taskCount?.div(8) ?: 0 else 0,
