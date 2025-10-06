@@ -47,6 +47,16 @@ sealed class Screen(val route: String) {
     // 数据统计
     object Analytics : Screen("analytics")
 
+    // 任务状态详情
+    object TaskStatusDetail : Screen("task_status_detail/{status}/{startDate}/{endDate}/{projectId}") {
+        fun createRoute(
+            status: String,
+            startDate: String,
+            endDate: String,
+            projectId: Int? = null
+        ) = "task_status_detail/$status/$startDate/$endDate/${projectId ?: 0}"
+    }
+
     // 文档列表
     object DocumentList : Screen("document_list/{taskId}") {
         fun createRoute(taskId: Int) = "document_list/$taskId"

@@ -103,9 +103,9 @@ debug_files/
 main
 */main
 app
-*/app
-# But allow android-app/app directory
+# But allow android-app/app directory and all its contents
 !android-app/app
+!android-app/app/**
 
 # Additional temp files
 temp_build

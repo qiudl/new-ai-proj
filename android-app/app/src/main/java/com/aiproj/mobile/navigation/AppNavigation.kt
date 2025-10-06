@@ -18,6 +18,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.aiproj.mobile.ui.screens.analytics.AnalyticsScreen
+import com.aiproj.mobile.ui.screens.analytics.TaskStatusDetailScreen
 import com.aiproj.mobile.ui.screens.dashboard.DashboardScreen
 import com.aiproj.mobile.ui.screens.login.LoginScreen
 import com.aiproj.mobile.ui.screens.profile.ProfileScreen
@@ -167,7 +168,33 @@ fun MainScreen(
             // 数据统计
             composable(Screen.Analytics.route) {
                 AnalyticsScreen(
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToTaskStatusDetail = { status, startDate, endDate, projectId ->
+                        navController.navigate(
+                            Screen.TaskStatusDetail.createRoute(status, startDate, endDate, projectId)
+                        )
+                    }
+                )
+            }
+
+            // 任务状态详情
+            composable(
+                route = Screen.TaskStatusDetail.route,
+                arguments = listOf(
+                    navArgument("status") { type = NavType.StringType },
+                    navArgument("startDate") { type = NavType.StringType },
+                    navArgument("endDate") { type = NavType.StringType },
+                    navArgument("projectId") {
+                        type = NavType.IntType
+                        defaultValue = 0
+                    }
+                )
+            ) {
+                TaskStatusDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onTaskClick = { taskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(taskId))
+                    }
                 )
             }
 

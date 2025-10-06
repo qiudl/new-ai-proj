@@ -30,7 +30,9 @@ class AnalyticsViewModel @Inject constructor(
 
             try {
                 val timeRange = _uiState.value.selectedTimeRange
-                val (startDate, endDate) = calculateDateRange(timeRange)
+                val customStart = _uiState.value.customStartDate
+                val customEnd = _uiState.value.customEndDate
+                val (startDate, endDate) = calculateDateRange(timeRange, customStart, customEnd)
                 val days = ChronoUnit.DAYS.between(
                     LocalDate.parse(startDate),
                     LocalDate.parse(endDate)
@@ -61,15 +63,26 @@ class AnalyticsViewModel @Inject constructor(
                     }
 
                     // 计算任务状态分布
+                    // 注意：由于后端summary数据可能为0，我们从daily_stats计算实际值
+                    val dailyStats = weeklyStats.daily_stats ?: emptyList()
+                    val totalCreated = dailyStats.sumOf { it.tasks_created }
+                    val totalCompleted = dailyStats.sumOf { it.tasks_completed }
+
+                    // 使用task_stats作为基础数据
                     val taskStats = weeklyStats.task_stats
                     val total = taskStats.todo + taskStats.in_progress + taskStats.completed
+
+                    // 如果总数为0，使用daily_stats计算的值
+                    val actualTotal = if (total > 0) total else totalCreated
+                    val actualCompleted = if (taskStats.completed > 0) taskStats.completed else totalCompleted
+
                     val taskStatusDistribution = TaskStatusDistribution(
-                        completed = taskStats.completed,
-                        completedPercentage = if (total > 0) taskStats.completed.toFloat() / total else 0f,
+                        completed = actualCompleted,
+                        completedPercentage = if (actualTotal > 0) actualCompleted.toFloat() / actualTotal else 0f,
                         inProgress = taskStats.in_progress,
-                        inProgressPercentage = if (total > 0) taskStats.in_progress.toFloat() / total else 0f,
+                        inProgressPercentage = if (actualTotal > 0) taskStats.in_progress.toFloat() / actualTotal else 0f,
                         todo = taskStats.todo,
-                        todoPercentage = if (total > 0) taskStats.todo.toFloat() / total else 0f
+                        todoPercentage = if (actualTotal > 0) taskStats.todo.toFloat() / actualTotal else 0f
                     )
 
                     // 转换项目时间分布（从任务分布推算）
@@ -96,13 +109,32 @@ class AnalyticsViewModel @Inject constructor(
                     // 计算连续工作天数（从daily stats中计算）
                     val consecutiveDays = calculateConsecutiveDays((timeStats.dailyStats ?: emptyList()).map { it.hours })
 
+                    // 如果summary数据为0，使用计算值
+                    val summaryTotal = if (weeklyStats.summary.total_tasks > 0) {
+                        weeklyStats.summary.total_tasks
+                    } else {
+                        actualTotal
+                    }
+
+                    val summaryCompleted = if (weeklyStats.summary.completed_tasks > 0) {
+                        weeklyStats.summary.completed_tasks
+                    } else {
+                        actualCompleted
+                    }
+
+                    val summaryRate = if (summaryTotal > 0) {
+                        summaryCompleted.toFloat() / summaryTotal
+                    } else {
+                        0f
+                    }
+
                     _uiState.update { state ->
                         state.copy(
                             isLoading = false,
                             workTimeTrend = workTimeTrend,
-                            completedTasksCount = weeklyStats.summary.completed_tasks,
-                            totalTasksCount = weeklyStats.summary.total_tasks,
-                            taskCompletionRate = weeklyStats.summary.completion_rate / 100f,
+                            completedTasksCount = summaryCompleted,
+                            totalTasksCount = summaryTotal,
+                            taskCompletionRate = summaryRate,
                             taskStatusDistribution = taskStatusDistribution,
                             projectTimeDistribution = projectDistribution,
                             consecutiveWorkDays = consecutiveDays,
@@ -126,8 +158,67 @@ class AnalyticsViewModel @Inject constructor(
     }
 
     fun selectTimeRange(range: TimeRange) {
-        _uiState.update { it.copy(selectedTimeRange = range) }
+        if (range == TimeRange.CUSTOM_DATE) {
+            // 显示日期选择器
+            _uiState.update { it.copy(showDatePicker = true) }
+        } else {
+            _uiState.update { it.copy(selectedTimeRange = range) }
+            loadAnalyticsData()
+        }
+    }
+
+    fun setCustomDateRange(startDate: LocalDate, endDate: LocalDate) {
+        // 验证日期范围
+        if (startDate.isAfter(endDate)) {
+            _uiState.update {
+                it.copy(
+                    error = "开始日期不能晚于结束日期",
+                    showDatePicker = false
+                )
+            }
+            return
+        }
+
+        // 验证不能选择未来日期
+        val today = LocalDate.now()
+        if (endDate.isAfter(today)) {
+            _uiState.update {
+                it.copy(
+                    error = "不能选择未来日期",
+                    showDatePicker = false
+                )
+            }
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                selectedTimeRange = TimeRange.CUSTOM_DATE,
+                customStartDate = startDate,
+                customEndDate = endDate,
+                showDatePicker = false,
+                error = null
+            )
+        }
         loadAnalyticsData()
+    }
+
+    fun dismissDatePicker() {
+        _uiState.update { it.copy(showDatePicker = false) }
+    }
+
+    fun getDateRangeText(): String {
+        val (startDate, endDate) = calculateDateRange(
+            _uiState.value.selectedTimeRange,
+            _uiState.value.customStartDate,
+            _uiState.value.customEndDate
+        )
+
+        return if (_uiState.value.selectedTimeRange == TimeRange.CUSTOM_DATE) {
+            "$startDate ~ $endDate"
+        } else {
+            _uiState.value.selectedTimeRange.displayName
+        }
     }
 
     fun refresh() {
@@ -137,13 +228,27 @@ class AnalyticsViewModel @Inject constructor(
     /**
      * 根据TimeRange计算日期范围
      */
-    private fun calculateDateRange(timeRange: TimeRange): Pair<String, String> {
+    fun calculateDateRange(
+        timeRange: TimeRange,
+        customStart: LocalDate? = null,
+        customEnd: LocalDate? = null
+    ): Pair<String, String> {
         val today = LocalDate.now()
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
         return when (timeRange) {
             TimeRange.TODAY -> {
                 val dateStr = today.format(formatter)
+                dateStr to dateStr
+            }
+            TimeRange.YESTERDAY -> {
+                val yesterday = today.minusDays(1)
+                val dateStr = yesterday.format(formatter)
+                dateStr to dateStr
+            }
+            TimeRange.DAY_BEFORE_YESTERDAY -> {
+                val dayBeforeYesterday = today.minusDays(2)
+                val dateStr = dayBeforeYesterday.format(formatter)
                 dateStr to dateStr
             }
             TimeRange.THIS_WEEK -> {
@@ -163,10 +268,15 @@ class AnalyticsViewModel @Inject constructor(
                 val lastDay = lastMonth.withDayOfMonth(lastMonth.lengthOfMonth())
                 firstDay.format(formatter) to lastDay.format(formatter)
             }
-            TimeRange.CUSTOM -> {
-                // 默认最近7天
-                val sevenDaysAgo = today.minusDays(6)
-                sevenDaysAgo.format(formatter) to today.format(formatter)
+            TimeRange.CUSTOM_DATE -> {
+                if (customStart != null && customEnd != null) {
+                    // 使用用户选择的日期范围
+                    customStart.format(formatter) to customEnd.format(formatter)
+                } else {
+                    // 默认最近7天
+                    val sevenDaysAgo = today.minusDays(6)
+                    sevenDaysAgo.format(formatter) to today.format(formatter)
+                }
             }
         }
     }
