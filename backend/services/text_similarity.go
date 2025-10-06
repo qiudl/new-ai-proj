@@ -5,27 +5,27 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/yanyiwu/gojieba"
+	// "github.com/yanyiwu/gojieba"
 )
 
 // TextSimilarityService 文本相似度服务
 type TextSimilarityService struct {
-	jieba *gojieba.Jieba
+	// jieba *gojieba.Jieba
 }
 
 // NewTextSimilarityService 创建服务实例
 func NewTextSimilarityService() *TextSimilarityService {
 	// 初始化jieba分词器
-	jieba := gojieba.NewJieba()
+	// jieba := gojieba.NewJieba()
 
 	return &TextSimilarityService{
-		jieba: jieba,
+		// jieba: jieba,
 	}
 }
 
 // Close 释放jieba资源
 func (s *TextSimilarityService) Close() {
-	s.jieba.Free()
+	// s.jieba.Free()
 }
 
 // Tokenize 中文分词和清理
@@ -33,8 +33,10 @@ func (s *TextSimilarityService) Tokenize(text string) []string {
 	// 1. 转小写
 	text = strings.ToLower(text)
 
-	// 2. jieba分词
-	words := s.jieba.Cut(text, true)
+	// 2. jieba分词（暂时禁用）
+	// words := s.jieba.Cut(text, true)
+	// 简单按空格分词作为临时方案
+	words := strings.Fields(text)
 
 	// 3. 过滤停用词和短词
 	stopWords := map[string]bool{
