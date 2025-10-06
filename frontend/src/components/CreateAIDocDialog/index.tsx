@@ -56,8 +56,8 @@ const CreateAIDocDialog: React.FC<CreateAIDocDialogProps> = ({
   const { generateWithErrorHandling } = useAIGeneration();
   const { saveWithErrorHandling } = useDocumentSave();
 
-  // 保存生成的文档ID
-  const documentIdRef = useRef<number | null>(null);
+  // 保存生成的文档标题
+  const documentTitleRef = useRef<string>('');
 
   // 获取任务详情
   useEffect(() => {
@@ -86,7 +86,7 @@ const CreateAIDocDialog: React.FC<CreateAIDocDialogProps> = ({
   useEffect(() => {
     if (visible) {
       resetState();
-      documentIdRef.current = null;
+      documentTitleRef.current = '';
     }
   }, [visible, resetState]);
 
@@ -146,7 +146,9 @@ const CreateAIDocDialog: React.FC<CreateAIDocDialogProps> = ({
         state.selectedTemplate,
         (response) => {
           setGeneratedContent(response.content);
-          documentIdRef.current = response.document_id;
+          // 从生成的内容中提取标题（第一个# 标题）或使用默认标题
+          const titleMatch = response.content.match(/^#\s+(.+)$/m);
+          documentTitleRef.current = titleMatch ? titleMatch[1] : `${task.title} - AI生成文档`;
           setIsGenerating(false);
           setCurrentStep(GenerationStep.PREVIEW);
         },
@@ -184,18 +186,22 @@ const CreateAIDocDialog: React.FC<CreateAIDocDialogProps> = ({
       return;
     }
 
-    if (!documentIdRef.current) {
-      setError('文档ID不存在');
+    if (!task) {
+      setError('任务信息不存在');
       return;
     }
 
     setIsSaving(true);
     await saveWithErrorHandling(
-      documentIdRef.current,
-      state.editedContent,
-      () => {
+      {
+        taskId: task.id,
+        title: documentTitleRef.current || `${task.title} - AI生成文档`,
+        content: state.editedContent,
+        projectId: projectId,
+      },
+      (documentId) => {
         setIsSaving(false);
-        onSuccess?.(documentIdRef.current!);
+        onSuccess?.(documentId);
         onClose();
       },
       (error) => {
