@@ -3,6 +3,7 @@ package com.aiproj.mobile.ui.screens.analytics
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aiproj.mobile.data.api.PriorityDistribution
 import com.aiproj.mobile.data.repository.AnalyticsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -190,12 +191,13 @@ class AnalyticsViewModel @Inject constructor(
                     }
 
                     // 优先级分布（Task Stats Tab需要）
-                    // 使用API返回的priority_distribution数据
-                    val pd = weeklyStats.priority_distribution
+                    // 使用API返回的priority_distribution数据，如果为null则使用空数据
+                    val pd = weeklyStats.priority_distribution ?: PriorityDistribution()
                     val priorityStats = PriorityStats(
-                        highPriority = pd.urgent + pd.high,  // 合并urgent和high
-                        mediumPriority = pd.medium,
-                        lowPriority = pd.low
+                        urgent = pd.urgent,
+                        high = pd.high,
+                        medium = pd.medium,
+                        low = pd.low
                     )
 
                     _uiState.update { state ->

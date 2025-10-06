@@ -113,12 +113,18 @@ data class DailyCompletion(
 )
 
 data class PriorityStats(
-    val highPriority: Int = 0,
-    val mediumPriority: Int = 0,
-    val lowPriority: Int = 0
+    val urgent: Int = 0,        // 紧急优先级
+    val high: Int = 0,          // 高优先级
+    val medium: Int = 0,        // 中优先级
+    val low: Int = 0            // 低优先级
 ) {
     val total: Int
-        get() = highPriority + mediumPriority + lowPriority
+        get() = urgent + high + medium + low
+
+    // 兼容旧代码的属性
+    val highPriority: Int get() = high
+    val mediumPriority: Int get() = medium
+    val lowPriority: Int get() = low
 }
 
 /**

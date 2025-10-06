@@ -90,7 +90,7 @@ data class WeeklyStatsResponse(
     val daily_stats: List<DailyStatsItem>? = null,
     val top_tasks: List<TaskSummaryItem>? = null,
     val trends: WeeklyTrends,
-    val priority_distribution: PriorityDistribution = PriorityDistribution()
+    val priority_distribution: PriorityDistribution? = null  // Gson不会使用默认值，改为可空类型
 )
 
 data class DateRange(
