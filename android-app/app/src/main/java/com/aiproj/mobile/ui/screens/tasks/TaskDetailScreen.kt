@@ -34,6 +34,7 @@ fun TaskDetailScreen(
     onEdit: (Int) -> Unit,
     onNavigateToDocuments: ((Int) -> Unit)? = null,
     onNavigateToTask: ((Int) -> Unit)? = null,
+    onNavigateToDocumentViewer: ((Int, Int) -> Unit)? = null,
     viewModel: TaskDetailViewModel = hiltViewModel()
 ) {
     Log.d("TaskDetailScreen", "TaskDetailScreen Composable 开始渲染")
@@ -127,8 +128,9 @@ fun TaskDetailScreen(
                         onNavigateToTask?.invoke(subtaskId)
                     },
                     onDocumentClick = { documentId ->
-                        onNavigateToDocuments?.invoke(task.id)
+                        onNavigateToDocumentViewer?.invoke(task.id, documentId)
                     },
+                    onNavigateToDocuments = onNavigateToDocuments,
                     onAttachmentDownload = { attachment ->
                         viewModel.downloadAttachment(attachment)
                     },
@@ -191,6 +193,7 @@ fun TaskDetailContent(
     currentUserId: Int? = null,
     onSubtaskClick: (Int) -> Unit = {},
     onDocumentClick: (Int) -> Unit = {},
+    onNavigateToDocuments: ((Int) -> Unit)? = null,
     onAttachmentDownload: (com.aiproj.mobile.data.models.Attachment) -> Unit = {},
     onAttachmentDelete: (com.aiproj.mobile.data.models.Attachment) -> Unit = {},
     onCommentDelete: (com.aiproj.mobile.data.models.Comment) -> Unit = {},
@@ -241,7 +244,11 @@ fun TaskDetailContent(
                 icon = Icons.Default.Folder
             ) {
                 Text(
-                    text = "项目 #$projectId",
+                    text = if (task.projectName != null) {
+                        "项目 #$projectId · ${task.projectName}"
+                    } else {
+                        "项目 #$projectId"
+                    },
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
@@ -281,19 +288,30 @@ fun TaskDetailContent(
                 icon = Icons.Default.Person
             ) {
                 Text(
-                    text = "用户 #$it",
+                    text = task.assignee?.username ?: "用户 #$it",
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
         }
 
-        // 任务文档
-        if (documents.isNotEmpty()) {
-            Divider()
-            DetailSection(
-                title = "任务文档 (${documents.size})",
-                icon = Icons.Default.Description
-            ) {
+        // 任务文档（始终显示）
+        Divider()
+        DetailSection(
+            title = "任务文档 (${documents.size})",
+            icon = Icons.Default.Description
+        ) {
+            if (documents.isEmpty()) {
+                // 没有文档时显示添加按钮
+                Button(
+                    onClick = { onNavigateToDocuments?.invoke(task.id) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("添加任务文档")
+                }
+            } else {
+                // 有文档时显示文档列表
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     documents.forEach { document ->
                         DocumentCard(

@@ -7,7 +7,7 @@ ARG REGISTRY_PREFIX=
 # ======================================
 # Stage 1: Base Dependencies (优化版)
 # ======================================
-FROM ${REGISTRY_PREFIX}golang:1.23-alpine AS base
+FROM ${REGISTRY_PREFIX}golang:1.24-alpine AS base
 
 # Use faster APK mirror for CN networks (fallback to default if sed fails)
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencent.com/g' /etc/apk/repositories || true

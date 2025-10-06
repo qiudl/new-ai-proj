@@ -9,19 +9,19 @@ data class Pagination(
     @SerializedName("page")
     val page: Int,
 
-    @SerializedName("limit")
+    @SerializedName("page_size")
     val limit: Int,
 
     @SerializedName("total")
     val total: Int,
 
-    @SerializedName("totalPages")
+    @SerializedName("total_pages")
     val totalPages: Int,
 
-    @SerializedName("hasNext")
+    @SerializedName("has_next")
     val hasNext: Boolean,
 
-    @SerializedName("hasPrev")
+    @SerializedName("has_prev")
     val hasPrev: Boolean
 )
 

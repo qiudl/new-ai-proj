@@ -49,6 +49,21 @@ data class Project(
     @SerializedName("tags")
     val tags: List<String>? = null,
 
+    @SerializedName("project_number")
+    val projectNumber: String? = null,
+
+    @SerializedName("start_date")
+    val startDate: String? = null,
+
+    @SerializedName("end_date")
+    val endDate: String? = null,
+
+    @SerializedName("company_id")
+    val companyId: Int? = null,
+
+    @SerializedName("company_name")
+    val companyName: String? = null,
+
     @SerializedName("created_at")
     val createdAt: String,
 
@@ -60,12 +75,15 @@ data class Project(
  * 项目列表响应
  */
 data class ProjectListResponse(
-    @SerializedName("projects")
-    val projects: List<Project>,
+    @SerializedName("data")
+    val data: List<Project>,
 
     @SerializedName("total")
     val total: Int,
 
     @SerializedName("pagination")
     val pagination: Pagination?
-)
+) {
+    // 提供便捷属性以兼容旧代码
+    val projects: List<Project> get() = data
+}

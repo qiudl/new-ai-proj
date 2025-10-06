@@ -36,6 +36,8 @@ type GenerateSubtasksParams struct {
 
 // getAIConfig 从数据库获取AI配置
 func (s *AIGenerateService) getAIConfig(ctx context.Context, modelKey string) (*models.AIConfig, error) {
+	fmt.Printf("[AIGenerateService] Querying AI config for provider: %s\n", modelKey)
+
 	query := `
 		SELECT id, provider, model, api_key_encrypted, base_url, enabled,
 		       max_tokens, temperature, created_at, updated_at
@@ -60,11 +62,15 @@ func (s *AIGenerateService) getAIConfig(ctx context.Context, modelKey string) (*
 	)
 
 	if err == sql.ErrNoRows {
+		fmt.Printf("[AIGenerateService] AI config not found for provider: %s\n", modelKey)
 		return nil, fmt.Errorf("AI配置不存在或未启用: %s", modelKey)
 	}
 	if err != nil {
+		fmt.Printf("[AIGenerateService] Database query error: %v\n", err)
 		return nil, fmt.Errorf("查询AI配置失败: %w", err)
 	}
+
+	fmt.Printf("[AIGenerateService] Found AI config: provider=%s, model=%s\n", config.Provider, config.Model)
 
 	// 将加密的API密钥赋值(实际使用时需要解密,这里暂时直接使用)
 	config.APIKeyEncrypted = apiKeyEncrypted

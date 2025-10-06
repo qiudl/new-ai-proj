@@ -32,10 +32,13 @@ import {
   DollarOutlined,
   GlobalOutlined,
   SaveOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  LoadingOutlined
 } from '@ant-design/icons';
 import { AIProvider, AIProviderConfig, AI_PROVIDER_INFO } from '../types/ai';
 import aiConfigService from '../services/aiConfigService';
+import { ValidationPanel } from './AIConfig/ValidationPanel';
+import { useTestValidation } from './AIConfig/hooks/useTestValidation';
 
 const { TabPane } = Tabs;
 const { Title, Text, Paragraph } = Typography;
@@ -62,6 +65,14 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
   });
   const [saving, setSaving] = useState(false);
 
+  // 新增: 验证状态管理
+  const {
+    validating,
+    validationResult,
+    performValidation,
+    resetValidation
+  } = useTestValidation();
+
   const [openaiForm] = Form.useForm();
   const [claudeForm] = Form.useForm();
   const [deepseekForm] = Form.useForm();
@@ -75,8 +86,11 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
   useEffect(() => {
     if (visible) {
       loadConfig();
+    } else {
+      // 弹窗关闭时重置验证状态
+      resetValidation();
     }
-  }, [visible]);
+  }, [visible, resetValidation]);
 
   const loadConfig = () => {
     const currentConfig = aiConfigService.getConfig();
@@ -91,13 +105,17 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
     });
   };
 
-  const handleSave = async () => {
+  /**
+   * 保存配置
+   * @returns {Promise<boolean>} 是否保存成功
+   */
+  const handleSave = async (): Promise<boolean> => {
     try {
       setSaving(true);
-      
+
       // 验证所有表单
       const allValues: Partial<AIProviderConfig> = {};
-      
+
       for (const [provider, form] of Object.entries(forms)) {
         try {
           const values = await form.validateFields();
@@ -107,17 +125,19 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
           allValues[provider as AIProvider] = config[provider as AIProvider];
         }
       }
-      
+
       aiConfigService.saveConfig(allValues);
       message.success('AI配置保存成功！');
-      
+
       if (onSave) {
         onSave();
       }
-      
+
       onCancel();
+      return true;
     } catch (error) {
       message.error('保存配置失败');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -167,6 +187,66 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
         message.success('配置已重置');
       }
     });
+  };
+
+  /**
+   * 保存并验证当前标签页的配置
+   */
+  const handleSaveAndValidate = async () => {
+    // 防止重复提交
+    if (saving || validating) {
+      return;
+    }
+
+    // 1. 获取当前标签页的表单数据
+    const form = forms[activeTab];
+    try {
+      await form.validateFields();
+    } catch (error) {
+      message.error('请先完善配置信息');
+      return;
+    }
+
+    const formData = form.getFieldsValue();
+
+    // 2. 先保存配置（不关闭弹窗）
+    try {
+      setSaving(true);
+
+      // 只保存当前标签页的配置
+      const currentConfig = aiConfigService.getConfig();
+      const updatedConfig = {
+        ...currentConfig,
+        [activeTab]: formData
+      };
+
+      aiConfigService.saveConfig(updatedConfig);
+      message.success(`${AI_PROVIDER_INFO[activeTab].name} 配置已保存`);
+
+      if (onSave) {
+        onSave();
+      }
+    } catch (error) {
+      message.error('保存配置失败');
+      return;
+    } finally {
+      setSaving(false);
+    }
+
+    // 3. 执行验证测试
+    try {
+      await performValidation({
+        provider: activeTab,
+        apiKey: formData.apiKey,
+        model: formData.model,
+        testText: 'Hello AI, this is a validation test from the config editor.'
+      });
+    } catch (error) {
+      console.error('Validation error:', error);
+      // performValidation内部已有错误处理，这里只需记录日志
+    }
+
+    // 注意: 不关闭弹窗，让用户查看验证结果
   };
 
   const renderProviderForm = (provider: AIProvider) => {
@@ -367,14 +447,22 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
         <Button key="cancel" onClick={onCancel}>
           取消
         </Button>,
-        <Button 
-          key="save" 
-          type="primary" 
+        <Button
+          key="save"
           icon={<SaveOutlined />}
           onClick={handleSave}
           loading={saving}
         >
           保存配置
+        </Button>,
+        <Button
+          key="saveAndValidate"
+          type="primary"
+          onClick={handleSaveAndValidate}
+          loading={saving || validating}
+          icon={validating ? <LoadingOutlined spin /> : <CheckCircleOutlined />}
+        >
+          {saving ? '保存中...' : validating ? '验证中...' : '保存并验证'}
         </Button>
       ]}
     >
@@ -491,6 +579,12 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
             </Col>
           </Row>
         </Card>
+
+        {/* 新增: 验证状态面板 */}
+        <ValidationPanel
+          validating={validating}
+          result={validationResult}
+        />
       </div>
     </Modal>
   );

@@ -83,7 +83,7 @@ interface TaskApi {
     @GET("tasks/{id}/children")
     suspend fun getTaskChildren(
         @Path("id") taskId: Int
-    ): Response<ApiResponse<List<Task>>>
+    ): Response<TaskListResponse>
 
     /**
      * 获取子任务列表

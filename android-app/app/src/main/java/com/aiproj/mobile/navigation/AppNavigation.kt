@@ -144,6 +144,12 @@ fun MainScreen(
                     },
                     onNavigateToDocuments = { navigateTaskId ->
                         navController.navigate(Screen.DocumentList.createRoute(navigateTaskId))
+                    },
+                    onNavigateToTask = { navigateTaskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(navigateTaskId))
+                    },
+                    onNavigateToDocumentViewer = { navigateTaskId, documentId ->
+                        navController.navigate(Screen.DocumentViewer.createRoute(navigateTaskId, documentId))
                     }
                 )
             }

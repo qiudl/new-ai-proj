@@ -1,3 +1,5 @@
+import api from '../services/api'; // 使用配置好认证的api实例
+
 export interface AIModel {
   key: string;
   label: string;
@@ -9,9 +11,10 @@ export interface AIModel {
 }
 
 // 默认的AI模型配置（作为备选）
+// 注意: key 必须与数据库中的 provider 字段一致
 export const DEFAULT_AI_MODELS: AIModel[] = [
   {
-    key: 'gpt4',
+    key: 'openai',  // 使用provider名称作为key
     label: 'GPT-4o',
     icon: '✨',
     description: '最强推理能力，适合复杂任务分解',
@@ -20,7 +23,7 @@ export const DEFAULT_AI_MODELS: AIModel[] = [
     modelName: 'gpt-4o'
   },
   {
-    key: 'claude',
+    key: 'claude',  // anthropic的别名
     label: 'Claude 3.5 Sonnet',
     icon: '🔷',
     description: '专业的代码理解和任务规划',
@@ -29,7 +32,7 @@ export const DEFAULT_AI_MODELS: AIModel[] = [
     modelName: 'claude-3-5-sonnet-20241022'
   },
   {
-    key: 'gemini',
+    key: 'google',
     label: 'Gemini Pro',
     icon: '💎',
     description: 'Google最新AI模型',
@@ -54,13 +57,9 @@ export const DEFAULT_AI_MODELS: AIModel[] = [
  */
 export const fetchAIModelsFromAPI = async (): Promise<AIModel[]> => {
   try {
-    // 使用相对路径调用后端API - 只获取启用的配置
-    const response = await fetch('/api/v1/system/ai-configs/enabled');
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
+    // 使用配置好认证拦截器的api实例
+    const response = await api.get('/system/ai-configs/enabled');
+    const result = response.data;
 
     // 处理后端响应格式: { success: true, data: AIConfigResponse[], ... }
     if (result.success && result.data && Array.isArray(result.data)) {

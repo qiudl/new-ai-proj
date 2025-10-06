@@ -197,12 +197,13 @@ class TaskRepository @Inject constructor(
             val response = taskApi.getTaskChildren(taskId)
 
             if (response.isSuccessful && response.body() != null) {
-                val apiResponse = response.body()!!
-                if (apiResponse.success && apiResponse.data != null) {
-                    Result.success(apiResponse.data)
+                val taskListResponse = response.body()!!
+                if (taskListResponse.success && taskListResponse.data != null) {
+                    // TaskListResponse.data is TaskListData which has a .data field containing the tasks list
+                    Result.success(taskListResponse.data.tasks)
                 } else {
                     Result.failure(
-                        Exception(apiResponse.error ?: apiResponse.message ?: "获取子任务失败")
+                        Exception(taskListResponse.error ?: taskListResponse.message ?: "获取子任务失败")
                     )
                 }
             } else {

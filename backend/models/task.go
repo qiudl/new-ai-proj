@@ -119,10 +119,12 @@ func (t *Tags) Scan(value interface{}) error {
 type Task struct {
 	ID               int          `json:"id" db:"id"`
 	ProjectID        int          `json:"project_id" db:"project_id" validate:"required"`
+	ProjectName      *string      `json:"project_name,omitempty" db:"project_name"` // Added for JOIN queries
 	Title            string       `json:"title" db:"title" validate:"required,min=1,max=255"`
 	Description      *string      `json:"description" db:"description"`
 	Status           string       `json:"status" db:"status" validate:"required,oneof=draft planning todo in_progress testing completed cancelled on_hold suspended blocked archived"`
 	AssigneeID       *int         `json:"assignee_id" db:"assignee_id"`
+	Assignee         *User        `json:"assignee,omitempty" db:"-"` // Added for user info, not stored in tasks table
 	DueDate          *time.Time   `json:"due_date" db:"due_date"`
 	CustomFields     CustomFields `json:"custom_fields" db:"custom_fields"`
 	ParentID         *int         `json:"parent_id" db:"parent_id"`

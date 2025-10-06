@@ -77,9 +77,18 @@ func registerAIConfigRoutes(authorized *gin.RouterGroup, app ApplicationInterfac
 			// 完整的AI配置CRUD操作
 			aiConfigGroup.GET("", middleware.RequireView(), aiConfigHandler.GetAllConfigs)
 			aiConfigGroup.POST("", middleware.RequireCreate(), aiConfigHandler.CreateConfig)
+
+			// ========== 测试历史查询 (Task #2780) ==========
+			// 获取单条测试日志详情 - 静态路径，需要在 /:provider 之前
+			aiConfigGroup.GET("/test-logs/:id", middleware.RequireView(), aiConfigHandler.GetTestLogDetail)
+
+			// 按provider操作
 			aiConfigGroup.GET("/:provider", middleware.RequireView(), aiConfigHandler.GetConfig)
 			aiConfigGroup.PUT("/:provider", middleware.RequireUpdate(), aiConfigHandler.UpdateConfig)
 			aiConfigGroup.DELETE("/:provider", middleware.RequireDelete(), aiConfigHandler.DeleteConfig)
+
+			// 获取指定provider的测试历史 - 子路径，在 /:provider 之后
+			aiConfigGroup.GET("/:provider/test-history", middleware.RequireView(), aiConfigHandler.GetTestHistory)
 
 			// ========== AI连接测试权限 ==========
 			aiConfigGroup.POST("/test", permMiddleware.RequireAnyPermission(

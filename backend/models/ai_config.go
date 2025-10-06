@@ -202,12 +202,18 @@ type AIModelInfo struct {
 	TokenLimit     int      `json:"token_limit,omitempty"`
 }
 
-// AITestConversation 测试对话
+// AITestConversation 测试对话（用于API响应）
 type AITestConversation struct {
-	Question string             `json:"question"`
-	Answer   string             `json:"answer"`
-	Model    string             `json:"model"`
-	Usage    *AIUsageStatistics `json:"usage,omitempty"`
+	Question         string             `json:"question"`
+	Answer           string             `json:"answer"`
+	Model            string             `json:"model"`
+	Usage            *AIUsageStatistics `json:"usage,omitempty"`
+	// 用于存储到数据库的字段
+	TestQuestion     string             `json:"test_question,omitempty"`     // 存储别名
+	AIResponse       string             `json:"ai_response,omitempty"`       // 存储别名
+	PromptTokens     int                `json:"prompt_tokens,omitempty"`     // 直接字段
+	CompletionTokens int                `json:"completion_tokens,omitempty"` // 直接字段
+	TotalTokens      int                `json:"total_tokens,omitempty"`      // 直接字段
 }
 
 // AIUsageStatistics AI使用统计
@@ -452,6 +458,42 @@ type AITestLog struct {
 	ResponseTime int       `json:"response_time" db:"response_time_ms"`
 	ErrorMessage string    `json:"error_message" db:"error_message"`
 	TestedAt     time.Time `json:"tested_at" db:"tested_at"`
+}
+
+// AIConfigTestLog AI配置测试日志（实际表结构映射）
+type AIConfigTestLog struct {
+	ID              int        `json:"id" db:"id"`
+	ConfigID        int        `json:"configId" db:"config_id"`
+	Provider        string     `json:"provider" db:"provider"`
+	TestPrompt      string     `json:"testPrompt" db:"test_prompt"`
+	TestResponse    *string    `json:"testResponse,omitempty" db:"test_response"`
+	TestStatus      string     `json:"testStatus" db:"test_status"` // success, failed, timeout, error
+	ResponseTimeMs  *int       `json:"responseTimeMs,omitempty" db:"response_time_ms"`
+	TokensUsed      *int       `json:"tokensUsed,omitempty" db:"tokens_used"`
+	ErrorMessage    *string    `json:"errorMessage,omitempty" db:"error_message"`
+	ErrorCode       *string    `json:"errorCode,omitempty" db:"error_code"`
+	HTTPStatusCode  *int       `json:"httpStatusCode,omitempty" db:"http_status_code"`
+	ModelUsed       *string    `json:"modelUsed,omitempty" db:"model_used"`
+	MaxTokens       *int       `json:"maxTokens,omitempty" db:"max_tokens"`
+	Temperature     *float64   `json:"temperature,omitempty" db:"temperature"`
+	TestedBy        *int       `json:"testedBy,omitempty" db:"tested_by"`
+	TestIP          *string    `json:"testIp,omitempty" db:"test_ip"`
+	UserAgent       *string    `json:"userAgent,omitempty" db:"user_agent"`
+	CreatedAt       time.Time  `json:"createdAt" db:"created_at"`
+}
+
+// TestHistoryPagination 测试历史分页信息
+type TestHistoryPagination struct {
+	Total      int `json:"total"`
+	Page       int `json:"page"`
+	Limit      int `json:"limit"`
+	TotalPages int `json:"totalPages"`
+}
+
+// TestHistoryResponse 测试历史响应
+type TestHistoryResponse struct {
+	Data       []*AIConfigTestLog    `json:"data"`
+	Pagination TestHistoryPagination `json:"pagination"`
 }
 
 // AIUsageStats AI使用统计

@@ -15,8 +15,8 @@ import com.aiproj.mobile.data.local.entity.DocumentEntity
  */
 @Database(
     entities = [TaskEntity::class, DocumentEntity::class],
-    version = 2,
-    exportSchema = true
+    version = 3,
+    exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {

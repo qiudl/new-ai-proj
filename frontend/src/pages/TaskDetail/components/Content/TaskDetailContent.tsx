@@ -338,73 +338,55 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       {
         key: 'document',
         label: documentTabLabel,
-        children:
-          ui.activeTab === 'document' ? (
-            <div>
-              <Suspense
-                fallback={
+        children: (
+          <div>
+            <Suspense
+              fallback={
+                <div
+                  style={{
+                    padding: '60px 20px',
+                    textAlign: 'center',
+                    background: '#fafafa',
+                    borderRadius: '8px',
+                    minHeight: '400px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}
+                >
+                  <Spin size="large" />
                   <div
                     style={{
-                      padding: '60px 20px',
-                      textAlign: 'center',
-                      background: '#fafafa',
-                      borderRadius: '8px',
-                      minHeight: '400px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      alignItems: 'center'
+                      marginTop: '24px',
+                      fontSize: '16px',
+                      color: '#1890ff',
+                      fontWeight: 500
                     }}
                   >
-                    <Spin size="large" />
-                    <div
-                      style={{
-                        marginTop: '24px',
-                        fontSize: '16px',
-                        color: '#1890ff',
-                        fontWeight: 500
-                      }}
-                    >
-                      ⚡ 正在加载文档编辑器...
-                    </div>
-                    <div style={{ marginTop: '8px', color: '#8c8c8c', fontSize: '14px' }}>
-                      首次加载可能需要几秒钟
-                    </div>
+                    ⚡ 正在加载文档编辑器...
                   </div>
-                }
-              >
-                <LazyUnifiedTaskDocumentArea
-                  taskId={task.id}
-                  projectId={projectId}
-                  defaultViewMode="edit"
-                  showToolbar={true}
-                  showDocumentList={true}
-                  compactMode={false}
-                  headerVisible={false}
-                  includeSubtaskDocuments={false}
-                  onDocumentChange={onDocsChange}
-                  onViewModeChange={undefined}
-                />
-              </Suspense>
-            </div>
-          ) : (
-            <div
-              style={{
-                padding: '40px 20px',
-                textAlign: 'center',
-                color: '#8c8c8c',
-                background: '#fafafa',
-                border: '1px dashed #d9d9d9',
-                borderRadius: '4px'
-              }}
+                  <div style={{ marginTop: '8px', color: '#8c8c8c', fontSize: '14px' }}>
+                    首次加载可能需要几秒钟
+                  </div>
+                </div>
+              }
             >
-              <EditOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />
-              <div>切换到此标签页以加载文档</div>
-              <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                为了提升性能，文档组件采用懒加载模式
-              </div>
-            </div>
-          )
+              <LazyUnifiedTaskDocumentArea
+                taskId={task.id}
+                projectId={projectId}
+                defaultViewMode="edit"
+                showToolbar={true}
+                showDocumentList={true}
+                compactMode={false}
+                headerVisible={false}
+                includeSubtaskDocuments={false}
+                onDocumentChange={onDocsChange}
+                onViewModeChange={undefined}
+              />
+            </Suspense>
+          </div>
+        )
       },
       {
         key: 'progress',
@@ -414,25 +396,26 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             <span>进度分析</span>
           </Space>
         ),
-        children:
-          ui.activeTab === 'progress' ? (
-            <div>
-              <Suspense fallback={<Spin size="large" />}>
-                <TaskAnalysisPanel task={task} subtasks={relations.subtasks} />
-              </Suspense>
-            </div>
-          ) : (
-            <div
-              style={{
-                minHeight: '500px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
+        children: (
+          <div>
+            <Suspense
+              fallback={
+                <div
+                  style={{
+                    minHeight: '500px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Spin size="large" />
+                </div>
+              }
             >
-              <Spin size="large" />
-            </div>
-          )
+              <TaskAnalysisPanel task={task} subtasks={relations.subtasks} />
+            </Suspense>
+          </div>
+        )
       }
     ];
   }, [task, ui.activeTab, relations.subtasks, projectId, onUpdateTask, onDocsChange]);

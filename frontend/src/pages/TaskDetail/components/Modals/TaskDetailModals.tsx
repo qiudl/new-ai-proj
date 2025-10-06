@@ -128,44 +128,38 @@ const TaskDetailModals: React.FC<TaskDetailModalsProps> = ({
   return (
     <>
       {/* 统一的任务模态框 */}
-      {ui.modals.edit?.visible && (
-        <TaskModal
-          visible={ui.modals.edit.visible}
-          task={getTaskForModal()}
-          parentTask={getParentTask()}
-          siblingTask={getSiblingTask()}
-          mode={ui.modals.edit.data?.mode || 'create'}
-          projectId={projectId}
-          onOk={onTaskModalSubmit}
-          onCancel={handleTaskModalCancel}
-          loading={ui.modals.edit.loading}
-          allowParentSelection={true}
-          onEditDetails={onEditDetails}
-        />
-      )}
+      <TaskModal
+        visible={ui.modals.edit?.visible || false}
+        task={getTaskForModal()}
+        parentTask={getParentTask()}
+        siblingTask={getSiblingTask()}
+        mode={ui.modals.edit?.data?.mode || 'create'}
+        projectId={projectId}
+        onOk={onTaskModalSubmit}
+        onCancel={handleTaskModalCancel}
+        loading={ui.modals.edit?.loading || false}
+        allowParentSelection={true}
+        onEditDetails={onEditDetails}
+      />
 
       {/* Archive Modal */}
-      {ui.modals.archive?.visible && (
-        <TaskArchiveModal
-          visible={ui.modals.archive.visible}
-          onCancel={handleArchiveModalCancel}
-          onSuccess={onArchiveSuccess}
-          projectId={projectId}
-          tasks={[task]}
-          mode="single"
-        />
-      )}
+      <TaskArchiveModal
+        visible={ui.modals.archive?.visible || false}
+        onCancel={handleArchiveModalCancel}
+        onSuccess={onArchiveSuccess}
+        projectId={projectId}
+        tasks={[task]}
+        mode="single"
+      />
 
       {/* Bulk SubTask Creator Modal */}
-      {ui.modals.bulkImport?.visible && (
-        <BulkSubTaskCreator
-          visible={ui.modals.bulkImport.visible}
-          onCancel={handleBulkSubTaskModalCancel}
-          onSuccess={onBulkSubTaskSuccess}
-          parentTask={task}
-          projectId={projectId}
-        />
-      )}
+      <BulkSubTaskCreator
+        visible={ui.modals.bulkImport?.visible || false}
+        onCancel={handleBulkSubTaskModalCancel}
+        onSuccess={onBulkSubTaskSuccess}
+        parentTask={task}
+        projectId={projectId}
+      />
     </>
   );
 };

@@ -37,7 +37,7 @@ class TaskListViewModel @Inject constructor(
             val searchQuery = filter.searchQuery.ifEmpty { null }
 
             taskRepository.getTasksPaging(
-                projectId = null,
+                projectId = filter.selectedProjectId,
                 status = statusFilter,
                 search = searchQuery
             )
@@ -68,6 +68,13 @@ class TaskListViewModel @Inject constructor(
      */
     fun filterByPriority(priorities: Set<TaskPriority>) {
         _filterState.update { it.copy(selectedPriorities = priorities) }
+    }
+
+    /**
+     * 筛选项目
+     */
+    fun filterByProject(projectId: Int?) {
+        _filterState.update { it.copy(selectedProjectId = projectId) }
     }
 
     /**
@@ -269,6 +276,7 @@ data class TaskFilterState(
     val searchQuery: String = "",
     val selectedStatuses: Set<TaskStatus> = emptySet(),
     val selectedPriorities: Set<TaskPriority> = emptySet(),
+    val selectedProjectId: Int? = null,
     val sortBy: SortOption = SortOption.UPDATED_AT,
     val sortAscending: Boolean = false
 )

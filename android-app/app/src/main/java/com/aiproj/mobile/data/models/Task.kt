@@ -12,6 +12,9 @@ data class Task(
     @SerializedName("project_id")
     val projectId: Int,
 
+    @SerializedName("project_name")
+    val projectName: String? = null,
+
     @SerializedName("title")
     val title: String,
 
@@ -56,6 +59,39 @@ data class Task(
 
     @SerializedName("has_children")
     val hasChildren: Boolean? = null,
+
+    @SerializedName("sort_order")
+    val sortOrder: Int? = null,
+
+    @SerializedName("total_time_seconds")
+    val totalTimeSeconds: Int? = null,
+
+    @SerializedName("start_datetime")
+    val startDatetime: String? = null,
+
+    @SerializedName("due_datetime")
+    val dueDatetime: String? = null,
+
+    @SerializedName("time_unit_preference")
+    val timeUnitPreference: String? = null,
+
+    @SerializedName("work_hours_per_day")
+    val workHoursPerDay: Int? = null,
+
+    @SerializedName("time_tracking_mode")
+    val timeTrackingMode: String? = null,
+
+    @SerializedName("dependencies")
+    val dependencies: List<Int>? = null,
+
+    @SerializedName("estimated_hours")
+    val estimatedHours: Int? = null,
+
+    @SerializedName("tags")
+    val tags: List<String>? = null,
+
+    @SerializedName("custom_fields")
+    val customFields: Map<String, Any>? = null,
 
     @SerializedName("created_at")
     val createdAt: String,
@@ -137,11 +173,14 @@ enum class TaskPriority {
  */
 data class TaskListData(
     @SerializedName("data")
-    val tasks: List<Task>,
+    val data: List<Task>,
 
     @SerializedName("pagination")
     val pagination: Pagination
-)
+) {
+    // 提供便捷属性以兼容旧代码
+    val tasks: List<Task> get() = data
+}
 
 /**
  * 任务列表响应 (包含 ApiResponse 包装)

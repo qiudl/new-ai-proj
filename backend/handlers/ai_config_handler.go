@@ -336,9 +336,31 @@ func (h *AIConfigHandler) TestConnection(c *gin.Context) {
 	// 执行连接测试（使用现有的testAIConnectionHandler逻辑）
 	testResult := h.performConnectionTest(&req)
 
-	// 如果测试成功，记录测试结果
+	// 记录测试结果（包含完整对话数据）
 	if config, err := h.repo.GetConfig(req.Provider); err == nil && config != nil {
-		h.repo.RecordTestResult(config.ID, testResult.Success, testResult.ResponseTime, testResult.Error, userIDInt)
+		// 从testResult中提取对话数据
+		var conversation *models.AITestConversation
+		if testResult.Conversation != nil && testResult.Conversation.Usage != nil {
+			// 填充用于存储的字段
+			testResult.Conversation.TestQuestion = testResult.Conversation.Question
+			testResult.Conversation.AIResponse = testResult.Conversation.Answer
+			testResult.Conversation.PromptTokens = testResult.Conversation.Usage.PromptTokens
+			testResult.Conversation.CompletionTokens = testResult.Conversation.Usage.CompletionTokens
+			testResult.Conversation.TotalTokens = testResult.Conversation.Usage.TotalTokens
+			conversation = testResult.Conversation
+		}
+
+		// 调用新的RecordTestResult签名
+		testType := "manual" // 手动测试
+		h.repo.RecordTestResult(
+			config.ID,
+			testResult.Success,
+			testResult.ResponseTime,
+			testResult.Error,
+			userIDInt,
+			conversation,
+			testType,
+		)
 	}
 
 	response := models.NewSuccessResponse(testResult, "AI connection test completed")
@@ -953,5 +975,91 @@ func (h *AIConfigHandler) DisableAutoRotation(c *gin.Context) {
 
 	log.Printf("[AI_CONFIG] Disabled auto rotation for config %d", configID)
 	response := models.NewSuccessResponse(responseData, "Auto rotation disabled successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// ==================================================
+// 测试历史记录查询API (Task #2779)
+// ==================================================
+
+// GetTestHistory 获取测试历史记录（分页）
+func (h *AIConfigHandler) GetTestHistory(c *gin.Context) {
+	// 1. 获取并验证路径参数
+	providerStr := c.Param("provider")
+	provider := models.AIProvider(providerStr)
+
+	// 验证provider参数
+	if provider != models.ProviderOpenAI && provider != models.ProviderClaude && provider != models.ProviderDeepSeek {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid provider: "+providerStr, nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// 2. 获取并验证查询参数
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "20")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid page parameter", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid limit parameter", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// 限制最大limit为100
+	if limit > 100 {
+		limit = 100
+	}
+
+	// 3. 调用Repository查询测试历史
+	history, err := h.repo.GetTestHistory(provider, page, limit)
+	if err != nil {
+		log.Printf("[AI_CONFIG] Failed to get test history for provider %s: %v", provider, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve test history", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// 4. 返回成功响应
+	response := models.NewSuccessResponse(history, "Test history retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// GetTestLogDetail 获取单条测试日志详情
+func (h *AIConfigHandler) GetTestLogDetail(c *gin.Context) {
+	// 1. 获取并验证路径参数
+	logIDStr := c.Param("id")
+	logID, err := strconv.Atoi(logIDStr)
+	if err != nil || logID < 1 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid log ID: "+logIDStr, nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// 2. 调用Repository查询日志详情
+	logDetail, err := h.repo.GetTestLogDetail(logID)
+	if err != nil {
+		// 判断是否为未找到错误
+		if strings.Contains(err.Error(), "not found") {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Test log not found", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+
+		log.Printf("[AI_CONFIG] Failed to get test log detail for ID %d: %v", logID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve test log detail", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// 3. 返回成功响应
+	response := models.NewSuccessResponse(logDetail, "Test log detail retrieved successfully")
 	c.JSON(http.StatusOK, response)
 }

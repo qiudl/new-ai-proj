@@ -75,14 +75,17 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 // GetByID gets a task by ID (only non-deleted)
 func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.Task, error) {
 	query := `
-		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date,
+		SELECT t.id, t.project_id, p.name as project_name, t.title, t.description, t.status, t.assignee_id, t.due_date,
 		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
 		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes,
 		       t.time_unit_preference, t.work_hours_per_day, t.time_tracking_mode,
 		       t.created_at, t.updated_at, t.deleted_at,
 		       COALESCE(c.children_count, 0) as children_count,
-		       COALESCE(c.completed_children_count, 0) as completed_children_count
+		       COALESCE(c.completed_children_count, 0) as completed_children_count,
+		       u.id as assignee_user_id, u.username as assignee_username, u.email as assignee_email
 		FROM tasks t
+		LEFT JOIN projects p ON t.project_id = p.id
+		LEFT JOIN users u ON t.assignee_id = u.id
 		LEFT JOIN (
 			SELECT parent_id,
 			       COUNT(*) as children_count,
@@ -109,14 +112,19 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	var timeTrackingMode sql.NullString
 	var childrenCount int
 	var completedChildrenCount int
+	var projectName sql.NullString
+	var assigneeUserID sql.NullInt64
+	var assigneeUsername sql.NullString
+	var assigneeEmail sql.NullString
 
 	err := row.Scan(
-		&task.ID, &task.ProjectID, &task.Title, &task.Description,
+		&task.ID, &task.ProjectID, &projectName, &task.Title, &task.Description,
 		&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
 		&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
 		&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
 		&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
 		&task.CreatedAt, &updatedAt, &task.DeletedAt, &childrenCount, &completedChildrenCount,
+		&assigneeUserID, &assigneeUsername, &assigneeEmail,
 	)
 
 	if err == sql.ErrNoRows {
@@ -124,6 +132,23 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task: %w", err)
+	}
+
+	// Set project name if available
+	if projectName.Valid {
+		task.ProjectName = &projectName.String
+	}
+
+	// Set assignee info if available
+	if assigneeUserID.Valid && assigneeUsername.Valid {
+		assignee := &models.User{
+			ID:       int(assigneeUserID.Int64),
+			Username: assigneeUsername.String,
+		}
+		if assigneeEmail.Valid {
+			assignee.Email = assigneeEmail.String
+		}
+		task.Assignee = assignee
 	}
 
 	if assigneeID.Valid {

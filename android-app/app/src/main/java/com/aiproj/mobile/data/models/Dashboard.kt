@@ -1,14 +1,25 @@
 package com.aiproj.mobile.data.models
 
+import com.google.gson.annotations.SerializedName
+
 /**
  * Dashboard 统计数据
  */
 data class DashboardStats(
-    val todayTasksCompleted: Int,
-    val todayTasksTotal: Int,
-    val todayWorkTime: Long, // 分钟
-    val activeProjects: Int,
-    val pendingTasks: Int
+    @SerializedName("today_tasks_completed")
+    val todayTasksCompleted: Int = 0,
+
+    @SerializedName("today_tasks_total")
+    val todayTasksTotal: Int = 0,
+
+    @SerializedName("today_work_time")
+    val todayWorkTime: Long = 0, // 分钟
+
+    @SerializedName("active_projects")
+    val activeProjects: Int = 0,
+
+    @SerializedName("pending_tasks")
+    val pendingTasks: Int = 0
 )
 
 /**

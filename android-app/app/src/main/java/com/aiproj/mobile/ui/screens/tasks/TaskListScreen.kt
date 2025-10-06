@@ -101,9 +101,12 @@ fun TaskListScreen(
                     IconButton(onClick = { showFilterDialog = true }) {
                         BadgedBox(
                             badge = {
-                                if (filterState.selectedStatuses.isNotEmpty() || filterState.selectedPriorities.isNotEmpty()) {
+                                val filterCount = filterState.selectedStatuses.size +
+                                    filterState.selectedPriorities.size +
+                                    if (filterState.selectedProjectId != null) 1 else 0
+                                if (filterCount > 0) {
                                     Badge {
-                                        Text("${filterState.selectedStatuses.size + filterState.selectedPriorities.size}")
+                                        Text("$filterCount")
                                     }
                                 }
                             }
@@ -293,9 +296,10 @@ fun TaskListScreen(
         TaskFilterDialog(
             filterState = filterState,
             onDismiss = { showFilterDialog = false },
-            onApply = { statuses, priorities ->
+            onApply = { statuses, priorities, projectId ->
                 viewModel.filterByStatus(statuses)
                 viewModel.filterByPriority(priorities)
+                viewModel.filterByProject(projectId)
                 showFilterDialog = false
             },
             onClear = {
@@ -417,7 +421,7 @@ fun TaskListItem(
                 }
             }
 
-            // 完成按钮
+            // 完成按钮（仅显示未完成任务）
             if (task.status != TaskStatus.COMPLETED) {
                 IconButton(onClick = onComplete) {
                     Icon(
@@ -426,12 +430,6 @@ fun TaskListItem(
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
-            } else {
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = "已完成",
-                    tint = Color(0xFF4CAF50)
-                )
             }
         }
     }
@@ -501,11 +499,12 @@ fun EmptyTaskList() {
 fun TaskFilterDialog(
     filterState: TaskFilterState,
     onDismiss: () -> Unit,
-    onApply: (Set<TaskStatus>, Set<TaskPriority>) -> Unit,
+    onApply: (Set<TaskStatus>, Set<TaskPriority>, Int?) -> Unit,
     onClear: () -> Unit
 ) {
     var selectedStatuses by remember { mutableStateOf(filterState.selectedStatuses) }
     var selectedPriorities by remember { mutableStateOf(filterState.selectedPriorities) }
+    var projectIdText by remember { mutableStateOf(filterState.selectedProjectId?.toString() ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -514,6 +513,21 @@ fun TaskFilterDialog(
             Column(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // 项目筛选
+                Text(
+                    text = "项目",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                OutlinedTextField(
+                    value = projectIdText,
+                    onValueChange = { projectIdText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("项目 ID") },
+                    placeholder = { Text("输入项目ID，留空表示全部") },
+                    singleLine = true
+                )
+
                 // 状态筛选
                 Text(
                     text = "状态",
@@ -564,7 +578,10 @@ fun TaskFilterDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onApply(selectedStatuses, selectedPriorities) }) {
+            TextButton(onClick = {
+                val projectId = projectIdText.toIntOrNull()
+                onApply(selectedStatuses, selectedPriorities, projectId)
+            }) {
                 Text("应用")
             }
         },
