@@ -40,13 +40,18 @@ export const TestLogCard: React.FC<TestLogCardProps> = ({
    * 渲染状态标签
    */
   const renderStatusTag = () => {
-    const statusConfig = {
+    const statusConfig: Record<string, { icon: React.ReactNode; color: string; text: string }> = {
       success: { icon: <CheckCircleOutlined />, color: 'success', text: '成功' },
       failed: { icon: <CloseCircleOutlined />, color: 'error', text: '失败' },
       timeout: { icon: <ClockCircleOutlined />, color: 'warning', text: '超时' }
     };
 
-    const config = statusConfig[log.testStatus];
+    const config = statusConfig[log.testStatus] || {
+      icon: <ClockCircleOutlined />,
+      color: 'default',
+      text: log.testStatus || '未知'
+    };
+
     return (
       <Tag icon={config.icon} color={config.color}>
         {config.text}
@@ -58,13 +63,17 @@ export const TestLogCard: React.FC<TestLogCardProps> = ({
    * 渲染测试类型标签
    */
   const renderTypeTag = () => {
-    const typeConfig = {
+    const typeConfig: Record<string, { color: string; text: string }> = {
       manual: { color: 'blue', text: '手动测试' },
       auto: { color: 'cyan', text: '自动测试' },
       validation: { color: 'purple', text: '验证测试' }
     };
 
-    const config = typeConfig[log.testType];
+    const config = typeConfig[log.testType] || {
+      color: 'default',
+      text: log.testType || '未知类型'
+    };
+
     return <Tag color={config.color}>{config.text}</Tag>;
   };
 

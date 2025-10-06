@@ -45,13 +45,18 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
    * 渲染状态标签
    */
   const renderStatusTag = () => {
-    const statusConfig = {
+    const statusConfig: Record<string, { icon: React.ReactNode; color: string; text: string }> = {
       success: { icon: <CheckCircleOutlined />, color: 'success', text: '成功' },
       failed: { icon: <CloseCircleOutlined />, color: 'error', text: '失败' },
       timeout: { icon: <ClockCircleOutlined />, color: 'warning', text: '超时' }
     };
 
-    const config = statusConfig[log.testStatus];
+    const config = statusConfig[log.testStatus] || {
+      icon: <ClockCircleOutlined />,
+      color: 'default',
+      text: log.testStatus || '未知'
+    };
+
     return (
       <Tag icon={config.icon} color={config.color}>
         {config.text}
@@ -90,17 +95,17 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
         </Descriptions.Item>
 
         <Descriptions.Item label="Provider" span={1}>
-          <Tag>{log.provider.toUpperCase()}</Tag>
+          <Tag>{log.provider ? log.provider.toUpperCase() : '未知'}</Tag>
         </Descriptions.Item>
         <Descriptions.Item label="测试状态" span={1}>
           {renderStatusTag()}
         </Descriptions.Item>
 
         <Descriptions.Item label="测试类型" span={1}>
-          <Tag color="blue">{log.testType}</Tag>
+          <Tag color="blue">{log.testType || '未知'}</Tag>
         </Descriptions.Item>
         <Descriptions.Item label="响应时间" span={1}>
-          {log.responseTimeMs}ms
+          {log.responseTimeMs || 0}ms
         </Descriptions.Item>
 
         {log.model && (
@@ -111,13 +116,13 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
 
         <Descriptions.Item label="测试问题" span={2}>
           <div style={{ maxHeight: 150, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-            {log.testQuestion}
+            {log.testQuestion || '无'}
           </div>
         </Descriptions.Item>
 
         <Descriptions.Item label="AI响应" span={2}>
           <div style={{ maxHeight: 200, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-            {log.aiResponse}
+            {log.aiResponse || '无'}
           </div>
         </Descriptions.Item>
 

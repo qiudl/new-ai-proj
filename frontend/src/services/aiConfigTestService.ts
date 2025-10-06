@@ -36,13 +36,16 @@ export class AIConfigTestService {
 
     // 调试：打印实际的数据结构
     console.log('Backend response.data:', backendData);
-    console.log('backendData.data type:', typeof backendData.data);
-    console.log('Is array?', Array.isArray(backendData.data));
+    console.log('backendData.data:', backendData.data);
+    console.log('backendData.data.data:', backendData.data?.data);
+
+    // 后端返回结构是 { data: { data: [...] } }，需要再深入一层
+    const rawData = backendData.data?.data || backendData.data || [];
 
     // 确保data是数组
-    const dataArray = Array.isArray(backendData.data)
-      ? backendData.data
-      : (backendData.data ? [backendData.data] : []);
+    const dataArray = Array.isArray(rawData)
+      ? rawData
+      : (rawData ? [rawData] : []);
 
     const logs = dataArray.map((log: any) => ({
       id: log.id,
