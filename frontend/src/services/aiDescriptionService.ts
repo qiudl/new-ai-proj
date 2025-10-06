@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
+import api from './api';
 
 /**
  * AI描述生成选项
@@ -77,15 +75,14 @@ class AIDescriptionService {
       max_tokens: 800,
     };
 
-    const response = await axios.post(
-      `${API_BASE_URL}/tasks/${taskId}/ai/generate-description`,
+    // api interceptor已经解包了响应，直接返回data内容
+    return await api.post(
+      `/tasks/${taskId}/ai/generate-description`,
       {
         model,
         options: { ...defaultOptions, ...options },
       }
     );
-
-    return response.data.data;
   }
 
   /**
@@ -95,14 +92,15 @@ class AIDescriptionService {
     taskId: number,
     model: string = 'deepseek'
   ): Promise<DescriptionSuggestion[]> {
-    const response = await axios.get(
-      `${API_BASE_URL}/tasks/${taskId}/ai/description-suggestions`,
+    // api interceptor已经解包了响应，直接返回data内容
+    const data = await api.get(
+      `/tasks/${taskId}/ai/description-suggestions`,
       {
         params: { model },
       }
     );
 
-    return response.data.data.suggestions || [];
+    return data.suggestions || [];
   }
 
   /**
@@ -113,7 +111,7 @@ class AIDescriptionService {
     description: string,
     mode: 'replace' | 'append' = 'replace'
   ): Promise<void> {
-    await axios.post(`${API_BASE_URL}/tasks/${taskId}/ai/update-description`, {
+    await api.post(`/tasks/${taskId}/ai/update-description`, {
       description,
       mode,
     });
@@ -125,16 +123,15 @@ class AIDescriptionService {
   async batchGenerateDescriptions(
     request: BatchGenerateRequest
   ): Promise<BatchGenerateResult> {
-    const response = await axios.post(
-      `${API_BASE_URL}/tasks/ai/batch-generate-descriptions`,
+    // api interceptor已经解包了响应，直接返回data内容
+    return await api.post(
+      `/tasks/ai/batch-generate-descriptions`,
       request
     );
-
-    return response.data.data;
   }
 
   /**
-   * 流式生成描述（SSE）
+   * 流式生成描述（SSE） - 使用fetch API支持认证
    */
   async generateDescriptionStream(
     taskId: number,
@@ -154,29 +151,68 @@ class AIDescriptionService {
     };
 
     try {
-      const eventSource = new EventSource(
-        `${API_BASE_URL}/tasks/${taskId}/ai/generate-description-stream?` +
-          new URLSearchParams({
-            model,
-            options: JSON.stringify({ ...defaultOptions, ...options }),
-          })
+      // 使用fetch而不是EventSource以支持Authorization header
+      const token = localStorage.getItem('token');
+      const queryParams = new URLSearchParams({
+        model,
+        options: JSON.stringify({ ...defaultOptions, ...options }),
+      });
+
+      const response = await fetch(
+        `${api.defaults.baseURL}/tasks/${taskId}/ai/generate-description-stream?${queryParams}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
       );
 
-      eventSource.addEventListener('chunk', (event) => {
-        const data = JSON.parse(event.data);
-        onChunk(data.chunk);
-      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
-      eventSource.addEventListener('complete', (event) => {
-        const result = JSON.parse(event.data);
-        onComplete(result);
-        eventSource.close();
-      });
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      eventSource.addEventListener('error', (event) => {
-        onError(new Error('Stream error'));
-        eventSource.close();
-      });
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+
+            if (data === '[DONE]') {
+              continue;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+
+              if (parsed.event === 'chunk') {
+                onChunk(parsed.chunk);
+              } else if (parsed.event === 'complete') {
+                onComplete(parsed);
+              } else if (parsed.event === 'error') {
+                onError(new Error(parsed.error || 'Stream error'));
+              }
+            } catch (e) {
+              console.warn('Failed to parse SSE data:', data);
+            }
+          }
+        }
+      }
     } catch (error) {
       onError(error as Error);
     }
