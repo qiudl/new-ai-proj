@@ -299,3 +299,49 @@ data class TimerSuggestion(
     @SerializedName("tags")
     val tags: List<String>?
 )
+
+/**
+ * 番茄钟配置
+ */
+data class PomodoroConfig(
+    val workMinutes: Int = 25,              // 工作时长
+    val shortBreakMinutes: Int = 5,          // 短休息时长
+    val longBreakMinutes: Int = 15,          // 长休息时长
+    val pomodorosUntilLongBreak: Int = 4     // 多少个番茄钟后长休息
+)
+
+/**
+ * 番茄钟阶段
+ */
+enum class PomodoroPhase {
+    WORK,          // 工作中
+    SHORT_BREAK,   // 短休息
+    LONG_BREAK,    // 长休息
+    IDLE           // 空闲
+}
+
+/**
+ * 番茄钟会话
+ */
+data class PomodoroSession(
+    val id: String,
+    val taskId: Long?,
+    val taskTitle: String?,
+    val config: PomodoroConfig,
+    val currentPhase: PomodoroPhase,
+    val currentCycle: Int,      // 当前第几个番茄钟
+    val startTime: Long,
+    val remainingSeconds: Int,
+    val isPaused: Boolean = false
+)
+
+/**
+ * 番茄钟统计
+ */
+data class PomodoroStats(
+    val todayCompletedPomodoros: Int,
+    val todayWorkMinutes: Int,
+    val weeklyCompletedPomodoros: Int,
+    val totalCompletedPomodoros: Int,
+    val averageFocusScore: Double
+)

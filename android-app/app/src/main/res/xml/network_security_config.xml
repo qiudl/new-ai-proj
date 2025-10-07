@@ -15,15 +15,16 @@
         </trust-anchors>
     </base-config>
 
-    <!-- 生产域名证书固定 (Last updated: 2025-10-07) -->
+    <!-- 允许局域网访问 (开发环境) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+
+    <!-- 生产域名配置 -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">proj.joylodging.com</domain>
-        <pin-set expiration="2026-10-01">
-            <!-- Leaf certificate (proj.joylodging.com) -->
-            <pin digest="sha256">kOELsxWB35wXy3x9mpbYBDvbXbu+44ulQ5GMTMw7yNc=</pin>
-            <!-- Let's Encrypt E8 intermediate CA (backup) -->
-            <pin digest="sha256">iFvwVyJSxnQdyaUvUERIf+8qk7gRze3612JMwoO3zdU=</pin>
-        </pin-set>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>

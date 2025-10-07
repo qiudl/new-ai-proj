@@ -306,6 +306,13 @@ fun MainScreen(
                 )
             }
 
+            // 番茄钟
+            composable(Screen.Pomodoro.route) {
+                com.aiproj.mobile.ui.screens.pomodoro.PomodoroScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
             // 3日效率对比
             composable(Screen.EfficiencyComparison.route) {
                 EfficiencyComparisonScreen(

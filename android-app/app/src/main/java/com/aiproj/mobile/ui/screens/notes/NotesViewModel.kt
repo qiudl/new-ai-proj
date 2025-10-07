@@ -7,6 +7,7 @@ import com.aiproj.mobile.data.models.*
 import com.aiproj.mobile.data.repository.WorkNoteRepository
 import com.aiproj.mobile.data.repository.WorkNoteFolderRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -69,11 +70,13 @@ class NotesViewModel @Inject constructor(
     data class DeletedNoteInfo(
         val note: WorkNote,
         val index: Int,
-        val timestamp: Long
+        val timestamp: Long,
+        val deletionJob: Job  // 用于取消延迟删除的Job
     )
 
-    private val _deletedNoteInfo = MutableStateFlow<DeletedNoteInfo?>(null)
-    val deletedNoteInfo: StateFlow<DeletedNoteInfo?> = _deletedNoteInfo.asStateFlow()
+    // 支持多条删除的撤销队列
+    private val _deletedNotesQueue = MutableStateFlow<List<DeletedNoteInfo>>(emptyList())
+    val deletedNotesQueue: StateFlow<List<DeletedNoteInfo>> = _deletedNotesQueue.asStateFlow()
 
     // 加载操作跟踪
     enum class OperationType {
@@ -556,47 +559,65 @@ class NotesViewModel @Inject constructor(
             updatedNotes.removeAt(noteIndex)
             _notes.value = updatedNotes
 
-            // 保存删除信息供撤销使用
-            _deletedNoteInfo.value = DeletedNoteInfo(
+            // 创建延迟删除的Job
+            val deletionJob = viewModelScope.launch {
+                delay(3000)
+
+                // 检查是否还在队列中（未被撤销）
+                val infoInQueue = _deletedNotesQueue.value.find { it.note.id == noteId }
+                if (infoInQueue != null) {
+                    // 执行实际的后台删除
+                    repository.deleteNote(noteId).fold(
+                        onSuccess = {
+                            // 从队列中移除
+                            _deletedNotesQueue.value = _deletedNotesQueue.value.filter { it.note.id != noteId }
+                        },
+                        onFailure = { error ->
+                            // 删除失败 - 恢复笔记（使用重新排序，不依赖索引）
+                            val restoredNotes = _notes.value.toMutableList()
+                            restoredNotes.add(note)
+                            _notes.value = sortNotes(restoredNotes)
+                            _uiState.value = UiState.Error("删除失败: ${error.message}")
+                            // 从队列中移除
+                            _deletedNotesQueue.value = _deletedNotesQueue.value.filter { it.note.id != noteId }
+                        }
+                    )
+                }
+            }
+
+            // 添加到撤销队列
+            val deletedInfo = DeletedNoteInfo(
                 note = note,
                 index = noteIndex,
-                timestamp = System.currentTimeMillis()
+                timestamp = System.currentTimeMillis(),
+                deletionJob = deletionJob
             )
-
-            // 等待3秒
-            delay(3000)
-
-            // 检查是否已撤销
-            if (_deletedNoteInfo.value?.note?.id == noteId) {
-                // 未撤销 - 执行后台删除
-                repository.deleteNote(noteId).fold(
-                    onSuccess = {
-                        _deletedNoteInfo.value = null
-                    },
-                    onFailure = { error ->
-                        // 删除失败 - 恢复笔记
-                        val restoredNotes = _notes.value.toMutableList()
-                        restoredNotes.add(noteIndex, note)
-                        _notes.value = restoredNotes
-                        _uiState.value = UiState.Error("删除失败: ${error.message}")
-                        _deletedNoteInfo.value = null
-                    }
-                )
-            }
+            _deletedNotesQueue.value = _deletedNotesQueue.value + deletedInfo
         }
     }
 
     /**
-     * 撤销删除
+     * 撤销删除（撤销最近的一次删除）
+     *
+     * 改进：不使用保存的索引，而是添加后重新排序
+     * 这样即使列表顺序改变（如排序、筛选），也能正确恢复位置
      */
     fun undoDelete() {
-        _deletedNoteInfo.value?.let { info ->
-            val updatedNotes = _notes.value.toMutableList()
-            updatedNotes.add(info.index, info.note)
-            _notes.value = updatedNotes
-            _deletedNoteInfo.value = null
-            _operationMessage.value = "已恢复"
-        }
+        // 获取队列中最新的删除操作
+        val lastDeleted = _deletedNotesQueue.value.lastOrNull() ?: return
+
+        // 取消延迟删除的Job
+        lastDeleted.deletionJob.cancel()
+
+        // 恢复笔记到列表并重新排序（不使用保存的index，避免排序变化导致的位置错误）
+        val updatedNotes = _notes.value.toMutableList()
+        updatedNotes.add(lastDeleted.note)  // 添加到末尾
+        _notes.value = sortNotes(updatedNotes)  // 重新排序到正确位置
+
+        // 从队列中移除
+        _deletedNotesQueue.value = _deletedNotesQueue.value.filter { it.note.id != lastDeleted.note.id }
+
+        _operationMessage.value = "已恢复"
     }
 
     /**
