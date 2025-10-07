@@ -37,8 +37,11 @@ export interface FolderDetailDrawerProps {
  * - 笔记数量、子文件夹数量
  * - 创建时间、更新时间
  * - 快捷操作按钮
+ *
+ * 性能优化：
+ * - React.memo防止不必要的重渲染
  */
-const FolderDetailDrawer: React.FC<FolderDetailDrawerProps> = ({
+const FolderDetailDrawerComponent: React.FC<FolderDetailDrawerProps> = ({
   visible,
   onClose,
   folder,
@@ -274,5 +277,19 @@ const FolderDetailDrawer: React.FC<FolderDetailDrawerProps> = ({
     </Drawer>
   );
 };
+
+// 使用 React.memo 优化性能
+const FolderDetailDrawer = React.memo(FolderDetailDrawerComponent, (prevProps, nextProps) => {
+  // 自定义比较函数
+  return (
+    prevProps.visible === nextProps.visible &&
+    prevProps.folder?.id === nextProps.folder?.id &&
+    prevProps.onClose === nextProps.onClose &&
+    prevProps.onEdit === nextProps.onEdit &&
+    prevProps.onDelete === nextProps.onDelete
+  );
+});
+
+FolderDetailDrawer.displayName = 'FolderDetailDrawer';
 
 export default FolderDetailDrawer;

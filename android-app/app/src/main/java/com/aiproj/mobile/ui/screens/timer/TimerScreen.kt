@@ -1,5 +1,7 @@
 package com.aiproj.mobile.ui.screens.timer
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -9,9 +11,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.aiproj.mobile.service.TimerForegroundService
 
 /**
  * 统一计时器界面
@@ -24,6 +28,24 @@ fun TimerScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    // 监听状态变化，自动启动/停止前台服务
+    LaunchedEffect(uiState) {
+        when (val state = uiState) {
+            is TimerUiState.Active -> {
+                if (!state.isPaused) {
+                    // 启动前台服务
+                    startTimerService(context, state.timer.taskId, state.timer.description)
+                }
+            }
+            is TimerUiState.Idle -> {
+                // 停止前台服务
+                stopTimerService(context)
+            }
+            else -> Unit
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -91,6 +113,7 @@ private fun ActiveTimerContent(
     onResume: () -> Unit,
     onStop: () -> Unit
 ) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -219,7 +242,14 @@ private fun ActiveTimerContent(
             if (state.isPaused) {
                 // 恢复按钮
                 Button(
-                    onClick = onResume,
+                    onClick = {
+                        onResume()
+                        // 通知服务恢复
+                        val intent = Intent(context, TimerForegroundService::class.java).apply {
+                            action = TimerForegroundService.ACTION_RESUME
+                        }
+                        context.startService(intent)
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
@@ -229,7 +259,14 @@ private fun ActiveTimerContent(
             } else {
                 // 暂停按钮
                 OutlinedButton(
-                    onClick = onPause,
+                    onClick = {
+                        onPause()
+                        // 通知服务暂停
+                        val intent = Intent(context, TimerForegroundService::class.java).apply {
+                            action = TimerForegroundService.ACTION_PAUSE
+                        }
+                        context.startService(intent)
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Pause, contentDescription = null)
@@ -498,4 +535,26 @@ private fun formatStartTime(startTime: String): String {
     } catch (e: Exception) {
         "N/A"
     }
+}
+
+/**
+ * 启动计时器前台服务
+ */
+private fun startTimerService(context: Context, taskId: Long?, description: String?) {
+    val intent = Intent(context, TimerForegroundService::class.java).apply {
+        action = TimerForegroundService.ACTION_START
+        taskId?.let { putExtra(TimerForegroundService.EXTRA_TASK_ID, it) }
+        description?.let { putExtra(TimerForegroundService.EXTRA_DESCRIPTION, it) }
+    }
+    context.startForegroundService(intent)
+}
+
+/**
+ * 停止计时器前台服务
+ */
+private fun stopTimerService(context: Context) {
+    val intent = Intent(context, TimerForegroundService::class.java).apply {
+        action = TimerForegroundService.ACTION_STOP
+    }
+    context.startService(intent)
 }

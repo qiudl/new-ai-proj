@@ -48,6 +48,8 @@ fun NotesScreen(
     val isPinnedOnly by viewModel.isPinnedOnly.collectAsState()
     val isBookmarkedOnly by viewModel.isBookmarkedOnly.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val folderLoading by viewModel.folderLoading.collectAsState()
+    val folderError by viewModel.folderError.collectAsState()
 
     // 本地UI状态
     var expandedFolderIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -55,15 +57,36 @@ fun NotesScreen(
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var showFilterSheet by remember { mutableStateOf(false) }
     var selectedNote by remember { mutableStateOf<WorkNote?>(null) }
+
+    // 文件夹对话框状态
+    var showCreateFolderDialog by remember { mutableStateOf(false) }
+    var showEditFolderDialog by remember { mutableStateOf(false) }
+    var showDeleteFolderDialog by remember { mutableStateOf(false) }
+    var showMoveFolderDialog by remember { mutableStateOf(false) }
+    var showFolderActionMenu by remember { mutableStateOf(false) }
+    var selectedFolder by remember { mutableStateOf<WorkNoteFolder?>(null) }
+    var parentFolder by remember { mutableStateOf<WorkNoteFolder?>(null) }
 
     // Pull-to-refresh state
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
         onRefresh = { viewModel.refresh() }
     )
+
+    // 监听文件夹错误并显示Snackbar
+    LaunchedEffect(folderError) {
+        folderError?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Long
+            )
+            viewModel.clearFolderError()
+        }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -78,7 +101,9 @@ fun NotesScreen(
                         scope.launch { drawerState.close() }
                     },
                     onFolderLongPress = { folder ->
-                        // TODO: 显示文件夹菜单
+                        selectedFolder = folder
+                        showFolderActionMenu = true
+                        scope.launch { drawerState.close() }
                     },
                     onExpandFolder = { folderId ->
                         expandedFolderIds = if (expandedFolderIds.contains(folderId)) {
@@ -88,13 +113,16 @@ fun NotesScreen(
                         }
                     },
                     onCreateFolder = {
-                        // TODO: 显示创建文件夹对话框
+                        parentFolder = null
+                        showCreateFolderDialog = true
+                        scope.launch { drawerState.close() }
                     }
                 )
             }
         }
     ) {
         Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 TopAppBar(
                     title = { Text("工作笔记") },
@@ -339,11 +367,9 @@ fun NotesScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            scope.launch {
-                                viewModel.deleteNote(note.id)
-                                showDeleteDialog = false
-                                selectedNote = null
-                            }
+                            viewModel.confirmDelete(note.id)
+                            showDeleteDialog = false
+                            selectedNote = null
                         },
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
@@ -358,6 +384,172 @@ fun NotesScreen(
                     }
                 }
             )
+        }
+    }
+
+    // ========== 文件夹对话框 ==========
+
+    // 创建文件夹对话框
+    if (showCreateFolderDialog) {
+        FolderDialog(
+            folder = null,
+            parentFolder = parentFolder,
+            onDismiss = { showCreateFolderDialog = false },
+            onConfirm = { name, description, color, visibility ->
+                viewModel.createFolder(
+                    name = name,
+                    description = description,
+                    parentId = parentFolder?.id,
+                    visibility = visibility,
+                    color = color
+                )
+                showCreateFolderDialog = false
+            }
+        )
+    }
+
+    // 编辑文件夹对话框
+    if (showEditFolderDialog && selectedFolder != null) {
+        FolderDialog(
+            folder = selectedFolder,
+            parentFolder = null,
+            onDismiss = { showEditFolderDialog = false },
+            onConfirm = { name, description, color, visibility ->
+                viewModel.updateFolder(
+                    folderId = selectedFolder!!.id,
+                    name = name,
+                    description = description,
+                    visibility = visibility,
+                    color = color
+                )
+                showEditFolderDialog = false
+            }
+        )
+    }
+
+    // 删除文件夹对话框
+    if (showDeleteFolderDialog && selectedFolder != null) {
+        DeleteFolderDialog(
+            folderName = selectedFolder!!.name,
+            onDismiss = { showDeleteFolderDialog = false },
+            onConfirm = {
+                viewModel.deleteFolder(selectedFolder!!.id)
+                showDeleteFolderDialog = false
+                selectedFolder = null
+            }
+        )
+    }
+
+    // 移动文件夹对话框
+    if (showMoveFolderDialog && selectedFolder != null) {
+        MoveFolderDialog(
+            folderToMove = selectedFolder!!,
+            availableFolders = folders,
+            onDismiss = { showMoveFolderDialog = false },
+            onConfirm = { targetParentId ->
+                viewModel.moveFolder(
+                    folderId = selectedFolder!!.id,
+                    newParentId = targetParentId
+                )
+                showMoveFolderDialog = false
+            }
+        )
+    }
+
+    // 文件夹操作菜单
+    if (showFolderActionMenu && selectedFolder != null) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showFolderActionMenu = false
+                selectedFolder = null
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = selectedFolder!!.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                HorizontalDivider()
+
+                // 编辑
+                Surface(
+                    onClick = {
+                        showFolderActionMenu = false
+                        showEditFolderDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ListItem(
+                        headlineContent = { Text("编辑") },
+                        leadingContent = { Icon(Icons.Default.Edit, null) }
+                    )
+                }
+
+                // 移动
+                Surface(
+                    onClick = {
+                        showFolderActionMenu = false
+                        showMoveFolderDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ListItem(
+                        headlineContent = { Text("移动") },
+                        leadingContent = { Icon(Icons.Default.DriveFileMove, null) }
+                    )
+                }
+
+                // 创建子文件夹
+                Surface(
+                    onClick = {
+                        parentFolder = selectedFolder
+                        showFolderActionMenu = false
+                        showCreateFolderDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ListItem(
+                        headlineContent = { Text("创建子文件夹") },
+                        leadingContent = { Icon(Icons.Default.CreateNewFolder, null) }
+                    )
+                }
+
+                HorizontalDivider()
+
+                // 删除
+                Surface(
+                    onClick = {
+                        showFolderActionMenu = false
+                        showDeleteFolderDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                "删除",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.Delete,
+                                null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }

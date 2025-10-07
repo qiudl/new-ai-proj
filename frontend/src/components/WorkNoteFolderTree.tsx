@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Tree, Input, Spin, Empty, message, Badge } from 'antd';
 import {
   FolderOutlined,
@@ -11,6 +11,7 @@ import {
 import type { DataNode } from 'antd/es/tree';
 import { workNotesService, WorkNoteFolder } from '../services/workNotesService';
 import FolderContextMenu, { FolderAction } from './FolderContextMenu';
+import { useDebounce } from '../hooks/useDebounce';
 
 const { Search } = Input;
 
@@ -35,9 +36,9 @@ export interface WorkNoteFolderTreeProps {
  * - 显示文件夹图标、名称、笔记数量
  * - 高亮当前选中文件夹
  * - 懒加载子文件夹（优化性能）
- * - 文件夹搜索
+ * - 文件夹搜索（防抖优化）
  */
-const WorkNoteFolderTree: React.FC<WorkNoteFolderTreeProps> = ({
+const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
   selectedFolderId,
   onFolderSelect,
   onFolderCreate,
@@ -61,6 +62,9 @@ const WorkNoteFolderTree: React.FC<WorkNoteFolderTreeProps> = ({
 
   // 拖拽状态
   const [draggingKey, setDraggingKey] = useState<React.Key | null>(null);
+
+  // 防抖搜索值（300ms延迟）
+  const debouncedSearchValue = useDebounce(searchValue, 300);
 
   // 加载文件夹树（根目录）
   const loadRootFolders = async () => {
@@ -101,6 +105,32 @@ const WorkNoteFolderTree: React.FC<WorkNoteFolderTreeProps> = ({
       setSelectedKeys(['root']);
     }
   }, [selectedFolderId]);
+
+  // 防抖搜索效果
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!debouncedSearchValue.trim()) {
+        loadRootFolders();
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const results = await workNotesService.searchFolders(debouncedSearchValue);
+        setFolders(results);
+        // 展开所有搜索结果
+        const allKeys = results.map(folder => `folder-${folder.id}`);
+        setExpandedKeys(allKeys);
+      } catch (error: any) {
+        console.error('搜索文件夹失败:', error);
+        message.error('搜索失败: ' + error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    performSearch();
+  }, [debouncedSearchValue]);
 
   // 键盘快捷键
   useEffect(() => {
@@ -167,11 +197,21 @@ const WorkNoteFolderTree: React.FC<WorkNoteFolderTreeProps> = ({
   const folderToTreeNode = (folder: WorkNoteFolder): DataNode => {
     const key = `folder-${folder.id}`;
     const hasChildren = folder.subfolders_count > 0;
+    const isDragging = draggingKey === key;
 
     return {
       key,
       title: (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%',
+            opacity: isDragging ? 0.5 : 1,
+            transition: 'opacity 0.2s',
+          }}
+        >
           <span style={{
             flex: 1,
             overflow: 'hidden',
@@ -200,6 +240,7 @@ const WorkNoteFolderTree: React.FC<WorkNoteFolderTreeProps> = ({
       children: folder.children?.map(folderToTreeNode),
       // 存储原始文件夹数据
       data: folder,
+      className: isDragging ? 'dragging-node' : '',
     };
   };
 
@@ -218,7 +259,7 @@ const WorkNoteFolderTree: React.FC<WorkNoteFolderTreeProps> = ({
     };
 
     return [rootNode];
-  }, [folders]);
+  }, [folders, draggingKey]);
 
   // 处理节点选择
   const handleSelect = (selectedKeys: React.Key[], info: any) => {
@@ -276,27 +317,9 @@ const WorkNoteFolderTree: React.FC<WorkNoteFolderTreeProps> = ({
     setLoadedKeys(prev => [...prev, key]);
   };
 
-  // 搜索文件夹
-  const handleSearch = async (value: string) => {
+  // 处理搜索输入（仅更新searchValue状态，实际搜索由debouncedSearchValue触发）
+  const handleSearchChange = (value: string) => {
     setSearchValue(value);
-    if (!value.trim()) {
-      loadRootFolders();
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const results = await workNotesService.searchFolders(value);
-      setFolders(results);
-      // 展开所有搜索结果
-      const allKeys = results.map(folder => `folder-${folder.id}`);
-      setExpandedKeys(allKeys);
-    } catch (error: any) {
-      console.error('搜索文件夹失败:', error);
-      message.error('搜索失败: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
   };
 
   // 处理右键点击
@@ -470,12 +493,8 @@ const WorkNoteFolderTree: React.FC<WorkNoteFolderTreeProps> = ({
             placeholder="搜索文件夹..."
             allowClear
             prefix={<SearchOutlined />}
-            onSearch={handleSearch}
-            onChange={e => {
-              if (!e.target.value) {
-                handleSearch('');
-              }
-            }}
+            value={searchValue}
+            onChange={e => handleSearchChange(e.target.value)}
             style={{ width: '100%' }}
           />
         </div>
@@ -540,5 +559,23 @@ const WorkNoteFolderTree: React.FC<WorkNoteFolderTreeProps> = ({
     </div>
   );
 };
+
+// 使用 React.memo 优化性能
+const WorkNoteFolderTree = React.memo(WorkNoteFolderTreeComponent, (prevProps, nextProps) => {
+  // 自定义比较函数，只在这些props改变时重新渲染
+  return (
+    prevProps.selectedFolderId === nextProps.selectedFolderId &&
+    prevProps.height === nextProps.height &&
+    prevProps.showSearch === nextProps.showSearch &&
+    prevProps.onFolderSelect === nextProps.onFolderSelect &&
+    prevProps.onFolderCreate === nextProps.onFolderCreate &&
+    prevProps.onFolderEdit === nextProps.onFolderEdit &&
+    prevProps.onFolderDelete === nextProps.onFolderDelete &&
+    prevProps.onFolderMove === nextProps.onFolderMove &&
+    prevProps.onFolderDetail === nextProps.onFolderDetail
+  );
+});
+
+WorkNoteFolderTree.displayName = 'WorkNoteFolderTree';
 
 export default WorkNoteFolderTree;

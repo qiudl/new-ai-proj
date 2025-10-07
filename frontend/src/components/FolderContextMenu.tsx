@@ -42,8 +42,11 @@ export interface FolderContextMenuProps {
  * - 菜单项：新建子文件夹、重命名、移动、删除、查看详情
  * - 支持键盘快捷键提示
  * - 根据权限显示/隐藏菜单项
+ *
+ * 性能优化：
+ * - React.memo防止不必要的重渲染
  */
-const FolderContextMenu: React.FC<FolderContextMenuProps> = ({
+const FolderContextMenuComponent: React.FC<FolderContextMenuProps> = ({
   folder,
   position,
   onClose,
@@ -159,5 +162,20 @@ const FolderContextMenu: React.FC<FolderContextMenuProps> = ({
     </>
   );
 };
+
+// 使用 React.memo 优化性能
+const FolderContextMenu = React.memo(FolderContextMenuComponent, (prevProps, nextProps) => {
+  // 自定义比较函数
+  return (
+    prevProps.folder?.id === nextProps.folder?.id &&
+    prevProps.position?.x === nextProps.position?.x &&
+    prevProps.position?.y === nextProps.position?.y &&
+    prevProps.showShortcuts === nextProps.showShortcuts &&
+    prevProps.onClose === nextProps.onClose &&
+    prevProps.onAction === nextProps.onAction
+  );
+});
+
+FolderContextMenu.displayName = 'FolderContextMenu';
 
 export default FolderContextMenu;

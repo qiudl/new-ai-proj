@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.aiproj.mobile.data.models.DescriptionGenerateResponse
 
@@ -54,7 +55,9 @@ fun DescriptionPreviewScreen(
                 Text(
                     text = response.description,
                     style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .testTag("generatedDescription")
                 )
             }
 
@@ -72,7 +75,10 @@ fun DescriptionPreviewScreen(
                         text = "📊 统计信息",
                         style = MaterialTheme.typography.titleSmall
                     )
-                    Text("• 字数: ${response.wordCount}")
+                    Text(
+                        text = "• 字数: ${response.wordCount}",
+                        modifier = Modifier.testTag("wordCount")
+                    )
                     Text("• 生成模型: ${response.modelUsed}")
                     Text("• 生成时间: ${response.generatedAt}")
                 }

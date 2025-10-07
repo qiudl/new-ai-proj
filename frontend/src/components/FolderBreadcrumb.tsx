@@ -39,8 +39,13 @@ interface BreadcrumbItem {
  * - 最后一级文件夹高亮显示
  * - 路径过长时省略中间部分
  * - 支持显示文件夹图标和颜色
+ *
+ * 性能优化：
+ * - React.memo防止不必要的重渲染
+ * - useMemo缓存计算结果
+ * - useCallback缓存回调函数
  */
-const FolderBreadcrumb: React.FC<FolderBreadcrumbProps> = ({
+const FolderBreadcrumbComponent: React.FC<FolderBreadcrumbProps> = ({
   folder,
   folders,
   onNavigate,
@@ -179,5 +184,19 @@ const FolderBreadcrumb: React.FC<FolderBreadcrumbProps> = ({
     />
   );
 };
+
+// 使用 React.memo 优化性能
+const FolderBreadcrumb = React.memo(FolderBreadcrumbComponent, (prevProps, nextProps) => {
+  // 自定义比较函数，只在这些props改变时重新渲染
+  return (
+    prevProps.folder?.id === nextProps.folder?.id &&
+    prevProps.folders === nextProps.folders &&
+    prevProps.maxItems === nextProps.maxItems &&
+    prevProps.showIcon === nextProps.showIcon &&
+    prevProps.onNavigate === nextProps.onNavigate
+  );
+});
+
+FolderBreadcrumb.displayName = 'FolderBreadcrumb';
 
 export default FolderBreadcrumb;

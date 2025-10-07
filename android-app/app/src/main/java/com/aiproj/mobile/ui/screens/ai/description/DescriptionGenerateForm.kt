@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
@@ -154,7 +155,8 @@ fun DescriptionGenerateForm(
             onValueChange = onPromptChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp),
+                .height(120.dp)
+                .testTag("customPromptInput"),
             placeholder = { Text("输入自定义提示词，例如：重点描述技术实现细节和预期效果...") },
             maxLines = 5
         )
