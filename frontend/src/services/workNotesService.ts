@@ -6,6 +6,46 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1';
 export type WorkNoteType = 'general' | 'meeting' | 'idea' | 'log' | 'reference' | 'template';
 export type WorkNotePriority = 'low' | 'medium' | 'high' | 'urgent';
 
+// 工作笔记文件夹接口
+export interface WorkNoteFolder {
+  id: number;
+  name: string;
+  description?: string;
+  parent_id?: number;
+  owner_id: number;
+  project_id?: number;
+  visibility: 'private' | 'team' | 'public';
+  color?: string;
+  icon?: string;
+  sort_order: number;
+  notes_count: number;
+  subfolders_count: number;
+  path?: string;
+  children?: WorkNoteFolder[];
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+}
+
+export interface CreateWorkNoteFolderRequest {
+  name: string;
+  description?: string;
+  parent_id?: number;
+  project_id?: number;
+  visibility?: 'private' | 'team' | 'public';
+  color?: string;
+  icon?: string;
+}
+
+export interface UpdateWorkNoteFolderRequest {
+  name?: string;
+  description?: string;
+  parent_id?: number;
+  visibility?: 'private' | 'team' | 'public';
+  color?: string;
+  icon?: string;
+}
+
 // 工作笔记接口
 export interface WorkNote {
   id: number;
@@ -675,15 +715,197 @@ class WorkNotesService {
         request,
         { headers }
       );
-      
+
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to batch convert work notes');
       }
-      
+
       return response.data.data;
     } catch (error: any) {
       console.error('Error batch converting work notes:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to batch convert work notes');
+    }
+  }
+
+  // =============================================================================
+  // 工作笔记文件夹管理功能
+  // =============================================================================
+
+  // 获取文件夹树
+  async getFolderTree(parentId?: number | null, maxDepth?: number): Promise<WorkNoteFolder[]> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const params = new URLSearchParams();
+      if (parentId !== undefined && parentId !== null) {
+        params.append('parent_id', parentId.toString());
+      }
+      if (maxDepth !== undefined) {
+        params.append('max_depth', maxDepth.toString());
+      }
+
+      const response = await axios.get<APIResponse<WorkNoteFolder[]>>(
+        `${API_BASE_URL}/work-note-folders/tree?${params}`,
+        { headers }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get folder tree');
+      }
+
+      return response.data.data || [];
+    } catch (error: any) {
+      console.error('Error getting folder tree:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to get folder tree');
+    }
+  }
+
+  // 获取单个文件夹
+  async getFolder(id: number): Promise<WorkNoteFolder> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.get<APIResponse<WorkNoteFolder>>(
+        `${API_BASE_URL}/work-note-folders/${id}`,
+        { headers }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get folder');
+      }
+
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error getting folder:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to get folder');
+    }
+  }
+
+  // 创建文件夹
+  async createFolder(request: CreateWorkNoteFolderRequest): Promise<WorkNoteFolder> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.post<APIResponse<WorkNoteFolder>>(
+        `${API_BASE_URL}/work-note-folders`,
+        request,
+        { headers }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to create folder');
+      }
+
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error creating folder:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to create folder');
+    }
+  }
+
+  // 更新文件夹
+  async updateFolder(id: number, request: UpdateWorkNoteFolderRequest): Promise<WorkNoteFolder> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.put<APIResponse<WorkNoteFolder>>(
+        `${API_BASE_URL}/work-note-folders/${id}`,
+        request,
+        { headers }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to update folder');
+      }
+
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error updating folder:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to update folder');
+    }
+  }
+
+  // 删除文件夹
+  async deleteFolder(id: number): Promise<void> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.delete<APIResponse<void>>(
+        `${API_BASE_URL}/work-note-folders/${id}`,
+        { headers }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to delete folder');
+      }
+    } catch (error: any) {
+      console.error('Error deleting folder:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to delete folder');
+    }
+  }
+
+  // 移动文件夹
+  async moveFolder(id: number, targetParentId: number | null, sortOrder?: number): Promise<WorkNoteFolder> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.post<APIResponse<WorkNoteFolder>>(
+        `${API_BASE_URL}/work-note-folders/${id}/move`,
+        {
+          target_parent_id: targetParentId,
+          sort_order: sortOrder || 0
+        },
+        { headers }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to move folder');
+      }
+
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error moving folder:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to move folder');
+    }
+  }
+
+  // 搜索文件夹
+  async searchFolders(query: string): Promise<WorkNoteFolder[]> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const params = new URLSearchParams();
+      if (query) {
+        params.append('query', query);
+      }
+
+      const response = await axios.get<APIResponse<{ folders: WorkNoteFolder[] }>>(
+        `${API_BASE_URL}/work-note-folders/search?${params}`,
+        { headers }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to search folders');
+      }
+
+      return response.data.data.folders || [];
+    } catch (error: any) {
+      console.error('Error searching folders:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to search folders');
+    }
+  }
+
+  // 移动笔记到文件夹
+  async moveNoteToFolder(noteId: number, folderId: number | null): Promise<WorkNote> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await axios.post<APIResponse<WorkNote>>(
+        `${API_BASE_URL}/work-notes/${noteId}/move-to-folder`,
+        { folder_id: folderId },
+        { headers }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to move note to folder');
+      }
+
+      return this.transformWorkNoteFromAPI(response.data.data);
+    } catch (error: any) {
+      console.error('Error moving note to folder:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to move note to folder');
     }
   }
 }

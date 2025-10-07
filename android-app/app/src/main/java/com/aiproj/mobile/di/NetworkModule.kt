@@ -17,6 +17,7 @@ import com.aiproj.mobile.data.api.DocumentApi
 import com.aiproj.mobile.data.api.ProjectApi
 import com.aiproj.mobile.data.api.TaskApi
 import com.aiproj.mobile.data.api.TimeLogApi
+import com.aiproj.mobile.data.api.TimerApi
 import com.aiproj.mobile.data.network.ConnectivityObserver
 import com.aiproj.mobile.data.network.ConnectivityObserverImpl
 import com.google.gson.Gson
@@ -159,6 +160,15 @@ object NetworkModule {
     @Singleton
     fun provideTimeLogApi(retrofit: Retrofit): TimeLogApi {
         return retrofit.create(TimeLogApi::class.java)
+    }
+
+    /**
+     * 提供 TimerApi
+     */
+    @Provides
+    @Singleton
+    fun provideTimerApi(retrofit: Retrofit): TimerApi {
+        return retrofit.create(TimerApi::class.java)
     }
 
     /**

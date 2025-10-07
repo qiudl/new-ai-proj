@@ -1,11 +1,7 @@
 package com.aiproj.mobile.ui.screens.timer
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,276 +9,276 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.aiproj.mobile.data.models.TaskPriority
 
+/**
+ * 统一计时器界面
+ * 支持启动/暂停/恢复/停止计时器
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimerScreen(
-    viewModel: TimerViewModel = hiltViewModel()
+    viewModel: TimerViewModel = hiltViewModel(),
+    onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("工时记录") })
+            TopAppBar(
+                title = { Text("工作计时") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, "返回")
+                    }
+                }
+            )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
         ) {
-            // 当前任务信息区域
-            if (uiState.currentTimer != null && uiState.currentTask != null) {
-                CurrentTaskInfoCard(
-                    taskTitle = uiState.currentTask?.title ?: "未知任务",
-                    projectName = uiState.currentTask?.projectId?.let { "项目 #$it" } ?: "无项目",
-                    priority = uiState.currentTask?.priority,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
+            when (val state = uiState) {
+                is TimerUiState.Loading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
 
-            // 计时器显示区域
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (uiState.currentTimer != null) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    }
-                )
+                is TimerUiState.Active -> {
+                    ActiveTimerContent(
+                        state = state,
+                        onPause = viewModel::pauseTimer,
+                        onResume = viewModel::resumeTimer,
+                        onStop = viewModel::stopTimer
+                    )
+                }
+
+                is TimerUiState.Idle -> {
+                    IdleTimerContent(
+                        onStartTimer = { taskId, description ->
+                            viewModel.startTimer(
+                                taskId = taskId,
+                                description = description
+                            )
+                        }
+                    )
+                }
+
+                is TimerUiState.Error -> {
+                    ErrorContent(
+                        message = state.message,
+                        canRetry = state.canRetry,
+                        onRetry = { viewModel.refreshTimer() }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 活跃计时器内容
+ */
+@Composable
+private fun ActiveTimerContent(
+    state: TimerUiState.Active,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onStop: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // 离线状态提示
+        if (state.isOffline) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = MaterialTheme.shapes.small
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 时间显示
-                    Text(
-                        text = formatTime(uiState.elapsedSeconds),
-                        style = MaterialTheme.typography.displayLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = if (uiState.currentTimer != null) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        }
+                    Icon(
+                        Icons.Default.CloudOff,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
                     )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // 状态文本
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (uiState.currentTimer != null) {
-                            uiState.currentTimer?.description ?: "计时中..."
-                        } else {
-                            "当前没有运行的计时器"
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        "离线模式 - 数据将在联网后同步",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
                     )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // 控制按钮
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        if (uiState.currentTimer != null) {
-                            // 暂停按钮 (TODO: 实现暂停功能)
-                            OutlinedButton(
-                                onClick = { /* viewModel.pauseTimer() */ },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Pause, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("暂停")
-                            }
-
-                            // 停止按钮
-                            Button(
-                                onClick = { viewModel.stopTimer() },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.error
-                                )
-                            ) {
-                                Icon(Icons.Default.Stop, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("停止")
-                            }
-                        } else {
-                            // 开始按钮
-                            Button(
-                                onClick = { /* viewModel.startTimer() */ },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = false // TODO: 实现选择任务后启用
-                            ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("开始计时")
-                            }
-                        }
-                    }
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // 今日时间统计
-            TodayStatisticsCard(
-                totalMinutes = uiState.todayTotalMinutes,
-                taskCount = uiState.todayTaskCount,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
             Spacer(modifier = Modifier.height(16.dp))
+        }
 
-            // 历史时间日志列表
-            if (uiState.timeLogs.isNotEmpty()) {
+        // 任务信息卡片
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
                 Text(
-                    text = "历史记录",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    text = state.timer.taskTitle ?: state.timer.description ?: "快速计时",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
                 )
 
-                uiState.timeLogs.forEach { timeLog ->
-                    TimeLogItem(
-                        description = timeLog.description ?: "无描述",
-                        duration = timeLog.duration?.toLong() ?: 0L,
-                        startTime = timeLog.startedAt,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
-                }
-            } else {
-                // 空状态
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                if (state.timer.projectName != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.History,
+                            Icons.Default.Folder,
                             contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "暂无历史记录",
+                            text = state.timer.projectName,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-}
-
-/**
- * 当前任务信息卡片
- */
-@Composable
-fun CurrentTaskInfoCard(
-    taskTitle: String,
-    projectName: String,
-    priority: TaskPriority?,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 优先级标记
-            Box(
-                modifier = Modifier
-                    .size(4.dp, 40.dp)
-                    .background(
-                        color = when (priority) {
-                            TaskPriority.HIGH -> Color(0xFFEF5350)
-                            TaskPriority.MEDIUM -> Color(0xFFFFA726)
-                            TaskPriority.LOW -> Color(0xFF78909C)
-                            null -> Color.Gray
-                        },
-                        shape = RoundedCornerShape(2.dp)
-                    )
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = taskTitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Folder,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                if (state.timer.description != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = projectName,
+                        text = state.timer.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+        }
 
-            // 优先级文本
-            priority?.let {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = when (it) {
-                        TaskPriority.HIGH -> Color(0xFFEF5350).copy(alpha = 0.1f)
-                        TaskPriority.MEDIUM -> Color(0xFFFFA726).copy(alpha = 0.1f)
-                        TaskPriority.LOW -> Color(0xFF78909C).copy(alpha = 0.1f)
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // 时间显示卡片
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = if (state.isPaused) {
+                    MaterialTheme.colorScheme.surfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primaryContainer
+                }
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = formatTime(state.elapsedSeconds),
+                    style = MaterialTheme.typography.displayLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (state.isPaused) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primary
                     }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = if (state.isPaused) "已暂停" else "计时中...",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 控制按钮
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (state.isPaused) {
+                // 恢复按钮
+                Button(
+                    onClick = onResume,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Text(
-                        text = when (it) {
-                            TaskPriority.HIGH -> "高"
-                            TaskPriority.MEDIUM -> "中"
-                            TaskPriority.LOW -> "低"
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = when (it) {
-                            TaskPriority.HIGH -> Color(0xFFEF5350)
-                            TaskPriority.MEDIUM -> Color(0xFFFFA726)
-                            TaskPriority.LOW -> Color(0xFF78909C)
-                        },
-                        fontWeight = FontWeight.Medium
+                    Icon(Icons.Default.PlayArrow, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("恢复")
+                }
+            } else {
+                // 暂停按钮
+                OutlinedButton(
+                    onClick = onPause,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Pause, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("暂停")
+                }
+            }
+
+            // 停止按钮
+            Button(
+                onClick = onStop,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(Icons.Default.Stop, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("停止")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 统计信息卡片
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "本次计时统计",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    StatItem(
+                        label = "累计时长",
+                        value = formatTime(state.elapsedSeconds),
+                        icon = Icons.Default.AccessTime
+                    )
+
+                    StatItem(
+                        label = "开始时间",
+                        value = formatStartTime(state.timer.startedAt),
+                        icon = Icons.Default.Schedule
                     )
                 }
             }
@@ -291,48 +287,152 @@ fun CurrentTaskInfoCard(
 }
 
 /**
- * 今日统计卡片
+ * 空闲状态内容
  */
 @Composable
-fun TodayStatisticsCard(
-    totalMinutes: Long,
-    taskCount: Int,
-    modifier: Modifier = Modifier
+private fun IdleTimerContent(
+    onStartTimer: (taskId: Long?, description: String?) -> Unit
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Today,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
+    var showStartDialog by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.Timer,
+            contentDescription = null,
+            modifier = Modifier.size(120.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "没有运行的计时器",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "开始新的计时任务",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = { showStartDialog = true },
+            modifier = Modifier.fillMaxWidth(0.7f)
+        ) {
+            Icon(Icons.Default.PlayArrow, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("开始计时")
+        }
+    }
+
+    if (showStartDialog) {
+        StartTimerDialog(
+            onDismiss = { showStartDialog = false },
+            onConfirm = { description ->
+                onStartTimer(null, description)
+                showStartDialog = false
+            }
+        )
+    }
+}
+
+/**
+ * 启动计时器对话框
+ */
+@Composable
+private fun StartTimerDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (description: String?) -> Unit
+) {
+    var description by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("开始新计时") },
+        text = {
+            Column {
                 Text(
-                    text = "今日统计",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    text = "输入计时描述（可选）",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("描述") },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("例如：开发新功能") }
                 )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(description.takeIf { it.isNotBlank() })
+                }
             ) {
-                StatItem(
-                    icon = Icons.Default.AccessTime,
-                    label = "工作时长",
-                    value = formatDuration(totalMinutes)
-                )
-                StatItem(
-                    icon = Icons.Default.Assignment,
-                    label = "任务数",
-                    value = "$taskCount"
-                )
+                Text("开始")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+/**
+ * 错误内容
+ */
+@Composable
+private fun ErrorContent(
+    message: String,
+    canRetry: Boolean,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.Error,
+            contentDescription = null,
+            modifier = Modifier.size(80.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (canRetry) {
+            Button(onClick = onRetry) {
+                Text("重试")
             }
         }
     }
@@ -342,10 +442,10 @@ fun TodayStatisticsCard(
  * 统计项
  */
 @Composable
-fun StatItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun StatItem(
     label: String,
-    value: String
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
@@ -353,13 +453,12 @@ fun StatItem(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
+            tint = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
@@ -372,54 +471,9 @@ fun StatItem(
 }
 
 /**
- * 时间日志项
- */
-@Composable
-fun TimeLogItem(
-    description: String,
-    duration: Long,
-    startTime: String,
-    modifier: Modifier = Modifier
-) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Timer,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = formatStartTime(startTime),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                text = formatDuration(duration),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
-}
-
-/**
  * 格式化时间 (HH:MM:SS)
  */
-fun formatTime(seconds: Long): String {
+private fun formatTime(seconds: Long): String {
     val hours = seconds / 3600
     val minutes = (seconds % 3600) / 60
     val secs = seconds % 60
@@ -427,26 +481,21 @@ fun formatTime(seconds: Long): String {
 }
 
 /**
- * 格式化时长 (XXh XXm)
- */
-fun formatDuration(minutes: Long): String {
-    val hours = minutes / 60
-    val mins = minutes % 60
-    return if (hours > 0) {
-        "${hours}h ${mins}m"
-    } else {
-        "${mins}m"
-    }
-}
-
-/**
  * 格式化开始时间
  */
-fun formatStartTime(startTime: String): String {
+private fun formatStartTime(startTime: String): String {
     return try {
         // 简化处理,实际应该使用DateTimeFormatter
-        startTime.take(16).replace("T", " ")
+        // ISO 8601格式: 2025-10-07T08:17:38+08:00
+        val parts = startTime.split("T")
+        if (parts.size >= 2) {
+            val timePart = parts[1].split("+")[0]
+            val time = timePart.substring(0, 5) // HH:MM
+            time
+        } else {
+            startTime
+        }
     } catch (e: Exception) {
-        startTime
+        "N/A"
     }
 }

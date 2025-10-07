@@ -41,13 +41,17 @@ import {
   StarOutlined,
   InboxOutlined
 } from '@ant-design/icons';
-import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest } from '../services/workNotesService';
+import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest, WorkNoteFolder } from '../services/workNotesService';
 import WorkNoteConversionModal from './conversion/WorkNoteConversionModal';
 import ModernWorkNoteViewer from './ModernWorkNoteViewer';
 import { WORK_NOTE_TYPES, WORK_NOTE_PRIORITIES, getWorkNoteTypeConfig, getWorkNotePriorityConfig } from '../constants/workNoteTypes';
 import WorkNotesStatsCards from './WorkNotesStatsCards';
 import WorkNotesLayout from './WorkNotesLayout';
 import WorkNotesTreeSidebar from './WorkNotesTreeSidebar';
+import WorkNoteFolderTree from './WorkNoteFolderTree';
+import FolderBreadcrumb from './FolderBreadcrumb';
+import FolderDetailDrawer from './FolderDetailDrawer';
+import { FolderDialog, DeleteFolderDialog, MoveFolderDialog, FolderFormValues } from './FolderDialogs';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -120,15 +124,32 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
+  // 文件夹状态
+  const [internalFolderId, setInternalFolderId] = useState<number | null>(null);
+  const [currentFolder, setCurrentFolder] = useState<WorkNoteFolder | null>(null);
+  const [folders, setFolders] = useState<WorkNoteFolder[]>([]);
+
+  // 文件夹操作对话框状态
+  const [folderDialogVisible, setFolderDialogVisible] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<WorkNoteFolder | undefined>(undefined);
+  const [deletingFolder, setDeletingFolder] = useState<WorkNoteFolder | undefined>(undefined);
+  const [movingFolder, setMovingFolder] = useState<WorkNoteFolder | undefined>(undefined);
+  const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
+  const [detailFolder, setDetailFolder] = useState<WorkNoteFolder | undefined>(undefined);
+  const [parentFolderId, setParentFolderId] = useState<number | undefined>(undefined);
+
+  // 使用外部prop或内部state
+  const activeFolderId = selectedFolderId !== undefined ? selectedFolderId : internalFolderId;
+
   // 批量操作状态
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchLoading, setBatchLoading] = useState(false);
-  
+
   // API缓存和重试状态
   const [retryCount, setRetryCount] = useState(0);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
-  
+
   // 统计数据
   const [stats, setStats] = useState<WorkNotesStats>({
     total: 0,
@@ -137,7 +158,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     archived: 0,
     associated: 0
   });
-  
+
   // 筛选状态
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -145,7 +166,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [selectedTag, setSelectedTag] = useState<string>('');
   const [selectedAssociation, setSelectedAssociation] = useState<string>('');
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>('');
-  
+
   // 对话框状态
   const [modernViewerVisible, setModernViewerVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -290,26 +311,174 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     return filtered.sort((a, b) => b.id - a.id);
   }, [workNotes, debouncedSearchKeyword, statusFilter, typeFilter, selectedCategory, selectedTag, selectedAssociation, selectedTimeRange]);
 
+  // 文件夹选择处理
+  const handleFolderSelect = useCallback((folderId: number | null, folder: WorkNoteFolder | null) => {
+    setInternalFolderId(folderId);
+    setCurrentFolder(folder);
+    // 清空缓存强制刷新
+    setLastRefreshTime(0);
+  }, []);
+
+  // 加载文件夹列表
+  const loadFolders = useCallback(async () => {
+    try {
+      const data = await workNotesService.getFolderTree(null, 10); // 加载所有层级
+      setFolders(data);
+    } catch (error: any) {
+      console.error('加载文件夹列表失败:', error);
+      message.error('加载文件夹失败');
+    }
+  }, []);
+
+  // 文件夹操作回调
+  const handleFolderCreate = useCallback((parentId?: number) => {
+    setParentFolderId(parentId);
+    setEditingFolder(undefined);
+    setFolderDialogVisible(true);
+  }, []);
+
+  const handleFolderEdit = useCallback((folderId: number) => {
+    const findFolder = (folders: WorkNoteFolder[], id: number): WorkNoteFolder | undefined => {
+      for (const folder of folders) {
+        if (folder.id === id) return folder;
+        if (folder.children) {
+          const found = findFolder(folder.children, id);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    const folder = findFolder(folders, folderId);
+    setEditingFolder(folder);
+    setParentFolderId(undefined);
+    setFolderDialogVisible(true);
+  }, [folders]);
+
+  const handleFolderDelete = useCallback((folderId: number) => {
+    const findFolder = (folders: WorkNoteFolder[], id: number): WorkNoteFolder | undefined => {
+      for (const folder of folders) {
+        if (folder.id === id) return folder;
+        if (folder.children) {
+          const found = findFolder(folder.children, id);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    const folder = findFolder(folders, folderId);
+    setDeletingFolder(folder);
+  }, [folders]);
+
+  const handleFolderMove = useCallback((folderId: number) => {
+    const findFolder = (folders: WorkNoteFolder[], id: number): WorkNoteFolder | undefined => {
+      for (const folder of folders) {
+        if (folder.id === id) return folder;
+        if (folder.children) {
+          const found = findFolder(folder.children, id);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    const folder = findFolder(folders, folderId);
+    setMovingFolder(folder);
+  }, [folders]);
+
+  const handleFolderDetail = useCallback((folderId: number) => {
+    const findFolder = (folders: WorkNoteFolder[], id: number): WorkNoteFolder | undefined => {
+      for (const folder of folders) {
+        if (folder.id === id) return folder;
+        if (folder.children) {
+          const found = findFolder(folder.children, id);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    const folder = findFolder(folders, folderId);
+    setDetailFolder(folder);
+    setDetailDrawerVisible(true);
+  }, [folders]);
+
+  // 文件夹对话框确认操作
+  const handleFolderDialogConfirm = useCallback(async (values: FolderFormValues) => {
+    try {
+      if (editingFolder) {
+        await workNotesService.updateFolder(editingFolder.id, values);
+        message.success('文件夹更新成功');
+      } else {
+        await workNotesService.createFolder({
+          ...values,
+          parent_id: parentFolderId || null,
+        });
+        message.success('文件夹创建成功');
+      }
+      await loadFolders();
+      setFolderDialogVisible(false);
+      setEditingFolder(undefined);
+      setParentFolderId(undefined);
+    } catch (error: any) {
+      console.error('文件夹操作失败:', error);
+      message.error(error.message || '操作失败');
+    }
+  }, [editingFolder, parentFolderId, loadFolders]);
+
+  const handleDeleteFolderConfirm = useCallback(async (force: boolean) => {
+    if (!deletingFolder) return;
+    try {
+      await workNotesService.deleteFolder(deletingFolder.id);
+      message.success('文件夹删除成功');
+      await loadFolders();
+      setDeletingFolder(undefined);
+      // 如果删除的是当前文件夹，清空选择
+      if (activeFolderId === deletingFolder.id) {
+        setInternalFolderId(null);
+        setCurrentFolder(null);
+      }
+    } catch (error: any) {
+      console.error('删除文件夹失败:', error);
+      message.error(error.message || '删除失败');
+    }
+  }, [deletingFolder, activeFolderId, loadFolders]);
+
+  const handleMoveFolderConfirm = useCallback(async (targetParentId: number | null) => {
+    if (!movingFolder) return;
+    try {
+      await workNotesService.moveFolder(movingFolder.id, targetParentId);
+      message.success('文件夹移动成功');
+      await loadFolders();
+      setMovingFolder(undefined);
+    } catch (error: any) {
+      console.error('移动文件夹失败:', error);
+      message.error(error.message || '移动失败');
+    }
+  }, [movingFolder, loadFolders]);
+
+  // 加载文件夹列表
+  useEffect(() => {
+    loadFolders();
+  }, [loadFolders]);
+
   // 优化的加载工作笔记函数，支持缓存和重试
   const loadWorkNotes = useCallback(async (forceRefresh = false) => {
     // 检查缓存时间，5分钟内不重复请求
     const now = Date.now();
     const cacheTimeout = 5 * 60 * 1000; // 5分钟
-    
+
     if (!forceRefresh && workNotes.length > 0 && (now - lastRefreshTime) < cacheTimeout) {
       console.log('使用缓存的工作笔记数据');
       return;
     }
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       // 使用AbortController支持请求取消
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
-      
-      const data = await workNotesService.listWorkNotes(selectedFolderId || undefined);
+
+      const data = await workNotesService.listWorkNotes(activeFolderId || undefined);
       clearTimeout(timeoutId);
       
       // 模拟添加关联任务数据
@@ -350,7 +519,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     } finally {
       setLoading(false);
     }
-  }, [selectedFolderId, calculateStats, workNotes.length, lastRefreshTime, retryCount]);
+  }, [activeFolderId, calculateStats, workNotes.length, lastRefreshTime, retryCount]);
 
   // 初始化加载
   useEffect(() => {
@@ -1050,17 +1219,47 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       {/* 主要内容区域 */}
       <WorkNotesLayout
         sidebar={
-          <WorkNotesTreeSidebar
-            onCategorySelect={handleCategorySelect}
-            onTagSelect={handleTagSelect}
-            onAssociationSelect={handleAssociationSelect}
-            onTimeRangeSelect={handleTimeRangeSelect}
-            onRefresh={handleTreeRefresh}
-            selectedCategory={selectedCategory}
-            selectedTag={selectedTag}
-            selectedAssociation={selectedAssociation}
-            selectedTimeRange={selectedTimeRange}
-          />
+          <div>
+            {/* 文件夹树形导航 */}
+            <Card
+              title={
+                <Space>
+                  <BookOutlined />
+                  <span>文件夹</span>
+                  {currentFolder && (
+                    <Tag color="blue">{currentFolder.name}</Tag>
+                  )}
+                </Space>
+              }
+              size="small"
+              style={{ marginBottom: 16 }}
+            >
+              <WorkNoteFolderTree
+                selectedFolderId={activeFolderId}
+                onFolderSelect={handleFolderSelect}
+                onFolderCreate={handleFolderCreate}
+                onFolderEdit={handleFolderEdit}
+                onFolderDelete={handleFolderDelete}
+                onFolderMove={handleFolderMove}
+                onFolderDetail={handleFolderDetail}
+                height="300px"
+                showSearch={true}
+              />
+            </Card>
+
+            {/* 分类标签筛选 */}
+            <WorkNotesTreeSidebar
+              onCategorySelect={handleCategorySelect}
+              onTagSelect={handleTagSelect}
+              onAssociationSelect={handleAssociationSelect}
+              onTimeRangeSelect={handleTimeRangeSelect}
+              onRefresh={handleTreeRefresh}
+              selectedCategory={selectedCategory}
+              selectedTag={selectedTag}
+              selectedAssociation={selectedAssociation}
+              selectedTimeRange={selectedTimeRange}
+            />
+          </div>
         }
       >
         {/* 搜索和筛选区 */}
@@ -1124,6 +1323,38 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
             </Col>
           </Row>
         </Card>
+
+        {/* 文件夹面包屑导航 */}
+        {activeFolderId && currentFolder && (
+          <FolderBreadcrumb
+            folder={currentFolder}
+            folders={folders}
+            onNavigate={(folderId) => {
+              if (folderId === null) {
+                setInternalFolderId(null);
+                setCurrentFolder(null);
+              } else {
+                const findFolder = (folders: WorkNoteFolder[], id: number): WorkNoteFolder | undefined => {
+                  for (const folder of folders) {
+                    if (folder.id === id) return folder;
+                    if (folder.children) {
+                      const found = findFolder(folder.children, id);
+                      if (found) return found;
+                    }
+                  }
+                  return undefined;
+                };
+                const folder = findFolder(folders, folderId);
+                if (folder) {
+                  setInternalFolderId(folderId);
+                  setCurrentFolder(folder);
+                }
+              }
+            }}
+            maxItems={5}
+            showIcon={true}
+          />
+        )}
 
         {/* 批量操作工具栏 */}
         {selectedRowKeys.length > 0 && (
@@ -1512,6 +1743,53 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           />
         </FloatButton.Group>
       )}
+
+      {/* 文件夹操作对话框 */}
+      <FolderDialog
+        visible={folderDialogVisible}
+        onClose={() => {
+          setFolderDialogVisible(false);
+          setEditingFolder(undefined);
+          setParentFolderId(undefined);
+        }}
+        onConfirm={handleFolderDialogConfirm}
+        folder={editingFolder}
+        parentId={parentFolderId}
+        folders={folders}
+      />
+
+      <DeleteFolderDialog
+        visible={!!deletingFolder}
+        onClose={() => setDeletingFolder(undefined)}
+        onConfirm={handleDeleteFolderConfirm}
+        folder={deletingFolder}
+      />
+
+      <MoveFolderDialog
+        visible={!!movingFolder}
+        onClose={() => setMovingFolder(undefined)}
+        onConfirm={handleMoveFolderConfirm}
+        folder={movingFolder}
+        folders={folders}
+      />
+
+      <FolderDetailDrawer
+        visible={detailDrawerVisible}
+        onClose={() => {
+          setDetailDrawerVisible(false);
+          setDetailFolder(undefined);
+        }}
+        folder={detailFolder || null}
+        onEdit={(folder) => {
+          setDetailDrawerVisible(false);
+          setEditingFolder(folder);
+          setFolderDialogVisible(true);
+        }}
+        onDelete={(folder) => {
+          setDetailDrawerVisible(false);
+          setDeletingFolder(folder);
+        }}
+      />
 
     </div>
   );
