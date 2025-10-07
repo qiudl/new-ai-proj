@@ -20,9 +20,7 @@ import com.aiproj.mobile.data.models.WorkNote
 import com.aiproj.mobile.data.models.WorkNoteType
 import com.aiproj.mobile.data.models.WorkNotePriority
 import androidx.compose.ui.graphics.vector.ImageVector
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.aiproj.mobile.util.DateTimeUtils
 
 /**
  * 笔记列表项组件（列表视图）
@@ -127,7 +125,7 @@ fun NoteListItem(
                 ) {
                     // 时间
                     Text(
-                        text = note.updatedAt?.let { formatTime(it) } ?: "未知时间",
+                        text = DateTimeUtils.formatTime(note.updatedAt),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -207,16 +205,3 @@ private fun getPriorityColor(priority: WorkNotePriority): Color = when (priority
     WorkNotePriority.LOW -> Color(0xFF9E9E9E)       // 灰色
 }
 
-/**
- * 格式化时间
- */
-private fun formatTime(dateStr: String): String {
-    return try {
-        val instant = Instant.parse(dateStr)
-        val formatter = DateTimeFormatter.ofPattern("MM-dd HH:mm")
-            .withZone(ZoneId.systemDefault())
-        formatter.format(instant)
-    } catch (e: Exception) {
-        dateStr
-    }
-}

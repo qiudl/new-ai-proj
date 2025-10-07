@@ -12,8 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aiproj.mobile.data.models.*
-import java.text.SimpleDateFormat
-import java.util.*
+import com.aiproj.mobile.util.DateTimeUtils
 
 /**
  * 笔记元数据卡片
@@ -166,20 +165,20 @@ fun NoteMetadataCard(
             MetadataRow(
                 icon = Icons.Default.Create,
                 label = "创建时间",
-                value = note.createdAt?.let { formatDateTime(it) } ?: "未知"
+                value = DateTimeUtils.formatFullDateTime(note.createdAt)
             )
 
             MetadataRow(
                 icon = Icons.Default.Update,
                 label = "更新时间",
-                value = note.updatedAt?.let { formatDateTime(it) } ?: "未知"
+                value = DateTimeUtils.formatFullDateTime(note.updatedAt)
             )
 
             note.lastReadAt?.let {
                 MetadataRow(
                     icon = Icons.Default.AccessTime,
                     label = "最后阅读",
-                    value = formatDateTime(it)
+                    value = DateTimeUtils.formatFullDateTime(it)
                 )
             }
 
@@ -255,19 +254,5 @@ private fun MetadataRow(
             color = valueColor,
             modifier = Modifier.weight(1f)
         )
-    }
-}
-
-/**
- * 格式化日期时间
- */
-private fun formatDateTime(dateTimeStr: String): String {
-    return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-        val outputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-        val date = inputFormat.parse(dateTimeStr)
-        date?.let { outputFormat.format(it) } ?: dateTimeStr
-    } catch (e: Exception) {
-        dateTimeStr
     }
 }
