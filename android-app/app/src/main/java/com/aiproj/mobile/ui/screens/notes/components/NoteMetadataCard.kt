@@ -1,5 +1,6 @@
 package com.aiproj.mobile.ui.screens.notes.components
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -7,12 +8,26 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aiproj.mobile.data.models.*
 import com.aiproj.mobile.util.DateTimeUtils
+import com.aiproj.mobile.data.models.displayName
+import com.aiproj.mobile.data.models.safeWorkNoteType
+import com.aiproj.mobile.data.models.safePriority
+import com.aiproj.mobile.data.models.safeVisibility
+import com.aiproj.mobile.data.models.safeStatus
+import com.aiproj.mobile.data.models.safeWordCount
+import com.aiproj.mobile.data.models.safeReadTime
+import com.aiproj.mobile.data.models.safeViewCount
+import com.aiproj.mobile.data.models.safeTags
+import com.aiproj.mobile.data.models.safeIsPinned
+import com.aiproj.mobile.data.models.safeIsBookmarked
+
+private const val TAG = "NoteMetadataCard"
 
 /**
  * 笔记元数据卡片
@@ -25,6 +40,32 @@ fun NoteMetadataCard(
     folder: WorkNoteFolder?,
     modifier: Modifier = Modifier
 ) {
+    // 添加调试日志
+    LaunchedEffect(note.id) {
+        Log.d(TAG, "=== 笔记元数据调试 ===")
+        Log.d(TAG, "笔记ID: ${note.id}")
+        Log.d(TAG, "标题: ${note.title}")
+        Log.d(TAG, "原始字段值:")
+        Log.d(TAG, "  workNoteType (原始): ${note.workNoteType}")
+        Log.d(TAG, "  priority (原始): ${note.priority}")
+        Log.d(TAG, "  visibility (原始): ${note.visibility}")
+        Log.d(TAG, "  status (原始): ${note.status}")
+        Log.d(TAG, "  wordCount (原始): ${note.wordCount}")
+        Log.d(TAG, "  readTime (原始): ${note.readTime}")
+        Log.d(TAG, "  viewCount (原始): ${note.viewCount}")
+        Log.d(TAG, "  tags (原始): ${note.tags}")
+        Log.d(TAG, "扩展函数返回值:")
+        Log.d(TAG, "  safeWorkNoteType: ${note.safeWorkNoteType}")
+        Log.d(TAG, "  safePriority: ${note.safePriority}")
+        Log.d(TAG, "  safeVisibility: ${note.safeVisibility}")
+        Log.d(TAG, "  safeStatus: ${note.safeStatus}")
+        Log.d(TAG, "  displayName示例: ${note.safeWorkNoteType.displayName}")
+        Log.d(TAG, "时间字段:")
+        Log.d(TAG, "  createdAt: ${note.createdAt}")
+        Log.d(TAG, "  updatedAt: ${note.updatedAt}")
+        Log.d(TAG, "文件夹信息: ${folder?.name ?: "null"}")
+        Log.d(TAG, "====================")
+    }
     Card(
         modifier = modifier.fillMaxWidth()
     ) {
@@ -52,27 +93,14 @@ fun NoteMetadataCard(
             MetadataRow(
                 icon = Icons.Default.Category,
                 label = "类型",
-                value = when (note.workNoteType ?: WorkNoteType.GENERAL) {
-                    WorkNoteType.GENERAL -> "通用"
-                    WorkNoteType.MARKDOWN -> "Markdown"
-                    WorkNoteType.TEXT -> "纯文本"
-                    WorkNoteType.HTML -> "HTML"
-                    WorkNoteType.RESEARCH -> "研究"
-                    WorkNoteType.MEETING -> "会议"
-                    WorkNoteType.PROJECT -> "项目"
-                }
+                value = note.safeWorkNoteType.displayName
             )
 
             MetadataRow(
                 icon = Icons.Default.PriorityHigh,
                 label = "优先级",
-                value = when (note.priority ?: WorkNotePriority.MEDIUM) {
-                    WorkNotePriority.CRITICAL -> "紧急"
-                    WorkNotePriority.HIGH -> "高"
-                    WorkNotePriority.MEDIUM -> "中"
-                    WorkNotePriority.LOW -> "低"
-                },
-                valueColor = when (note.priority ?: WorkNotePriority.MEDIUM) {
+                value = note.safePriority.displayName,
+                valueColor = when (note.safePriority) {
                     WorkNotePriority.CRITICAL -> MaterialTheme.colorScheme.error
                     WorkNotePriority.HIGH -> MaterialTheme.colorScheme.tertiary
                     WorkNotePriority.MEDIUM -> MaterialTheme.colorScheme.primary
@@ -81,31 +109,23 @@ fun NoteMetadataCard(
             )
 
             MetadataRow(
-                icon = when (note.visibility ?: WorkNoteVisibility.PRIVATE) {
+                icon = when (note.safeVisibility) {
                     WorkNoteVisibility.PRIVATE -> Icons.Default.Lock
                     WorkNoteVisibility.TEAM -> Icons.Default.Group
                     WorkNoteVisibility.PUBLIC -> Icons.Default.Public
                 },
                 label = "可见性",
-                value = when (note.visibility ?: WorkNoteVisibility.PRIVATE) {
-                    WorkNoteVisibility.PRIVATE -> "私有"
-                    WorkNoteVisibility.TEAM -> "团队"
-                    WorkNoteVisibility.PUBLIC -> "公开"
-                }
+                value = note.safeVisibility.displayName
             )
 
             MetadataRow(
                 icon = Icons.Default.Info,
                 label = "状态",
-                value = when (note.status ?: WorkNoteStatus.DRAFT) {
-                    WorkNoteStatus.DRAFT -> "草稿"
-                    WorkNoteStatus.PUBLISHED -> "已发布"
-                    WorkNoteStatus.ARCHIVED -> "已归档"
-                }
+                value = note.safeStatus.displayName
             )
 
             // 标签
-            if (!note.tags.isNullOrEmpty()) {
+            if (note.safeTags.isNotEmpty()) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -128,7 +148,7 @@ fun NoteMetadataCard(
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(note.tags) { tag ->
+                        items(note.safeTags) { tag ->
                             AssistChip(
                                 onClick = {},
                                 label = { Text(tag) }
@@ -144,19 +164,19 @@ fun NoteMetadataCard(
             MetadataRow(
                 icon = Icons.Default.TextFields,
                 label = "字数",
-                value = note.wordCount?.toString() ?: "0"
+                value = note.safeWordCount.toString()
             )
 
             MetadataRow(
                 icon = Icons.Default.AccessTime,
                 label = "阅读时长",
-                value = "${note.readTime ?: 0} 分钟"
+                value = "${note.safeReadTime} 分钟"
             )
 
             MetadataRow(
                 icon = Icons.Default.Visibility,
                 label = "浏览次数",
-                value = note.viewCount.toString()
+                value = note.safeViewCount.toString()
             )
 
             HorizontalDivider()
@@ -183,13 +203,13 @@ fun NoteMetadataCard(
             }
 
             // 特殊标记
-            if (note.isPinned || note.isBookmarked) {
+            if (note.safeIsPinned || note.safeIsBookmarked) {
                 HorizontalDivider()
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (note.isPinned) {
+                    if (note.safeIsPinned) {
                         AssistChip(
                             onClick = {},
                             label = { Text("已置顶") },
@@ -202,7 +222,7 @@ fun NoteMetadataCard(
                             }
                         )
                     }
-                    if (note.isBookmarked) {
+                    if (note.safeIsBookmarked) {
                         AssistChip(
                             onClick = {},
                             label = { Text("已收藏") },

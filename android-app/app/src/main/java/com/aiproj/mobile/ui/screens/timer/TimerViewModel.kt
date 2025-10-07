@@ -98,6 +98,7 @@ class TimerViewModel @Inject constructor(
      */
     fun startTimer(
         taskId: Long? = null,
+        title: String,
         description: String? = null,
         timerType: String = "project_task",
         autoStopOthers: Boolean = true
@@ -107,6 +108,7 @@ class TimerViewModel @Inject constructor(
 
             val request = StartTimerRequest(
                 taskId = taskId,
+                title = title,
                 timerType = timerType,
                 description = description,
                 autoStopOthers = autoStopOthers

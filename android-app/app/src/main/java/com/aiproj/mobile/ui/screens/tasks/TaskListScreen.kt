@@ -25,9 +25,10 @@ import com.aiproj.mobile.data.models.TaskStatus
 import com.aiproj.mobile.ui.components.ExpandableHierarchicalTaskItem
 import com.aiproj.mobile.ui.components.HierarchicalTaskItem
 import com.aiproj.mobile.ui.components.SwipeableTaskItem
-import com.aiproj.mobile.ui.screens.tasks.components.ProjectFilterPanel
+import com.aiproj.mobile.ui.screens.tasks.components.ProjectFilterDrawer
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import kotlinx.coroutines.launch
 
 private const val TAG = "TaskListScreen"
 
@@ -44,9 +45,13 @@ fun TaskListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
 
+    // 🆕 项目抽屉状态
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
     // 🆕 收集项目相关状态
     val projects by viewModel.projects.collectAsState()
-    val isProjectPanelExpanded by viewModel.isProjectPanelExpanded.collectAsState()
     val projectsLoading by viewModel.projectsLoading.collectAsState()
 
     // 🆕 首次加载项目列表
@@ -70,11 +75,51 @@ fun TaskListScreen(
     var showFilterDialog by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("任务") },
-                actions = {
+    // 🆕 ModalNavigationDrawer包裹整个Scaffold
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                ProjectFilterDrawer(
+                    projects = projects,
+                    selectedProjectId = filterState.selectedProjectId,
+                    isLoading = projectsLoading,
+                    onProjectSelect = { projectId ->
+                        Log.d(TAG, "User selected project from drawer: $projectId")
+                        viewModel.filterByProject(projectId)
+                    },
+                    onCreateProject = {
+                        // TODO: 导航到项目创建页面
+                        scope.launch {
+                            snackbarHostState.showSnackbar("创建项目功能开发中...")
+                        }
+                    },
+                    onClose = {
+                        scope.launch {
+                            drawerState.close()
+                        }
+                    }
+                )
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("任务") },
+                    navigationIcon = {
+                        // 🆕 Menu图标打开抽屉
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    drawerState.open()
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Menu, contentDescription = "项目筛选")
+                        }
+                    },
+                    actions = {
                     // 排序按钮
                     Box {
                         IconButton(onClick = { showSortMenu = true }) {
@@ -142,54 +187,73 @@ fun TaskListScreen(
                 }
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onCreateTask) {
-                Icon(Icons.Default.Add, contentDescription = "创建任务")
-            }
-        },
-        snackbarHost = {
-            if (uiState.error != null) {
-                Snackbar(
-                    modifier = Modifier.padding(16.dp),
-                    action = {
-                        TextButton(onClick = { viewModel.clearError() }) {
-                            Text("关闭")
-                        }
+            floatingActionButton = {
+                FloatingActionButton(onClick = onCreateTask) {
+                    Icon(Icons.Default.Add, contentDescription = "创建任务")
+                }
+            },
+            snackbarHost = {
+                SnackbarHost(snackbarHostState)
+
+                // 显示错误信息
+                if (uiState.error != null) {
+                    LaunchedEffect(uiState.error) {
+                        snackbarHostState.showSnackbar(uiState.error!!)
+                        viewModel.clearError()
                     }
-                ) {
-                    Text(uiState.error!!)
                 }
             }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // 🆕 项目过滤面板
-            ProjectFilterPanel(
-                projects = projects,
-                selectedProjectId = filterState.selectedProjectId,
-                isExpanded = isProjectPanelExpanded,
-                isLoading = projectsLoading,
-                onProjectSelect = { projectId ->
-                    Log.d(TAG, "User selected project: $projectId")
-                    viewModel.filterByProject(projectId)
-                },
-                onToggleExpand = {
-                    Log.d(TAG, "Toggling project panel")
-                    viewModel.toggleProjectPanel()
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // 搜索框
+                SearchBar(
+                    query = filterState.searchQuery,
+                    onQueryChange = { viewModel.searchTasks(it) },
+                    modifier = Modifier.padding(16.dp)
+                )
 
-            // 搜索框
-            SearchBar(
-                query = filterState.searchQuery,
-                onQueryChange = { viewModel.searchTasks(it) },
-                modifier = Modifier.padding(16.dp)
-            )
+                // 🆕 项目筛选标签（当选中项目时显示）
+                if (filterState.selectedProjectId != null) {
+                    val selectedProject = projects.find { it.id == filterState.selectedProjectId }
+                    selectedProject?.let { project ->
+                        FilterChip(
+                            selected = true,
+                            onClick = {
+                                // 点击标签也可以打开抽屉
+                                scope.launch {
+                                    drawerState.open()
+                                }
+                            },
+                            label = { Text(project.name) },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Folder,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        viewModel.filterByProject(null)
+                                    },
+                                    modifier = Modifier.size(18.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "清除项目筛选",
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            },
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+                }
 
             // 任务列表 (使用Paging 3)
             SwipeRefresh(
@@ -324,9 +388,10 @@ fun TaskListScreen(
                         }
                     }
                 }
-            }
-        }
-    }
+            } // End of SwipeRefresh
+        } // End of Column (Scaffold content)
+    } // End of Scaffold content lambda
+    } // End of ModalNavigationDrawer
 
     // 筛选对话框
     if (showFilterDialog) {

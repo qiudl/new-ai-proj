@@ -60,6 +60,7 @@ class TimerForegroundService : Service() {
         const val ACTION_STOP = "com.aiproj.mobile.action.STOP"
 
         const val EXTRA_TASK_ID = "task_id"
+        const val EXTRA_TITLE = "title"
         const val EXTRA_TIMER_TYPE = "timer_type"
         const val EXTRA_DESCRIPTION = "description"
 
@@ -99,6 +100,7 @@ class TimerForegroundService : Service() {
 
     private fun handleStart(intent: Intent) {
         val taskId = intent.getLongExtra(EXTRA_TASK_ID, -1)
+        val title = intent.getStringExtra(EXTRA_TITLE) ?: "未命名任务"
         val timerType = intent.getStringExtra(EXTRA_TIMER_TYPE) ?: "project_task"
         val description = intent.getStringExtra(EXTRA_DESCRIPTION)
 
@@ -110,6 +112,7 @@ class TimerForegroundService : Service() {
         serviceScope.launch {
             val request = StartTimerRequest(
                 taskId = taskId,
+                title = title,
                 timerType = timerType,
                 description = description
             )

@@ -269,6 +269,9 @@ class WorkNotesService {
 
   // 数据转换工具方法
   private transformWorkNoteFromAPI(apiData: any): WorkNote {
+    // 使用当前时间作为缺失时间戳的fallback
+    const now = new Date().toISOString();
+
     return {
       ...apiData,
       work_note_type: apiData.work_note_type || 'general',
@@ -279,6 +282,9 @@ class WorkNotesService {
       word_count: apiData.word_count || undefined,
       read_time: apiData.read_time || undefined,
       last_read_at: apiData.last_read_at || undefined,
+      // 确保必需的时间戳字段有值
+      created_at: apiData.created_at || now,
+      updated_at: apiData.updated_at || apiData.created_at || now,
     };
   }
 
@@ -514,7 +520,7 @@ class WorkNotesService {
     try {
       const headers = await this.getAuthHeaders();
       const response = await axios.get<APIResponse<{ tasks: AssociatedTask[] }>>(
-        `${API_BASE_URL}/work-notes/${noteId}/associated-tasks`,
+        `${API_BASE_URL}/work-notes/${noteId}/tasks`,
         { headers }
       );
 
@@ -543,7 +549,7 @@ class WorkNotesService {
   async associateTask(noteId: number, taskId: number): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await axios.post<APIResponse<void>>(
-      `${API_BASE_URL}/work-notes/${noteId}/associate-task`,
+      `${API_BASE_URL}/work-notes/${noteId}/attach-task`,
       { task_id: taskId },
       { headers }
     );
@@ -557,7 +563,7 @@ class WorkNotesService {
   async disassociateTask(noteId: number, taskId: number): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await axios.delete<APIResponse<void>>(
-      `${API_BASE_URL}/work-notes/${noteId}/associate-task/${taskId}`,
+      `${API_BASE_URL}/work-notes/${noteId}/detach-task/${taskId}`,
       { headers }
     );
 

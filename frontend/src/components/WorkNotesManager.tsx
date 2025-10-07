@@ -1424,14 +1424,24 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       width: isMobile ? 80 : 120,
       align: 'center' as const,
       responsive: ['lg'],
-      sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => 
+      sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) =>
         dayjs(a.updated_at).unix() - dayjs(b.updated_at).unix(),
-      render: (date: string) => (
-        <div style={{ fontSize: isMobile ? 10 : 11 }}>
-          <div>{dayjs(date).format('MM-DD')}</div>
-          <div style={{ color: '#8c8c8c' }}>{dayjs(date).format('HH:mm')}</div>
-        </div>
-      ),
+      render: (date: string) => {
+        if (!date || !dayjs(date).isValid()) {
+          return (
+            <div style={{ fontSize: isMobile ? 10 : 11, color: '#bfbfbf' }}>
+              <div>未知</div>
+              <div>时间</div>
+            </div>
+          );
+        }
+        return (
+          <div style={{ fontSize: isMobile ? 10 : 11 }}>
+            <div>{dayjs(date).format('MM-DD')}</div>
+            <div style={{ color: '#8c8c8c' }}>{dayjs(date).format('HH:mm')}</div>
+          </div>
+        );
+      },
     },
     {
       title: '操作',

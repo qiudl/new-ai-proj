@@ -63,6 +63,9 @@ data class StartTimerRequest(
     @SerializedName("task_id")
     val taskId: Long? = null,
 
+    @SerializedName("title")
+    val title: String,  // 必需字段
+
     @SerializedName("timer_type")
     val timerType: String = "project_task",
 
@@ -73,7 +76,10 @@ data class StartTimerRequest(
     val autoStopOthers: Boolean = true,
 
     @SerializedName("tags")
-    val tags: List<String>? = null
+    val tags: List<String>? = null,
+
+    @SerializedName("context")
+    val context: String? = null  // dashboard, task_detail, quick_start
 )
 
 /**
