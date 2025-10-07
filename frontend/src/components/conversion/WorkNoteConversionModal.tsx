@@ -89,63 +89,38 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
 
   // 获取预览
   const handlePreview = async () => {
-    
     try {
       const values = form.getFieldsValue();
-      
+
       if (!selectedTask) {
-        console.warn('🔍 [DEBUG] 未选择任务，终止预览');
         message.warning('请先选择目标任务');
         return;
       }
 
       if (!workNote) {
-        console.warn('🔍 [DEBUG] 工作笔记为空，终止预览');
         message.error('工作笔记数据缺失');
         return;
       }
 
       setPreviewLoading(true);
-      
-      // 强制使用模拟数据进行调试
-      
-      const mockPreviewData = {
-        source_document: {
-          id: workNote.id,
-          title: workNote.title || '未命名工作笔记',
-          type: 'markdown',
-          size: (workNote.content?.length || 50)
-        },
+
+      // 调用真实API获取预览
+      const previewData = await workNotesService.getConversionPreview(workNote.id, {
         target_task_id: selectedTask.id,
-        conversion_settings: {
+        conversion_options: {
           preserve_original: values.preserve_original ?? true,
           copy_relations: values.copy_relations ?? true,
           convert_format: values.convert_format || 'markdown',
           visibility: values.visibility || 'team',
           relation_type: values.relation_type || 'attachment'
-        },
-        preview_content: workNote.content?.substring(0, 500) || `# ${workNote.title || '工作笔记标题'}
+        }
+      });
 
-这是一个示例工作笔记内容预览。
-
-## 主要内容
-- 重要信息点1
-- 重要信息点2  
-- 重要信息点3
-
-## 后续行动
-转换后将成为任务 #${selectedTask.id} 的关联文档。`,
-        estimated_size: workNote.content?.length || 200,
-        warning_messages: workNote.content && workNote.content.length > 10000 ? ['内容较长，转换可能需要更多时间'] : []
-      };
-      
-      
-      setPreview(mockPreviewData);
+      setPreview(previewData);
       setCurrentStep(1);
-      message.info('🔧 调试模式：使用模拟数据预览转换结果');
-      
+
     } catch (error: any) {
-      console.error('🔍 [DEBUG] 预览过程出错:', error);
+      console.error('获取预览失败:', error);
       message.error(error.message || '获取预览失败');
     } finally {
       setPreviewLoading(false);
@@ -160,55 +135,27 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
         message.warning('请先选择目标任务');
         return;
       }
-      
+
       setLoading(true);
 
-      try {
-        // 尝试调用真实API
-        const result = await workNotesService.convertToTaskDocument(workNote!.id, {
-          target_task_id: selectedTask.id,
-          conversion_options: {
-            ...getDefaultOptions(),
-            ...values
-          }
-        });
-
-        setConversionResult(result);
-        setCurrentStep(2);
-        message.success('转换成功！');
-        
-        if (onConversionSuccess) {
-          onConversionSuccess(result);
+      // 调用真实API执行转换
+      const result = await workNotesService.convertToTaskDocument(workNote!.id, {
+        target_task_id: selectedTask.id,
+        conversion_options: {
+          ...getDefaultOptions(),
+          ...values
         }
-      } catch (apiError) {
-        console.warn('转换API调用失败，使用模拟结果:', apiError);
-        
-        // 如果API调用失败，使用模拟结果进行演示
-        const mockResult = {
-          original_work_note_id: workNote!.id,
-          created_task_document: {
-            id: Math.floor(Math.random() * 1000) + 1000, // 模拟文档ID
-            task_id: selectedTask.id,
-            title: workNote!.title + ' (转换自工作笔记)',
-            format: values.convert_format || 'markdown',
-            created_at: new Date().toISOString()
-          },
-          conversion_summary: {
-            content_migrated: true,
-            relations_copied: 0,
-            attachments_moved: 0
-          }
-        };
+      });
 
-        setConversionResult(mockResult);
-        setCurrentStep(2);
-        message.success('转换成功（演示模式）！');
-        
-        if (onConversionSuccess) {
-          onConversionSuccess(mockResult);
-        }
+      setConversionResult(result);
+      setCurrentStep(2);
+      message.success('转换成功！');
+
+      if (onConversionSuccess) {
+        onConversionSuccess(result);
       }
     } catch (error: any) {
+      console.error('转换失败:', error);
       message.error(error.message || '转换失败');
     } finally {
       setLoading(false);
@@ -365,96 +312,89 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
       )}
 
       {/* 步骤2：预览确认 */}
-      {currentStep === 1 && (
+      {currentStep === 1 && preview && (
         <div>
-          {/* 调试信息 */}
           <Alert
-            message={preview ? "预览转换结果" : "⚠️ 调试信息：预览数据为空"}
-            description={preview ? "请确认转换设置，点击确认执行转换。" : `当前步骤: ${currentStep}, 预览数据: ${preview ? '存在' : '不存在'}`}
-            type={preview ? "warning" : "error"}
+            message="预览转换结果"
+            description="请确认转换设置，点击确认执行转换。"
+            type="warning"
             showIcon
             className="mb-4"
           />
-          
-          {preview && (
-            <>
-              <Card title="转换详情"  className="mb-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Text strong>源文档:</Text>
-                    <br />
-                    <Text>{preview.source_document?.title}</Text>
-                    <br />
-                    <Text type="secondary">
-                      {preview.source_document?.type} • {preview.source_document?.size} 字符
-                    </Text>
-                  </div>
-                  <div>
-                    <Text strong>目标任务:</Text>
-                    <br />
-                    <Text>任务 #{preview.target_task_id}</Text>
-                  </div>
-                </div>
-              </Card>
 
-              <Card title="转换设置"  className="mb-4">
-                <div className="flex flex-wrap gap-2">
-                  <Tag color="blue">格式: {preview.conversion_settings?.format}</Tag>
-                  <Tag color="green">可见性: {preview.conversion_settings?.visibility}</Tag>
-                  <Tag color={preview.conversion_settings?.preserve_original ? 'orange' : 'red'}>
-                    {preview.conversion_settings?.preserve_original ? '保留原文档' : '删除原文档'}
-                  </Tag>
-                  <Tag color={preview.conversion_settings?.copy_relations ? 'cyan' : 'default'}>
-                    {preview.conversion_settings?.copy_relations ? '复制关联' : '不复制关联'}
-                  </Tag>
-                </div>
-              </Card>
-
-              {preview.preview_content && (
-                <Card title="内容预览"  className="mb-4">
-                  <Paragraph
-                    ellipsis={{ rows: 4, expandable: true }}
-                    className="bg-gray-50 p-3 rounded"
-                  >
-                    {preview.preview_content}
-                  </Paragraph>
-                </Card>
-              )}
-
-              <div className="flex justify-between mt-6">
-                <Button onClick={() => setCurrentStep(0)}>返回</Button>
-                <Space>
-                  <Button onClick={handleClose}>取消</Button>
-                  <Button 
-                    type="primary" 
-                    icon={<SwapOutlined />}
-                    onClick={handleConvert}
-                    loading={loading}
-                  >
-                    确认转换
-                  </Button>
-                </Space>
+          <Card title="转换详情"  className="mb-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Text strong>源文档:</Text>
+                <br />
+                <Text>{preview.source_document?.title}</Text>
+                <br />
+                <Text type="secondary">
+                  {preview.source_document?.type} • {preview.source_document?.size} 字符
+                </Text>
               </div>
-            </>
-          )}
-          
-          {!preview && (
-            <Card title="调试信息"  className="mb-4">
-              <div className="space-y-2">
-                <div><Text strong>当前步骤:</Text> {currentStep}</div>
-                <div><Text strong>预览数据:</Text> {preview ? 'OK' : 'NULL'}</div>
-                <div><Text strong>选中任务:</Text> {selectedTask ? `#${selectedTask.id} ${selectedTask.title}` : 'NULL'}</div>
-                <div><Text strong>工作笔记:</Text> {workNote ? `#${workNote.id} ${workNote.title}` : 'NULL'}</div>
+              <div>
+                <Text strong>目标任务:</Text>
+                <br />
+                <Text>任务 #{preview.target_task_id}</Text>
               </div>
-              <Alert
-                message="预览数据未正确生成"
-                description="请检查控制台日志获取更多调试信息"
-                type="error"
-                showIcon
-                className="mt-4"
-              />
+            </div>
+          </Card>
+
+          <Card title="转换设置"  className="mb-4">
+            <div className="flex flex-wrap gap-2">
+              <Tag color="blue">格式: {preview.conversion_settings?.convert_format}</Tag>
+              <Tag color="green">可见性: {preview.conversion_settings?.visibility}</Tag>
+              <Tag color={preview.conversion_settings?.preserve_original ? 'orange' : 'red'}>
+                {preview.conversion_settings?.preserve_original ? '保留原文档' : '删除原文档'}
+              </Tag>
+              <Tag color={preview.conversion_settings?.copy_relations ? 'cyan' : 'default'}>
+                {preview.conversion_settings?.copy_relations ? '复制关联' : '不复制关联'}
+              </Tag>
+            </div>
+          </Card>
+
+          {preview.preview_content && (
+            <Card title="内容预览"  className="mb-4">
+              <Paragraph
+                ellipsis={{ rows: 4, expandable: true }}
+                className="bg-gray-50 p-3 rounded"
+              >
+                {preview.preview_content}
+              </Paragraph>
             </Card>
           )}
+
+          {preview.warning_messages && preview.warning_messages.length > 0 && (
+            <Alert
+              message="注意事项"
+              description={
+                <ul>
+                  {preview.warning_messages.map((warning: string, index: number) => (
+                    <li key={index}>{warning}</li>
+                  ))}
+                </ul>
+              }
+              type="info"
+              showIcon
+              className="mb-4"
+            />
+          )}
+
+          <div className="flex justify-between mt-6">
+            <Button onClick={() => setCurrentStep(0)}>返回</Button>
+            <Space>
+              <Button onClick={handleClose}>取消</Button>
+              <Button
+                type="primary"
+                icon={<SwapOutlined />}
+                onClick={handleConvert}
+                loading={loading}
+              >
+                确认转换
+              </Button>
+            </Space>
+          </div>
         </div>
       )}
 

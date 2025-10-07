@@ -1,10 +1,13 @@
 package com.aiproj.mobile.ui.screens.tasks
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aiproj.mobile.data.models.Project
 import com.aiproj.mobile.data.models.TaskPriority
 import com.aiproj.mobile.data.models.TaskRequest
 import com.aiproj.mobile.data.models.TaskStatus
+import com.aiproj.mobile.data.repository.ProjectRepository
 import com.aiproj.mobile.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,14 +22,43 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class TaskEditViewModel @Inject constructor(
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val projectRepository: ProjectRepository
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "TaskEditViewModel"
+    }
 
     private val _uiState = MutableStateFlow(TaskEditUiState())
     val uiState: StateFlow<TaskEditUiState> = _uiState.asStateFlow()
 
+    // 项目列表
+    private val _projects = MutableStateFlow<List<Project>>(emptyList())
+    val projects: StateFlow<List<Project>> = _projects.asStateFlow()
+
+    // 项目加载状态
+    private val _projectsLoading = MutableStateFlow(false)
+    val projectsLoading: StateFlow<Boolean> = _projectsLoading.asStateFlow()
+
     private var currentTaskId: Int? = null
     private var originalProjectId: Int? = null
+    private var initialProjectId: Int? = null
+
+    init {
+        // 页面打开时加载项目列表
+        loadProjects()
+    }
+
+    /**
+     * 设置初始项目ID（创建模式使用）
+     */
+    fun setInitialProjectId(projectId: Int?) {
+        initialProjectId = projectId
+        if (currentTaskId == null) { // 仅在创建模式下更新UI状态
+            _uiState.update { it.copy(projectId = projectId) }
+        }
+    }
 
     /**
      * 加载任务(编辑模式)
@@ -126,6 +158,50 @@ class TaskEditViewModel @Inject constructor(
     }
 
     /**
+     * 切换项目下拉菜单
+     */
+    fun toggleProjectDropdown() {
+        _uiState.update { it.copy(showProjectDropdown = !it.showProjectDropdown) }
+    }
+
+    /**
+     * 加载项目列表
+     */
+    fun loadProjects() {
+        viewModelScope.launch {
+            Log.d(TAG, "loadProjects: Starting...")
+            _projectsLoading.value = true
+
+            try {
+                val result = projectRepository.getProjectsCached(
+                    page = 1,
+                    pageSize = 50, // 加载足够多的项目
+                    status = "active", // 只加载活跃项目
+                    forceRefresh = false
+                )
+
+                result.onSuccess { data ->
+                    _projects.value = data.data
+                    Log.d(TAG, "loadProjects: Success - loaded ${data.data.size} projects")
+
+                    // 如果是创建模式且没有设置projectId，选择第一个项目作为默认值
+                    if (currentTaskId == null && _uiState.value.projectId == null && data.data.isNotEmpty()) {
+                        Log.d(TAG, "loadProjects: Auto-selecting first project: ${data.data.first().name}")
+                        _uiState.update { it.copy(projectId = data.data.first().id) }
+                    }
+                }.onFailure { error ->
+                    Log.e(TAG, "loadProjects: Failed - ${error.message}", error)
+                    _uiState.update {
+                        it.copy(error = error.message ?: "加载项目列表失败")
+                    }
+                }
+            } finally {
+                _projectsLoading.value = false
+            }
+        }
+    }
+
+    /**
      * 保存任务
      */
     fun saveTask(onSuccess: () -> Unit) {
@@ -138,9 +214,13 @@ class TaskEditViewModel @Inject constructor(
         }
 
         // 验证并获取projectId
-        val projectIdToUse = state.projectId ?: originalProjectId
+        // 优先级: UI状态中的projectId → 编辑模式的原始projectId → 初始projectId → 默认projectId(1)
+        val projectIdToUse = state.projectId
+            ?: originalProjectId
+            ?: initialProjectId
+            ?: 1 // 默认使用项目1
 
-        if (projectIdToUse == null || projectIdToUse <= 0) {
+        if (projectIdToUse <= 0) {
             _uiState.update { it.copy(error = "项目ID无效，无法保存任务") }
             return
         }
@@ -207,5 +287,6 @@ data class TaskEditUiState(
     val titleError: String? = null,
     val showStatusDropdown: Boolean = false,
     val showPriorityDropdown: Boolean = false,
+    val showProjectDropdown: Boolean = false,
     val error: String? = null
 )

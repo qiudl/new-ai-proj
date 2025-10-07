@@ -1,7 +1,10 @@
 package com.aiproj.mobile.ui.screens.tasks
 
 import android.util.Log
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
@@ -14,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -21,13 +25,24 @@ import com.aiproj.mobile.data.models.Task
 import com.aiproj.mobile.data.models.TaskPriority
 import com.aiproj.mobile.data.models.TaskStatus
 import com.aiproj.mobile.data.models.TimeLog
+import com.aiproj.mobile.ui.screens.tasks.tabs.TaskInfoTab
+import com.aiproj.mobile.ui.screens.tasks.tabs.TaskOverviewTab
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
+ * 任务详情Tab枚举
+ */
+enum class TaskDetailTab(val title: String, val icon: ImageVector) {
+    DETAILS("任务详情", Icons.Default.Info),     // 默认Tab
+    OVERVIEW("任务总览", Icons.Default.BarChart)
+}
+
+/**
  * 任务详情页面
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun TaskDetailScreen(
     onNavigateBack: () -> Unit,
@@ -41,6 +56,13 @@ fun TaskDetailScreen(
 
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // Tab状态 - 默认显示详情Tab (index 0)
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { TaskDetailTab.values().size }
+    )
+    val scope = rememberCoroutineScope()
 
     // TODO: 从TokenManager或UserPreferencesManager获取当前用户ID
     val currentUserId = remember { 1 }
@@ -114,39 +136,81 @@ fun TaskDetailScreen(
             }
         } else {
             Log.d("TaskDetailScreen", "加载完成, task是否为null: ${uiState.task == null}")
-            uiState.task?.let { task ->
-                Log.d("TaskDetailScreen", "渲染TaskDetailContent: ${task.title}")
-                TaskDetailContent(
-                    task = task,
-                    subtasks = uiState.subtasks,
-                    timeLogs = uiState.timeLogs,
-                    attachments = uiState.attachments,
-                    comments = uiState.comments,
-                    documents = uiState.documents,
-                    currentUserId = currentUserId,
-                    onSubtaskClick = { subtaskId ->
-                        onNavigateToTask?.invoke(subtaskId)
-                    },
-                    onDocumentClick = { documentId ->
-                        onNavigateToDocumentViewer?.invoke(task.id, documentId)
-                    },
-                    onNavigateToDocuments = onNavigateToDocuments,
-                    onAttachmentDownload = { attachment ->
-                        viewModel.downloadAttachment(attachment)
-                    },
-                    onAttachmentDelete = { attachment ->
-                        viewModel.deleteAttachment(attachment)
-                    },
-                    onCommentDelete = { comment ->
-                        viewModel.deleteComment(comment)
-                    },
-                    onAddComment = { content ->
-                        viewModel.addComment(content)
-                    },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // TabRow
+                TabRow(
+                    selectedTabIndex = pagerState.currentPage,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary
+                ) {
+                    TaskDetailTab.values().forEachIndexed { index, tab ->
+                        Tab(
+                            selected = pagerState.currentPage == index,
+                            onClick = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(index)
+                                }
+                            },
+                            text = { Text(tab.title) },
+                            icon = {
+                                Icon(
+                                    imageVector = tab.icon,
+                                    contentDescription = tab.title
+                                )
+                            }
+                        )
+                    }
+                }
+
+                // HorizontalPager for swipeable tabs
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    when (TaskDetailTab.values()[page]) {
+                        TaskDetailTab.DETAILS -> {
+                            TaskInfoTab(
+                                task = uiState.task,
+                                subtasks = uiState.subtasks,
+                                timeLogs = uiState.timeLogs,
+                                attachments = uiState.attachments,
+                                comments = uiState.comments,
+                                documents = uiState.documents,
+                                currentUserId = currentUserId,
+                                onSubtaskClick = { subtaskId ->
+                                    onNavigateToTask?.invoke(subtaskId)
+                                },
+                                onDocumentClick = { documentId ->
+                                    onNavigateToDocumentViewer?.invoke(uiState.task!!.id, documentId)
+                                },
+                                onNavigateToDocuments = onNavigateToDocuments,
+                                onAttachmentDownload = viewModel::downloadAttachment,
+                                onAttachmentDelete = viewModel::deleteAttachment,
+                                onCommentDelete = viewModel::deleteComment,
+                                onAddComment = viewModel::addComment
+                            )
+                        }
+                        TaskDetailTab.OVERVIEW -> {
+                            TaskOverviewTab(
+                                task = uiState.task,
+                                overviewStats = uiState.overviewStats,
+                                selectedTimeRange = uiState.selectedTimeRange,
+                                isLoading = uiState.overviewLoading,
+                                error = uiState.overviewError,
+                                onTimeRangeChange = viewModel::updateTimeRange,
+                                onSubtaskClick = { subtaskId ->
+                                    onNavigateToTask?.invoke(subtaskId)
+                                },
+                                onRetry = { viewModel.updateTimeRange(uiState.selectedTimeRange) }
+                            )
+                        }
+                    }
+                }
             }
         }
     }

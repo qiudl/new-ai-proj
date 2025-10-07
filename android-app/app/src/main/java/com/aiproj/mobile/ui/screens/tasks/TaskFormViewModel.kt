@@ -52,13 +52,32 @@ class TaskFormViewModel @Inject constructor(
                 result.onSuccess { response ->
                     _projects.value = response.data?.projects ?: emptyList()
 
-                    // 如果只有一个项目，自动选中
-                    if (_projects.value.size == 1 && _uiState.value.projectId.isBlank()) {
-                        _uiState.update { it.copy(projectId = _projects.value.first().id.toString()) }
+                    // 自动设置默认项目ID（仅创建模式）
+                    if (!isEditMode && _uiState.value.projectId.isBlank()) {
+                        when (_projects.value.size) {
+                            1 -> {
+                                // 如果只有一个项目，自动选中
+                                _uiState.update { it.copy(projectId = _projects.value.first().id.toString()) }
+                            }
+                            0 -> {
+                                // 如果没有项目数据，使用默认项目ID=1
+                                _uiState.update { it.copy(projectId = "1") }
+                                android.util.Log.w("TaskFormViewModel", "项目列表为空，使用默认projectId=1")
+                            }
+                            else -> {
+                                // 多个项目时，不自动选中，等待用户选择
+                                // 但可以选择第一个作为默认值
+                                _uiState.update { it.copy(projectId = _projects.value.first().id.toString()) }
+                            }
+                        }
                     }
                 }
                 result.onFailure { error ->
-                    // 加载失败不影响主流程，只记录错误
+                    // 加载失败时设置默认项目ID（仅创建模式）
+                    if (!isEditMode && _uiState.value.projectId.isBlank()) {
+                        _uiState.update { it.copy(projectId = "1") }
+                        android.util.Log.w("TaskFormViewModel", "加载项目列表失败，使用默认projectId=1", error)
+                    }
                     android.util.Log.e("TaskFormViewModel", "加载项目列表失败", error)
                 }
             }

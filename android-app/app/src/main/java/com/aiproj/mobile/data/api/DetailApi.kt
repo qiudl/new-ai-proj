@@ -49,7 +49,7 @@ interface DetailApi {
         @Query("start_date") startDate: String,
         @Query("end_date") endDate: String,
         @Query("granularity") granularity: String = "day"
-    ): Response<ApiResponse<WorkTimeStats>>
+    ): Response<ApiResponse<DetailedWorkTimeStats>>
 
     /**
      * 获取活跃项目列表

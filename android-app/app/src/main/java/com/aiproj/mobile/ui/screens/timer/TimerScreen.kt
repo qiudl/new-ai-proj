@@ -37,7 +37,8 @@ fun TimerScreen(
             is TimerUiState.Active -> {
                 if (!state.isPaused) {
                     // 启动前台服务
-                    startTimerService(context, state.timer.taskId, state.timer.description)
+                    val title = state.timer.taskTitle ?: "未命名任务"
+                    startTimerService(context, state.timer.taskId, title, state.timer.description)
                 }
             }
             is TimerUiState.Idle -> {
@@ -93,9 +94,10 @@ fun TimerScreen(
 
                 is TimerUiState.Idle -> {
                     IdleTimerContent(
-                        onStartTimer = { taskId, description ->
+                        onStartTimer = { taskId, title, description ->
                             viewModel.startTimer(
                                 taskId = taskId,
+                                title = title,
                                 description = description
                             )
                         }
@@ -350,7 +352,7 @@ private fun ActiveTimerContent(
  */
 @Composable
 private fun IdleTimerContent(
-    onStartTimer: (taskId: Long?, description: String?) -> Unit
+    onStartTimer: (taskId: Long?, title: String, description: String?) -> Unit
 ) {
     var showStartDialog by remember { mutableStateOf(false) }
 
@@ -399,8 +401,8 @@ private fun IdleTimerContent(
     if (showStartDialog) {
         StartTimerDialog(
             onDismiss = { showStartDialog = false },
-            onConfirm = { description ->
-                onStartTimer(null, description)
+            onConfirm = { title, description ->
+                onStartTimer(null, title, description)
                 showStartDialog = false
             }
         )
@@ -413,8 +415,9 @@ private fun IdleTimerContent(
 @Composable
 private fun StartTimerDialog(
     onDismiss: () -> Unit,
-    onConfirm: (description: String?) -> Unit
+    onConfirm: (title: String, description: String?) -> Unit
 ) {
+    var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
     AlertDialog(
@@ -422,28 +425,33 @@ private fun StartTimerDialog(
         title = { Text("开始新计时") },
         text = {
             Column {
-                Text(
-                    text = "输入计时描述（可选）",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("标题") },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("例如：开发新功能") }
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("描述") },
+                    label = { Text("描述（可选）") },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("例如：开发新功能") }
+                    placeholder = { Text("例如：实现用户登录功能") }
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    onConfirm(description.takeIf { it.isNotBlank() })
-                }
+                    if (title.isNotBlank()) {
+                        onConfirm(title.trim(), description.takeIf { it.isNotBlank() })
+                    }
+                },
+                enabled = title.isNotBlank()
             ) {
                 Text("开始")
             }
@@ -552,10 +560,11 @@ private fun formatStartTime(startTime: String): String {
 /**
  * 启动计时器前台服务
  */
-private fun startTimerService(context: Context, taskId: Long?, description: String?) {
+private fun startTimerService(context: Context, taskId: Long?, title: String, description: String?) {
     val intent = Intent(context, TimerForegroundService::class.java).apply {
         action = TimerForegroundService.ACTION_START
         taskId?.let { putExtra(TimerForegroundService.EXTRA_TASK_ID, it) }
+        putExtra(TimerForegroundService.EXTRA_TITLE, title)
         description?.let { putExtra(TimerForegroundService.EXTRA_DESCRIPTION, it) }
     }
     context.startForegroundService(intent)

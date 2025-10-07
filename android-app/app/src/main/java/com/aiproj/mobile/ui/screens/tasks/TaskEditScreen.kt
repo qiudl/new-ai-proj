@@ -20,14 +20,19 @@ import com.aiproj.mobile.data.models.TaskStatus
 @Composable
 fun TaskEditScreen(
     taskId: Int? = null,
+    initialProjectId: Int? = null,
     onNavigateBack: () -> Unit,
     viewModel: TaskEditViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(taskId) {
+    LaunchedEffect(taskId, initialProjectId) {
         if (taskId != null) {
+            // 编辑模式：加载现有任务
             viewModel.loadTask(taskId)
+        } else if (initialProjectId != null) {
+            // 创建模式：设置初始项目ID
+            viewModel.setInitialProjectId(initialProjectId)
         }
     }
 

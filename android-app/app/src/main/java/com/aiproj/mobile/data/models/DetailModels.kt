@@ -90,16 +90,21 @@ data class PriorityDistribution(
 
     @SerializedName("low")
     val low: Int = 0
-)
+) {
+    val total: Int get() = high + medium + low
+    val highPercentage: Float get() = if (total > 0) high.toFloat() / total else 0f
+    val mediumPercentage: Float get() = if (total > 0) medium.toFloat() / total else 0f
+    val lowPercentage: Float get() = if (total > 0) low.toFloat() / total else 0f
+}
 
 // ========================================
 // 工作时长统计相关模型
 // ========================================
 
 /**
- * 工作时长统计数据
+ * 详细工作时长统计数据
  */
-data class WorkTimeStats(
+data class DetailedWorkTimeStats(
     @SerializedName("start_date")
     val startDate: String,
 

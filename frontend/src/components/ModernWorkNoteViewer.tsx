@@ -295,6 +295,67 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
           {/* 元信息卡片 */}
           <WorkNoteMetadataCard note={note} folderName={note.folder_name} />
 
+          {/* 关联任务 */}
+          <Card
+            title={
+              <Space>
+                <LinkOutlined />
+                <span>关联任务 ({associatedTasks.length})</span>
+              </Space>
+            }
+            extra={
+              <Button
+                type="primary"
+                size="small"
+                icon={<LinkOutlined />}
+                onClick={() => setShowTaskManager(true)}
+              >
+                管理关联
+              </Button>
+            }
+            style={{ marginBottom: 24, borderRadius: 8 }}
+            styles={{ body: { padding: 16 } }}
+          >
+            {associatedTasks.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: '#8c8c8c' }}>
+                <LinkOutlined style={{ fontSize: 24, marginBottom: 8, display: 'block' }} />
+                <Typography.Text type="secondary">暂无关联任务</Typography.Text>
+                <br />
+                <Button
+                  type="link"
+                  onClick={() => setShowTaskManager(true)}
+                  style={{ padding: 0, marginTop: 8 }}
+                >
+                  点击添加关联任务
+                </Button>
+              </div>
+            ) : (
+              <List
+                dataSource={associatedTasks}
+                renderItem={(task) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      title={
+                        <Space>
+                          <Typography.Text strong>#{task.id}</Typography.Text>
+                          <Typography.Text>{task.title}</Typography.Text>
+                        </Space>
+                      }
+                      description={
+                        <Space size={8}>
+                          {renderTaskStatusTag(task.status)}
+                          {task.project_name && (
+                            <Tag color="purple">{task.project_name}</Tag>
+                          )}
+                        </Space>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            )}
+          </Card>
+
           {/* 内容显示 */}
           {note.content ? (
             <Card
@@ -379,6 +440,14 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
           </Row>
         </Card>
       </div>
+
+      {/* 任务关联管理对话框 */}
+      <TaskAssociationManager
+        visible={showTaskManager}
+        noteId={note.id}
+        onClose={() => setShowTaskManager(false)}
+        onAssociationChange={loadAssociatedTasks}
+      />
     </Drawer>
   );
 };
