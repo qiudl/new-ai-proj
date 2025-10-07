@@ -192,8 +192,8 @@ class AIDescriptionIntegrationTest {
         // 验证字数较少（< 100字）
         val shortWordCount = composeTestRule.onNodeWithTag("wordCount")
             .fetchSemanticsNode()
-            .config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)
-            ?.firstOrNull()?.text
+            .config[androidx.compose.ui.semantics.SemanticsProperties.Text]
+            .firstOrNull()?.text
 
         // Test 2: 长描述
         composeTestRule.onNodeWithText("重置")

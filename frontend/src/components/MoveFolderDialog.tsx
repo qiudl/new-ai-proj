@@ -14,6 +14,7 @@ import {
   ArrowRightOutlined,
 } from '@ant-design/icons';
 import { WorkNoteFolder } from '../services/workNotesService';
+import { ErrorHandler } from '../utils/error';
 
 const { Text } = Typography;
 
@@ -117,8 +118,7 @@ const MoveFolderDialog: React.FC<MoveFolderDialogProps> = ({
       setTargetParentId(null);
       onClose();
     } catch (error: any) {
-      console.error('Move folder failed:', error);
-      message.error(error.message || '移动失败');
+      ErrorHandler.showError(error, '移动文件夹失败');
     } finally {
       setLoading(false);
     }

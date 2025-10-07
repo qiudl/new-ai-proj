@@ -27,15 +27,21 @@ android {
 
     buildTypes {
         release {
-            // Temporarily disable minification for faster builds
-            isMinifyEnabled = false
-            // Enable this for production builds:
-            // isMinifyEnabled = true
-            // proguardFiles(
-            //     getDefaultProguardFile("proguard-android-optimize.txt"),
-            //     "proguard-rules.pro"
-            // )
+            // 启用代码混淆和资源压缩（安全审查要求）
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             buildConfigField("String", "API_BASE_URL", "\"https://proj.joylodging.com/api/v1/\"")
+
+            // 安全配置：禁用调试信息
+            isDebuggable = false
+            isJniDebuggable = false
+
+            // 签名配置（TODO: 配置正式签名）
+            // signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isMinifyEnabled = false

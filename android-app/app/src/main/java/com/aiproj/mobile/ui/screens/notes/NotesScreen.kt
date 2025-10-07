@@ -430,7 +430,7 @@ fun NotesScreen(
     // 删除文件夹对话框
     if (showDeleteFolderDialog && selectedFolder != null) {
         DeleteFolderDialog(
-            folderName = selectedFolder!!.name,
+            folder = selectedFolder!!,
             onDismiss = { showDeleteFolderDialog = false },
             onConfirm = {
                 viewModel.deleteFolder(selectedFolder!!.id)

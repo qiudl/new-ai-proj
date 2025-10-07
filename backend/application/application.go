@@ -718,6 +718,12 @@ func (app *Application) GetDashboardHandler() *handlers.DashboardHandler {
 	return nil // 需要通过工厂创建
 }
 
+// GetEfficiencyHandler returns the Efficiency handler
+func (app *Application) GetEfficiencyHandler() *handlers.EfficiencyHandler {
+	efficiencyRepo := database.NewEfficiencyRepository(app.db.GetDB().(*sql.DB))
+	return handlers.NewEfficiencyHandler(efficiencyRepo)
+}
+
 // GetAISubtaskHandler returns the AI subtask handler
 func (app *Application) GetAISubtaskHandler() *handlers.AISubtaskHandler {
 	return handlers.NewAISubtaskHandler(app.db)

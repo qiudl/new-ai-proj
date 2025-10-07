@@ -41,6 +41,9 @@ sealed class Screen(val route: String) {
     // 工时记录
     object Timer : Screen("timer")
 
+    // 计时器历史记录
+    object TimerHistory : Screen("timer_history")
+
     // 个人中心
     object Profile : Screen("profile")
 

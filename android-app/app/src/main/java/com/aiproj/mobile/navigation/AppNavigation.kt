@@ -26,6 +26,7 @@ import com.aiproj.mobile.ui.screens.tasks.TaskDetailScreen
 import com.aiproj.mobile.ui.screens.tasks.TaskFormScreen
 import com.aiproj.mobile.ui.screens.tasks.TaskListScreen
 import com.aiproj.mobile.ui.screens.timer.TimerScreen
+import com.aiproj.mobile.ui.screens.timer.history.TimerHistoryScreen
 import com.aiproj.mobile.ui.document.list.DocumentListScreen
 import com.aiproj.mobile.ui.document.viewer.DocumentViewerScreen
 import com.aiproj.mobile.ui.document.editor.DocumentEditorScreen
@@ -289,6 +290,16 @@ fun MainScreen(
             // 工时记录
             composable(Screen.Timer.route) {
                 TimerScreen()
+            }
+
+            // 计时器历史记录
+            composable(Screen.TimerHistory.route) {
+                TimerHistoryScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onTaskClick = { taskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(taskId.toInt()))
+                    }
+                )
             }
 
             // 个人中心

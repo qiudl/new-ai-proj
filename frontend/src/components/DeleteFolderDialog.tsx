@@ -13,6 +13,7 @@ import {
   FolderOutlined,
 } from '@ant-design/icons';
 import { WorkNoteFolder } from '../services/workNotesService';
+import { ErrorHandler } from '../utils/error';
 
 const { Text } = Typography;
 
@@ -67,8 +68,7 @@ const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
       setForce(false);
       onClose();
     } catch (error: any) {
-      console.error('Delete folder failed:', error);
-      message.error(error.message || '删除失败');
+      ErrorHandler.showError(error, '删除文件夹失败');
     } finally {
       setLoading(false);
     }

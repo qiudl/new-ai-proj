@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.aiproj.mobile.data.models.AIDocumentType
@@ -127,7 +128,8 @@ fun DocumentGenerateForm(
             onValueChange = onPromptChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp),
+                .height(120.dp)
+                .testTag("customRequirementsInput"),
             placeholder = { Text("输入自定义提示词，例如：重点关注性能优化和安全方面...") },
             maxLines = 5
         )

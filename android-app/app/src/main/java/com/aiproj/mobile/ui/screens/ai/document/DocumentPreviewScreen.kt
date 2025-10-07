@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.aiproj.mobile.data.models.DocumentData
 
@@ -53,7 +54,9 @@ fun DocumentPreviewScreen(
             // 文档内容（Markdown渲染）
             // TODO: 使用Markdown库渲染，这里暂时用Text显示
             Card(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("generatedDocumentPreview")
             ) {
                 Text(
                     text = document.content,
@@ -76,7 +79,10 @@ fun DocumentPreviewScreen(
                         text = "📊 统计信息",
                         style = MaterialTheme.typography.titleSmall
                     )
-                    Text("• 字数: ${document.metadata.wordCount}")
+                    Text(
+                        text = "• 字数: ${document.metadata.wordCount}",
+                        modifier = Modifier.testTag("wordCountInfo")
+                    )
                     Text("• 预计阅读时间: ${document.metadata.estimatedReadTime}")
                     if (document.metadata.sections.isNotEmpty()) {
                         Text("• 章节数: ${document.metadata.sections.size}")

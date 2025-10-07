@@ -1,5 +1,6 @@
 package com.aiproj.mobile.ui.screens.notes
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aiproj.mobile.data.models.*
@@ -25,6 +26,10 @@ class NotesViewModel @Inject constructor(
     private val repository: WorkNoteRepository,
     private val folderRepository: WorkNoteFolderRepository
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "NotesViewModel"
+    }
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -135,6 +140,22 @@ class NotesViewModel @Inject constructor(
     }
 
     // ========== 性能优化：辅助方法 ==========
+
+    /**
+     * 显示临时操作消息
+     * 消息会在指定时间后自动清除
+     *
+     * @param message 要显示的消息
+     * @param duration 显示持续时间（毫秒），默认2秒
+     */
+    private suspend fun showTemporaryMessage(message: String, duration: Long = 2000) {
+        _operationMessage.value = message
+        delay(duration)
+        // 只有当消息未被其他操作覆盖时才清除
+        if (_operationMessage.value == message) {
+            _operationMessage.value = null
+        }
+    }
 
     /**
      * 检查操作是否应该防抖
@@ -377,6 +398,7 @@ class NotesViewModel @Inject constructor(
         visibility: WorkNoteVisibility = WorkNoteVisibility.PRIVATE,
         color: String? = null
     ) {
+        Log.d(TAG, "createFolder: name='$name', parentId=$parentId")
         viewModelScope.launch {
             _folderLoading.value = true
             _folderError.value = null
@@ -391,17 +413,13 @@ class NotesViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { newFolder ->
+                    Log.d(TAG, "createFolder: Success - created folder id=${newFolder.id}")
                     // 刷新文件夹列表
                     loadFolders()
-                    _operationMessage.value = "文件夹已创建"
-
-                    // 2秒后清除消息
-                    delay(2000)
-                    if (_operationMessage.value == "文件夹已创建") {
-                        _operationMessage.value = null
-                    }
+                    showTemporaryMessage("文件夹已创建")
                 },
                 onFailure = { error ->
+                    Log.e(TAG, "createFolder: Failed - ${error.message}", error)
                     _folderError.value = "创建文件夹失败: ${error.message}"
                 }
             )
@@ -420,6 +438,7 @@ class NotesViewModel @Inject constructor(
         visibility: WorkNoteVisibility? = null,
         color: String? = null
     ) {
+        Log.d(TAG, "updateFolder: folderId=$folderId, name='$name'")
         viewModelScope.launch {
             _folderLoading.value = true
             _folderError.value = null
@@ -434,17 +453,13 @@ class NotesViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { updatedFolder ->
+                    Log.d(TAG, "updateFolder: Success - updated folder id=$folderId")
                     // 刷新文件夹列表
                     loadFolders()
-                    _operationMessage.value = "文件夹已更新"
-
-                    // 2秒后清除消息
-                    delay(2000)
-                    if (_operationMessage.value == "文件夹已更新") {
-                        _operationMessage.value = null
-                    }
+                    showTemporaryMessage("文件夹已更新")
                 },
                 onFailure = { error ->
+                    Log.e(TAG, "updateFolder: Failed - ${error.message}", error)
                     _folderError.value = "更新文件夹失败: ${error.message}"
                 }
             )
@@ -457,6 +472,7 @@ class NotesViewModel @Inject constructor(
      * 删除文件夹
      */
     fun deleteFolder(folderId: Int) {
+        Log.d(TAG, "deleteFolder: folderId=$folderId")
         viewModelScope.launch {
             _folderLoading.value = true
             _folderError.value = null
@@ -465,6 +481,7 @@ class NotesViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = {
+                    Log.d(TAG, "deleteFolder: Success - deleted folder id=$folderId")
                     // 如果删除的是当前选中的文件夹，清除选择
                     if (_selectedFolderId.value == folderId) {
                         _selectedFolderId.value = null
@@ -473,15 +490,10 @@ class NotesViewModel @Inject constructor(
                     // 刷新文件夹列表和笔记列表
                     loadFolders()
                     loadNotes()
-                    _operationMessage.value = "文件夹已删除"
-
-                    // 2秒后清除消息
-                    delay(2000)
-                    if (_operationMessage.value == "文件夹已删除") {
-                        _operationMessage.value = null
-                    }
+                    showTemporaryMessage("文件夹已删除")
                 },
                 onFailure = { error ->
+                    Log.e(TAG, "deleteFolder: Failed - ${error.message}", error)
                     _folderError.value = "删除文件夹失败: ${error.message}"
                 }
             )
@@ -494,6 +506,7 @@ class NotesViewModel @Inject constructor(
      * 移动文件夹
      */
     fun moveFolder(folderId: Int, newParentId: Int?) {
+        Log.d(TAG, "moveFolder: folderId=$folderId, newParentId=$newParentId")
         viewModelScope.launch {
             _folderLoading.value = true
             _folderError.value = null
@@ -501,6 +514,7 @@ class NotesViewModel @Inject constructor(
             // 循环检查
             val allFolders = _folders.value
             if (folderRepository.isCircularMove(folderId, newParentId, allFolders)) {
+                Log.w(TAG, "moveFolder: Circular reference detected, aborting move")
                 _folderError.value = "无法移动文件夹：会形成循环引用"
                 _folderLoading.value = false
                 return@launch
@@ -510,17 +524,13 @@ class NotesViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { movedFolder ->
+                    Log.d(TAG, "moveFolder: Success - moved folder id=$folderId to parent=$newParentId")
                     // 刷新文件夹列表
                     loadFolders()
-                    _operationMessage.value = "文件夹已移动"
-
-                    // 2秒后清除消息
-                    delay(2000)
-                    if (_operationMessage.value == "文件夹已移动") {
-                        _operationMessage.value = null
-                    }
+                    showTemporaryMessage("文件夹已移动")
                 },
                 onFailure = { error ->
+                    Log.e(TAG, "moveFolder: Failed - ${error.message}", error)
                     _folderError.value = "移动文件夹失败: ${error.message}"
                 }
             )

@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import { FolderOutlined } from '@ant-design/icons';
 import { WorkNoteFolder, CreateWorkNoteFolderRequest, UpdateWorkNoteFolderRequest } from '../services/workNotesService';
+import { ErrorHandler } from '../utils/error';
 import ColorPicker from './ColorPicker';
 import IconPicker from './IconPicker';
 
@@ -140,8 +141,7 @@ const FolderDialog: React.FC<FolderDialogProps> = ({
         // 表单验证错误，不显示消息
         return;
       }
-      console.error('Folder operation failed:', error);
-      message.error(error.message || '操作失败');
+      ErrorHandler.showError(error, folder ? '更新文件夹失败' : '创建文件夹失败');
     } finally {
       setLoading(false);
     }

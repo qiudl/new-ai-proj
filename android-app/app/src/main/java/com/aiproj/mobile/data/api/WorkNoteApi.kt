@@ -43,7 +43,7 @@ interface WorkNoteApi {
     @DELETE("work-notes/{id}")
     suspend fun deleteWorkNote(
         @Path("id") id: Int
-    ): Response<ApiResponse<Any?>>
+    ): Response<ApiResponse<Unit>>
 
     @GET("work-notes/search")
     suspend fun searchWorkNotes(
@@ -98,7 +98,7 @@ interface WorkNoteApi {
     @DELETE("work-note-folders/{id}")
     suspend fun deleteFolder(
         @Path("id") id: Int
-    ): Response<ApiResponse<Any?>>
+    ): Response<ApiResponse<Unit>>
 
     @POST("work-note-folders/{id}/move")
     suspend fun moveFolder(

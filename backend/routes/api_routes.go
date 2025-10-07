@@ -95,6 +95,22 @@ func registerDashboardRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		dashboard.GET("/notifications", app.GetDashboardHandler().GetNotifications)
 		dashboard.GET("/priority-distribution", app.GetDashboardHandler().GetPriorityDistributionStats)
 	}
+
+	// 注册效率分析路由
+	registerEfficiencyRoutes(authorized, app)
+}
+
+// registerEfficiencyRoutes 注册效率分析路由
+func registerEfficiencyRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	analytics := authorized.Group("/analytics")
+	{
+		efficiency := analytics.Group("/efficiency")
+		{
+			efficiency.GET("/trend", app.GetEfficiencyHandler().GetEfficiencyTrend)
+			efficiency.GET("/suggestions", app.GetEfficiencyHandler().GetSmartSuggestions)
+			efficiency.GET("/analysis", app.GetEfficiencyHandler().GetEfficiencyAnalysis)
+		}
+	}
 }
 
 // registerCollaborationRoutes 注册协作管理路由

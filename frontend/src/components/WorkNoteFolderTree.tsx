@@ -8,6 +8,7 @@ import {
   LoadingOutlined,
   FolderFilled,
 } from '@ant-design/icons';
+import { ErrorHandler } from '../utils/error';
 import type { DataNode } from 'antd/es/tree';
 import { workNotesService, WorkNoteFolder } from '../services/workNotesService';
 import FolderContextMenu, { FolderAction } from './FolderContextMenu';
@@ -73,8 +74,7 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
       const data = await workNotesService.getFolderTree(null, 2); // 默认加载2层
       setFolders(data);
     } catch (error: any) {
-      console.error('加载文件夹树失败:', error);
-      message.error('加载文件夹失败: ' + error.message);
+      ErrorHandler.showError(error, '加载文件夹失败');
     } finally {
       setLoading(false);
     }
@@ -86,8 +86,7 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
       const data = await workNotesService.getFolderTree(parentId, 1);
       return data;
     } catch (error: any) {
-      console.error('加载子文件夹失败:', error);
-      message.error('加载子文件夹失败: ' + error.message);
+      ErrorHandler.showError(error, '加载子文件夹失败');
       return [];
     }
   };
@@ -122,8 +121,7 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
         const allKeys = results.map(folder => `folder-${folder.id}`);
         setExpandedKeys(allKeys);
       } catch (error: any) {
-        console.error('搜索文件夹失败:', error);
-        message.error('搜索失败: ' + error.message);
+        ErrorHandler.showError(error, '搜索文件夹失败');
       } finally {
         setLoading(false);
       }
@@ -436,8 +434,7 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
             message.success(`已将"${dragFolder.name}"移动到根目录`);
             await loadRootFolders();
           } catch (error: any) {
-            console.error('移动文件夹失败:', error);
-            message.error('移动失败: ' + error.message);
+            ErrorHandler.showError(error, '移动文件夹失败');
           }
         }
       }
@@ -477,8 +474,7 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
       // 刷新文件夹树
       await loadRootFolders();
     } catch (error: any) {
-      console.error('移动文件夹失败:', error);
-      message.error('移动失败: ' + error.message);
+      ErrorHandler.showError(error, '移动文件夹失败');
     } finally {
       setDraggingKey(null);
     }

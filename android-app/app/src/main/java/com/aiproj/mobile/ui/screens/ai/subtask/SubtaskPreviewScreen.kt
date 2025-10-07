@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.aiproj.mobile.data.models.GeneratedSubtask
 import com.aiproj.mobile.data.models.SubtaskMetadata
@@ -56,11 +57,20 @@ fun SubtaskPreviewScreen(
                         text = "📊 生成统计",
                         style = MaterialTheme.typography.titleSmall
                     )
-                    Text("• 子任务数量: ${metadata.totalSubtasks}")
+                    Text(
+                        text = "• 子任务数量: ${metadata.totalSubtasks}",
+                        modifier = Modifier.testTag("subtaskCountInfo")
+                    )
                     metadata.estimatedTotalHours?.let { hours ->
-                        Text("• 预计总工时: ${hours}小时")
+                        Text(
+                            text = "• 预计总工时: ${hours}小时",
+                            modifier = Modifier.testTag("totalEstimatedTime")
+                        )
                     }
-                    Text("• 分解策略: ${metadata.breakdownLogic}")
+                    Text(
+                        text = "• 分解策略: ${metadata.breakdownLogic}",
+                        modifier = Modifier.testTag("breakdownLogic")
+                    )
                 }
             }
 
@@ -73,11 +83,17 @@ fun SubtaskPreviewScreen(
             )
 
             // 子任务卡片列表
-            subtasks.forEachIndexed { index, subtask ->
-                SubtaskCard(
-                    index = index + 1,
-                    subtask = subtask
-                )
+            Column(
+                modifier = Modifier.testTag("generatedSubtasksList"),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                subtasks.forEachIndexed { index, subtask ->
+                    SubtaskCard(
+                        index = index + 1,
+                        subtask = subtask,
+                        itemIndex = index
+                    )
+                }
             }
         }
 
@@ -129,10 +145,13 @@ fun SubtaskPreviewScreen(
 @Composable
 private fun SubtaskCard(
     index: Int,
-    subtask: GeneratedSubtask
+    subtask: GeneratedSubtask,
+    itemIndex: Int
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("subtaskItem_$itemIndex")
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

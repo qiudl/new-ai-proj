@@ -1,11 +1,17 @@
 package com.aiproj.mobile.data.repository
 
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import com.aiproj.mobile.data.api.TimerApi
 import com.aiproj.mobile.data.local.TimerCache
 import com.aiproj.mobile.data.models.OfflineTimerRecord
 import com.aiproj.mobile.data.models.StartTimerRequest
 import com.aiproj.mobile.data.models.SyncStatus
+import com.aiproj.mobile.data.models.TimeStatsData
+import com.aiproj.mobile.data.models.TimerLog
 import com.aiproj.mobile.data.models.TimerStatus
+import com.aiproj.mobile.data.paging.TimerHistoryPagingSource
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,7 +27,7 @@ class TimerRepository @Inject constructor(
 ) {
 
     /**
-     * 启动计时器
+     * 启动计时器（离线优先）
      */
     suspend fun startTimer(request: StartTimerRequest): Result<TimerStatus> {
         return try {
@@ -36,14 +42,43 @@ class TimerRepository @Inject constructor(
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            // 离线模式：保存到本地待同步
+            // 离线模式：创建本地计时器并立即返回
+            val localTimer = createLocalTimer(request)
+            cache.saveCurrentTimer(localTimer)
+
+            // 保存到离线记录队列等待同步
             saveOfflineTimerStart(request)
-            Result.failure(e)
+
+            Result.success(localTimer)
         }
     }
 
     /**
-     * 暂停计时器
+     * 创建本地计时器
+     */
+    private fun createLocalTimer(request: StartTimerRequest): TimerStatus {
+        return TimerStatus(
+            id = System.currentTimeMillis(), // 使用时间戳作为临时ID
+            userId = -1,
+            taskId = request.taskId,
+            taskTitle = null,
+            projectId = null,
+            projectName = null,
+            timerType = request.timerType,
+            status = "running",
+            description = request.description,
+            startedAt = java.time.Instant.now().toString(),
+            pausedAt = null,
+            resumedAt = null,
+            stoppedAt = null,
+            elapsedSeconds = 0,
+            pausedDuration = 0,
+            isLocal = true
+        )
+    }
+
+    /**
+     * 暂停计时器（离线优先）
      */
     suspend fun pauseTimer(): Result<TimerStatus> {
         return try {
@@ -57,12 +92,23 @@ class TimerRepository @Inject constructor(
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            // 离线模式：更新本地计时器状态
+            val currentTimer = cache.getCurrentTimer()
+            if (currentTimer != null) {
+                val pausedTimer = currentTimer.copy(
+                    status = "paused",
+                    pausedAt = java.time.Instant.now().toString()
+                )
+                cache.saveCurrentTimer(pausedTimer)
+                Result.success(pausedTimer)
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
     /**
-     * 恢复计时器
+     * 恢复计时器（离线优先）
      */
     suspend fun resumeTimer(): Result<TimerStatus> {
         return try {
@@ -76,12 +122,23 @@ class TimerRepository @Inject constructor(
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            // 离线模式：更新本地计时器状态
+            val currentTimer = cache.getCurrentTimer()
+            if (currentTimer != null) {
+                val resumedTimer = currentTimer.copy(
+                    status = "running",
+                    resumedAt = java.time.Instant.now().toString()
+                )
+                cache.saveCurrentTimer(resumedTimer)
+                Result.success(resumedTimer)
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
     /**
-     * 停止计时器
+     * 停止计时器（离线优先）
      */
     suspend fun stopTimer(): Result<Unit> {
         return try {
@@ -95,7 +152,10 @@ class TimerRepository @Inject constructor(
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            // 离线模式：清除本地计时器
+            cache.clearCurrentTimer()
+            // 成功停止，但无法同步到服务器
+            Result.success(Unit)
         }
     }
 
@@ -193,5 +253,68 @@ class TimerRepository @Inject constructor(
             metadata = null
         )
         cache.saveOfflineRecord(offlineRecord)
+    }
+
+    /**
+     * 获取计时器历史记录分页流
+     * @param startDate 开始日期（可选）
+     * @param endDate 结束日期（可选）
+     * @param taskId 任务ID（可选）
+     * @param status 状态筛选（可选）
+     * @return 分页数据流
+     */
+    fun getTimerHistoryPager(
+        startDate: String? = null,
+        endDate: String? = null,
+        taskId: Long? = null,
+        status: String? = null
+    ): Flow<PagingData<TimerLog>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 20,
+                enablePlaceholders = false,
+                initialLoadSize = 20
+            ),
+            pagingSourceFactory = {
+                TimerHistoryPagingSource(
+                    timerApi = api,
+                    startDate = startDate,
+                    endDate = endDate,
+                    taskId = taskId,
+                    status = status
+                )
+            }
+        ).flow
+    }
+
+    /**
+     * 获取计时器历史统计数据
+     * @param startDate 开始日期（可选）
+     * @param endDate 结束日期（可选）
+     * @return 统计数据，如果失败则返回null
+     */
+    suspend fun getTimerHistoryStats(
+        startDate: String? = null,
+        endDate: String? = null
+    ): Result<TimeStatsData?> {
+        return try {
+            // 获取第一页数据以获取统计信息
+            val response = api.getTimerHistory(
+                page = 1,
+                pageSize = 1,
+                startDate = startDate,
+                endDate = endDate
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val historyData = response.body()!!.data
+                Result.success(historyData?.stats)
+            } else {
+                val errorMsg = response.body()?.error ?: "获取统计数据失败"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

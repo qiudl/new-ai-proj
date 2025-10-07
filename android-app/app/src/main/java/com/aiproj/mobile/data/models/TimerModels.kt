@@ -197,3 +197,69 @@ enum class SyncStatus {
         }
     }
 }
+
+/**
+ * 计时器历史记录
+ * 用于历史记录页面展示
+ */
+data class TimerLog(
+    @SerializedName("id")
+    val id: Long,
+
+    @SerializedName("task_id")
+    val taskId: Long? = null,
+
+    @SerializedName("task_title")
+    val taskTitle: String? = null,
+
+    @SerializedName("project_id")
+    val projectId: Long? = null,
+
+    @SerializedName("project_name")
+    val projectName: String? = null,
+
+    @SerializedName("timer_type")
+    val timerType: String = "project_task",
+
+    @SerializedName("status")
+    val status: String,
+
+    @SerializedName("description")
+    val description: String? = null,
+
+    @SerializedName("started_at")
+    val startedAt: String,
+
+    @SerializedName("paused_at")
+    val pausedAt: String? = null,
+
+    @SerializedName("stopped_at")
+    val stoppedAt: String? = null,
+
+    @SerializedName("duration")
+    val duration: Int? = null,  // 分钟
+
+    @SerializedName("created_at")
+    val createdAt: String
+)
+
+/**
+ * 计时器历史记录响应
+ * 包含分页信息和统计数据
+ */
+data class TimerHistoryResponse(
+    @SerializedName("logs")
+    val logs: List<TimerLog>,
+
+    @SerializedName("total")
+    val total: Int,
+
+    @SerializedName("page")
+    val page: Int,
+
+    @SerializedName("page_size")
+    val pageSize: Int,
+
+    @SerializedName("stats")
+    val stats: TimeStatsData? = null
+)

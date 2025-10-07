@@ -1,6 +1,7 @@
 package com.aiproj.mobile.data.repository
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -40,6 +41,7 @@ class WorkNoteFolderRepository @Inject constructor(
     private val json = Json { ignoreUnknownKeys = true }
 
     companion object {
+        private const val TAG = "WorkNoteFolderRepo"
         private val FOLDER_TREE_KEY = stringPreferencesKey("folder_tree")
         private const val CACHE_DURATION = 5 * 60 * 1000L // 5分钟
     }
@@ -66,10 +68,13 @@ class WorkNoteFolderRepository @Inject constructor(
         maxDepth: Int = 2,
         forceRefresh: Boolean = false
     ): Flow<Result<List<WorkNoteFolder>>> = flow {
+        Log.d(TAG, "getFolderTree: parentId=$parentId, maxDepth=$maxDepth, forceRefresh=$forceRefresh")
+
         // 1. 检查内存缓存
         if (!forceRefresh && cachedFolders != null &&
             System.currentTimeMillis() - lastCacheTime < CACHE_DURATION
         ) {
+            Log.d(TAG, "getFolderTree: Memory cache hit, returning ${cachedFolders!!.size} folders")
             emit(Result.success(cachedFolders!!))
             return@flow
         }
@@ -78,6 +83,7 @@ class WorkNoteFolderRepository @Inject constructor(
         if (!forceRefresh) {
             val cachedData = loadFromCache()
             if (cachedData != null) {
+                Log.d(TAG, "getFolderTree: DataStore cache hit, returning ${cachedData.size} folders")
                 cachedFolders = cachedData
                 emit(Result.success(cachedData))
                 // 继续后台更新，不return
@@ -86,6 +92,7 @@ class WorkNoteFolderRepository @Inject constructor(
 
         // 3. 发起网络请求
         try {
+            Log.d(TAG, "getFolderTree: Fetching from network...")
             val response = api.getFolderTree(
                 parentId = parentId?.toString(),
                 maxDepth = maxDepth
@@ -93,6 +100,7 @@ class WorkNoteFolderRepository @Inject constructor(
 
             if (response.isSuccessful && response.body() != null) {
                 val folders = response.body()!!.data
+                Log.d(TAG, "getFolderTree: Network success, got ${folders.size} folders")
 
                 // 更新缓存
                 cachedFolders = folders
@@ -101,17 +109,15 @@ class WorkNoteFolderRepository @Inject constructor(
 
                 emit(Result.success(folders))
             } else {
-                emit(
-                    Result.failure(
-                        Exception(
-                            response.errorBody()?.string() ?: "获取文件夹树失败"
-                        )
-                    )
-                )
+                val errorMsg = response.errorBody()?.string() ?: "获取文件夹树失败"
+                Log.e(TAG, "getFolderTree: Network error - $errorMsg")
+                emit(Result.failure(Exception(errorMsg)))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getFolderTree: Exception - ${e.message}", e)
             // 4. 如果网络失败但有缓存，返回缓存数据
             cachedFolders?.let {
+                Log.d(TAG, "getFolderTree: Using cached data as fallback")
                 emit(Result.success(it))
             } ?: emit(Result.failure(e))
         }
@@ -222,6 +228,7 @@ class WorkNoteFolderRepository @Inject constructor(
         color: String? = null,
         icon: String? = null
     ): Result<WorkNoteFolder> {
+        Log.d(TAG, "createFolder: name='$name', parentId=$parentId, visibility=$visibility")
         return try {
             val request = CreateWorkNoteFolderRequest(
                 name = name,
@@ -235,17 +242,18 @@ class WorkNoteFolderRepository @Inject constructor(
             val response = api.createFolder(request)
 
             if (response.isSuccessful && response.body() != null) {
+                val newFolder = response.body()!!
+                Log.d(TAG, "createFolder: Success - created folder id=${newFolder.id}")
                 // 清除缓存
                 clearCache()
-                Result.success(response.body()!!)
+                Result.success(newFolder)
             } else {
-                Result.failure(
-                    Exception(
-                        response.errorBody()?.string() ?: "创建文件夹失败"
-                    )
-                )
+                val errorMsg = response.errorBody()?.string() ?: "创建文件夹失败"
+                Log.e(TAG, "createFolder: Failed - $errorMsg")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "createFolder: Exception - ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -263,6 +271,7 @@ class WorkNoteFolderRepository @Inject constructor(
         color: String? = null,
         icon: String? = null
     ): Result<WorkNoteFolder> {
+        Log.d(TAG, "updateFolder: folderId=$folderId, name='$name', visibility=$visibility")
         return try {
             val request = UpdateWorkNoteFolderRequest(
                 name = name,
@@ -275,17 +284,17 @@ class WorkNoteFolderRepository @Inject constructor(
             val response = api.updateFolder(folderId, request)
 
             if (response.isSuccessful && response.body() != null) {
+                Log.d(TAG, "updateFolder: Success - updated folder id=$folderId")
                 // 清除缓存
                 clearCache()
                 Result.success(response.body()!!)
             } else {
-                Result.failure(
-                    Exception(
-                        response.errorBody()?.string() ?: "更新文件夹失败"
-                    )
-                )
+                val errorMsg = response.errorBody()?.string() ?: "更新文件夹失败"
+                Log.e(TAG, "updateFolder: Failed - $errorMsg")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "updateFolder: Exception - ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -296,21 +305,22 @@ class WorkNoteFolderRepository @Inject constructor(
      * 删除成功后会清除缓存
      */
     suspend fun deleteFolder(folderId: Int): Result<Unit> {
+        Log.d(TAG, "deleteFolder: folderId=$folderId")
         return try {
             val response = api.deleteFolder(folderId)
 
             if (response.isSuccessful) {
+                Log.d(TAG, "deleteFolder: Success - deleted folder id=$folderId")
                 // 清除缓存
                 clearCache()
                 Result.success(Unit)
             } else {
-                Result.failure(
-                    Exception(
-                        response.errorBody()?.string() ?: "删除文件夹失败"
-                    )
-                )
+                val errorMsg = response.errorBody()?.string() ?: "删除文件夹失败"
+                Log.e(TAG, "deleteFolder: Failed - $errorMsg")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "deleteFolder: Exception - ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -327,47 +337,78 @@ class WorkNoteFolderRepository @Inject constructor(
         folderId: Int,
         newParentId: Int?
     ): Result<WorkNoteFolder> {
+        Log.d(TAG, "moveFolder: folderId=$folderId, newParentId=$newParentId")
         return try {
             val request = MoveFolderRequest(targetParentId = newParentId)
             val response = api.moveFolder(folderId, request)
 
             if (response.isSuccessful && response.body() != null) {
+                Log.d(TAG, "moveFolder: Success - moved folder id=$folderId to parent=$newParentId")
                 // 清除缓存
                 clearCache()
                 Result.success(response.body()!!)
             } else {
-                Result.failure(
-                    Exception(
-                        response.errorBody()?.string() ?: "移动文件夹失败"
-                    )
-                )
+                val errorMsg = response.errorBody()?.string() ?: "移动文件夹失败"
+                Log.e(TAG, "moveFolder: Failed - $errorMsg")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "moveFolder: Exception - ${e.message}", e)
             Result.failure(e)
         }
     }
 
     /**
      * 检查是否会形成循环（用于移动前验证）
+     *
+     * 使用迭代实现而非递归，避免深层文件夹树导致栈溢出
+     *
+     * @param folderId 要移动的文件夹ID
+     * @param targetParentId 目标父文件夹ID
+     * @param allFolders 所有文件夹列表
+     * @return true 如果移动会形成循环，false 如果可以安全移动
      */
     fun isCircularMove(
         folderId: Int,
         targetParentId: Int?,
         allFolders: List<WorkNoteFolder>
     ): Boolean {
-        if (targetParentId == null) return false
-        if (folderId == targetParentId) return true
+        Log.d(TAG, "isCircularMove: checking folderId=$folderId -> targetParentId=$targetParentId")
 
-        // 检查targetParentId是否是folderId的子孙
-        fun isDescendant(potentialChild: Int, ancestor: Int): Boolean {
-            val folder = allFolders.find { it.id == potentialChild } ?: return false
-
-            if (folder.parentId == ancestor) return true
-            if (folder.parentId == null) return false
-
-            return isDescendant(folder.parentId!!, ancestor)
+        // 移动到根目录总是安全的
+        if (targetParentId == null) {
+            Log.d(TAG, "isCircularMove: Moving to root - safe")
+            return false
         }
 
-        return isDescendant(targetParentId, folderId)
+        // 不能移动到自己下面
+        if (folderId == targetParentId) {
+            Log.w(TAG, "isCircularMove: Cannot move folder to itself - circular detected")
+            return true
+        }
+
+        // 检查targetParentId是否是folderId的子孙（迭代实现）
+        // 从targetParentId向上遍历，看是否会遇到folderId
+        var currentId: Int? = targetParentId
+        var depth = 0
+        val maxDepth = 100  // 防止无限循环，最大深度限制
+
+        while (currentId != null && depth < maxDepth) {
+            val folder = allFolders.find { it.id == currentId }
+                ?: break  // 文件夹不存在，中断
+
+            // 如果父节点是folderId，说明会形成循环
+            if (folder.parentId == folderId) {
+                Log.w(TAG, "isCircularMove: Circular reference detected at depth $depth")
+                return true
+            }
+
+            // 向上移动到父节点
+            currentId = folder.parentId
+            depth++
+        }
+
+        Log.d(TAG, "isCircularMove: No circular reference - safe to move")
+        return false
     }
 }

@@ -16,6 +16,7 @@ import com.aiproj.mobile.R
 import com.aiproj.mobile.data.models.StartTimerRequest
 import com.aiproj.mobile.data.models.TimerStatus
 import com.aiproj.mobile.data.repository.TimerRepository
+import com.aiproj.mobile.util.NotificationHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +34,9 @@ class TimerForegroundService : Service() {
     @Inject
     lateinit var timerRepository: TimerRepository
 
+    @Inject
+    lateinit var notificationHelper: NotificationHelper
+
     private val binder = TimerBinder()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -49,8 +53,6 @@ class TimerForegroundService : Service() {
 
     companion object {
         private const val NOTIFICATION_ID = 1001
-        private const val CHANNEL_ID = "timer_channel"
-        private const val CHANNEL_NAME = "计时器通知"
 
         const val ACTION_START = "com.aiproj.mobile.action.START"
         const val ACTION_PAUSE = "com.aiproj.mobile.action.PAUSE"
@@ -68,7 +70,7 @@ class TimerForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        createNotificationChannel()
+        // Notification channels are now created by NotificationHelper
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -118,7 +120,8 @@ class TimerForegroundService : Service() {
                 elapsedSeconds = timer.elapsedSeconds
                 _timerState.value = TimerServiceState.Running(timer)
 
-                startForeground(NOTIFICATION_ID, createNotification(timer, false))
+                val notification = notificationHelper.createRunningNotification(timer, elapsedSeconds)
+                startForeground(NOTIFICATION_ID, notification)
                 startLocalTick()
                 startPeriodicSync()
             }.onFailure {
@@ -137,7 +140,8 @@ class TimerForegroundService : Service() {
                 _timerState.value = TimerServiceState.Paused(timer)
 
                 tickJob?.cancel()
-                updateNotification(timer, true)
+                val notification = notificationHelper.createPausedNotification(timer, elapsedSeconds)
+                notificationManager.notify(NOTIFICATION_ID, notification)
             }
         }
     }
@@ -151,7 +155,8 @@ class TimerForegroundService : Service() {
                 _timerState.value = TimerServiceState.Running(timer)
 
                 startLocalTick()
-                updateNotification(timer, false)
+                val notification = notificationHelper.createRunningNotification(timer, elapsedSeconds)
+                notificationManager.notify(NOTIFICATION_ID, notification)
             }
         }
     }
@@ -182,7 +187,8 @@ class TimerForegroundService : Service() {
                 elapsedSeconds++
 
                 currentTimer?.let { timer ->
-                    updateNotification(timer, false)
+                    val notification = notificationHelper.createRunningNotification(timer, elapsedSeconds)
+                    notificationManager.notify(NOTIFICATION_ID, notification)
                 }
             }
         }
@@ -213,118 +219,7 @@ class TimerForegroundService : Service() {
         }
     }
 
-    // ========== Notification ==========
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "显示计时器运行状态"
-                setShowBadge(false)
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun createNotification(timer: TimerStatus, isPaused: Boolean): Notification {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(
-                if (isPaused) "已暂停: ${timer.taskTitle ?: "任务"}"
-                else "计时中: ${timer.taskTitle ?: "任务"}"
-            )
-            .setContentText(formatElapsedTime(elapsedSeconds))
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // 使用默认图标
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-
-        // 添加操作按钮
-        if (isPaused) {
-            builder.addAction(createResumeAction())
-        } else {
-            builder.addAction(createPauseAction())
-        }
-        builder.addAction(createStopAction())
-
-        return builder.build()
-    }
-
-    private fun updateNotification(timer: TimerStatus, isPaused: Boolean) {
-        val notification = createNotification(timer, isPaused)
-        notificationManager.notify(NOTIFICATION_ID, notification)
-    }
-
-    private fun createPauseAction(): NotificationCompat.Action {
-        val intent = Intent(this, TimerForegroundService::class.java).apply {
-            action = ACTION_PAUSE
-        }
-        val pendingIntent = PendingIntent.getService(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        return NotificationCompat.Action(
-            android.R.drawable.ic_media_pause,
-            "暂停",
-            pendingIntent
-        )
-    }
-
-    private fun createResumeAction(): NotificationCompat.Action {
-        val intent = Intent(this, TimerForegroundService::class.java).apply {
-            action = ACTION_RESUME
-        }
-        val pendingIntent = PendingIntent.getService(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        return NotificationCompat.Action(
-            android.R.drawable.ic_media_play,
-            "恢复",
-            pendingIntent
-        )
-    }
-
-    private fun createStopAction(): NotificationCompat.Action {
-        val intent = Intent(this, TimerForegroundService::class.java).apply {
-            action = ACTION_STOP
-        }
-        val pendingIntent = PendingIntent.getService(
-            this,
-            1,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        return NotificationCompat.Action(
-            android.R.drawable.presence_busy,
-            "停止",
-            pendingIntent
-        )
-    }
-
-    private fun formatElapsedTime(seconds: Long): String {
-        val hours = seconds / 3600
-        val minutes = (seconds % 3600) / 60
-        val secs = seconds % 60
-        return String.format("%02d:%02d:%02d", hours, minutes, secs)
-    }
+    // Notification handling is now delegated to NotificationHelper
 
     // ========== Binder ==========
 

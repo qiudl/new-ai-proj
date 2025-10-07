@@ -187,6 +187,9 @@ type ApplicationInterface interface {
 	// Dashboard处理器
 	GetDashboardHandler() *handlers.DashboardHandler
 
+	// 效率分析处理器
+	GetEfficiencyHandler() *handlers.EfficiencyHandler
+
 	// AI子任务处理器
 	GetAISubtaskHandler() *handlers.AISubtaskHandler
 

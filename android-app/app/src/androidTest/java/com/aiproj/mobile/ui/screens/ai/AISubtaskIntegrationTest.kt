@@ -326,6 +326,7 @@ class AISubtaskIntegrationTest {
         // 修改标题
         composeTestRule.onNodeWithTag("subtaskTitleInput")
             .performTextClearance()
+        composeTestRule.onNodeWithTag("subtaskTitleInput")
             .performTextInput("修改后的子任务标题")
 
         // 保存修改

@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,7 +103,9 @@ fun SubtaskGenerateForm(
                 onValueChange = { onCountChange(it.toInt()) },
                 valueRange = 1f..10f,
                 steps = 8,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("subtaskCountSlider")
             )
         }
 
@@ -119,7 +122,8 @@ fun SubtaskGenerateForm(
             onValueChange = onPromptChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp),
+                .height(120.dp)
+                .testTag("customPromptInput"),
             placeholder = { Text("输入自定义提示词，例如：重点关注性能优化和测试覆盖...") },
             maxLines = 5
         )
@@ -138,7 +142,8 @@ fun SubtaskGenerateForm(
         ) {
             Checkbox(
                 checked = includeEstimates,
-                onCheckedChange = { onToggleEstimates() }
+                onCheckedChange = { onToggleEstimates() },
+                modifier = Modifier.testTag("includeEstimatesSwitch")
             )
             Spacer(modifier = Modifier.width(8.dp))
             Column {
