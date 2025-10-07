@@ -104,7 +104,7 @@ class DetailRepository @Inject constructor(
         startDate: String,
         endDate: String,
         granularity: String = "day"
-    ): Result<WorkTimeStats> = withContext(Dispatchers.IO) {
+    ): Result<DetailedWorkTimeStats> = withContext(Dispatchers.IO) {
         try {
             val response = api.getWorkTimeStats(startDate, endDate, granularity)
             if (response.isSuccessful && response.body() != null) {

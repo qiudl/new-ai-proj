@@ -102,7 +102,7 @@ class WorkTimeDetailViewModel @Inject constructor(
 data class WorkTimeDetailUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
-    val workTimeStats: WorkTimeStats? = null,
+    val workTimeStats: DetailedWorkTimeStats? = null,
     val selectedTimeRange: TimeRange = TimeRange.LAST_7_DAYS
 )
 

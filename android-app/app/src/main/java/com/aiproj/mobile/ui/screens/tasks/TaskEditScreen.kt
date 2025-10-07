@@ -25,6 +25,8 @@ fun TaskEditScreen(
     viewModel: TaskEditViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val projects by viewModel.projects.collectAsState()
+    val projectsLoading by viewModel.projectsLoading.collectAsState()
 
     LaunchedEffect(taskId, initialProjectId) {
         if (taskId != null) {
@@ -169,6 +171,61 @@ fun TaskEditScreen(
                                 viewModel.togglePriorityDropdown()
                             }
                         )
+                    }
+                }
+            }
+
+            // 项目选择
+            ExposedDropdownMenuBox(
+                expanded = uiState.showProjectDropdown,
+                onExpandedChange = { viewModel.toggleProjectDropdown() }
+            ) {
+                OutlinedTextField(
+                    value = if (projectsLoading) {
+                        "加载中..."
+                    } else {
+                        projects.find { it.id == uiState.projectId }?.name ?: "选择项目 *"
+                    },
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("项目 *") },
+                    trailingIcon = {
+                        if (projectsLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = uiState.showProjectDropdown)
+                        }
+                    },
+                    isError = uiState.projectId == null,
+                    supportingText = if (uiState.projectId == null) {
+                        { Text("请选择项目") }
+                    } else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
+                )
+                ExposedDropdownMenu(
+                    expanded = uiState.showProjectDropdown,
+                    onDismissRequest = { viewModel.toggleProjectDropdown() }
+                ) {
+                    if (projects.isEmpty() && !projectsLoading) {
+                        DropdownMenuItem(
+                            text = { Text("暂无可用项目") },
+                            onClick = {}
+                        )
+                    } else {
+                        projects.forEach { project ->
+                            DropdownMenuItem(
+                                text = { Text(project.name) },
+                                onClick = {
+                                    viewModel.updateProjectId(project.id)
+                                    viewModel.toggleProjectDropdown()
+                                }
+                            )
+                        }
                     }
                 }
             }

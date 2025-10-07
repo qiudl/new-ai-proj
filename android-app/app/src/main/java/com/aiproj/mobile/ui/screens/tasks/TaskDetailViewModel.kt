@@ -486,7 +486,7 @@ class TaskDetailViewModel @Inject constructor(
         // 5. 计算每个任务的工作时长
         val taskWorkHours = filteredSubtasks.associateWith { subtask ->
             filteredTimeLogs
-                .filter { it.taskId == subtask.id }
+                .filter { it.taskId == subtask.id.toLong() }
                 .sumOf { (it.duration ?: 0).toLong() } / 60.0f
         }.filter { it.value > 0 }
 

@@ -84,12 +84,12 @@ fun CompletionTrendChart(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = "${latestPoint.planned} 个",
+                                        text = "${latestPoint.planned}",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF2196F3)
                                     )
-                                </Column>
+                                }
 
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
@@ -98,12 +98,12 @@ fun CompletionTrendChart(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = "${latestPoint.actual} 个",
+                                        text = "${latestPoint.actual}",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF4CAF50)
                                     )
-                                </Column>
+                                }
                             }
 
                             // 完成率

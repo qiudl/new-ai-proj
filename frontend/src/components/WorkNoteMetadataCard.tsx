@@ -3,7 +3,7 @@ import { Card, Row, Col, Space, Tag, Divider, Typography } from 'antd';
 import {
   FolderOutlined,
   FileTextOutlined,
-  PriorityHighOutlined,
+  FlagOutlined,
   LockOutlined,
   TeamOutlined,
   GlobalOutlined,
@@ -130,7 +130,7 @@ const WorkNoteMetadataCard: React.FC<WorkNoteMetadataCardProps> = ({
       />
 
       <MetadataRow
-        icon={<PriorityHighOutlined />}
+        icon={<FlagOutlined />}
         label="优先级"
         value={
           <Tag color={priorityConfig.color}>
