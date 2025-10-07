@@ -60,21 +60,24 @@ func (r *EfficiencyRepository) GetDailyEfficiencyMetrics(userID int, startDate, 
 	var metrics []models.EfficiencyMetrics
 	for rows.Next() {
 		var m models.EfficiencyMetrics
+		var totalWorkMinutes, focusTime float64
 		var avgDuration float64
 		var tasksCompleted, tasksStarted int
 
 		err := rows.Scan(
 			&m.Date,
-			&m.TotalWorkMinutes,
+			&totalWorkMinutes,
 			&tasksCompleted,
 			&tasksStarted,
-			&m.FocusTime,
+			&focusTime,
 			&avgDuration,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan efficiency metrics: %w", err)
 		}
 
+		m.TotalWorkMinutes = int(totalWorkMinutes)
+		m.FocusTime = int(focusTime)
 		m.TasksCompleted = tasksCompleted
 		m.TasksStarted = tasksStarted
 		m.AvgTaskDuration = avgDuration

@@ -32,6 +32,9 @@ import com.aiproj.mobile.data.models.TaskStatus
 import com.aiproj.mobile.data.models.TaskSuggestion
 import com.aiproj.mobile.ui.components.NotificationsSection
 import com.aiproj.mobile.ui.components.TimeStatsChart
+import com.aiproj.mobile.ui.screens.dashboard.components.TimerDashboardCard
+import com.aiproj.mobile.ui.screens.timer.TimerUiState
+import com.aiproj.mobile.ui.screens.timer.TimerViewModel
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
@@ -42,14 +45,17 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 fun DashboardScreen(
     onTaskClick: (Int) -> Unit,
     onProjectClick: (Int) -> Unit,
+    onNavigateToTimer: () -> Unit,
     onTodayTasksClick: (date: String?, projectId: Int?) -> Unit = { _, _ -> },
     onWorkTimeClick: (projectId: Int?) -> Unit = {},
     onTodayWorkTimeClick: () -> Unit = {},
     onActiveProjectsClick: () -> Unit = {},
     onPendingTasksClick: (projectId: Int?) -> Unit = {},
-    viewModel: DashboardViewModel = hiltViewModel()
+    viewModel: DashboardViewModel = hiltViewModel(),
+    timerViewModel: TimerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val timerState by timerViewModel.uiState.collectAsState()
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoading)
 
     Scaffold(
@@ -117,14 +123,29 @@ fun DashboardScreen(
                         }
                     }
 
-                    // 当前计时器
+                    // 计时器卡片
                     item {
-                        uiState.currentTimer?.let { timer ->
-                            CurrentTimerCard(
-                                timer = timer,
-                                onStopTimer = { viewModel.stopTimer() }
-                            )
+                        // 提取计时器数据
+                        val currentTimer = when (val state = timerState) {
+                            is TimerUiState.Active -> state.timer
+                            else -> null
                         }
+                        val elapsedSeconds = when (val state = timerState) {
+                            is TimerUiState.Active -> state.elapsedSeconds
+                            else -> 0L
+                        }
+
+                        TimerDashboardCard(
+                            currentTimer = currentTimer,
+                            elapsedSeconds = elapsedSeconds,
+                            todayTotalMinutes = uiState.stats?.todayWorkTime ?: 0L,
+                            todayTaskCount = uiState.stats?.todayTasksCompleted ?: 0,
+                            onTimerClick = onNavigateToTimer,
+                            onPauseClick = { timerViewModel.pauseTimer() },
+                            onResumeClick = { timerViewModel.resumeTimer() },
+                            onStopClick = { timerViewModel.stopTimer() },
+                            onStartClick = onNavigateToTimer
+                        )
                     }
 
                     // 今日焦点任务

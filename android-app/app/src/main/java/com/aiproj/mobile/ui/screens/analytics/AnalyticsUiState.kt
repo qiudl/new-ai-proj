@@ -1,6 +1,8 @@
 package com.aiproj.mobile.ui.screens.analytics
 
 import androidx.compose.ui.graphics.Color
+import com.aiproj.mobile.data.models.EfficiencyTrend
+import com.aiproj.mobile.data.models.SmartSuggestion
 
 /**
  * Analytics页面UI状态
@@ -49,7 +51,15 @@ data class AnalyticsUiState(
     val priorityDistribution: PriorityStats = PriorityStats(),
 
     // 每日详情数据（单日选择时使用）
-    val selectedDayDetail: DayDetail? = null
+    val selectedDayDetail: DayDetail? = null,
+
+    // 效率分析数据（Efficiency Tab）
+    val efficiencyTrend: EfficiencyTrend? = null,
+    val smartSuggestions: List<SmartSuggestion> = emptyList(),
+    val efficiencyInsights: List<String> = emptyList(),
+    val efficiencySummary: String = "",
+    val isLoadingEfficiency: Boolean = false,
+    val efficiencyError: String? = null
 )
 
 /**

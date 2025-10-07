@@ -47,6 +47,8 @@ fun EfficiencyAnalysisCard(
             }
 
             // 最低工作日
+            // TODO: 恢复后端API返回的EfficiencyMetrics字段后取消注释
+            /*
             metrics.leastProductiveDay?.let { day ->
                 EfficiencyMetricItem(
                     icon = Icons.Default.TrendingDown,
@@ -56,6 +58,7 @@ fun EfficiencyAnalysisCard(
                     detail = "%.1fh · %d个任务".format(day.hours, day.completedTasks)
                 )
             }
+            */
 
             // 平均时长
             EfficiencyMetricItem(
@@ -63,7 +66,7 @@ fun EfficiencyAnalysisCard(
                 iconTint = MaterialTheme.colorScheme.primary,
                 label = "平均时长",
                 value = "%.1fh/天".format(metrics.avgTaskDuration),
-                detail = "共 ${metrics.totalSessions} 个时间段"
+                detail = "基于每日数据统计"
             )
         }
     }

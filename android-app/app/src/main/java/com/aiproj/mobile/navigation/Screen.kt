@@ -44,6 +44,9 @@ sealed class Screen(val route: String) {
     // 计时器历史记录
     object TimerHistory : Screen("timer_history")
 
+    // 3日效率对比
+    object EfficiencyComparison : Screen("efficiency_comparison")
+
     // 个人中心
     object Profile : Screen("profile")
 

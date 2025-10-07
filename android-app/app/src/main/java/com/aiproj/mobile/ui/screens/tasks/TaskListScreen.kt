@@ -1,5 +1,6 @@
 package com.aiproj.mobile.ui.screens.tasks
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,8 +25,11 @@ import com.aiproj.mobile.data.models.TaskStatus
 import com.aiproj.mobile.ui.components.ExpandableHierarchicalTaskItem
 import com.aiproj.mobile.ui.components.HierarchicalTaskItem
 import com.aiproj.mobile.ui.components.SwipeableTaskItem
+import com.aiproj.mobile.ui.screens.tasks.components.ProjectFilterPanel
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+
+private const val TAG = "TaskListScreen"
 
 /**
  * 任务列表页面 (使用Paging 3)
@@ -39,6 +43,22 @@ fun TaskListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
+
+    // 🆕 收集项目相关状态
+    val projects by viewModel.projects.collectAsState()
+    val isProjectPanelExpanded by viewModel.isProjectPanelExpanded.collectAsState()
+    val projectsLoading by viewModel.projectsLoading.collectAsState()
+
+    // 🆕 首次加载项目列表
+    LaunchedEffect(Unit) {
+        Log.d(TAG, "TaskListScreen composed, loading projects...")
+        viewModel.loadProjects()
+    }
+
+    // 🆕 监听项目过滤变化
+    LaunchedEffect(filterState.selectedProjectId) {
+        Log.d(TAG, "Project filter changed: ${filterState.selectedProjectId}")
+    }
 
     // 收集Paging数据
     val tasksPagingItems = viewModel.tasksPagingData.collectAsLazyPagingItems()
@@ -147,6 +167,23 @@ fun TaskListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // 🆕 项目过滤面板
+            ProjectFilterPanel(
+                projects = projects,
+                selectedProjectId = filterState.selectedProjectId,
+                isExpanded = isProjectPanelExpanded,
+                isLoading = projectsLoading,
+                onProjectSelect = { projectId ->
+                    Log.d(TAG, "User selected project: $projectId")
+                    viewModel.filterByProject(projectId)
+                },
+                onToggleExpand = {
+                    Log.d(TAG, "Toggling project panel")
+                    viewModel.toggleProjectPanel()
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
             // 搜索框
             SearchBar(
                 query = filterState.searchQuery,

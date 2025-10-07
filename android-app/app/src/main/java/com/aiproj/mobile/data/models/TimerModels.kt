@@ -263,3 +263,39 @@ data class TimerHistoryResponse(
     @SerializedName("stats")
     val stats: TimeStatsData? = null
 )
+
+/**
+ * 计时器智能建议
+ * 对应后端模型: TimerSuggestion
+ */
+data class TimerSuggestion(
+    @SerializedName("id")
+    val id: String,
+
+    @SerializedName("type")
+    val type: String,  // "incomplete_task", "recurring_task", "peak_time", "break_reminder", "focus_mode"
+
+    @SerializedName("task_id")
+    val taskId: Long?,
+
+    @SerializedName("task_title")
+    val taskTitle: String?,
+
+    @SerializedName("project_name")
+    val projectName: String?,
+
+    @SerializedName("reason")
+    val reason: String,
+
+    @SerializedName("confidence")
+    val confidence: Double,  // 0-1, 建议置信度
+
+    @SerializedName("estimated_minutes")
+    val estimatedMinutes: Int?,
+
+    @SerializedName("priority")
+    val priority: String?,
+
+    @SerializedName("tags")
+    val tags: List<String>?
+)

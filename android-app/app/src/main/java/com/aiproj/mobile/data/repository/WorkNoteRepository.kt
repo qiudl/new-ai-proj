@@ -1,5 +1,6 @@
 package com.aiproj.mobile.data.repository
 
+import android.util.Log
 import com.aiproj.mobile.data.api.WorkNoteApi
 import com.aiproj.mobile.data.local.CacheManager
 import com.aiproj.mobile.data.models.*
@@ -14,6 +15,9 @@ class WorkNoteRepository @Inject constructor(
     private val cacheManager: CacheManager,
     private val json: Json
 ) {
+    companion object {
+        private const val TAG = "WorkNoteRepository"
+    }
 
     // ========== 笔记CRUD ==========
 
@@ -126,15 +130,24 @@ class WorkNoteRepository @Inject constructor(
     }
 
     suspend fun deleteNote(id: Int): Result<Unit> {
+        Log.d(TAG, "开始删除笔记 - noteId: $id")
         return try {
             val response = api.deleteWorkNote(id)
+            Log.d(TAG, "删除笔记API响应 - noteId: $id, code: ${response.code()}, successful: ${response.isSuccessful}")
+
             if (response.isSuccessful) {
+                Log.i(TAG, "笔记删除成功 - noteId: $id, 开始清除缓存")
                 removeCachedNote(id)
+                Log.i(TAG, "缓存清除完成 - noteId: $id")
                 Result.success(Unit)
             } else {
-                Result.failure(Exception("删除笔记失败"))
+                val errorBody = response.errorBody()?.string()
+                val errorMsg = "删除笔记失败 - HTTP ${response.code()}: $errorBody"
+                Log.e(TAG, "删除笔记失败 - noteId: $id, code: ${response.code()}, error: $errorBody")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "删除笔记异常 - noteId: $id, exception: ${e.javaClass.simpleName}, message: ${e.message}", e)
             Result.failure(e)
         }
     }

@@ -52,6 +52,12 @@ import WorkNoteFolderTree from './WorkNoteFolderTree';
 import FolderBreadcrumb from './FolderBreadcrumb';
 import FolderDetailDrawer from './FolderDetailDrawer';
 import { FolderDialog, DeleteFolderDialog, MoveFolderDialog, FolderFormValues } from './FolderDialogs';
+import {
+  deletionManager,
+  getCurrentUserInfo,
+  showUndoNotification,
+  parseErrorMessage
+} from '../utils/deletionManager';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -633,16 +639,117 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     }
   };
 
-  // 删除工作笔记
+  // 删除工作笔记 - 增强版本（带撤销和日志）
   const handleDelete = async (id: number) => {
-    try {
-      await workNotesService.deleteWorkNote(id);
-      message.success('工作笔记删除成功');
-      loadWorkNotes();
-    } catch (error) {
-      console.error('Failed to delete work note:', error);
-      message.error('删除失败');
+    const note = workNotes.find(n => n.id === id);
+    if (!note) {
+      message.error('找不到要删除的笔记');
+      return;
     }
+
+    // 添加到删除队列
+    if (!deletionManager.addToQueue(note)) {
+      // 如果添加失败（重复删除），直接返回
+      return;
+    }
+
+    const userInfo = getCurrentUserInfo();
+    let undoTimeoutId: NodeJS.Timeout | null = null;
+    let isUndone = false;
+
+    // 撤销函数
+    const handleUndo = () => {
+      isUndone = true;
+      if (undoTimeoutId) {
+        clearTimeout(undoTimeoutId);
+      }
+      deletionManager.removeFromQueue(id);
+      deletionManager.logDeletion({
+        userId: userInfo.userId,
+        username: userInfo.username,
+        noteId: id,
+        noteTitle: note.title,
+        operationType: 'single',
+        status: 'cancelled',
+        undoAvailable: false,
+      });
+      message.info(`已取消删除笔记: ${note.title}`);
+      console.log(`[Delete] 用户撤销了笔记 #${id} 的删除`);
+    };
+
+    // 显示撤销通知
+    showUndoNotification(note, handleUndo, 5);
+
+    // 设置5秒延迟后执行实际删除
+    undoTimeoutId = setTimeout(async () => {
+      if (isUndone) {
+        return;
+      }
+
+      try {
+        // 更新队列状态为删除中
+        deletionManager.updateQueueItemStatus(id, 'deleting');
+
+        // 执行删除
+        await workNotesService.deleteWorkNote(id);
+
+        // 更新队列状态为成功
+        deletionManager.updateQueueItemStatus(id, 'success');
+
+        // 记录成功日志
+        deletionManager.logDeletion({
+          userId: userInfo.userId,
+          username: userInfo.username,
+          noteId: id,
+          noteTitle: note.title,
+          operationType: 'single',
+          status: 'success',
+          undoAvailable: false,
+        });
+
+        console.log(`[Delete] 成功删除笔记 #${id} "${note.title}"`);
+
+        // 从队列中移除
+        deletionManager.removeFromQueue(id);
+
+        // 刷新列表
+        loadWorkNotes(true);
+      } catch (error: any) {
+        const errorInfo = parseErrorMessage(error);
+
+        // 更新队列状态为失败
+        deletionManager.updateQueueItemStatus(id, 'failed', errorInfo.technicalMessage);
+
+        // 记录失败日志
+        deletionManager.logDeletion({
+          userId: userInfo.userId,
+          username: userInfo.username,
+          noteId: id,
+          noteTitle: note.title,
+          operationType: 'single',
+          status: 'failed',
+          errorMessage: errorInfo.technicalMessage,
+          undoAvailable: false,
+        });
+
+        console.error(`[Delete] 删除笔记 #${id} 失败:`, errorInfo.technicalMessage);
+        message.error(errorInfo.userMessage);
+
+        // 如果可重试，询问用户
+        if (errorInfo.retryable) {
+          Modal.confirm({
+            title: '删除失败',
+            content: `${errorInfo.userMessage}，是否重试？`,
+            okText: '重试',
+            cancelText: '取消',
+            onOk: () => handleDelete(id),
+          });
+        }
+
+        // 从队列中移除
+        deletionManager.removeFromQueue(id);
+      }
+    }, 5000);
   };
 
   // 复制工作笔记
@@ -740,60 +847,232 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     loadWorkNotes();
   };
 
-  // 批量操作功能 - 优化版本
+  // 批量操作功能 - 增强版本（带撤销、队列管理和详细日志）
   const handleBatchDelete = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('请先选择要删除的笔记');
       return;
     }
 
+    const notesToDelete = workNotes.filter(note => selectedRowKeys.includes(note.id));
+    const userInfo = getCurrentUserInfo();
+
     Modal.confirm({
       title: '批量删除确认',
-      content: `确定要删除选中的 ${selectedRowKeys.length} 个工作笔记吗？此操作不可恢复。`,
+      content: (
+        <div>
+          <div style={{ marginBottom: 12 }}>
+            确定要删除选中的 <strong>{notesToDelete.length}</strong> 个工作笔记吗？
+          </div>
+          <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+            笔记将在5秒内可撤销，之后将永久删除
+          </div>
+        </div>
+      ),
       okText: '确定删除',
       cancelText: '取消',
       okType: 'danger',
       onOk: async () => {
-        try {
-          setBatchLoading(true);
-          let successCount = 0;
-          let failureCount = 0;
-          
-          // 分批处理，避免同时发送过多请求
-          const batchSize = 5;
-          for (let i = 0; i < selectedRowKeys.length; i += batchSize) {
-            const batch = selectedRowKeys.slice(i, i + batchSize);
-            const promises = batch.map(async (id) => {
-              try {
-                await workNotesService.deleteWorkNote(Number(id));
-                successCount++;
-              } catch (error) {
-                failureCount++;
-                console.error(`删除笔记 ${id} 失败:`, error);
-              }
-            });
-            
-            await Promise.all(promises);
-            
-            // 显示进度
-            if (selectedRowKeys.length > batchSize) {
-              message.loading(`正在删除... ${Math.min(i + batchSize, selectedRowKeys.length)}/${selectedRowKeys.length}`, 0.5);
-            }
-          }
-          
-          if (successCount > 0) {
-            message.success(`成功删除 ${successCount} 个工作笔记${failureCount > 0 ? `，失败 ${failureCount} 个` : ''}`);
-            setSelectedRowKeys([]);
-            loadWorkNotes(true); // 强制刷新
-          } else {
-            message.error('批量删除失败');
-          }
-        } catch (error) {
-          console.error('批量删除失败:', error);
-          message.error('批量删除失败');
-        } finally {
-          setBatchLoading(false);
+        // 批量添加到队列
+        const addedNotes = deletionManager.addBatchToQueue(notesToDelete);
+        if (addedNotes.length === 0) {
+          message.warning('所有笔记都已在删除队列中');
+          return;
         }
+
+        let isUndone = false;
+        let undoTimeoutId: NodeJS.Timeout | null = null;
+
+        // 撤销函数
+        const handleUndo = () => {
+          isUndone = true;
+          if (undoTimeoutId) {
+            clearTimeout(undoTimeoutId);
+          }
+
+          // 从队列中移除所有笔记
+          addedNotes.forEach(note => {
+            deletionManager.removeFromQueue(note.id);
+            deletionManager.logDeletion({
+              userId: userInfo.userId,
+              username: userInfo.username,
+              noteId: note.id,
+              noteTitle: note.title,
+              operationType: 'batch',
+              status: 'cancelled',
+              undoAvailable: false,
+            });
+          });
+
+          message.info(`已取消删除 ${addedNotes.length} 个笔记`);
+          console.log(`[BatchDelete] 用户撤销了 ${addedNotes.length} 个笔记的批量删除`);
+        };
+
+        // 显示撤销通知（使用第一个笔记的信息）
+        notification.success({
+          message: `批量删除 ${addedNotes.length} 个笔记`,
+          description: (
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                笔记列表: {addedNotes.slice(0, 3).map(n => n.title).join(', ')}
+                {addedNotes.length > 3 && ` 等${addedNotes.length}个`}
+              </div>
+              <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+                5秒内可撤销
+              </div>
+            </div>
+          ),
+          duration: 5,
+          btn: (
+            <button
+              onClick={() => {
+                handleUndo();
+                notification.destroy();
+              }}
+              style={{
+                padding: '4px 12px',
+                background: '#1890ff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 500,
+              }}
+            >
+              <UndoOutlined /> 撤销全部
+            </button>
+          ),
+          placement: 'bottomRight',
+        });
+
+        // 设置5秒延迟后执行批量删除
+        undoTimeoutId = setTimeout(async () => {
+          if (isUndone) {
+            return;
+          }
+
+          try {
+            setBatchLoading(true);
+            let successCount = 0;
+            let failureCount = 0;
+            const failedNotes: { note: WorkNote; error: string }[] = [];
+
+            // 分批处理，避免同时发送过多请求
+            const batchSize = 5;
+            for (let i = 0; i < addedNotes.length; i += batchSize) {
+              const batch = addedNotes.slice(i, i + batchSize);
+              const promises = batch.map(async (note) => {
+                try {
+                  // 更新队列状态
+                  deletionManager.updateQueueItemStatus(note.id, 'deleting');
+
+                  // 执行删除
+                  await workNotesService.deleteWorkNote(note.id);
+
+                  // 更新队列状态为成功
+                  deletionManager.updateQueueItemStatus(note.id, 'success');
+
+                  // 记录成功日志
+                  deletionManager.logDeletion({
+                    userId: userInfo.userId,
+                    username: userInfo.username,
+                    noteId: note.id,
+                    noteTitle: note.title,
+                    operationType: 'batch',
+                    status: 'success',
+                    undoAvailable: false,
+                  });
+
+                  successCount++;
+                  console.log(`[BatchDelete] 成功删除笔记 #${note.id} "${note.title}"`);
+
+                  // 从队列中移除
+                  deletionManager.removeFromQueue(note.id);
+                } catch (error: any) {
+                  const errorInfo = parseErrorMessage(error);
+
+                  // 更新队列状态为失败
+                  deletionManager.updateQueueItemStatus(note.id, 'failed', errorInfo.technicalMessage);
+
+                  // 记录失败日志
+                  deletionManager.logDeletion({
+                    userId: userInfo.userId,
+                    username: userInfo.username,
+                    noteId: note.id,
+                    noteTitle: note.title,
+                    operationType: 'batch',
+                    status: 'failed',
+                    errorMessage: errorInfo.technicalMessage,
+                    undoAvailable: false,
+                  });
+
+                  failureCount++;
+                  failedNotes.push({ note, error: errorInfo.userMessage });
+                  console.error(`[BatchDelete] 删除笔记 #${note.id} 失败:`, errorInfo.technicalMessage);
+
+                  // 从队列中移除
+                  deletionManager.removeFromQueue(note.id);
+                }
+              });
+
+              await Promise.all(promises);
+
+              // 显示进度
+              if (addedNotes.length > batchSize) {
+                message.loading(
+                  `正在删除... ${Math.min(i + batchSize, addedNotes.length)}/${addedNotes.length}`,
+                  0.5
+                );
+              }
+            }
+
+            // 显示最终结果
+            if (successCount > 0) {
+              if (failureCount === 0) {
+                message.success(`成功删除 ${successCount} 个工作笔记`);
+              } else {
+                Modal.warning({
+                  title: '批量删除部分成功',
+                  content: (
+                    <div>
+                      <div style={{ marginBottom: 8 }}>
+                        成功删除 <strong>{successCount}</strong> 个笔记
+                      </div>
+                      <div style={{ marginBottom: 8 }}>
+                        失败 <strong>{failureCount}</strong> 个笔记
+                      </div>
+                      {failedNotes.length > 0 && (
+                        <div style={{ maxHeight: 200, overflow: 'auto', marginTop: 12 }}>
+                          <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>
+                            失败详情:
+                          </div>
+                          {failedNotes.map(({ note, error }) => (
+                            <div key={note.id} style={{ fontSize: 12, marginBottom: 4 }}>
+                              • #{note.id} {note.title}: {error}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ),
+                  width: 500,
+                });
+              }
+              setSelectedRowKeys([]);
+              loadWorkNotes(true); // 强制刷新
+            } else {
+              message.error('批量删除全部失败');
+            }
+
+            console.log(`[BatchDelete] 批量删除完成 - 成功: ${successCount}, 失败: ${failureCount}`);
+          } catch (error) {
+            console.error('[BatchDelete] 批量删除失败:', error);
+            message.error('批量删除失败');
+          } finally {
+            setBatchLoading(false);
+          }
+        }, 5000);
       }
     });
   };

@@ -175,7 +175,21 @@ data class TaskTimeStat(
 )
 
 /**
- * 效率指标
+ * 高效工作日
+ */
+data class ProductiveDay(
+    @SerializedName("date")
+    val date: String,
+
+    @SerializedName("hours")
+    val hours: Float,
+
+    @SerializedName("completed_tasks")
+    val completedTasks: Int
+)
+
+/**
+ * 效率指标（用于工作时长统计）
  */
 data class EfficiencyMetrics(
     @SerializedName("most_productive_day")
@@ -189,20 +203,6 @@ data class EfficiencyMetrics(
 
     @SerializedName("total_sessions")
     val totalSessions: Int
-)
-
-/**
- * 高效工作日
- */
-data class ProductiveDay(
-    @SerializedName("date")
-    val date: String,
-
-    @SerializedName("hours")
-    val hours: Float,
-
-    @SerializedName("completed_tasks")
-    val completedTasks: Int
 )
 
 // ========================================

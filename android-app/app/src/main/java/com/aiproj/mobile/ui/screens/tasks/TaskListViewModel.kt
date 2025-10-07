@@ -1,12 +1,15 @@
 package com.aiproj.mobile.ui.screens.tasks
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import com.aiproj.mobile.data.models.Project
 import com.aiproj.mobile.data.models.Task
 import com.aiproj.mobile.data.models.TaskPriority
 import com.aiproj.mobile.data.models.TaskStatus
+import com.aiproj.mobile.data.repository.ProjectRepository
 import com.aiproj.mobile.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,8 +23,13 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TaskListViewModel @Inject constructor(
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val projectRepository: ProjectRepository
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "TaskListViewModel"
+    }
 
     private val _uiState = MutableStateFlow(TaskListUiState())
     val uiState: StateFlow<TaskListUiState> = _uiState.asStateFlow()
@@ -29,6 +37,18 @@ class TaskListViewModel @Inject constructor(
     // 筛选条件
     private val _filterState = MutableStateFlow(TaskFilterState())
     val filterState: StateFlow<TaskFilterState> = _filterState.asStateFlow()
+
+    // 项目列表（用于过滤面板）
+    private val _projects = MutableStateFlow<List<Project>>(emptyList())
+    val projects: StateFlow<List<Project>> = _projects.asStateFlow()
+
+    // 项目面板展开/收起状态
+    private val _isProjectPanelExpanded = MutableStateFlow(false)
+    val isProjectPanelExpanded: StateFlow<Boolean> = _isProjectPanelExpanded.asStateFlow()
+
+    // 项目加载状态
+    private val _projectsLoading = MutableStateFlow(false)
+    val projectsLoading: StateFlow<Boolean> = _projectsLoading.asStateFlow()
 
     // Paging数据流
     val tasksPagingData: Flow<PagingData<Task>> = filterState
@@ -74,7 +94,55 @@ class TaskListViewModel @Inject constructor(
      * 筛选项目
      */
     fun filterByProject(projectId: Int?) {
+        Log.d(TAG, "filterByProject: projectId=$projectId")
         _filterState.update { it.copy(selectedProjectId = projectId) }
+    }
+
+    /**
+     * 加载项目列表（带缓存）
+     *
+     * @param forceRefresh 是否强制刷新，忽略缓存
+     */
+    fun loadProjects(forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            Log.d(TAG, "loadProjects: forceRefresh=$forceRefresh")
+            _projectsLoading.value = true
+
+            try {
+                val result = projectRepository.getProjectsCached(
+                    page = 1,
+                    pageSize = 50, // 加载足够多的项目
+                    status = "active", // 只加载活跃项目
+                    forceRefresh = forceRefresh
+                )
+
+                result.onSuccess { data ->
+                    _projects.value = data.data
+                    Log.d(TAG, "loadProjects: Success - loaded ${data.data.size} projects")
+                }.onFailure { error ->
+                    Log.e(TAG, "loadProjects: Failed - ${error.message}", error)
+                    _uiState.update {
+                        it.copy(error = error.message ?: "加载项目列表失败")
+                    }
+                }
+            } finally {
+                _projectsLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * 切换项目面板展开/收起状态
+     */
+    fun toggleProjectPanel() {
+        val newState = !_isProjectPanelExpanded.value
+        Log.d(TAG, "toggleProjectPanel: $newState")
+        _isProjectPanelExpanded.value = newState
+
+        // 如果是首次展开且项目列表为空，则加载项目
+        if (newState && _projects.value.isEmpty() && !_projectsLoading.value) {
+            loadProjects()
+        }
     }
 
     /**

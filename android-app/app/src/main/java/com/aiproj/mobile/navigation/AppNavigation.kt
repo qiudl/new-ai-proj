@@ -27,6 +27,7 @@ import com.aiproj.mobile.ui.screens.tasks.TaskFormScreen
 import com.aiproj.mobile.ui.screens.tasks.TaskListScreen
 import com.aiproj.mobile.ui.screens.timer.TimerScreen
 import com.aiproj.mobile.ui.screens.timer.history.TimerHistoryScreen
+import com.aiproj.mobile.ui.screens.efficiency.EfficiencyComparisonScreen
 import com.aiproj.mobile.ui.document.list.DocumentListScreen
 import com.aiproj.mobile.ui.document.viewer.DocumentViewerScreen
 import com.aiproj.mobile.ui.document.editor.DocumentEditorScreen
@@ -124,6 +125,9 @@ fun MainScreen(
                     },
                     onProjectClick = { projectId ->
                         // TODO: 导航到项目详情
+                    },
+                    onNavigateToTimer = {
+                        navController.navigate(Screen.Timer.route)
                     },
                     onTodayTasksClick = { date, projectId ->
                         navController.navigate(Screen.TodayTasksDetail.createRoute(date, projectId))
@@ -299,6 +303,13 @@ fun MainScreen(
                     onTaskClick = { taskId ->
                         navController.navigate(Screen.TaskDetail.createRoute(taskId.toInt()))
                     }
+                )
+            }
+
+            // 3日效率对比
+            composable(Screen.EfficiencyComparison.route) {
+                EfficiencyComparisonScreen(
+                    onBackClick = { navController.popBackStack() }
                 )
             }
 

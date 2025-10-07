@@ -446,10 +446,65 @@ class AnalyticsViewModel @Inject constructor(
     }
 
     /**
+     * 加载效率分析数据
+     */
+    fun loadEfficiencyData() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingEfficiency = true, efficiencyError = null) }
+
+            try {
+                val (startDate, endDate) = calculateDateRange(
+                    _uiState.value.selectedTimeRange,
+                    _uiState.value.customStartDate,
+                    _uiState.value.customEndDate
+                )
+
+                // 获取效率综合分析（包含趋势和建议）
+                val analysisResult = analyticsRepository.getEfficiencyAnalysis(
+                    startDate = startDate,
+                    endDate = endDate,
+                    projectId = null
+                )
+
+                if (analysisResult.isSuccess) {
+                    val analysis = analysisResult.getOrNull()
+                    if (analysis != null) {
+                        _uiState.update {
+                            it.copy(
+                                efficiencyTrend = analysis.trend,
+                                smartSuggestions = analysis.suggestions,
+                                efficiencyInsights = analysis.insights,
+                                efficiencySummary = analysis.summary,
+                                isLoadingEfficiency = false,
+                                efficiencyError = null
+                            )
+                        }
+                    } else {
+                        throw Exception("效率分析数据为空")
+                    }
+                } else {
+                    throw analysisResult.exceptionOrNull() ?: Exception("获取效率分析失败")
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoadingEfficiency = false,
+                        efficiencyError = e.message ?: "加载效率分析数据失败"
+                    )
+                }
+            }
+        }
+    }
+
+    /**
      * 选择Tab（目前所有Tab都共享同一个数据加载逻辑）
      */
     fun selectTab(tab: AnalyticsTab) {
         _uiState.update { it.copy(selectedTab = tab) }
+        // 切换到Efficiency Tab时加载效率分析数据
+        if (tab == AnalyticsTab.EFFICIENCY) {
+            loadEfficiencyData()
+        }
         // Phase 1: 暂时不实现懒加载，所有Tab都使用Overview的数据
         // Phase 2-5: 会为每个Tab实现独立的数据加载逻辑
     }

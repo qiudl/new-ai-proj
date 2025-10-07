@@ -14,7 +14,9 @@ import com.aiproj.mobile.data.api.DailyFocusTaskApi
 import com.aiproj.mobile.data.api.DashboardApi
 import com.aiproj.mobile.data.api.DetailApi
 import com.aiproj.mobile.data.api.DocumentApi
+import com.aiproj.mobile.data.api.EfficiencyApi
 import com.aiproj.mobile.data.api.ProjectApi
+import com.aiproj.mobile.data.api.SuggestionApi
 import com.aiproj.mobile.data.api.TaskApi
 import com.aiproj.mobile.data.api.TimeLogApi
 import com.aiproj.mobile.data.api.TimerApi
@@ -102,11 +104,12 @@ object NetworkModule {
             builder.addInterceptor(loggingInterceptor)
         } else {
             // Release构建：启用证书固定（安全审查要求）
-            // TODO: 获取实际证书的SHA-256指纹
-            // 命令: echo | openssl s_client -connect proj.joylodging.com:443 2>/dev/null | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
+            // Primary: proj.joylodging.com leaf certificate
+            // Backup: Let's Encrypt E8 intermediate CA
+            // Last updated: 2025-10-07
             val certificatePinner = CertificatePinner.Builder()
-                .add("proj.joylodging.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
-                .add("proj.joylodging.com", "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=") // Backup pin
+                .add("proj.joylodging.com", "sha256/kOELsxWB35wXy3x9mpbYBDvbXbu+44ulQ5GMTMw7yNc=") // Leaf cert
+                .add("proj.joylodging.com", "sha256/iFvwVyJSxnQdyaUvUERIf+8qk7gRze3612JMwoO3zdU=") // Let's Encrypt E8 CA
                 .build()
 
             builder.certificatePinner(certificatePinner)
@@ -279,6 +282,26 @@ object NetworkModule {
     @Singleton
     fun provideAIDescriptionApi(retrofit: Retrofit): AIDescriptionApi {
         return retrofit.create(AIDescriptionApi::class.java)
+    }
+
+    /**
+     * 提供 EfficiencyApi
+     * 用于效率分析和3日对比功能
+     */
+    @Provides
+    @Singleton
+    fun provideEfficiencyApi(retrofit: Retrofit): EfficiencyApi {
+        return retrofit.create(EfficiencyApi::class.java)
+    }
+
+    /**
+     * 提供 SuggestionApi
+     * 用于智能建议功能
+     */
+    @Provides
+    @Singleton
+    fun provideSuggestionApi(retrofit: Retrofit): SuggestionApi {
+        return retrofit.create(SuggestionApi::class.java)
     }
 
     /**

@@ -250,8 +250,6 @@ fun NotesScreen(
 
     // 笔记操作菜单
     selectedNote?.let { note ->
-        var showDeleteDialog by remember { mutableStateOf(false) }
-
         ModalBottomSheet(
             onDismissRequest = { selectedNote = null }
         ) {
@@ -333,7 +331,20 @@ fun NotesScreen(
                 // 删除
                 Surface(
                     onClick = {
-                        showDeleteDialog = true
+                        selectedNote?.let { note ->
+                            viewModel.confirmDelete(note.id)
+                            selectedNote = null
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = "笔记已删除",
+                                    actionLabel = "撤销",
+                                    duration = SnackbarDuration.Short // 4秒，留出足够时间撤销
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    viewModel.undoDelete()
+                                }
+                            }
+                        }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -358,33 +369,7 @@ fun NotesScreen(
             }
         }
 
-        // 删除确认对话框
-        if (showDeleteDialog) {
-            AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
-                title = { Text("删除笔记") },
-                text = { Text("确定要删除这条笔记吗？此操作无法撤销。") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            viewModel.confirmDelete(note.id)
-                            showDeleteDialog = false
-                            selectedNote = null
-                        },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text("删除")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteDialog = false }) {
-                        Text("取消")
-                    }
-                }
-            )
-        }
+        // 删除确认对话框已移除 - 改用Snackbar撤销模式（Material Design推荐）
     }
 
     // ========== 文件夹对话框 ==========

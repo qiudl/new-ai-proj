@@ -2,6 +2,9 @@ package com.aiproj.mobile.data.api
 
 import com.aiproj.mobile.data.models.ApiResponse
 import com.aiproj.mobile.data.models.DailyTasksWithTimersResponse
+import com.aiproj.mobile.data.models.EfficiencyTrendResponse
+import com.aiproj.mobile.data.models.SuggestionsApiResponse
+import com.aiproj.mobile.data.models.EfficiencyAnalysisResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
@@ -48,6 +51,40 @@ interface AnalyticsApi {
     suspend fun getDailyTasksWithTimers(
         @Query("date") date: String  // YYYY-MM-DD
     ): Response<ApiResponse<DailyTasksWithTimersResponse>>
+
+    /**
+     * 获取效率趋势数据
+     * GET /api/v1/analytics/efficiency/trend?start_date=2025-09-01&end_date=2025-09-12&project_id=1
+     */
+    @GET("analytics/efficiency/trend")
+    suspend fun getEfficiencyTrend(
+        @Query("start_date") startDate: String,  // YYYY-MM-DD
+        @Query("end_date") endDate: String,      // YYYY-MM-DD
+        @Query("project_id") projectId: Int? = null
+    ): Response<EfficiencyTrendResponse>
+
+    /**
+     * 获取智能建议
+     * GET /api/v1/analytics/efficiency/suggestions?start_date=2025-09-01&end_date=2025-09-12&priority=high
+     */
+    @GET("analytics/efficiency/suggestions")
+    suspend fun getSmartSuggestions(
+        @Query("start_date") startDate: String,  // YYYY-MM-DD
+        @Query("end_date") endDate: String,      // YYYY-MM-DD
+        @Query("project_id") projectId: Int? = null,
+        @Query("priority") priority: String? = null  // high, medium, low
+    ): Response<SuggestionsApiResponse>
+
+    /**
+     * 获取效率综合分析
+     * GET /api/v1/analytics/efficiency/analysis?start_date=2025-09-01&end_date=2025-09-12
+     */
+    @GET("analytics/efficiency/analysis")
+    suspend fun getEfficiencyAnalysis(
+        @Query("start_date") startDate: String,  // YYYY-MM-DD
+        @Query("end_date") endDate: String,      // YYYY-MM-DD
+        @Query("project_id") projectId: Int? = null
+    ): Response<EfficiencyAnalysisResponse>
 }
 
 /**

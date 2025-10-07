@@ -196,7 +196,8 @@ private fun DocumentContent(
 
     // 创建增强版Markwon实例（启用所有插件）
     val markwon = remember {
-        val prism4j = Prism4j(Prism4jGrammarLocator.create())  // 代码语法识别器
+        // TODO: 临时禁用语法高亮，因为Prism4jGrammarLocatorImpl生成失败
+        // val prism4j = Prism4j(Prism4jGrammarLocatorImpl())
 
         Markwon.builder(context)
             // HTML支持
@@ -217,11 +218,11 @@ private fun DocumentContent(
             // ✅ 任务列表（复选框）
             .usePlugin(TaskListPlugin.create(context))
 
-            // ✅ 代码语法高亮
-            .usePlugin(SyntaxHighlightPlugin.create(
-                prism4j,
-                Prism4jThemeDefault.create()  // 使用默认高亮主题
-            ))
+            // TODO: 代码语法高亮暂时禁用
+            // .usePlugin(SyntaxHighlightPlugin.create(
+            //     prism4j,
+            //     Prism4jThemeDefault.create()
+            // ))
 
             .build()
     }

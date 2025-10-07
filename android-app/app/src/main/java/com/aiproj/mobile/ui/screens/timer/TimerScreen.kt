@@ -29,6 +29,7 @@ fun TimerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var showSuggestions by remember { mutableStateOf(false) }
 
     // 监听状态变化，自动启动/停止前台服务
     LaunchedEffect(uiState) {
@@ -54,6 +55,16 @@ fun TimerScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, "返回")
+                    }
+                },
+                actions = {
+                    // Suggestions button
+                    IconButton(onClick = { showSuggestions = true }) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = "智能建议",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             )
@@ -99,6 +110,17 @@ fun TimerScreen(
                     )
                 }
             }
+        }
+
+        // Suggestions bottom sheet
+        if (showSuggestions) {
+            com.aiproj.mobile.ui.screens.suggestions.SuggestionsBottomSheet(
+                onDismiss = { showSuggestions = false },
+                onSuggestionApplied = {
+                    showSuggestions = false
+                    viewModel.refreshTimer()
+                }
+            )
         }
     }
 }
@@ -505,16 +527,6 @@ private fun StatItem(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
-}
-
-/**
- * 格式化时间 (HH:MM:SS)
- */
-private fun formatTime(seconds: Long): String {
-    val hours = seconds / 3600
-    val minutes = (seconds % 3600) / 60
-    val secs = seconds % 60
-    return String.format("%02d:%02d:%02d", hours, minutes, secs)
 }
 
 /**
