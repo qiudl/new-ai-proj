@@ -2,7 +2,7 @@ package com.aiproj.mobile.ui.screens.details.worktime
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.aiproj.mobile.data.models.WorkTimeStats
+import com.aiproj.mobile.data.models.DetailedWorkTimeStats
 import com.aiproj.mobile.data.repository.DetailRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*

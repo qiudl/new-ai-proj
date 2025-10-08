@@ -377,16 +377,42 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {
-            taskId: { 
-              type: 'number', 
-              description: '任务ID' 
+            taskId: {
+              type: 'number',
+              description: '任务ID'
             },
-            projectId: { 
-              type: 'number', 
-              description: '项目ID（可选，默认为1）' 
+            projectId: {
+              type: 'number',
+              description: '项目ID（可选，默认为1）'
             }
           },
           required: ['taskId']
+        }
+      },
+      {
+        name: 'update_task_document',
+        description: '更新任务文档内容',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: {
+              type: 'number',
+              description: '任务ID'
+            },
+            content: {
+              type: 'string',
+              description: '新的文档内容（Markdown格式）'
+            },
+            title: {
+              type: 'string',
+              description: '新的文档标题（可选）'
+            },
+            projectId: {
+              type: 'number',
+              description: '项目ID（可选，默认为1）'
+            }
+          },
+          required: ['taskId', 'content']
         }
       },
       {
@@ -1371,7 +1397,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       case 'get_task_document':
         try {
-          result = await taskServer.getTaskDocument((args as any).taskId ?? (args as any).task_id as number, (args as any).projectId ?? (args as any).project_id as number);
+          result = await taskServer.getTaskDocument((args as any).taskId ?? (args as any).task_id as number);
         } catch (e: any) {
           result = { success: false, error: e?.message || String(e) };
         }
@@ -1404,7 +1430,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       case 'has_task_document':
         try {
-          result = await taskServer.hasTaskDocument(args.taskId as number, args.projectId as number);
+          result = await taskServer.hasTaskDocument(args.taskId as number);
         } catch (e: any) {
           result = { success: false, error: e?.message || String(e) };
         }
@@ -1465,9 +1491,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       
       case 'delete_task_document':
-        result = await taskServer.deleteTaskDocument(args.taskId as number, args.projectId as number);
+        result = await taskServer.deleteTaskDocument(args.taskId as number);
         break;
-      
+
+      case 'update_task_document': {
+        const taskId = args.taskId as number;
+        const content = args.content as string;
+        const title = args.title as string | undefined;
+        const projectId = args.projectId as number | undefined;
+
+        if (!taskId) {
+          result = { success: false, error: '缺少必要参数：taskId' };
+          break;
+        }
+        if (!content || content.length === 0) {
+          result = { success: false, error: '缺少必要参数：content' };
+          break;
+        }
+
+        const updates: any = { content };
+        if (title) {
+          updates.title = title;
+        }
+
+        result = await taskServer.updateTaskDocument(taskId, updates);
+        break;
+      }
+
       case 'pause_task':
         result = await taskServer.pauseTask(args.id as number);
         break;

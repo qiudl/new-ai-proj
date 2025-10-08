@@ -10,7 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.aiproj.mobile.data.models.WorkTimeStats
+import com.aiproj.mobile.data.models.DetailedWorkTimeStats
 import com.aiproj.mobile.ui.screens.details.worktime.components.*
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
@@ -158,19 +158,19 @@ fun ErrorStateView(
 /**
  * 计算今日工作时长
  */
-private fun calculateTodayHours(stats: WorkTimeStats): Float =
+private fun calculateTodayHours(stats: DetailedWorkTimeStats): Float =
     stats.dailyStats.lastOrNull()?.hours ?: 0f
 
 /**
  * 计算今日任务数
  */
-private fun calculateTodayTaskCount(stats: WorkTimeStats): Int =
+private fun calculateTodayTaskCount(stats: DetailedWorkTimeStats): Int =
     stats.dailyStats.lastOrNull()?.completedTasks ?: 0
 
 /**
  * 计算对比昨日的百分比
  */
-private fun calculateComparison(stats: WorkTimeStats): Float {
+private fun calculateComparison(stats: DetailedWorkTimeStats): Float {
     if (stats.dailyStats.size < 2) return 0f
     val today = stats.dailyStats.last().hours
     val yesterday = stats.dailyStats[stats.dailyStats.size - 2].hours

@@ -4,7 +4,7 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("kotlin-kapt")
+    id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     kotlin("plugin.serialization") version "1.9.22"
 }
@@ -44,7 +44,7 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "API_BASE_URL", "\"https://proj.joylodging.com/api/v1/\"")
+        buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.7:8080/api/v1/\"")
     }
 
     buildTypes {
@@ -56,7 +56,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "API_BASE_URL", "\"https://proj.joylodging.com/api/v1/\"")
+            buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.7:8080/api/v1/\"")
 
             // 安全配置：禁用调试信息
             isDebuggable = false
@@ -69,7 +69,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
-            buildConfigField("String", "API_BASE_URL", "\"https://proj.joylodging.com/api/v1/\"")
+            buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.7:8080/api/v1/\"")
         }
     }
 
@@ -125,7 +125,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
     implementation("com.google.dagger:hilt-android:2.50")
-    kapt("com.google.dagger:hilt-android-compiler:2.50")
+    ksp("com.google.dagger:hilt-android-compiler:2.50")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
@@ -148,13 +148,13 @@ dependencies {
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
-    kapt("androidx.room:room-compiler:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
 
     // WorkManager
     val workVersion = "2.9.0"
     implementation("androidx.work:work-runtime-ktx:$workVersion")
     implementation("androidx.hilt:hilt-work:1.1.0")
-    kapt("androidx.hilt:hilt-compiler:1.1.0")
+    ksp("androidx.hilt:hilt-compiler:1.1.0")
 
     // Paging 3
     val pagingVersion = "3.2.1"
@@ -200,7 +200,7 @@ dependencies {
     }
 
     // Prism4j - 代码语法高亮注解处理器
-    kapt("io.noties:prism4j-bundler:2.0.0")
+    // kapt("io.noties:prism4j-bundler:2.0.0") // 暂时注释掉，可能导致kapt问题
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test:1.9.22")
@@ -214,12 +214,13 @@ dependencies {
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.50")
-    kaptAndroidTest("com.google.dagger:hilt-android-compiler:2.50")
+    kspAndroidTest("com.google.dagger:hilt-android-compiler:2.50")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
-kapt {
-    correctErrorTypes = true
+// Migrated from kapt to ksp for better performance
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }

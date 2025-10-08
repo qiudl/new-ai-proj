@@ -27,6 +27,7 @@ class TimerCache @Inject constructor(
 ) {
 
     companion object {
+        private const val TAG = "TimerCache"
         private val CURRENT_TIMER_KEY = stringPreferencesKey("current_timer")
         private val OFFLINE_RECORDS_KEY = stringPreferencesKey("offline_records")
         private val LAST_SYNC_TIME_KEY = longPreferencesKey("last_sync_time")
@@ -36,9 +37,14 @@ class TimerCache @Inject constructor(
      * 保存当前计时器
      */
     suspend fun saveCurrentTimer(timer: TimerStatus) {
+        android.util.Log.d(TAG, "💾 开始保存Timer: id=${timer.id}, status=${timer.status}, taskId=${timer.taskId}")
+        val json = gson.toJson(timer)
+        android.util.Log.d(TAG, "📝 序列化JSON: $json")
+
         dataStore.edit { preferences ->
-            preferences[CURRENT_TIMER_KEY] = gson.toJson(timer)
+            preferences[CURRENT_TIMER_KEY] = json
         }
+        android.util.Log.d(TAG, "✅ Timer保存到DataStore完成")
     }
 
     /**
@@ -48,8 +54,18 @@ class TimerCache @Inject constructor(
         val json = dataStore.data.first()[CURRENT_TIMER_KEY]
         return if (json != null) {
             try {
-                gson.fromJson(json, TimerStatus::class.java)
+                val timer = gson.fromJson(json, TimerStatus::class.java)
+                // 验证数据完整性
+                if (timer != null && timer.status != null) {
+                    timer
+                } else {
+                    android.util.Log.w("TimerCache", "Timer数据损坏: status为null, 清除缓存")
+                    clearCurrentTimer()
+                    null
+                }
             } catch (e: Exception) {
+                android.util.Log.e("TimerCache", "反序列化Timer失败", e)
+                clearCurrentTimer()
                 null
             }
         } else {
@@ -62,14 +78,29 @@ class TimerCache @Inject constructor(
      */
     fun observeCurrentTimer(): Flow<TimerStatus?> {
         return dataStore.data.map { preferences ->
+            android.util.Log.d(TAG, "🔄 Flow触发: 读取DataStore")
             val json = preferences[CURRENT_TIMER_KEY]
+
             if (json != null) {
+                android.util.Log.d(TAG, "📄 读取到JSON: ${json.take(100)}...")
                 try {
-                    gson.fromJson(json, TimerStatus::class.java)
+                    val timer = gson.fromJson(json, TimerStatus::class.java)
+                    android.util.Log.d(TAG, "🔍 反序列化结果: timer=$timer")
+
+                    // 验证数据完整性
+                    if (timer != null && timer.status != null) {
+                        android.util.Log.d(TAG, "✅ 验证通过: id=${timer.id}, status=${timer.status}")
+                        timer
+                    } else {
+                        android.util.Log.w(TAG, "⚠️ 验证失败: timer=$timer, status=${timer?.status}")
+                        null
+                    }
                 } catch (e: Exception) {
+                    android.util.Log.e(TAG, "❌ 反序列化Timer失败", e)
                     null
                 }
             } else {
+                android.util.Log.d(TAG, "📭 缓存为空")
                 null
             }
         }

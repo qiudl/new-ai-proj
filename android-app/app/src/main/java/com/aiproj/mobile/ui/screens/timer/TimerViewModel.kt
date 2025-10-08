@@ -37,17 +37,22 @@ class TimerViewModel @Inject constructor(
      */
     private fun observeTimer() {
         viewModelScope.launch {
+            android.util.Log.d(TAG, "🔭 开始观察Timer状态变化")
             timerRepository.observeCurrentTimer()
                 .catch { e ->
+                    android.util.Log.e(TAG, "❌ observeTimer异常: ${e.message}", e)
                     _uiState.value = TimerUiState.Error(
                         message = e.message ?: "加载计时器失败",
                         canRetry = true
                     )
                 }
                 .collectLatest { timer ->
+                    android.util.Log.d(TAG, "📬 收到Timer更新: timer=$timer")
                     if (timer != null) {
+                        android.util.Log.d(TAG, "✅ Timer不为null，调用handleTimerUpdate")
                         handleTimerUpdate(timer)
                     } else {
+                        android.util.Log.w(TAG, "📭 Timer为null，设置UI为Idle")
                         _uiState.value = TimerUiState.Idle
                         stopTicker()
                         stopSync()
@@ -56,14 +61,32 @@ class TimerViewModel @Inject constructor(
         }
     }
 
+    companion object {
+        private const val TAG = "TimerViewModel"
+    }
+
     /**
      * 处理计时器更新
      */
     private fun handleTimerUpdate(timer: TimerStatus) {
+        android.util.Log.d(TAG, "🔄 handleTimerUpdate: id=${timer.id}, status=${timer.status}")
+
+        // 添加空安全检查 - 防止损坏的缓存数据导致崩溃
+        if (timer.status == null) {
+            android.util.Log.w(TAG, "⚠️ 检测到损坏的Timer数据,status为null,清除缓存")
+            viewModelScope.launch {
+                timerRepository.stopTimer()  // 清除损坏的缓存
+            }
+            _uiState.value = TimerUiState.Idle
+            return
+        }
+
         val status = TimerStatusEnum.fromString(timer.status)
+        android.util.Log.d(TAG, "📊 Timer状态枚举: $status")
 
         when (status) {
             TimerStatusEnum.RUNNING -> {
+                android.util.Log.d(TAG, "▶️ Timer状态: RUNNING, 设置UI为Active")
                 _uiState.value = TimerUiState.Active(
                     timer = timer,
                     elapsedSeconds = timer.elapsedSeconds,
@@ -75,6 +98,7 @@ class TimerViewModel @Inject constructor(
             }
 
             TimerStatusEnum.PAUSED -> {
+                android.util.Log.d(TAG, "⏸️ Timer状态: PAUSED, 设置UI为Active(paused)")
                 _uiState.value = TimerUiState.Active(
                     timer = timer,
                     elapsedSeconds = timer.elapsedSeconds,
@@ -86,6 +110,7 @@ class TimerViewModel @Inject constructor(
             }
 
             TimerStatusEnum.COMPLETED, TimerStatusEnum.CANCELLED -> {
+                android.util.Log.d(TAG, "⏹️ Timer状态: $status, 设置UI为Idle")
                 _uiState.value = TimerUiState.Idle
                 stopTicker()
                 stopSync()
@@ -104,6 +129,7 @@ class TimerViewModel @Inject constructor(
         autoStopOthers: Boolean = true
     ) {
         viewModelScope.launch {
+            android.util.Log.d(TAG, "🚀 用户请求启动Timer: title=$title, taskId=$taskId")
             _uiState.value = TimerUiState.Loading
 
             val request = StartTimerRequest(
@@ -115,7 +141,12 @@ class TimerViewModel @Inject constructor(
             )
 
             val result = timerRepository.startTimer(request)
+            result.onSuccess { timer ->
+                android.util.Log.d(TAG, "✅ startTimer成功: id=${timer.id}, status=${timer.status}")
+                android.util.Log.d(TAG, "⏳ 等待observeTimer自动更新UI...")
+            }
             result.onFailure { e ->
+                android.util.Log.e(TAG, "❌ startTimer失败: ${e.message}")
                 _uiState.value = TimerUiState.Error(
                     message = e.message ?: "启动计时器失败",
                     canRetry = true

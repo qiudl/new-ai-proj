@@ -109,6 +109,10 @@ class TimerForegroundService : Service() {
             return
         }
 
+        // 立即显示初始通知（避免超时崩溃）
+        val initialNotification = notificationHelper.createLoadingNotification(title)
+        startForeground(NOTIFICATION_ID, initialNotification)
+
         serviceScope.launch {
             val request = StartTimerRequest(
                 taskId = taskId,
@@ -123,8 +127,9 @@ class TimerForegroundService : Service() {
                 elapsedSeconds = timer.elapsedSeconds
                 _timerState.value = TimerServiceState.Running(timer)
 
+                // 更新为运行中通知
                 val notification = notificationHelper.createRunningNotification(timer, elapsedSeconds)
-                startForeground(NOTIFICATION_ID, notification)
+                notificationManager.notify(NOTIFICATION_ID, notification)
                 startLocalTick()
                 startPeriodicSync()
             }.onFailure {

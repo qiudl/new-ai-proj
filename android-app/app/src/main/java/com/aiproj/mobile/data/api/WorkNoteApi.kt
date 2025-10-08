@@ -43,7 +43,7 @@ interface WorkNoteApi {
     @DELETE("work-notes/{id}")
     suspend fun deleteWorkNote(
         @Path("id") id: Int
-    ): Response<Unit>
+    ): Response<ApiResponse<Unit>>
 
     @GET("work-notes/search")
     suspend fun searchWorkNotes(

@@ -107,16 +107,15 @@ export class DocumentService extends BaseClient {
     }
   }
 
-  // 获取任务文档
-  async getTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
+  // 获取任务文档（使用MCP路由，自动查询projectId）
+  async getTaskDocument(taskId: number): Promise<ApiResponse> {
     try {
-      const response = await this.makeRequest('GET', `/projects/${projectId}/tasks/${taskId}/documents`);
+      const response = await this.makeRequest('GET', `/mcp/task-document/${taskId}`);
 
       if (response.success) {
         return {
           success: true,
           task_id: taskId,
-          project_id: projectId,
           documents: response.data,
           message: `📄 获取任务 ${taskId} 的文档成功`
         };
@@ -131,19 +130,18 @@ export class DocumentService extends BaseClient {
     }
   }
 
-  // 检查任务是否有文档
-  async hasTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
+  // 检查任务是否有文档（使用MCP路由，自动查询projectId）
+  async hasTaskDocument(taskId: number): Promise<ApiResponse> {
     try {
-      const response = await this.makeRequest('GET', `/projects/${projectId}/tasks/${taskId}/documents/has`);
+      const response = await this.makeRequest('GET', `/mcp/task-document/${taskId}/exists`);
 
       if (response.success) {
         return {
           success: true,
           task_id: taskId,
-          project_id: projectId,
           has_document: response.data?.has_document || response.data || false,
-          message: (response.data?.has_document || response.data) 
-            ? `✅ 任务 ${taskId} 已有关联文档` 
+          message: (response.data?.has_document || response.data)
+            ? `✅ 任务 ${taskId} 已有关联文档`
             : `📄 任务 ${taskId} 暂无关联文档`
         };
       } else {
@@ -157,20 +155,16 @@ export class DocumentService extends BaseClient {
     }
   }
 
-  // 删除任务文档
+  // 删除任务文档（使用MCP路由，自动查询projectId）
   // @requiresPermission('delete_document')
-  async deleteTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
+  async deleteTaskDocument(taskId: number): Promise<ApiResponse> {
     try {
-      const response = await this.makeRequest('DELETE', `/mcp/delete-task-document`, undefined, {
-        taskId: taskId,
-        projectId: projectId
-      });
+      const response = await this.makeRequest('DELETE', `/mcp/task-document/${taskId}`);
 
       if (response.success) {
         return {
           success: true,
           task_id: taskId,
-          project_id: projectId,
           message: `🗑️ 任务 ${taskId} 的文档已删除`
         };
       } else {

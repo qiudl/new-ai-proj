@@ -31,17 +31,25 @@ class TimerRepository @Inject constructor(
      */
     suspend fun startTimer(request: StartTimerRequest): Result<TimerStatus> {
         return try {
+            android.util.Log.d(TAG, "📤 发起启动Timer请求: title=${request.title}, taskId=${request.taskId}")
             val response = api.startTimer(request)
+
             if (response.isSuccessful && response.body()?.success == true) {
                 val timer = response.body()!!.data!!
+                android.util.Log.d(TAG, "✅ API返回成功: id=${timer.id}, status=${timer.status}, taskId=${timer.taskId}")
+
                 // 保存到本地缓存
                 cache.saveCurrentTimer(timer)
+                android.util.Log.d(TAG, "💾 已调用saveCurrentTimer保存到缓存")
+
                 Result.success(timer)
             } else {
                 val errorMsg = response.body()?.error ?: "启动计时器失败"
+                android.util.Log.e(TAG, "❌ API失败: $errorMsg, code=${response.code()}")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ 网络异常，进入离线模式: ${e.message}", e)
             // 离线模式：创建本地计时器并立即返回
             val localTimer = createLocalTimer(request)
             cache.saveCurrentTimer(localTimer)
@@ -51,6 +59,10 @@ class TimerRepository @Inject constructor(
 
             Result.success(localTimer)
         }
+    }
+
+    companion object {
+        private const val TAG = "TimerRepository"
     }
 
     /**

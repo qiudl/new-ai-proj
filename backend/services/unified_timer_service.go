@@ -60,24 +60,34 @@ type UnifiedTimerResponse struct {
 	Data      interface{} `json:"data,omitempty"`
 }
 
-// TimerStatus 计时器状态
+// TimerStatus 计时器状态（兼容Android和Web端）
 type TimerStatus struct {
 	ID                int                    `json:"id"`
 	UserID            int                    `json:"user_id"`
-	TargetType        string                 `json:"target_type"`
-	TargetID          *int                   `json:"target_id"`
-	TargetTitle       string                 `json:"target_title"`
+	TargetType        string                 `json:"target_type,omitempty"`
+	TargetID          *int                   `json:"target_id,omitempty"`
+	TaskID            *int                   `json:"task_id,omitempty"` // Android端兼容字段，映射到TargetID
+	TargetTitle       string                 `json:"target_title,omitempty"`
+	TaskTitle         *string                `json:"task_title,omitempty"` // Android端兼容字段，映射到TargetTitle
+	ProjectName       *string                `json:"project_name,omitempty"` // Android端兼容字段
+	TimerType         string                 `json:"timer_type,omitempty"` // Android端兼容字段，映射到TargetType
 	Status            string                 `json:"status"`
 	StartTime         time.Time              `json:"start_time"`
+	StartedAt         string                 `json:"started_at,omitempty"` // Android端兼容字段，RFC3339格式
+	PausedAt          *string                `json:"paused_at,omitempty"` // Android端兼容字段
+	ResumedAt         *string                `json:"resumed_at,omitempty"` // Android端兼容字段
+	StoppedAt         *string                `json:"stopped_at,omitempty"` // Android端兼容字段
 	ElapsedSeconds    int                    `json:"elapsed_seconds"`
-	PauseCount        int                    `json:"pause_count"`
+	PauseCount        int                    `json:"pause_count,omitempty"`
 	PauseTotalSeconds int                    `json:"pause_total_seconds"`
-	Category          string                 `json:"category"`
-	Description       string                 `json:"description"`
+	PausedDuration    int                    `json:"paused_duration,omitempty"` // Android端兼容字段，映射到PauseTotalSeconds
+	Category          string                 `json:"category,omitempty"`
+	Description       string                 `json:"description,omitempty"`
 	ProjectID         *int                   `json:"project_id,omitempty"`
-	Metadata          map[string]interface{} `json:"metadata"`
-	IsRunning         bool                   `json:"is_running"`
-	IsPaused          bool                   `json:"is_paused"`
+	Metadata          map[string]interface{} `json:"metadata,omitempty"`
+	IsRunning         bool                   `json:"is_running,omitempty"`
+	IsPaused          bool                   `json:"is_paused,omitempty"`
+	IsLocal           bool                   `json:"is_local"` // Android端离线模式标记
 }
 
 // HistoryFilter 历史记录过滤器
@@ -261,26 +271,41 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *UnifiedSt
 	// 8. 发送通知
 	go s.notifyTimerStarted(req.UserID, timerID, inferenceResult.Type, req.Title)
 
-	data := map[string]interface{}{
-		"inference_confidence": inferenceResult.Confidence,
-		"inference_reasoning":  inferenceResult.Reasoning,
-		"suggested_category":   inferenceResult.SuggestedCategory,
-	}
-	if len(pausedIDs) > 0 {
-		data["paused_timer_ids"] = pausedIDs
-		data["conflict_resolved"] = true
-	}
-	if familyRootID != nil {
-		data["family_root_task_id"] = *familyRootID
+	// 9. 获取完整的Timer状态并返回（为Android端提供完整数据）
+	timerStatus, err := s.GetCurrentTimer(ctx, req.UserID)
+	if err != nil || timerStatus == nil {
+		// Fallback: 即使获取状态失败，也返回基本信息
+		data := map[string]interface{}{
+			"inference_confidence": inferenceResult.Confidence,
+			"inference_reasoning":  inferenceResult.Reasoning,
+			"suggested_category":   inferenceResult.SuggestedCategory,
+		}
+		if len(pausedIDs) > 0 {
+			data["paused_timer_ids"] = pausedIDs
+			data["conflict_resolved"] = true
+		}
+		if familyRootID != nil {
+			data["family_root_task_id"] = *familyRootID
+		}
+
+		return &UnifiedTimerResponse{
+			Success:   true,
+			TimerID:   timerID,
+			TimerType: inferenceResult.Type,
+			Message:   fmt.Sprintf("%s计时已开始", s.getTimerTypeDisplayName(inferenceResult.Type)),
+			StartedAt: time.Now(),
+			Data:      data,
+		}, nil
 	}
 
+	// 返回完整的TimerStatus对象
 	return &UnifiedTimerResponse{
 		Success:   true,
 		TimerID:   timerID,
 		TimerType: inferenceResult.Type,
 		Message:   fmt.Sprintf("%s计时已开始", s.getTimerTypeDisplayName(inferenceResult.Type)),
-		StartedAt: time.Now(),
-		Data:      data,
+		StartedAt: timerStatus.StartTime,
+		Data:      timerStatus, // 返回完整的TimerStatus对象
 	}, nil
 }
 
@@ -645,6 +670,24 @@ func (s *unifiedTimerServiceImpl) GetCurrentTimer(ctx context.Context, userID in
 
 	if timer.ElapsedSeconds < 0 {
 		timer.ElapsedSeconds = 0
+	}
+
+	// 填充Android端兼容字段
+	timer.TaskID = timer.TargetID // 映射target_id -> task_id
+	if timer.TargetTitle != "" {
+		timer.TaskTitle = &timer.TargetTitle // 映射target_title -> task_title
+	}
+	timer.TimerType = timer.TargetType // 映射target_type -> timer_type
+	timer.StartedAt = timer.StartTime.Format(time.RFC3339) // 映射start_time -> started_at
+	timer.PausedDuration = timer.PauseTotalSeconds // 映射pause_total_seconds -> paused_duration
+	timer.IsLocal = false // 服务器端的Timer不是本地离线记录
+
+	// 填充project_name（如果有项目ID）
+	if timer.ProjectID != nil {
+		var projectName string
+		if err := s.db.QueryRowContext(ctx, `SELECT name FROM projects WHERE id = $1`, *timer.ProjectID).Scan(&projectName); err == nil {
+			timer.ProjectName = &projectName
+		}
 	}
 
 	return &timer, nil

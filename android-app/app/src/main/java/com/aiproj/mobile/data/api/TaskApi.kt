@@ -60,7 +60,7 @@ interface TaskApi {
     @DELETE("tasks/{id}")
     suspend fun deleteTask(
         @Path("id") taskId: Int
-    ): Response<Unit>
+    ): Response<ApiResponse<Unit>>
 
     /**
      * 开始任务

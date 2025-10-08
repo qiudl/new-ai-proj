@@ -371,23 +371,23 @@ export const taskDocumentService = {
   },
 
   /**
-   * 获取任务文档列表 - 使用新的数据库API端点
+   * 获取任务文档列表 - 使用新的数据库API端点（不需要projectId）
    */
   async getTaskDocuments(projectId: number, taskId: number): Promise<DocumentListResponse> {
     const cacheKey = `get_task_documents_${projectId}_${taskId}`;
-    
+
     try {
       performanceMonitor.startMeasure('get_task_documents', { projectId, taskId });
-      
+
       // 尝试从优化缓存获取
       const cached = apiCache.get<DocumentListResponse>(cacheKey);
       if (cached) {
         performanceMonitor.endMeasure('get_task_documents');
         return cached;
       }
-      
-      // 使用新的数据库API端点获取任务文档列表
-      const response: any = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`);
+
+      // 使用不需要projectId的API端点获取任务文档列表（自动从tasks表查询projectId）
+      const response: any = await api.get(`/tasks/${taskId}/documents`);
 
       // 支持两种格式：
       // 1) 包装格式 { success, data: { documents: [...] } }

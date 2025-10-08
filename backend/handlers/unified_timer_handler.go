@@ -130,6 +130,7 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 		// Handle specific error types
 		if err.Error() == "no timer is currently running" {
 			c.JSON(http.StatusConflict, gin.H{
+				"success": false,
 				"error":   "Timer conflict",
 				"message": err.Error(),
 			})
@@ -137,6 +138,7 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 		}
 		if err.Error() == "another timer is already running" {
 			c.JSON(http.StatusConflict, gin.H{
+				"success": false,
 				"error":   "Timer conflict",
 				"message": err.Error(),
 			})
@@ -144,13 +146,19 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
 			"error":   "Failed to start timer",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	// 返回标准的ApiResponse格式以兼容Android端
+	c.JSON(http.StatusOK, gin.H{
+		"success": response.Success,
+		"data":    response.Data, // Data字段现在包含完整的TimerStatus对象
+		"message": response.Message,
+	})
 }
 
 // StopTimer handles POST /api/v1/user/timer/stop
@@ -204,16 +212,21 @@ func (h *UnifiedTimerHandler) GetCurrentTimer(c *gin.Context) {
 	ctx := c.Request.Context()
 	uid := userID.(int)
 
-	response, err := h.timerService.GetCurrentTimer(ctx, uid)
+	timerStatus, err := h.timerService.GetCurrentTimer(ctx, uid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
 			"error":   "Failed to get current timer",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	// 返回标准的ApiResponse格式
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    timerStatus, // 可能为nil表示无活动计时器
+	})
 }
 
 // GetActiveTimers handles GET /api/v1/user/timer/active

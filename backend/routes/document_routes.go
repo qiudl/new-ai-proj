@@ -86,13 +86,13 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 
 	// Version management - using DocumentVersionHandler
 	versionHandler := app.GetDocumentVersionHandler()
-	authorized.GET("/documents/:documentId/versions", versionHandler.GetVersionHistory)
-	authorized.GET("/documents/:documentId/versions/:version_number", versionHandler.GetVersion)
-	authorized.POST("/documents/:documentId/versions", versionHandler.CreateVersion)
-	authorized.GET("/documents/:document_id/versions/compare", versionHandler.CompareVersions)
-	authorized.POST("/documents/:document_id/versions/:version_number/restore", versionHandler.RestoreVersion)
-	authorized.GET("/documents/:document_id/versions/:version_number/download", versionHandler.DownloadVersion)
-	authorized.DELETE("/documents/:document_id/versions/:version_number", versionHandler.DeleteVersion)
+	authorized.GET("/documents/:id/versions", versionHandler.GetVersionHistory)
+	authorized.GET("/documents/:id/versions/:version_number", versionHandler.GetVersion)
+	authorized.POST("/documents/:id/versions", versionHandler.CreateVersion)
+	authorized.GET("/documents/:id/versions/compare", versionHandler.CompareVersions)
+	authorized.POST("/documents/:id/versions/:version_number/restore", versionHandler.RestoreVersion)
+	authorized.GET("/documents/:id/versions/:version_number/download", versionHandler.DownloadVersion)
+	authorized.DELETE("/documents/:id/versions/:version_number", versionHandler.DeleteVersion)
 
 	// Legacy compatibility routes (使用现有的HybridDocumentHandler方法)
 	authorized.POST("/documents/:id/copy", app.GetHybridDocumentHandler().CopyDocument)

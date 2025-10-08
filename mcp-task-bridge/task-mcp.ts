@@ -117,16 +117,16 @@ export class TaskMCPServer {
         return this.documentService.createAndAttachWorkNote(taskId, content, title);
     }
 
-    async getTaskDocument(taskId: number, projectId: number = 1) {
-        return this.documentService.getTaskDocument(taskId, projectId);
+    async getTaskDocument(taskId: number) {
+        return this.documentService.getTaskDocument(taskId);
     }
 
-    async hasTaskDocument(taskId: number, projectId: number = 1) {
-        return this.documentService.hasTaskDocument(taskId, projectId);
+    async hasTaskDocument(taskId: number) {
+        return this.documentService.hasTaskDocument(taskId);
     }
 
-    async deleteTaskDocument(taskId: number, projectId: number = 1) {
-        return this.documentService.deleteTaskDocument(taskId, projectId);
+    async deleteTaskDocument(taskId: number) {
+        return this.documentService.deleteTaskDocument(taskId);
     }
 
     /**

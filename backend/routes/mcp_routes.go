@@ -286,23 +286,33 @@ func createAndAttachWorkNote(h *handlers.WorkNoteHandler) gin.HandlerFunc {
 func getTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		taskIDStr := c.Param("taskId")
-		if _, err := strconv.Atoi(taskIDStr); err != nil {
+		taskID, err := strconv.Atoi(taskIDStr)
+		if err != nil {
 			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid taskId", err))
 			return
 		}
 
-		// 获取项目ID（默认为1）
-		projectIDStr := c.Query("projectId")
-		projectID := "1"
-		if projectIDStr != "" {
-			if _, err := strconv.Atoi(projectIDStr); err == nil {
-				projectID = projectIDStr
-			}
+		// 从数据库查询任务所属的项目ID
+		sqlDB, ok := c.MustGet("db").(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
+			return
+		}
+
+		var projectID int
+		err = sqlDB.QueryRow(`SELECT project_id FROM tasks WHERE id = $1 AND deleted_at IS NULL`, taskID).Scan(&projectID)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse("Task not found", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to query task", err))
+			return
 		}
 
 		// 设置参数并调用现有逻辑
 		c.Params = gin.Params{
-			{Key: "id", Value: projectID},
+			{Key: "id", Value: strconv.Itoa(projectID)},
 			{Key: "taskId", Value: taskIDStr},
 		}
 		h.GetTaskDocuments(c)
@@ -319,13 +329,22 @@ func deleteTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 			return
 		}
 
-		// 获取项目ID（默认为1）
-		projectIDStr := c.Query("projectId")
-		projectID := 1
-		if projectIDStr != "" {
-			if pid, err := strconv.Atoi(projectIDStr); err == nil {
-				projectID = pid
-			}
+		// 从数据库查询任务所属的项目ID
+		sqlDB, ok := c.MustGet("db").(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
+			return
+		}
+
+		var projectID int
+		err = sqlDB.QueryRow(`SELECT project_id FROM tasks WHERE id = $1 AND deleted_at IS NULL`, taskID).Scan(&projectID)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse("Task not found", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to query task", err))
+			return
 		}
 
 		// 通过调用现有的HasTaskDocument方法来检查文档是否存在
@@ -381,24 +400,33 @@ func deleteTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 func hasTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		taskIDStr := c.Param("taskId")
-		_, err := strconv.Atoi(taskIDStr)
+		taskID, err := strconv.Atoi(taskIDStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid taskId", err))
 			return
 		}
 
-		// 获取项目ID（默认为1）
-		projectIDStr := c.Query("projectId")
-		projectID := "1"
-		if projectIDStr != "" {
-			if _, err := strconv.Atoi(projectIDStr); err == nil {
-				projectID = projectIDStr
-			}
+		// 从数据库查询任务所属的项目ID
+		sqlDB, ok := c.MustGet("db").(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
+			return
+		}
+
+		var projectID int
+		err = sqlDB.QueryRow(`SELECT project_id FROM tasks WHERE id = $1 AND deleted_at IS NULL`, taskID).Scan(&projectID)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse("Task not found", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to query task", err))
+			return
 		}
 
 		// 设置参数并调用现有逻辑
 		c.Params = gin.Params{
-			{Key: "id", Value: projectID},
+			{Key: "id", Value: strconv.Itoa(projectID)},
 			{Key: "taskId", Value: taskIDStr},
 		}
 		h.HasTaskDocument(c)
