@@ -62,6 +62,7 @@ class TaskDetailViewModel @Inject constructor(
     private val attachmentRepository: AttachmentRepository,
     private val commentRepository: CommentRepository,
     private val documentRepository: com.aiproj.mobile.data.repository.DocumentRepository,
+    private val timerRepository: com.aiproj.mobile.data.repository.TimerRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -175,15 +176,39 @@ class TaskDetailViewModel @Inject constructor(
     }
 
     /**
-     * 开始任务
+     * 开始任务（同时启动计时器）
      */
     fun startTask() {
         viewModelScope.launch {
+            Log.d(TAG, "开始任务 - taskId: $taskId")
+
+            // 1. 先更新任务状态为"进行中"
             val result = taskRepository.startTask(taskId)
-            result.onSuccess {
+            result.onSuccess { task ->
+                Log.d(TAG, "✅ 任务状态已更新为进行中")
+
+                // 2. 启动计时器
+                val startTimerRequest = com.aiproj.mobile.data.models.StartTimerRequest(
+                    taskId = taskId.toLong(),
+                    title = task.title,
+                    timerType = "project_task",
+                    description = task.description,
+                    autoStopOthers = true
+                )
+
+                val timerResult = timerRepository.startTimer(startTimerRequest)
+                timerResult.onSuccess { timer ->
+                    Log.d(TAG, "✅ 计时器已启动 - timer_id: ${timer.id}")
+                }.onFailure { timerError ->
+                    Log.w(TAG, "⚠️ 计时器启动失败（任务已开始）: ${timerError.message}")
+                    // 计时器启动失败不影响任务状态变更，只记录警告
+                }
+
+                // 3. 刷新任务详情
                 loadTaskDetail()
             }
             result.onFailure { error ->
+                Log.e(TAG, "❌ 开始任务失败: ${error.message}")
                 _uiState.update {
                     it.copy(error = error.message ?: "操作失败")
                 }

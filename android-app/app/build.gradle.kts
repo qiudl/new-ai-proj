@@ -44,7 +44,7 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.7:8080/api/v1/\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://proj.joylodging.com/api/v1/\"")
     }
 
     buildTypes {
@@ -56,7 +56,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.7:8080/api/v1/\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://proj.joylodging.com/api/v1/\"")
 
             // 安全配置：禁用调试信息
             isDebuggable = false
@@ -69,7 +69,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
-            buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.7:8080/api/v1/\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://proj.joylodging.com/api/v1/\"")
         }
     }
 

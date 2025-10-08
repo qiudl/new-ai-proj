@@ -31,8 +31,16 @@ fun TimerScreen(
     val context = LocalContext.current
     var showSuggestions by remember { mutableStateOf(false) }
 
+    // ✅ 提取稳定的key，避免每秒触发LaunchedEffect
+    // 只在timer.id或isPaused变化时触发，elapsedSeconds更新不会触发
+    val timerControlKey = when (val state = uiState) {
+        is TimerUiState.Active -> "${state.timer.id}_${state.isPaused}"
+        is TimerUiState.Idle -> "idle"
+        else -> "loading"
+    }
+
     // 监听状态变化，自动启动/停止前台服务
-    LaunchedEffect(uiState) {
+    LaunchedEffect(timerControlKey) {
         when (val state = uiState) {
             is TimerUiState.Active -> {
                 if (!state.isPaused) {
@@ -59,6 +67,13 @@ fun TimerScreen(
                     }
                 },
                 actions = {
+                    // Refresh button
+                    IconButton(onClick = { viewModel.refreshTimer() }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "刷新计时器"
+                        )
+                    }
                     // Suggestions button
                     IconButton(onClick = { showSuggestions = true }) {
                         Icon(

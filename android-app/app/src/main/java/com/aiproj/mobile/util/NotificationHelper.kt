@@ -113,6 +113,28 @@ class NotificationHelper @Inject constructor(
         }
     }
 
+    // ========== Loading Timer Notification ==========
+
+    /**
+     * 创建加载中的通知（启动计时器时立即显示，避免前台服务超时）
+     */
+    fun createLoadingNotification(title: String): Notification {
+        val contentIntent = createOpenAppIntent()
+
+        return NotificationCompat.Builder(context, CHANNEL_TIMER)
+            .setContentTitle("正在启动计时器...")
+            .setContentText(title)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(contentIntent)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+    }
+
     // ========== Running Timer Notification ==========
 
     fun createRunningNotification(

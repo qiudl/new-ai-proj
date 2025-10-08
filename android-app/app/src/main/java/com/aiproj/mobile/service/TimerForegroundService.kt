@@ -99,23 +99,19 @@ class TimerForegroundService : Service() {
     // ========== Action Handlers ==========
 
     private fun handleStart(intent: Intent) {
-        val taskId = intent.getLongExtra(EXTRA_TASK_ID, -1)
+        // ✅ taskId可以为-1（个人计时器不关联任务），这是正常的
+        val taskId = intent.getLongExtra(EXTRA_TASK_ID, -1).takeIf { it != -1L }
         val title = intent.getStringExtra(EXTRA_TITLE) ?: "未命名任务"
-        val timerType = intent.getStringExtra(EXTRA_TIMER_TYPE) ?: "project_task"
+        val timerType = intent.getStringExtra(EXTRA_TIMER_TYPE) ?: "personal_task"
         val description = intent.getStringExtra(EXTRA_DESCRIPTION)
 
-        if (taskId == -1L) {
-            stopSelf()
-            return
-        }
-
-        // 立即显示初始通知（避免超时崩溃）
+        // ✅ 立即显示初始通知（避免超时崩溃）
         val initialNotification = notificationHelper.createLoadingNotification(title)
         startForeground(NOTIFICATION_ID, initialNotification)
 
         serviceScope.launch {
             val request = StartTimerRequest(
-                taskId = taskId,
+                taskId = taskId,  // 可以为null（个人计时器）
                 title = title,
                 timerType = timerType,
                 description = description
