@@ -55,6 +55,7 @@ type ProjectRepository interface {
 	GetPaginatedWithCompany(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string, companyID *int, enterpriseID *int) ([]*models.ProjectWithCompany, int, error)
 	Update(ctx context.Context, project *models.Project) (*models.Project, error)
 	Delete(ctx context.Context, id int) error
+	DeleteWithCascade(ctx context.Context, id int) error
 	List(ctx context.Context, limit, offset int) ([]*models.Project, int, error)
 	ListWithCompanyInfo(ctx context.Context, limit, offset int) ([]*models.ProjectWithCompany, int, error)
 
@@ -192,6 +193,9 @@ type SystemRepository interface {
 	GetRecycledTasks(ctx context.Context, limit, offset int) ([]*models.RecycledTask, int, error)
 	RestoreTask(ctx context.Context, id int) error
 	HardDeleteTask(ctx context.Context, id int) error
+
+	GetRecycledDocuments(ctx context.Context, page, pageSize int) ([]*models.RecycledDocument, int, error)
+	GetRecycledWorkNotes(ctx context.Context, page, pageSize int) ([]*models.RecycledWorkNote, int, error)
 
 	// Enhanced audit log operations
 	GetAuditLogsWithFilter(ctx context.Context, filter *models.AuditLogFilter) ([]interface{}, int, error)

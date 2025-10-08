@@ -463,7 +463,7 @@ func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 		argIndex++
 	}
 
-	// 如果没有字段需要更新，但这是一个有效的更新请求，只更新时间戳
+	// 如果没有字段需要更新，但这是一个有效的更新请求，只更新时间戳和版本号
 	if len(setParts) == 0 {
 		// 允许空更新（比如只是触发时间戳更新）
 		setParts = append(setParts, "updated_at = $"+strconv.Itoa(argIndex))
@@ -475,6 +475,9 @@ func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 		args = append(args, time.Now())
 		argIndex++
 	}
+
+	// 自动递增版本号
+	setParts = append(setParts, "version = version + 1")
 
 	// 添加WHERE条件
 	args = append(args, id)
@@ -580,7 +583,8 @@ func (h *HybridDocumentHandler) DeleteDocument(c *gin.Context) {
 
 	sqlDB := h.db.GetDB().(*sql.DB)
 
-	query := "DELETE FROM documents WHERE id = $1"
+	// 使用软删除而不是硬删除
+	query := "UPDATE documents SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL"
 	result, err := sqlDB.Exec(query, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

@@ -129,6 +129,24 @@ export class TaskMCPServer {
         return this.documentService.deleteTaskDocument(taskId, projectId);
     }
 
+    /**
+     * 更新任务文档（完全更新）
+     * @param taskId 任务ID
+     * @param updates 更新内容（如content, title等）
+     */
+    async updateTaskDocument(taskId: number, updates: any) {
+        return this.documentService.updateTaskDocument(taskId, updates);
+    }
+
+    /**
+     * 部分更新任务文档
+     * @param taskId 任务ID
+     * @param updates 部分更新内容
+     */
+    async patchTaskDocument(taskId: number, updates: any) {
+        return this.documentService.patchTaskDocument(taskId, updates);
+    }
+
     async createBatchDocuments(documents: any[]) {
         return this.documentService.createBatchDocuments(documents);
     }

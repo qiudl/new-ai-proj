@@ -5,6 +5,7 @@ import (
 	"ai-project-backend/models"
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -316,23 +317,67 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 	}
 
 	// Check if user has permission to delete this project
-	if project.OwnerID != userID {
-		log.Printf("User %d has no permission to delete project %d (owner: %d)", userID, projectID, project.OwnerID)
+	// Allow: 1) Project owner, 2) Admin users, 3) Super admin users
+	userRole, _ := c.Get("user_role")
+	userRoleStr := ""
+	if userRole != nil {
+		userRoleStr = userRole.(string)
+	}
+
+	isOwner := project.OwnerID == userID
+	isAdmin := userRoleStr == "admin" || userRoleStr == "super_admin"
+
+	if !isOwner && !isAdmin {
+		log.Printf("User %d (role: %s) has no permission to delete project %d (owner: %d)", userID, userRoleStr, projectID, project.OwnerID)
 		c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "无权限删除此项目", nil))
 		return
 	}
 
+	log.Printf("User %d (role: %s) is authorized to delete project %d (owner: %d)", userID, userRoleStr, projectID, project.OwnerID)
+
 	log.Printf("Starting to delete project %d by user %d", projectID, userID)
 
-	err = h.db.Projects().Delete(c.Request.Context(), projectID)
+	err = h.db.Projects().DeleteWithCascade(c.Request.Context(), projectID)
 	if err != nil {
 		log.Printf("Error deleting project %d: %v", projectID, err)
-		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "删除项目失败", nil))
+
+		// 根据错误类型提供更详细的错误信息
+		errMsg := "删除项目失败"
+		httpStatus := http.StatusInternalServerError
+
+		// 检查特定错误类型
+		errStr := err.Error()
+		switch {
+		case errStr == "project not found or already deleted":
+			errMsg = "项目不存在或已被删除"
+			httpStatus = http.StatusNotFound
+			log.Printf("Project %d not found or already deleted", projectID)
+		case errStr == "database connection is not a *sql.DB":
+			errMsg = "数据库连接错误，请联系系统管理员"
+			log.Printf("Critical: Database connection type error for project %d", projectID)
+		case errStr == "failed to start transaction":
+			errMsg = "无法启动数据库事务，请稍后重试"
+			log.Printf("Transaction start failed for project %d deletion", projectID)
+		case errStr == "failed to cascade delete tasks":
+			errMsg = "删除项目关联的任务时失败，请联系系统管理员"
+			log.Printf("Task cascade deletion failed for project %d", projectID)
+		case errStr == "failed to cascade delete documents":
+			errMsg = "删除项目关联的文档时失败，请联系系统管理员"
+			log.Printf("Document cascade deletion failed for project %d", projectID)
+		case errStr == "failed to commit transaction":
+			errMsg = "提交删除操作失败，请稍后重试"
+			log.Printf("Transaction commit failed for project %d deletion", projectID)
+		default:
+			errMsg = fmt.Sprintf("删除项目失败: %v", err)
+			log.Printf("Unexpected error deleting project %d: %v", projectID, err)
+		}
+
+		c.JSON(httpStatus, models.NewErrorResponse(models.ErrCodeInternal, errMsg, nil))
 		return
 	}
 
-	log.Printf("Successfully deleted project %d", projectID)
-	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "项目删除成功"))
+	log.Printf("Successfully deleted project %d with cascade (tasks, documents)", projectID)
+	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "项目及其所有关联数据已成功删除"))
 }
 
 // GetProjectUsers handles GET /api/v1/projects/:id/users

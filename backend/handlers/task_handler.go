@@ -507,14 +507,17 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 		}
 
 		task := &models.Task{
-			Title:       taskReq.Title,
-			Description: taskReq.Description,
-			Status:      taskReq.Status,
-			Priority:    taskReq.Priority,
-			ProjectID:   projectID,
-			AssigneeID:  taskReq.AssigneeID,
-			ParentID:    taskReq.ParentID,
-			DueDate:     dueDate,
+			Title:              taskReq.Title,
+			Description:        taskReq.Description,
+			Status:             taskReq.Status,
+			Priority:           taskReq.Priority,
+			ProjectID:          projectID,
+			AssigneeID:         taskReq.AssigneeID,
+			ParentID:           taskReq.ParentID,
+			DueDate:            dueDate,
+			TimeTrackingMode:   "manual", // 设置默认时间追踪模式
+			TimeUnitPreference: "auto",   // 设置默认时间单位偏好
+			WorkHoursPerDay:    8.0,      // 设置默认每日工作时长
 		}
 
 		if len(customFieldsJSON) > 0 {
@@ -1585,15 +1588,18 @@ func (h *TaskHandler) CreateGlobalTask(c *gin.Context) {
 	}
 
 	task := &models.Task{
-		ProjectID:      req.ProjectID,
-		Title:          req.Title,
-		Description:    req.Description,
-		Status:         getStringValue(&req.Status, "todo"),
-		Priority:       getStringValue(&req.Priority, "medium"),
-		AssigneeID:     req.AssigneeID,
-		ParentID:       req.ParentID,
-		DueDate:        req.DueDate,
-		EstimatedHours: req.EstimatedHours,
+		ProjectID:          req.ProjectID,
+		Title:              req.Title,
+		Description:        req.Description,
+		Status:             getStringValue(&req.Status, "todo"),
+		Priority:           getStringValue(&req.Priority, "medium"),
+		AssigneeID:         req.AssigneeID,
+		ParentID:           req.ParentID,
+		DueDate:            req.DueDate,
+		EstimatedHours:     req.EstimatedHours,
+		TimeTrackingMode:   "manual", // 设置默认时间追踪模式
+		TimeUnitPreference: "auto",   // 设置默认时间单位偏好
+		WorkHoursPerDay:    8.0,      // 设置默认每日工作时长
 	}
 
 	createdTask, err := h.db.Tasks().Create(c.Request.Context(), task)

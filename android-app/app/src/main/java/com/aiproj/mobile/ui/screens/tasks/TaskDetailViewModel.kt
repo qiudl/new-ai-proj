@@ -65,7 +65,18 @@ class TaskDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val taskId: Int = checkNotNull(savedStateHandle["taskId"])
+    private val taskId: Int = run {
+        val id = savedStateHandle.get<Int>("taskId")
+        Log.d(TAG, "从SavedStateHandle获取taskId: $id")
+
+        if (id == null || id <= 0) {
+            Log.e(TAG, "❌ 无效的taskId: $id, SavedStateHandle内容: ${savedStateHandle.keys()}")
+            throw IllegalArgumentException("无效的任务ID: $id")
+        }
+
+        Log.d(TAG, "✅ taskId验证通过: $id")
+        id
+    }
 
     private val _uiState = MutableStateFlow(TaskDetailUiState())
     val uiState: StateFlow<TaskDetailUiState> = _uiState.asStateFlow()
@@ -201,14 +212,24 @@ class TaskDetailViewModel @Inject constructor(
      * 删除任务
      */
     fun deleteTask(onSuccess: () -> Unit) {
+        Log.d(TAG, "开始删除任务 - taskId: $taskId")
         viewModelScope.launch {
-            val result = taskRepository.deleteTask(taskId)
-            result.onSuccess {
-                onSuccess()
-            }
-            result.onFailure { error ->
+            try {
+                val result = taskRepository.deleteTask(taskId)
+                result.onSuccess {
+                    Log.d(TAG, "✅ 任务删除成功 - taskId: $taskId")
+                    onSuccess()
+                }
+                result.onFailure { error ->
+                    Log.e(TAG, "❌ 任务删除失败 - taskId: $taskId, error: ${error.message}", error)
+                    _uiState.update {
+                        it.copy(error = error.message ?: "删除失败")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ 删除任务时发生异常 - taskId: $taskId", e)
                 _uiState.update {
-                    it.copy(error = error.message ?: "删除失败")
+                    it.copy(error = "删除失败: ${e.message}")
                 }
             }
         }

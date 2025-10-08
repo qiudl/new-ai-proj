@@ -1,24 +1,65 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import * as crypto from 'crypto';
-import { promisify } from 'util';
-import { homedir } from 'os';
-const writeFile = promisify(fs.writeFile);
-const readFile = promisify(fs.readFile);
-const mkdir = promisify(fs.mkdir);
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TokenStorageManager = void 0;
+exports.getGlobalTokenStorage = getGlobalTokenStorage;
+var fs = require("fs");
+var path = require("path");
+var crypto = require("crypto");
+var util_1 = require("util");
+var os_1 = require("os");
+var writeFile = (0, util_1.promisify)(fs.writeFile);
+var readFile = (0, util_1.promisify)(fs.readFile);
+var mkdir = (0, util_1.promisify)(fs.mkdir);
 /**
  * Token持久化存储管理器
  * 支持Token的加密存储和自动加载
  */
-export class TokenStorageManager {
-    constructor(config = {}) {
+var TokenStorageManager = /** @class */ (function () {
+    function TokenStorageManager(config) {
+        if (config === void 0) { config = {}; }
         // AES-256-GCM加密参数
         this.ALGORITHM = 'aes-256-gcm';
         this.KEY_LENGTH = 32; // 256 bits
         this.IV_LENGTH = 16; // 128 bits
         this.AUTH_TAG_LENGTH = 16; // 128 bits
         // 确定存储目录
-        this.storageDir = config.storageDir || path.join(homedir(), '.mcp-task-bridge');
+        this.storageDir = config.storageDir || path.join((0, os_1.homedir)(), '.mcp-task-bridge');
         this.storageFile = path.join(this.storageDir, 'token-storage.enc');
         this.enableEncryption = config.enableEncryption !== false;
         // 初始化加密密钥
@@ -36,21 +77,21 @@ export class TokenStorageManager {
      * 初始化加密密钥
      * 优先级：传入的密钥 > 环境变量 > 自动生成
      */
-    initEncryptionKey(providedKey) {
+    TokenStorageManager.prototype.initEncryptionKey = function (providedKey) {
         // 1. 使用传入的密钥
         if (providedKey) {
             return this.normalizeKey(providedKey);
         }
         // 2. 从环境变量读取
-        const envKey = process.env.MCP_TOKEN_ENCRYPTION_KEY;
+        var envKey = process.env.MCP_TOKEN_ENCRYPTION_KEY;
         if (envKey) {
             return this.normalizeKey(envKey);
         }
         // 3. 尝试从密钥文件读取（如果存在）
-        const keyFile = path.join(this.storageDir, '.encryption-key');
+        var keyFile = path.join(this.storageDir, '.encryption-key');
         if (fs.existsSync(keyFile)) {
             try {
-                const keyData = fs.readFileSync(keyFile, 'utf-8').trim();
+                var keyData = fs.readFileSync(keyFile, 'utf-8').trim();
                 console.error('[TOKEN_STORAGE] 从密钥文件加载加密密钥');
                 return this.normalizeKey(keyData);
             }
@@ -60,66 +101,66 @@ export class TokenStorageManager {
         }
         // 4. 自动生成并保存密钥
         console.error('[TOKEN_STORAGE] 自动生成新的加密密钥');
-        const newKey = crypto.randomBytes(this.KEY_LENGTH);
+        var newKey = crypto.randomBytes(this.KEY_LENGTH);
         try {
             // 确保目录存在
             if (!fs.existsSync(this.storageDir)) {
-                fs.mkdirSync(this.storageDir, { recursive: true, mode: 0o700 });
+                fs.mkdirSync(this.storageDir, { recursive: true, mode: 448 });
             }
             // 保存密钥（仅用户可读）
-            fs.writeFileSync(keyFile, newKey.toString('hex'), { mode: 0o600 });
+            fs.writeFileSync(keyFile, newKey.toString('hex'), { mode: 384 });
             console.error('[TOKEN_STORAGE] 加密密钥已保存到:', keyFile);
         }
         catch (error) {
             console.error('[TOKEN_STORAGE] 密钥文件保存失败:', error.message);
         }
         return newKey;
-    }
+    };
     /**
      * 规范化密钥长度（确保32字节）
      */
-    normalizeKey(key) {
-        const keyBuffer = Buffer.from(key, 'hex').length === this.KEY_LENGTH
+    TokenStorageManager.prototype.normalizeKey = function (key) {
+        var keyBuffer = Buffer.from(key, 'hex').length === this.KEY_LENGTH
             ? Buffer.from(key, 'hex')
             : crypto.createHash('sha256').update(key).digest();
         if (keyBuffer.length !== this.KEY_LENGTH) {
-            throw new Error(`Invalid key length: expected ${this.KEY_LENGTH} bytes`);
+            throw new Error("Invalid key length: expected ".concat(this.KEY_LENGTH, " bytes"));
         }
         return keyBuffer;
-    }
+    };
     /**
      * 确保存储目录存在
      */
-    ensureStorageDir() {
+    TokenStorageManager.prototype.ensureStorageDir = function () {
         try {
             if (!fs.existsSync(this.storageDir)) {
-                fs.mkdirSync(this.storageDir, { recursive: true, mode: 0o700 });
+                fs.mkdirSync(this.storageDir, { recursive: true, mode: 448 });
                 console.error('[TOKEN_STORAGE] 创建存储目录:', this.storageDir);
             }
         }
         catch (error) {
             console.error('[TOKEN_STORAGE] 创建存储目录失败:', error.message);
         }
-    }
+    };
     /**
      * 加密数据
      */
-    encrypt(data) {
+    TokenStorageManager.prototype.encrypt = function (data) {
         if (!this.enableEncryption) {
             return Buffer.from(data).toString('base64');
         }
         try {
             // 生成随机IV
-            const iv = crypto.randomBytes(this.IV_LENGTH);
+            var iv = crypto.randomBytes(this.IV_LENGTH);
             // 创建加密器
-            const cipher = crypto.createCipheriv(this.ALGORITHM, this.encryptionKey, iv);
+            var cipher = crypto.createCipheriv(this.ALGORITHM, this.encryptionKey, iv);
             // 加密数据
-            let encrypted = cipher.update(data, 'utf8', 'hex');
+            var encrypted = cipher.update(data, 'utf8', 'hex');
             encrypted += cipher.final('hex');
             // 获取认证标签
-            const authTag = cipher.getAuthTag();
+            var authTag = cipher.getAuthTag();
             // 组合: IV + AuthTag + 加密数据
-            const result = Buffer.concat([
+            var result = Buffer.concat([
                 iv,
                 authTag,
                 Buffer.from(encrypted, 'hex')
@@ -128,137 +169,163 @@ export class TokenStorageManager {
         }
         catch (error) {
             console.error('[TOKEN_STORAGE] 加密失败:', error.message);
-            throw new Error(`Encryption failed: ${error.message}`);
+            throw new Error("Encryption failed: ".concat(error.message));
         }
-    }
+    };
     /**
      * 解密数据
      */
-    decrypt(encryptedData) {
+    TokenStorageManager.prototype.decrypt = function (encryptedData) {
         if (!this.enableEncryption) {
             return Buffer.from(encryptedData, 'base64').toString('utf8');
         }
         try {
             // 解码Base64
-            const buffer = Buffer.from(encryptedData, 'base64');
+            var buffer = Buffer.from(encryptedData, 'base64');
             // 提取IV、AuthTag和加密数据
-            const iv = buffer.subarray(0, this.IV_LENGTH);
-            const authTag = buffer.subarray(this.IV_LENGTH, this.IV_LENGTH + this.AUTH_TAG_LENGTH);
-            const encrypted = buffer.subarray(this.IV_LENGTH + this.AUTH_TAG_LENGTH);
+            var iv = buffer.subarray(0, this.IV_LENGTH);
+            var authTag = buffer.subarray(this.IV_LENGTH, this.IV_LENGTH + this.AUTH_TAG_LENGTH);
+            var encrypted = buffer.subarray(this.IV_LENGTH + this.AUTH_TAG_LENGTH);
             // 创建解密器
-            const decipher = crypto.createDecipheriv(this.ALGORITHM, this.encryptionKey, iv);
+            var decipher = crypto.createDecipheriv(this.ALGORITHM, this.encryptionKey, iv);
             decipher.setAuthTag(authTag);
             // 解密数据
-            let decrypted = decipher.update(encrypted.toString('hex'), 'hex', 'utf8');
+            var decrypted = decipher.update(encrypted.toString('hex'), 'hex', 'utf8');
             decrypted += decipher.final('utf8');
             return decrypted;
         }
         catch (error) {
             console.error('[TOKEN_STORAGE] 解密失败:', error.message);
-            throw new Error(`Decryption failed: ${error.message}`);
+            throw new Error("Decryption failed: ".concat(error.message));
         }
-    }
+    };
     /**
      * 保存Token到持久化存储
      */
-    async saveToken(tokenData) {
-        try {
-            // 序列化为JSON
-            const jsonData = JSON.stringify(tokenData, null, 2);
-            // 加密（如果启用）
-            const encryptedData = this.encrypt(jsonData);
-            // 写入文件
-            await writeFile(this.storageFile, encryptedData, { mode: 0o600 });
-            console.error('[TOKEN_STORAGE] Token已保存到持久化存储', {
-                file: this.storageFile,
-                encrypted: this.enableEncryption,
-                expiresAt: tokenData.expiresAt
+    TokenStorageManager.prototype.saveToken = function (tokenData) {
+        return __awaiter(this, void 0, void 0, function () {
+            var jsonData, encryptedData, error_1;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        jsonData = JSON.stringify(tokenData, null, 2);
+                        encryptedData = this.encrypt(jsonData);
+                        // 写入文件
+                        return [4 /*yield*/, writeFile(this.storageFile, encryptedData, { mode: 384 })];
+                    case 1:
+                        // 写入文件
+                        _a.sent();
+                        console.error('[TOKEN_STORAGE] Token已保存到持久化存储', {
+                            file: this.storageFile,
+                            encrypted: this.enableEncryption,
+                            expiresAt: tokenData.expiresAt
+                        });
+                        return [3 /*break*/, 3];
+                    case 2:
+                        error_1 = _a.sent();
+                        console.error('[TOKEN_STORAGE] 保存Token失败:', error_1.message);
+                        throw new Error("Failed to save token: ".concat(error_1.message));
+                    case 3: return [2 /*return*/];
+                }
             });
-        }
-        catch (error) {
-            console.error('[TOKEN_STORAGE] 保存Token失败:', error.message);
-            throw new Error(`Failed to save token: ${error.message}`);
-        }
-    }
+        });
+    };
     /**
      * 从持久化存储加载Token
      */
-    async loadToken() {
-        try {
-            // 检查文件是否存在
-            if (!fs.existsSync(this.storageFile)) {
-                console.error('[TOKEN_STORAGE] Token存储文件不存在');
-                return null;
-            }
-            // 读取加密数据
-            const encryptedData = await readFile(this.storageFile, 'utf-8');
-            // 解密
-            const jsonData = this.decrypt(encryptedData);
-            // 解析JSON
-            const tokenData = JSON.parse(jsonData);
-            // 验证数据完整性
-            if (!tokenData.accessToken || !tokenData.refreshToken || !tokenData.expiresAt) {
-                throw new Error('Invalid token data structure');
-            }
-            console.error('[TOKEN_STORAGE] Token已从持久化存储加载', {
-                expiresAt: tokenData.expiresAt,
-                lastUpdate: tokenData.lastUpdate
+    TokenStorageManager.prototype.loadToken = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var encryptedData, jsonData, tokenData, error_2;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 5]);
+                        // 检查文件是否存在
+                        if (!fs.existsSync(this.storageFile)) {
+                            console.error('[TOKEN_STORAGE] Token存储文件不存在');
+                            return [2 /*return*/, null];
+                        }
+                        return [4 /*yield*/, readFile(this.storageFile, 'utf-8')];
+                    case 1:
+                        encryptedData = _a.sent();
+                        jsonData = this.decrypt(encryptedData);
+                        tokenData = JSON.parse(jsonData);
+                        // 验证数据完整性
+                        if (!tokenData.accessToken || !tokenData.refreshToken || !tokenData.expiresAt) {
+                            throw new Error('Invalid token data structure');
+                        }
+                        console.error('[TOKEN_STORAGE] Token已从持久化存储加载', {
+                            expiresAt: tokenData.expiresAt,
+                            lastUpdate: tokenData.lastUpdate
+                        });
+                        return [2 /*return*/, tokenData];
+                    case 2:
+                        error_2 = _a.sent();
+                        console.error('[TOKEN_STORAGE] 加载Token失败:', error_2.message);
+                        if (!(error_2.message.includes('Decryption failed') ||
+                            error_2.message.includes('Invalid token data'))) return [3 /*break*/, 4];
+                        console.error('[TOKEN_STORAGE] 检测到损坏的Token文件，自动删除');
+                        return [4 /*yield*/, this.clearToken()];
+                    case 3:
+                        _a.sent();
+                        _a.label = 4;
+                    case 4: return [2 /*return*/, null];
+                    case 5: return [2 /*return*/];
+                }
             });
-            return tokenData;
-        }
-        catch (error) {
-            console.error('[TOKEN_STORAGE] 加载Token失败:', error.message);
-            // 如果是解密错误或格式错误，删除损坏的文件
-            if (error.message.includes('Decryption failed') ||
-                error.message.includes('Invalid token data')) {
-                console.error('[TOKEN_STORAGE] 检测到损坏的Token文件，自动删除');
-                await this.clearToken();
-            }
-            return null;
-        }
-    }
+        });
+    };
     /**
      * 清除持久化的Token
      */
-    async clearToken() {
-        try {
-            if (fs.existsSync(this.storageFile)) {
-                fs.unlinkSync(this.storageFile);
-                console.error('[TOKEN_STORAGE] Token已从持久化存储中删除');
-            }
-        }
-        catch (error) {
-            console.error('[TOKEN_STORAGE] 删除Token文件失败:', error.message);
-        }
-    }
+    TokenStorageManager.prototype.clearToken = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                try {
+                    if (fs.existsSync(this.storageFile)) {
+                        fs.unlinkSync(this.storageFile);
+                        console.error('[TOKEN_STORAGE] Token已从持久化存储中删除');
+                    }
+                }
+                catch (error) {
+                    console.error('[TOKEN_STORAGE] 删除Token文件失败:', error.message);
+                }
+                return [2 /*return*/];
+            });
+        });
+    };
     /**
      * 检查Token是否过期
      */
-    isTokenExpired(tokenData, bufferMs = 60000) {
-        const expiresAt = new Date(tokenData.expiresAt);
-        const now = new Date();
-        const timeUntilExpiry = expiresAt.getTime() - now.getTime();
+    TokenStorageManager.prototype.isTokenExpired = function (tokenData, bufferMs) {
+        if (bufferMs === void 0) { bufferMs = 60000; }
+        var expiresAt = new Date(tokenData.expiresAt);
+        var now = new Date();
+        var timeUntilExpiry = expiresAt.getTime() - now.getTime();
         return timeUntilExpiry <= bufferMs;
-    }
+    };
     /**
      * 获取存储文件路径（用于调试）
      */
-    getStorageFilePath() {
+    TokenStorageManager.prototype.getStorageFilePath = function () {
         return this.storageFile;
-    }
+    };
     /**
      * 检查是否启用了加密
      */
-    isEncryptionEnabled() {
+    TokenStorageManager.prototype.isEncryptionEnabled = function () {
         return this.enableEncryption;
-    }
-}
+    };
+    return TokenStorageManager;
+}());
+exports.TokenStorageManager = TokenStorageManager;
 // 导出单例实例（可选）
-let globalTokenStorage = null;
+var globalTokenStorage = null;
 /**
  * 获取全局Token存储管理器实例
  */
-export function getGlobalTokenStorage(config) {
+function getGlobalTokenStorage(config) {
     if (!globalTokenStorage) {
         globalTokenStorage = new TokenStorageManager(config);
     }

@@ -2,6 +2,7 @@ package routes
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -82,6 +83,8 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	mcp.POST("/create-batch-documents", createBatchDocuments(documentHandler))
 	mcp.POST("/create-task-docs", createTaskDocs(documentHandler))
 	mcp.GET("/task-document/:taskId", getTaskDocument(documentHandler))
+	mcp.PUT("/task-document/:taskId", updateTaskDocument(documentHandler, app))    // 更新任务文档
+	mcp.PATCH("/task-document/:taskId", updateTaskDocument(documentHandler, app))  // 部分更新任务文档
 	mcp.DELETE("/task-document/:taskId", deleteTaskDocument(documentHandler))
 	mcp.GET("/task-document/:taskId/exists", hasTaskDocument(documentHandler))
 
@@ -399,6 +402,53 @@ func hasTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 			{Key: "taskId", Value: taskIDStr},
 		}
 		h.HasTaskDocument(c)
+	}
+}
+
+// updateTaskDocument MCP专用：更新任务文档
+func updateTaskDocument(h *handlers.DocumentHandler, app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		taskIDStr := c.Param("taskId")
+		taskID, err := strconv.Atoi(taskIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid task ID", err))
+			return
+		}
+
+		// 从数据库获取任务关联的文档ID
+		sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
+			return
+		}
+
+		// 查询任务关联的文档ID
+		var documentID int
+		err = sqlDB.QueryRow(`
+			SELECT d.id
+			FROM documents d
+			INNER JOIN task_documents td ON td.document_id = d.id
+			WHERE td.task_id = $1 AND d.deleted_at IS NULL
+			ORDER BY td.created_at DESC
+			LIMIT 1
+		`, taskID).Scan(&documentID)
+
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse("No document found for this task", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to find task document", err))
+			return
+		}
+
+		// 设置文档ID参数，模拟标准UpdateDocument API调用
+		// UpdateDocument方法期望从"id"或"documentId"参数获取文档ID
+		c.Params = append(c.Params, gin.Param{Key: "id", Value: strconv.Itoa(documentID)})
+
+		// 调用现有的UpdateDocument方法
+		// UpdateDocument会处理请求体解析、权限检查、数据库更新等
+		h.UpdateDocument(c)
 	}
 }
 

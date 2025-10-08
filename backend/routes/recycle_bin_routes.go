@@ -28,7 +28,19 @@ func RegisterRecycleBinRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 		tasks.POST("/:id/restore", app.RestoreTaskHandler())        // POST /api/v1/system/recycle/tasks/:id/restore
 		tasks.DELETE("/:id", app.HardDeleteTaskHandler())           // DELETE /api/v1/system/recycle/tasks/:id
 	}
-	
+
+	// 文档回收站路由
+	documents := recycleGroup.Group("/documents")
+	{
+		documents.GET("", app.GetRecycledDocumentsHandler())         // GET /api/v1/system/recycle/documents
+	}
+
+	// 工作笔记回收站路由
+	workNotes := recycleGroup.Group("/work-notes")
+	{
+		workNotes.GET("", app.GetRecycledWorkNotesHandler())        // GET /api/v1/system/recycle/work-notes
+	}
+
 	// 清空回收站
 	recycleGroup.POST("/empty", app.EmptyRecycleBinHandler())       // POST /api/v1/system/recycle/empty
 

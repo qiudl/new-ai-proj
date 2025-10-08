@@ -86,9 +86,13 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 
 	// Version management - using DocumentVersionHandler
 	versionHandler := app.GetDocumentVersionHandler()
-	authorized.GET("/documents/:id/versions", versionHandler.GetVersionHistory)
-	authorized.GET("/documents/:id/versions/:version_number", versionHandler.GetVersion)
-	authorized.POST("/documents/:id/versions", versionHandler.CreateVersion)
+	authorized.GET("/documents/:documentId/versions", versionHandler.GetVersionHistory)
+	authorized.GET("/documents/:documentId/versions/:version_number", versionHandler.GetVersion)
+	authorized.POST("/documents/:documentId/versions", versionHandler.CreateVersion)
+	authorized.GET("/documents/:document_id/versions/compare", versionHandler.CompareVersions)
+	authorized.POST("/documents/:document_id/versions/:version_number/restore", versionHandler.RestoreVersion)
+	authorized.GET("/documents/:document_id/versions/:version_number/download", versionHandler.DownloadVersion)
+	authorized.DELETE("/documents/:document_id/versions/:version_number", versionHandler.DeleteVersion)
 
 	// Legacy compatibility routes (使用现有的HybridDocumentHandler方法)
 	authorized.POST("/documents/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
@@ -170,6 +174,10 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 				taskDocuments.GET("/:documentId/versions", versionHandler.GetVersionHistory)
 				taskDocuments.GET("/:documentId/versions/:version_number", versionHandler.GetVersion)
 				taskDocuments.POST("/:documentId/versions", versionHandler.CreateVersion)
+				taskDocuments.GET("/:documentId/versions/compare", versionHandler.CompareVersions)
+				taskDocuments.POST("/:documentId/versions/:version_number/restore", versionHandler.RestoreVersion)
+				taskDocuments.GET("/:documentId/versions/:version_number/download", versionHandler.DownloadVersion)
+				taskDocuments.DELETE("/:documentId/versions/:version_number", versionHandler.DeleteVersion)
 			}
 		}
 	}

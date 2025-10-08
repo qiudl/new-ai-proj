@@ -1180,12 +1180,15 @@ func (h *AITaskGeneratorHandler) executeAIBulkImport(
 			// 创建任务对象
 			desc := generatedTask.Description
 			task := &models.Task{
-				ProjectID:    req.ProjectID,
-				Title:        generatedTask.Title,
-				Description:  &desc,
-				Status:       "todo",
-				ParentID:     req.ParentTaskID,
-				CustomFields: customFields,
+				ProjectID:          req.ProjectID,
+				Title:              generatedTask.Title,
+				Description:        &desc,
+				Status:             "todo",
+				ParentID:           req.ParentTaskID,
+				CustomFields:       customFields,
+				TimeTrackingMode:   "manual", // 设置默认时间追踪模式
+				TimeUnitPreference: "auto",   // 设置默认时间单位偏好
+				WorkHoursPerDay:    8.0,      // 设置默认每日工作时长
 			}
 
 			// 创建任务

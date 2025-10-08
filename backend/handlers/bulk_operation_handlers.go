@@ -65,13 +65,16 @@ func (h *BulkOperationHandler) BulkImportTasks(c *gin.Context) {
 	for _, batchTask := range req.Tasks {
 		desc := batchTask.Description
 		task := &models.Task{
-			Title:       batchTask.Title,
-			Description: &desc,
-			Status:      "todo",
-			Priority:    batchTask.Priority,
-			ProjectID:   req.ProjectID,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
+			Title:              batchTask.Title,
+			Description:        &desc,
+			Status:             "todo",
+			Priority:           batchTask.Priority,
+			ProjectID:          req.ProjectID,
+			TimeTrackingMode:   "manual", // 设置默认时间追踪模式
+			TimeUnitPreference: "auto",   // 设置默认时间单位偏好
+			WorkHoursPerDay:    8.0,      // 设置默认每日工作时长
+			CreatedAt:          time.Now(),
+			UpdatedAt:          time.Now(),
 		}
 
 		if batchTask.DueDate != "" {
@@ -296,13 +299,16 @@ func (h *BulkOperationHandler) ImportTasksFromCSV(c *gin.Context) {
 
 		desc := strings.TrimSpace(record[1])
 		task := &models.Task{
-			Title:       strings.TrimSpace(record[0]),
-			Description: &desc,
-			Status:      "todo",
-			Priority:    "medium",
-			ProjectID:   projectID,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
+			Title:              strings.TrimSpace(record[0]),
+			Description:        &desc,
+			Status:             "todo",
+			Priority:           "medium",
+			ProjectID:          projectID,
+			TimeTrackingMode:   "manual", // 设置默认时间追踪模式
+			TimeUnitPreference: "auto",   // 设置默认时间单位偏好
+			WorkHoursPerDay:    8.0,      // 设置默认每日工作时长
+			CreatedAt:          time.Now(),
+			UpdatedAt:          time.Now(),
 		}
 
 		// Optional priority column

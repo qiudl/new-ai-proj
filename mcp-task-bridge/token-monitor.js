@@ -1,10 +1,25 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { homedir } from 'os';
+"use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TokenRefreshMonitor = exports.TokenHealthStatus = exports.TokenRefreshEventType = void 0;
+exports.getGlobalTokenMonitor = getGlobalTokenMonitor;
+var fs = require("fs");
+var path = require("path");
+var os_1 = require("os");
 /**
  * Token刷新事件类型
  */
-export var TokenRefreshEventType;
+var TokenRefreshEventType;
 (function (TokenRefreshEventType) {
     TokenRefreshEventType["REFRESH_STARTED"] = "refresh_started";
     TokenRefreshEventType["REFRESH_SUCCESS"] = "refresh_success";
@@ -14,35 +29,37 @@ export var TokenRefreshEventType;
     TokenRefreshEventType["TOKEN_EXPIRED"] = "token_expired";
     TokenRefreshEventType["TOKEN_PERSISTED"] = "token_persisted";
     TokenRefreshEventType["TOKEN_CLEARED"] = "token_cleared"; // Token清除
-})(TokenRefreshEventType || (TokenRefreshEventType = {}));
+})(TokenRefreshEventType || (exports.TokenRefreshEventType = TokenRefreshEventType = {}));
 /**
  * Token健康状态
  */
-export var TokenHealthStatus;
+var TokenHealthStatus;
 (function (TokenHealthStatus) {
     TokenHealthStatus["HEALTHY"] = "healthy";
     TokenHealthStatus["WARNING"] = "warning";
     TokenHealthStatus["CRITICAL"] = "critical";
     TokenHealthStatus["UNKNOWN"] = "unknown"; // 未知
-})(TokenHealthStatus || (TokenHealthStatus = {}));
+})(TokenHealthStatus || (exports.TokenHealthStatus = TokenHealthStatus = {}));
 /**
  * Token刷新监控器
  * 记录Token刷新事件、统计信息和健康状态
  */
-export class TokenRefreshMonitor {
-    constructor(config = {}) {
+var TokenRefreshMonitor = /** @class */ (function () {
+    function TokenRefreshMonitor(config) {
+        if (config === void 0) { config = {}; }
+        var _a, _b;
         this.events = [];
         this.startTime = new Date();
         // 默认配置
         this.config = {
             enableLogging: config.enableLogging !== false,
             enableMetrics: config.enableMetrics !== false,
-            logFilePath: config.logFilePath || path.join(homedir(), '.mcp-task-bridge', 'token-refresh.log'),
+            logFilePath: config.logFilePath || path.join((0, os_1.homedir)(), '.mcp-task-bridge', 'token-refresh.log'),
             maxLogSize: config.maxLogSize || 10 * 1024 * 1024, // 10MB
             maxEventHistory: config.maxEventHistory || 1000,
             alertThreshold: {
-                consecutiveFailures: config.alertThreshold?.consecutiveFailures || 3,
-                failureRate: config.alertThreshold?.failureRate || 0.5
+                consecutiveFailures: ((_a = config.alertThreshold) === null || _a === void 0 ? void 0 : _a.consecutiveFailures) || 3,
+                failureRate: ((_b = config.alertThreshold) === null || _b === void 0 ? void 0 : _b.failureRate) || 0.5
             }
         };
         this.logFilePath = this.config.logFilePath;
@@ -61,29 +78,29 @@ export class TokenRefreshMonitor {
     /**
      * 确保日志目录存在
      */
-    ensureLogDirectory() {
+    TokenRefreshMonitor.prototype.ensureLogDirectory = function () {
         try {
-            const logDir = path.dirname(this.logFilePath);
+            var logDir = path.dirname(this.logFilePath);
             if (!fs.existsSync(logDir)) {
-                fs.mkdirSync(logDir, { recursive: true, mode: 0o700 });
+                fs.mkdirSync(logDir, { recursive: true, mode: 448 });
             }
         }
         catch (error) {
             console.error('[TOKEN_MONITOR] 创建日志目录失败:', error.message);
         }
-    }
+    };
     /**
      * 记录Token刷新事件
      */
-    recordEvent(eventType, success, metadata, errorMessage, errorCode, duration) {
-        const event = {
+    TokenRefreshMonitor.prototype.recordEvent = function (eventType, success, metadata, errorMessage, errorCode, duration) {
+        var event = {
             timestamp: new Date().toISOString(),
-            eventType,
-            success,
-            duration,
-            errorMessage,
-            errorCode,
-            metadata
+            eventType: eventType,
+            success: success,
+            duration: duration,
+            errorMessage: errorMessage,
+            errorCode: errorCode,
+            metadata: metadata
         };
         // 添加到事件历史
         this.events.push(event);
@@ -99,11 +116,11 @@ export class TokenRefreshMonitor {
         }
         // 检查告警
         this.checkAlerts(event);
-    }
+    };
     /**
      * 更新统计信息
      */
-    updateStats(event) {
+    TokenRefreshMonitor.prototype.updateStats = function (event) {
         // 更新运行时长
         this.stats.uptime = Math.floor((Date.now() - this.startTime.getTime()) / 1000);
         // 处理刷新事件
@@ -117,7 +134,7 @@ export class TokenRefreshMonitor {
             this.stats.consecutiveFailures = 0;
             // 更新平均刷新耗时
             if (event.duration !== undefined) {
-                const totalDuration = (this.stats.averageRefreshDuration || 0) * (this.stats.successfulRefreshes - 1);
+                var totalDuration = (this.stats.averageRefreshDuration || 0) * (this.stats.successfulRefreshes - 1);
                 this.stats.averageRefreshDuration = (totalDuration + event.duration) / this.stats.successfulRefreshes;
             }
         }
@@ -127,125 +144,126 @@ export class TokenRefreshMonitor {
             this.stats.lastRefreshTime = event.timestamp;
             this.stats.consecutiveFailures++;
         }
-    }
+    };
     /**
      * 写入日志文件
      */
-    writeLog(event) {
+    TokenRefreshMonitor.prototype.writeLog = function (event) {
         try {
             // 检查日志文件大小
             if (fs.existsSync(this.logFilePath)) {
-                const stats = fs.statSync(this.logFilePath);
+                var stats = fs.statSync(this.logFilePath);
                 if (stats.size > this.config.maxLogSize) {
                     // 轮转日志文件
                     this.rotateLog();
                 }
             }
             // 格式化日志行
-            const logLine = this.formatLogLine(event);
+            var logLine = this.formatLogLine(event);
             // 追加到日志文件
-            fs.appendFileSync(this.logFilePath, logLine + '\n', { mode: 0o600 });
+            fs.appendFileSync(this.logFilePath, logLine + '\n', { mode: 384 });
         }
         catch (error) {
             console.error('[TOKEN_MONITOR] 写入日志失败:', error.message);
         }
-    }
+    };
     /**
      * 格式化日志行
      */
-    formatLogLine(event) {
-        const parts = [
+    TokenRefreshMonitor.prototype.formatLogLine = function (event) {
+        var parts = [
             event.timestamp,
-            `[${event.eventType.toUpperCase()}]`,
+            "[".concat(event.eventType.toUpperCase(), "]"),
             event.success ? 'SUCCESS' : 'FAILED'
         ];
         if (event.duration !== undefined) {
-            parts.push(`duration=${event.duration}ms`);
+            parts.push("duration=".concat(event.duration, "ms"));
         }
         if (event.errorMessage) {
-            parts.push(`error="${event.errorMessage}"`);
+            parts.push("error=\"".concat(event.errorMessage, "\""));
         }
         if (event.errorCode) {
-            parts.push(`code=${event.errorCode}`);
+            parts.push("code=".concat(event.errorCode));
         }
         if (event.metadata) {
-            const metadataStr = Object.entries(event.metadata)
-                .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+            var metadataStr = Object.entries(event.metadata)
+                .map(function (_a) {
+                var key = _a[0], value = _a[1];
+                return "".concat(key, "=").concat(JSON.stringify(value));
+            })
                 .join(' ');
             if (metadataStr) {
                 parts.push(metadataStr);
             }
         }
         return parts.join(' ');
-    }
+    };
     /**
      * 轮转日志文件
      */
-    rotateLog() {
+    TokenRefreshMonitor.prototype.rotateLog = function () {
         try {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const rotatedPath = `${this.logFilePath}.${timestamp}`;
+            var timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            var rotatedPath = "".concat(this.logFilePath, ".").concat(timestamp);
             fs.renameSync(this.logFilePath, rotatedPath);
             console.error('[TOKEN_MONITOR] 日志文件已轮转:', rotatedPath);
         }
         catch (error) {
             console.error('[TOKEN_MONITOR] 日志轮转失败:', error.message);
         }
-    }
+    };
     /**
      * 检查告警条件
      */
-    checkAlerts(event) {
+    TokenRefreshMonitor.prototype.checkAlerts = function (event) {
         // 检查连续失败
         if (this.stats.consecutiveFailures >= this.config.alertThreshold.consecutiveFailures) {
-            this.triggerAlert('consecutive_failures', `Token刷新连续失败 ${this.stats.consecutiveFailures} 次`, event);
+            this.triggerAlert('consecutive_failures', "Token\u5237\u65B0\u8FDE\u7EED\u5931\u8D25 ".concat(this.stats.consecutiveFailures, " \u6B21"), event);
         }
         // 检查失败率
         if (this.stats.totalRefreshes >= 10) {
-            const failureRate = this.stats.failedRefreshes / this.stats.totalRefreshes;
+            var failureRate = this.stats.failedRefreshes / this.stats.totalRefreshes;
             if (failureRate >= this.config.alertThreshold.failureRate) {
-                this.triggerAlert('high_failure_rate', `Token刷新失败率过高: ${(failureRate * 100).toFixed(1)}%`, event);
+                this.triggerAlert('high_failure_rate', "Token\u5237\u65B0\u5931\u8D25\u7387\u8FC7\u9AD8: ".concat((failureRate * 100).toFixed(1), "%"), event);
             }
         }
-    }
+    };
     /**
      * 触发告警
      */
-    triggerAlert(alertType, message, event) {
-        console.error(`[TOKEN_MONITOR] 🚨 告警 [${alertType}]: ${message}`);
+    TokenRefreshMonitor.prototype.triggerAlert = function (alertType, message, event) {
+        console.error("[TOKEN_MONITOR] \uD83D\uDEA8 \u544A\u8B66 [".concat(alertType, "]: ").concat(message));
         // 这里可以扩展为发送邮件、Slack通知等
         if (this.config.enableLogging) {
-            const alertLog = `${new Date().toISOString()} [ALERT] [${alertType}] ${message} - Event: ${JSON.stringify(event)}`;
-            fs.appendFileSync(this.logFilePath, alertLog + '\n', { mode: 0o600 });
+            var alertLog = "".concat(new Date().toISOString(), " [ALERT] [").concat(alertType, "] ").concat(message, " - Event: ").concat(JSON.stringify(event));
+            fs.appendFileSync(this.logFilePath, alertLog + '\n', { mode: 384 });
         }
-    }
+    };
     /**
      * 获取统计信息
      */
-    getStats() {
-        return {
-            ...this.stats,
-            uptime: Math.floor((Date.now() - this.startTime.getTime()) / 1000)
-        };
-    }
+    TokenRefreshMonitor.prototype.getStats = function () {
+        return __assign(__assign({}, this.stats), { uptime: Math.floor((Date.now() - this.startTime.getTime()) / 1000) });
+    };
     /**
      * 获取最近的事件
      */
-    getRecentEvents(limit = 10) {
+    TokenRefreshMonitor.prototype.getRecentEvents = function (limit) {
+        if (limit === void 0) { limit = 10; }
         return this.events.slice(-limit);
-    }
+    };
     /**
      * 执行健康检查
      */
-    healthCheck() {
-        const stats = this.getStats();
-        const issues = [];
-        const recommendations = [];
-        let status = TokenHealthStatus.HEALTHY;
+    TokenRefreshMonitor.prototype.healthCheck = function () {
+        var stats = this.getStats();
+        var issues = [];
+        var recommendations = [];
+        var status = TokenHealthStatus.HEALTHY;
         // 检查连续失败
         if (stats.consecutiveFailures > 0) {
             status = TokenHealthStatus.WARNING;
-            issues.push(`连续失败 ${stats.consecutiveFailures} 次`);
+            issues.push("\u8FDE\u7EED\u5931\u8D25 ".concat(stats.consecutiveFailures, " \u6B21"));
             recommendations.push('检查网络连接和认证配置');
         }
         if (stats.consecutiveFailures >= this.config.alertThreshold.consecutiveFailures) {
@@ -254,15 +272,15 @@ export class TokenRefreshMonitor {
         }
         // 检查失败率
         if (stats.totalRefreshes >= 10) {
-            const failureRate = stats.failedRefreshes / stats.totalRefreshes;
+            var failureRate = stats.failedRefreshes / stats.totalRefreshes;
             if (failureRate >= this.config.alertThreshold.failureRate) {
                 status = TokenHealthStatus.CRITICAL;
-                issues.push(`失败率过高: ${(failureRate * 100).toFixed(1)}%`);
+                issues.push("\u5931\u8D25\u7387\u8FC7\u9AD8: ".concat((failureRate * 100).toFixed(1), "%"));
                 recommendations.push('检查API服务器状态和Token配置');
             }
             else if (failureRate >= 0.3) {
                 status = TokenHealthStatus.WARNING;
-                issues.push(`失败率偏高: ${(failureRate * 100).toFixed(1)}%`);
+                issues.push("\u5931\u8D25\u7387\u504F\u9AD8: ".concat((failureRate * 100).toFixed(1), "%"));
             }
         }
         // 检查是否有刷新记录
@@ -276,17 +294,17 @@ export class TokenRefreshMonitor {
             recommendations.push('Token刷新状态正常');
         }
         return {
-            status,
+            status: status,
             lastCheck: new Date().toISOString(),
-            issues,
-            recommendations,
-            stats
+            issues: issues,
+            recommendations: recommendations,
+            stats: stats
         };
-    }
+    };
     /**
      * 重置统计信息
      */
-    resetStats() {
+    TokenRefreshMonitor.prototype.resetStats = function () {
         this.startTime = new Date();
         this.stats = {
             totalRefreshes: 0,
@@ -298,20 +316,22 @@ export class TokenRefreshMonitor {
         };
         this.events = [];
         console.error('[TOKEN_MONITOR] 统计信息已重置');
-    }
+    };
     /**
      * 获取日志文件路径
      */
-    getLogFilePath() {
+    TokenRefreshMonitor.prototype.getLogFilePath = function () {
         return this.logFilePath;
-    }
-}
+    };
+    return TokenRefreshMonitor;
+}());
+exports.TokenRefreshMonitor = TokenRefreshMonitor;
 // 全局监控器实例
-let globalMonitor = null;
+var globalMonitor = null;
 /**
  * 获取全局Token刷新监控器
  */
-export function getGlobalTokenMonitor(config) {
+function getGlobalTokenMonitor(config) {
     if (!globalMonitor) {
         globalMonitor = new TokenRefreshMonitor(config);
     }

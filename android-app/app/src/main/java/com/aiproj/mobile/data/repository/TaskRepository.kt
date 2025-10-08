@@ -149,16 +149,23 @@ class TaskRepository @Inject constructor(
      */
     suspend fun deleteTask(taskId: Int): Result<Unit> {
         return try {
+            android.util.Log.d("TaskRepository", "发起删除任务请求 - taskId: $taskId")
             val response = taskApi.deleteTask(taskId)
 
+            android.util.Log.d("TaskRepository", "删除任务API响应 - taskId: $taskId, code: ${response.code()}, success: ${response.isSuccessful}")
+
             if (response.isSuccessful) {
+                android.util.Log.d("TaskRepository", "✅ 删除任务成功 - taskId: $taskId")
                 Result.success(Unit)
             } else {
+                val errorBody = response.errorBody()?.string()
+                android.util.Log.e("TaskRepository", "❌ 删除任务失败 - taskId: $taskId, code: ${response.code()}, error: $errorBody")
                 Result.failure(
-                    Exception(response.errorBody()?.string() ?: "删除任务失败")
+                    Exception(errorBody ?: "删除任务失败 (HTTP ${response.code()})")
                 )
             }
         } catch (e: Exception) {
+            android.util.Log.e("TaskRepository", "❌ 删除任务异常 - taskId: $taskId", e)
             Result.failure(e)
         }
     }

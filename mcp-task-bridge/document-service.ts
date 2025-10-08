@@ -375,6 +375,68 @@ export class DocumentService extends BaseClient {
     }
   }
 
+  /**
+   * 通过任务ID更新任务文档（完全更新）
+   * @param taskId 任务ID
+   * @param updates 更新内容（通常包含content, title等）
+   * @returns Promise<ApiResponse>
+   */
+  async updateTaskDocument(taskId: number, updates: Partial<Document>): Promise<ApiResponse> {
+    try {
+      const response = await this.makeRequest('PUT', `/mcp/task-document/${taskId}`, updates);
+
+      if (response.success) {
+        return {
+          success: true,
+          task_id: taskId,
+          document_id: response.data?.id,
+          version: response.data?.version,
+          updated_at: response.data?.updated_at,
+          updated_fields: Object.keys(updates),
+          message: `✅ 任务 ${taskId} 的文档已更新 (版本: ${response.data?.version})`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `更新任务文档失败: ${error.message || error}`
+      };
+    }
+  }
+
+  /**
+   * 通过任务ID部分更新任务文档
+   * @param taskId 任务ID
+   * @param updates 部分更新内容（只更新指定字段）
+   * @returns Promise<ApiResponse>
+   */
+  async patchTaskDocument(taskId: number, updates: Partial<Document>): Promise<ApiResponse> {
+    try {
+      const response = await this.makeRequest('PATCH', `/mcp/task-document/${taskId}`, updates);
+
+      if (response.success) {
+        return {
+          success: true,
+          task_id: taskId,
+          document_id: response.data?.id,
+          version: response.data?.version,
+          updated_at: response.data?.updated_at,
+          fields_updated: Object.keys(updates),
+          message: `✅ 任务 ${taskId} 的文档已部分更新 (字段: ${Object.keys(updates).join(', ')}, 版本: ${response.data?.version})`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `部分更新任务文档失败: ${error.message || error}`
+      };
+    }
+  }
+
   // 删除文档
   // @requiresPermission('delete_document')
   async deleteDocument(documentId: number): Promise<ApiResponse> {

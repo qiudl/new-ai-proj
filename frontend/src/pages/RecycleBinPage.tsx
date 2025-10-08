@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, Table, Button, Space, message, Popconfirm, Typography } from 'antd';
+import { Tabs, Table, Button, Space, message, Popconfirm, Typography, Tag } from 'antd';
 import { ReloadOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { SystemService, RecycledProject, RecycledTask, PaginatedResponse } from '../services/systemService';
+import { SystemService, RecycledProject, RecycledTask, RecycledDocument, RecycledWorkNote, PaginatedResponse } from '../services/systemService';
 import type { ColumnsType } from 'antd/es/table';
 import type { TabsProps } from 'antd';
 
@@ -11,18 +11,32 @@ const RecycleBinPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('projects');
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [tasksLoading, setTasksLoading] = useState(false);
-  
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [workNotesLoading, setWorkNotesLoading] = useState(false);
+
   // Projects state
   const [recycledProjects, setRecycledProjects] = useState<RecycledProject[]>([]);
   const [projectsTotal, setProjectsTotal] = useState(0);
   const [projectsCurrentPage, setProjectsCurrentPage] = useState(1);
   const projectsPageSize = 20;
-  
+
   // Tasks state
   const [recycledTasks, setRecycledTasks] = useState<RecycledTask[]>([]);
   const [tasksTotal, setTasksTotal] = useState(0);
   const [tasksCurrentPage, setTasksCurrentPage] = useState(1);
   const tasksPageSize = 20;
+
+  // Documents state
+  const [recycledDocuments, setRecycledDocuments] = useState<RecycledDocument[]>([]);
+  const [documentsTotal, setDocumentsTotal] = useState(0);
+  const [documentsCurrentPage, setDocumentsCurrentPage] = useState(1);
+  const documentsPageSize = 20;
+
+  // Work Notes state
+  const [recycledWorkNotes, setRecycledWorkNotes] = useState<RecycledWorkNote[]>([]);
+  const [workNotesTotal, setWorkNotesTotal] = useState(0);
+  const [workNotesCurrentPage, setWorkNotesCurrentPage] = useState(1);
+  const workNotesPageSize = 20;
 
   // Load recycled projects
   const loadRecycledProjects = async (page = 1) => {
@@ -89,17 +103,17 @@ const RecycleBinPage: React.FC = () => {
       // Ensure data is an array
       const tasksData = Array.isArray(response.data) ? response.data : [];
       console.log('📋 [RecycleBinPage] Processing tasks data:', tasksData.length, 'items');
-      
+
       // Safely extract pagination data with fallbacks
       const paginationData = response.pagination || {};
       const total = typeof (paginationData as any).total === 'number' ? (paginationData as any).total : 0;
-      
+
       console.log('📄 [RecycleBinPage] Pagination data - total:', total, 'current page:', page);
-      
+
       setRecycledTasks(tasksData);
       setTasksTotal(total);
       setTasksCurrentPage(page);
-      
+
       console.log('✅ [RecycleBinPage] State updated successfully - tasks:', tasksData.length, 'total:', total);
     } catch (error) {
       console.error('💥 [RecycleBinPage] Error loading recycled tasks:', error);
@@ -109,6 +123,86 @@ const RecycleBinPage: React.FC = () => {
       setTasksTotal(0);
     } finally {
       setTasksLoading(false);
+    }
+  };
+
+  // Load recycled documents
+  const loadRecycledDocuments = async (page = 1) => {
+    console.log('🚀 [RecycleBinPage] Starting loadRecycledDocuments, page:', page);
+    setDocumentsLoading(true);
+    try {
+      console.log('🔄 [RecycleBinPage] Calling SystemService.getRecycledDocuments...');
+      const response: PaginatedResponse<RecycledDocument> = await SystemService.getRecycledDocuments(page, documentsPageSize);
+
+      console.log('📨 [RecycleBinPage] Received documents response from SystemService:', response);
+
+      if (!response) {
+        console.warn('❌ [RecycleBinPage] Invalid recycled documents response: no response');
+        setRecycledDocuments([]);
+        setDocumentsTotal(0);
+        return;
+      }
+
+      const documentsData = Array.isArray(response.data) ? response.data : [];
+      console.log('📄 [RecycleBinPage] Processing documents data:', documentsData.length, 'items');
+
+      const paginationData = response.pagination || {};
+      const total = typeof (paginationData as any).total === 'number' ? (paginationData as any).total : 0;
+
+      console.log('📄 [RecycleBinPage] Documents pagination data - total:', total, 'current page:', page);
+
+      setRecycledDocuments(documentsData);
+      setDocumentsTotal(total);
+      setDocumentsCurrentPage(page);
+
+      console.log('✅ [RecycleBinPage] Documents state updated successfully - documents:', documentsData.length, 'total:', total);
+    } catch (error) {
+      console.error('💥 [RecycleBinPage] Error loading recycled documents:', error);
+      message.error('加载回收站文档失败');
+      setRecycledDocuments([]);
+      setDocumentsTotal(0);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  // Load recycled work notes
+  const loadRecycledWorkNotes = async (page = 1) => {
+    console.log('🚀 [RecycleBinPage] Starting loadRecycledWorkNotes, page:', page);
+    setWorkNotesLoading(true);
+    try {
+      console.log('🔄 [RecycleBinPage] Calling SystemService.getRecycledWorkNotes...');
+      const response: PaginatedResponse<RecycledWorkNote> = await SystemService.getRecycledWorkNotes(page, workNotesPageSize);
+
+      console.log('📨 [RecycleBinPage] Received work notes response from SystemService:', response);
+
+      if (!response) {
+        console.warn('❌ [RecycleBinPage] Invalid recycled work notes response: no response');
+        setRecycledWorkNotes([]);
+        setWorkNotesTotal(0);
+        return;
+      }
+
+      const workNotesData = Array.isArray(response.data) ? response.data : [];
+      console.log('📝 [RecycleBinPage] Processing work notes data:', workNotesData.length, 'items');
+
+      const paginationData = response.pagination || {};
+      const total = typeof (paginationData as any).total === 'number' ? (paginationData as any).total : 0;
+
+      console.log('📄 [RecycleBinPage] Work notes pagination data - total:', total, 'current page:', page);
+
+      setRecycledWorkNotes(workNotesData);
+      setWorkNotesTotal(total);
+      setWorkNotesCurrentPage(page);
+
+      console.log('✅ [RecycleBinPage] Work notes state updated successfully - notes:', workNotesData.length, 'total:', total);
+    } catch (error) {
+      console.error('💥 [RecycleBinPage] Error loading recycled work notes:', error);
+      message.error('加载回收站工作笔记失败');
+      setRecycledWorkNotes([]);
+      setWorkNotesTotal(0);
+    } finally {
+      setWorkNotesLoading(false);
     }
   };
 
@@ -160,8 +254,62 @@ const RecycleBinPage: React.FC = () => {
     }
   };
 
+  // Restore document
+  const handleRestoreDocument = async (id: number) => {
+    try {
+      await SystemService.restoreDocument(id);
+      message.success('文档恢复成功');
+      loadRecycledDocuments(documentsCurrentPage);
+    } catch (error) {
+      message.error('文档恢复失败');
+      console.error('Error restoring document:', error);
+    }
+  };
+
+  // Permanently delete document
+  const handleHardDeleteDocument = async (id: number) => {
+    try {
+      await SystemService.hardDeleteDocument(id);
+      message.success('文档已永久删除');
+      loadRecycledDocuments(documentsCurrentPage);
+    } catch (error) {
+      message.error('永久删除文档失败');
+      console.error('Error hard deleting document:', error);
+    }
+  };
+
+  // Restore work note
+  const handleRestoreWorkNote = async (id: number) => {
+    try {
+      await SystemService.restoreWorkNote(id);
+      message.success('工作笔记恢复成功');
+      loadRecycledWorkNotes(workNotesCurrentPage);
+    } catch (error) {
+      message.error('工作笔记恢复失败');
+      console.error('Error restoring work note:', error);
+    }
+  };
+
+  // Permanently delete work note
+  const handleHardDeleteWorkNote = async (id: number) => {
+    try {
+      await SystemService.hardDeleteWorkNote(id);
+      message.success('工作笔记已永久删除');
+      loadRecycledWorkNotes(workNotesCurrentPage);
+    } catch (error) {
+      message.error('永久删除工作笔记失败');
+      console.error('Error hard deleting work note:', error);
+    }
+  };
+
   // Project columns
   const projectColumns: unknown[] = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80,
+    },
     {
       title: '项目名称',
       dataIndex: 'name',
@@ -235,6 +383,12 @@ const RecycleBinPage: React.FC = () => {
   // Task columns
   const taskColumns: unknown[] = [
     {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80,
+    },
+    {
       title: '任务标题',
       dataIndex: 'title',
       key: 'title',
@@ -284,7 +438,7 @@ const RecycleBinPage: React.FC = () => {
         <Space>
           <Button
             type="primary"
-            
+
             icon={<ReloadOutlined />}
             onClick={() => handleRestoreTask(record.id)}
           >
@@ -302,7 +456,223 @@ const RecycleBinPage: React.FC = () => {
             <Button
               type="primary"
               danger
-              
+
+              icon={<DeleteOutlined />}
+            >
+              永久删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  // Document columns
+  const documentColumns: unknown[] = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80,
+    },
+    {
+      title: '文档标题',
+      dataIndex: 'title',
+      key: 'title',
+      render: (text) => <span style={{ fontWeight: 500 }}>{text}</span>,
+    },
+    {
+      title: '所属项目',
+      dataIndex: 'project_name',
+      key: 'project_name',
+      render: (text) => text || '-',
+    },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type) => {
+        const typeMap = {
+          markdown: 'Markdown',
+          txt: '文本',
+          pdf: 'PDF',
+        };
+        return <Tag>{typeMap[type as keyof typeof typeMap] || type}</Tag>;
+      },
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => {
+        const statusMap = {
+          draft: '草稿',
+          published: '已发布',
+          archived: '已归档',
+        };
+        const colorMap = {
+          draft: 'default',
+          published: 'success',
+          archived: 'warning',
+        };
+        return <Tag color={colorMap[status as keyof typeof colorMap]}>{statusMap[status as keyof typeof statusMap] || status}</Tag>;
+      },
+    },
+    {
+      title: '创建者',
+      dataIndex: 'owner_name',
+      key: 'owner_name',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (text) => new Date(text).toLocaleString('zh-CN'),
+    },
+    {
+      title: '删除时间',
+      dataIndex: 'deleted_at',
+      key: 'deleted_at',
+      render: (text) => new Date(text).toLocaleString('zh-CN'),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            onClick={() => handleRestoreDocument(record.id)}
+          >
+            恢复
+          </Button>
+          <Popconfirm
+            title="确认永久删除"
+            description="此操作不可撤销，确定要永久删除这个文档吗？"
+            icon={<ExclamationCircleOutlined style={{ color: 'red' }} />}
+            onConfirm={() => handleHardDeleteDocument(record.id)}
+            okText="确定"
+            cancelText="取消"
+            okType="danger"
+          >
+            <Button
+              type="primary"
+              danger
+              icon={<DeleteOutlined />}
+            >
+              永久删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  // Work Note columns
+  const workNoteColumns: unknown[] = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80,
+    },
+    {
+      title: '笔记标题',
+      dataIndex: 'title',
+      key: 'title',
+      render: (text) => <span style={{ fontWeight: 500 }}>{text}</span>,
+    },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type) => {
+        const typeMap = {
+          markdown: 'Markdown',
+          text: '文本',
+          html: 'HTML',
+        };
+        return <Tag>{typeMap[type as keyof typeof typeMap] || type}</Tag>;
+      },
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => {
+        const statusMap = {
+          draft: '草稿',
+          published: '已发布',
+          archived: '已归档',
+        };
+        const colorMap = {
+          draft: 'default',
+          published: 'success',
+          archived: 'warning',
+        };
+        return <Tag color={colorMap[status as keyof typeof colorMap]}>{statusMap[status as keyof typeof statusMap] || status}</Tag>;
+      },
+    },
+    {
+      title: '可见性',
+      dataIndex: 'visibility',
+      key: 'visibility',
+      render: (visibility) => {
+        const visibilityMap = {
+          private: '私有',
+          team: '团队',
+          public: '公开',
+        };
+        const colorMap = {
+          private: 'red',
+          team: 'blue',
+          public: 'green',
+        };
+        return <Tag color={colorMap[visibility as keyof typeof colorMap]}>{visibilityMap[visibility as keyof typeof visibilityMap] || visibility}</Tag>;
+      },
+    },
+    {
+      title: '创建者',
+      dataIndex: 'owner_name',
+      key: 'owner_name',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (text) => new Date(text).toLocaleString('zh-CN'),
+    },
+    {
+      title: '删除时间',
+      dataIndex: 'deleted_at',
+      key: 'deleted_at',
+      render: (text) => new Date(text).toLocaleString('zh-CN'),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            onClick={() => handleRestoreWorkNote(record.id)}
+          >
+            恢复
+          </Button>
+          <Popconfirm
+            title="确认永久删除"
+            description="此操作不可撤销，确定要永久删除这个工作笔记吗？"
+            icon={<ExclamationCircleOutlined style={{ color: 'red' }} />}
+            onConfirm={() => handleHardDeleteWorkNote(record.id)}
+            okText="确定"
+            cancelText="取消"
+            okType="danger"
+          >
+            <Button
+              type="primary"
+              danger
               icon={<DeleteOutlined />}
             >
               永久删除
@@ -319,6 +689,10 @@ const RecycleBinPage: React.FC = () => {
       loadRecycledProjects(1);
     } else if (activeTab === 'tasks') {
       loadRecycledTasks(1);
+    } else if (activeTab === 'documents') {
+      loadRecycledDocuments(1);
+    } else if (activeTab === 'work-notes') {
+      loadRecycledWorkNotes(1);
     }
   }, [activeTab]);
 
@@ -359,6 +733,50 @@ const RecycleBinPage: React.FC = () => {
             pageSize: tasksPageSize,
             total: tasksTotal,
             onChange: loadRecycledTasks,
+            showSizeChanger: false,
+            showQuickJumper: true,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+          }}
+          scroll={{ x: 'max-content' }}
+        />
+      ),
+    },
+    {
+      key: 'documents',
+      label: '文档回收站',
+      children: (
+        <Table
+          columns={documentColumns}
+          dataSource={Array.isArray(recycledDocuments) ? recycledDocuments : []}
+          loading={documentsLoading}
+          rowKey="id"
+          pagination={{
+            current: documentsCurrentPage,
+            pageSize: documentsPageSize,
+            total: documentsTotal,
+            onChange: loadRecycledDocuments,
+            showSizeChanger: false,
+            showQuickJumper: true,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+          }}
+          scroll={{ x: 'max-content' }}
+        />
+      ),
+    },
+    {
+      key: 'work-notes',
+      label: '笔记回收站',
+      children: (
+        <Table
+          columns={workNoteColumns}
+          dataSource={Array.isArray(recycledWorkNotes) ? recycledWorkNotes : []}
+          loading={workNotesLoading}
+          rowKey="id"
+          pagination={{
+            current: workNotesCurrentPage,
+            pageSize: workNotesPageSize,
+            total: workNotesTotal,
+            onChange: loadRecycledWorkNotes,
             showSizeChanger: false,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,

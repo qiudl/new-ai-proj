@@ -350,7 +350,7 @@ type RecycledTask struct {
 	ID               int          `json:"id" db:"id"`
 	ProjectID        int          `json:"project_id" db:"project_id"`
 	Title            string       `json:"title" db:"title"`
-	Description      string       `json:"description" db:"description"`
+	Description      *string      `json:"description" db:"description"` // Can be NULL in database
 	Status           string       `json:"status" db:"status"`
 	AssigneeID       *int         `json:"assignee_id" db:"assignee_id"`
 	DueDate          *time.Time   `json:"due_date" db:"due_date"`
@@ -362,6 +362,38 @@ type RecycledTask struct {
 	ProjectName      string       `json:"project_name" db:"project_name"`
 	AssigneeUsername *string      `json:"assignee_username" db:"assignee_username"`
 	ParentTaskTitle  *string      `json:"parent_task_title" db:"parent_task_title"`
+}
+
+// RecycledDocument represents a deleted document in the recycle bin
+type RecycledDocument struct {
+	ID          int        `json:"id" db:"id"`
+	ProjectID   *int       `json:"project_id" db:"project_id"`
+	Title       string     `json:"title" db:"title"`
+	Content     string     `json:"content" db:"content"`
+	Type        string     `json:"type" db:"type"`
+	Status      string     `json:"status" db:"status"`
+	OwnerID     int        `json:"owner_id" db:"owner_id"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	DeletedAt   time.Time  `json:"deleted_at" db:"deleted_at"`
+	ProjectName *string    `json:"project_name" db:"project_name"`
+	OwnerName   string     `json:"owner_name" db:"owner_name"`
+	FileSize    *int64     `json:"file_size" db:"file_size"`
+	Tags        []string   `json:"tags" db:"tags"`
+}
+
+// RecycledWorkNote represents a deleted work note in the recycle bin
+type RecycledWorkNote struct {
+	ID         int        `json:"id" db:"id"`
+	Title      string     `json:"title" db:"title"`
+	Content    string     `json:"content" db:"content"`
+	Type       string     `json:"type" db:"type"`
+	Status     string     `json:"status" db:"status"`
+	OwnerID    int        `json:"owner_id" db:"owner_id"`
+	CreatedAt  time.Time  `json:"created_at" db:"created_at"`
+	DeletedAt  time.Time  `json:"deleted_at" db:"deleted_at"`
+	OwnerName  string     `json:"owner_name" db:"owner_name"`
+	Tags       []string   `json:"tags" db:"tags"`
+	Visibility string     `json:"visibility" db:"visibility"`
 }
 
 // ToResponse converts Task to TaskResponse

@@ -485,6 +485,24 @@ func (app *Application) HardDeleteTaskHandler() gin.HandlerFunc {
 	}
 }
 
+func (app *Application) GetRecycledDocumentsHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.GetRecycledDocuments
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetRecycledDocumentsHandler not implemented"})
+	}
+}
+
+func (app *Application) GetRecycledWorkNotesHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.GetRecycledWorkNotes
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetRecycledWorkNotesHandler not implemented"})
+	}
+}
+
 func (app *Application) EmptyRecycleBinHandler() gin.HandlerFunc {
 	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
 		return app.handlers.RecycleBinHandler.EmptyRecycleBin
