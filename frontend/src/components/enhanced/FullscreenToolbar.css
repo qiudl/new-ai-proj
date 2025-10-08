@@ -1,0 +1,430 @@
+/**
+ * FullscreenToolbar Component Styles
+ */
+
+.fullscreen-toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  z-index: 1000;
+  
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+  
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &.hidden {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  
+  &.visible {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 暗色主题 */
+.fullscreen-toolbar.dark-theme {
+  background: rgba(13, 17, 23, 0.85);
+  border-bottom-color: rgba(48, 54, 61, 0.8);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ========== 工具栏区域 ========== */
+
+.toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  &.toolbar-left {
+    flex-shrink: 0;
+  }
+  
+  &.toolbar-center {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+    max-width: 400px;
+    margin: 0 24px;
+  }
+  
+  &.toolbar-right {
+    flex-shrink: 0;
+  }
+}
+
+/* ========== 工具栏按钮 ========== */
+
+.toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-color, #374151);
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover {
+    background: rgba(156, 163, 175, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  &.ant-btn-primary {
+    background: var(--primary-color, #1890ff);
+    color: white;
+    
+    &:hover {
+      background: var(--primary-color-hover, #40a9ff);
+      transform: translateY(-1px);
+    }
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* 关闭按钮特殊样式 */
+.close-button:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #ef4444 !important;
+}
+
+/* ========== 标题区域 ========== */
+
+.toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-color, #374151);
+  font-weight: 500;
+  max-width: 100%;
+  
+  .title-icon {
+    flex-shrink: 0;
+    font-size: 18px;
+  }
+  
+  .title-content {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+  
+  .title-text {
+    font-size: 16px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+  
+  .subtitle-text {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-color-secondary, #6b7280);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+}
+
+/* ========== 字体控制 ========== */
+
+.font-control-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.font-size-control {
+  display: flex;
+  align-items: center;
+  background: rgba(156, 163, 175, 0.1);
+  border-radius: 8px;
+  padding: 4px 8px;
+  
+  .font-size-slider {
+    display: flex;
+    align-items: center;
+    
+    .font-adjust-btn {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      font-size: 12px;
+      border-radius: 4px;
+      
+      &:hover {
+        background: rgba(156, 163, 175, 0.2);
+        transform: none;
+        box-shadow: none;
+      }
+    }
+    
+    .ant-slider {
+      margin: 0 8px;
+      width: 80px;
+      
+      .ant-slider-rail {
+        background: rgba(156, 163, 175, 0.2);
+        height: 4px;
+      }
+      
+      .ant-slider-track {
+        background: var(--primary-color, #1890ff);
+        height: 4px;
+      }
+      
+      .ant-slider-handle {
+        border-color: var(--primary-color, #1890ff);
+        width: 12px;
+        height: 12px;
+        margin-top: -4px;
+        
+        &:hover,
+        &:focus {
+          border-color: var(--primary-color, #1890ff);
+          box-shadow: 0 0 0 5px rgba(24, 144, 255, 0.1);
+        }
+        
+        &::after {
+          box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+        }
+      }
+    }
+  }
+}
+
+/* ========== 快捷键提示 ========== */
+
+.shortcut-hint {
+  position: absolute;
+  bottom: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: hintFadeIn 300ms ease-out, hintFadeOut 300ms ease-out 2.7s forwards;
+  z-index: 1001;
+}
+
+@keyframes hintFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes hintFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* ========== 响应式设计 ========== */
+
+/* 平板端 (769px-1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .fullscreen-toolbar {
+    height: 60px;
+    padding: 0 20px;
+  }
+  
+  .toolbar-button {
+    min-width: 36px;
+    height: 36px;
+  }
+  
+  .toolbar-title .title-text {
+    font-size: 15px;
+  }
+  
+  .toolbar-section.toolbar-center {
+    max-width: 300px;
+    margin: 0 16px;
+  }
+}
+
+/* 移动端 (≤768px) */
+@media (max-width: 768px) {
+  .fullscreen-toolbar {
+    height: 56px;
+    padding: 0 16px;
+  }
+  
+  .toolbar-button {
+    min-width: 36px;
+    height: 36px;
+    
+    /* 移动端隐藏按钮文字，只显示图标 */
+    .ant-btn-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    span:not(.anticon) {
+      display: none;
+    }
+  }
+  
+  .toolbar-title {
+    .title-text {
+      font-size: 14px;
+    }
+    
+    .subtitle-text {
+      display: none; /* 移动端隐藏副标题 */
+    }
+  }
+  
+  .toolbar-section.toolbar-center {
+    max-width: 200px;
+    margin: 0 8px;
+  }
+  
+  /* 移动端隐藏字体控制 */
+  .font-control-wrapper {
+    display: none;
+  }
+  
+  /* 移动端隐藏快捷键提示 */
+  .shortcut-hint {
+    display: none;
+  }
+}
+
+/* 超小屏幕 (≤480px) */
+@media (max-width: 480px) {
+  .fullscreen-toolbar {
+    padding: 0 12px;
+  }
+  
+  .toolbar-section {
+    gap: 4px;
+  }
+  
+  .toolbar-button {
+    min-width: 32px;
+    height: 32px;
+  }
+  
+  .toolbar-title .title-text {
+    font-size: 13px;
+  }
+  
+  /* 超小屏幕进一步精简按钮 */
+  .toolbar-left .ant-space > *:nth-child(n+3) {
+    display: none;
+  }
+}
+
+/* ========== 暗色主题适配 ========== */
+
+.dark-theme {
+  .toolbar-button {
+    color: rgba(255, 255, 255, 0.85);
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.95);
+    }
+  }
+  
+  .toolbar-title {
+    color: rgba(255, 255, 255, 0.85);
+    
+    .subtitle-text {
+      color: rgba(255, 255, 255, 0.65);
+    }
+  }
+  
+  .font-size-control {
+    background: rgba(255, 255, 255, 0.1);
+    
+    .font-adjust-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
+
+/* ========== 无障碍支持 ========== */
+
+.toolbar-button:focus-visible {
+  outline: 2px solid var(--primary-color, #1890ff);
+  outline-offset: 2px;
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+  .fullscreen-toolbar {
+    border-bottom-width: 2px;
+    border-bottom-color: currentColor;
+  }
+  
+  .toolbar-button {
+    border: 1px solid currentColor;
+  }
+}
+
+/* 减少动画（可访问性） */
+@media (prefers-reduced-motion: reduce) {
+  .fullscreen-toolbar,
+  .toolbar-button,
+  .font-size-control * {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+  
+  .shortcut-hint {
+    animation: none !important;
+  }
+}
+
+/* ========== 打印样式 ========== */
+
+@media print {
+  .fullscreen-toolbar {
+    display: none;
+  }
+}

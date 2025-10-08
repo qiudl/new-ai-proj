@@ -1,10 +1,51 @@
 import axios from 'axios';
+import { ErrorHandler } from '../utils/error';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1';
 
 // 添加工作笔记专用枚举
 export type WorkNoteType = 'general' | 'meeting' | 'idea' | 'log' | 'reference' | 'template';
 export type WorkNotePriority = 'low' | 'medium' | 'high' | 'urgent';
+
+// 工作笔记文件夹接口
+export interface WorkNoteFolder {
+  id: number;
+  name: string;
+  description?: string;
+  parent_id?: number;
+  owner_id: number;
+  project_id?: number;
+  visibility: 'private' | 'team' | 'public';
+  color?: string;
+  icon?: string;
+  sort_order: number;
+  notes_count: number;
+  subfolders_count: number;
+  path?: string;
+  children?: WorkNoteFolder[];
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+}
+
+export interface CreateWorkNoteFolderRequest {
+  name: string;
+  description?: string;
+  parent_id?: number;
+  project_id?: number;
+  visibility?: 'private' | 'team' | 'public';
+  color?: string;
+  icon?: string;
+}
+
+export interface UpdateWorkNoteFolderRequest {
+  name?: string;
+  description?: string;
+  parent_id?: number;
+  visibility?: 'private' | 'team' | 'public';
+  color?: string;
+  icon?: string;
+}
 
 // 工作笔记接口
 export interface WorkNote {
@@ -228,6 +269,9 @@ class WorkNotesService {
 
   // 数据转换工具方法
   private transformWorkNoteFromAPI(apiData: any): WorkNote {
+    // 使用当前时间作为缺失时间戳的fallback
+    const now = new Date().toISOString();
+
     return {
       ...apiData,
       work_note_type: apiData.work_note_type || 'general',
@@ -238,205 +282,168 @@ class WorkNotesService {
       word_count: apiData.word_count || undefined,
       read_time: apiData.read_time || undefined,
       last_read_at: apiData.last_read_at || undefined,
+      // 确保必需的时间戳字段有值
+      created_at: apiData.created_at || now,
+      updated_at: apiData.updated_at || apiData.created_at || now,
     };
   }
 
   // 创建工作笔记
   async createWorkNote(request: CreateWorkNoteRequest): Promise<WorkNote> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const payload = {
-        ...request,
-        work_note_type: request.work_note_type || 'general',
-        priority: request.priority || 'medium',
-        type: request.type || 'markdown'
-      };
-      
-      const response = await axios.post<APIResponse<WorkNote>>(
-        `${API_BASE_URL}/work-notes`,
-        payload,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to create work note');
-      }
-      
-      return this.transformWorkNoteFromAPI(response.data.data);
-    } catch (error: any) {
-      console.error('Error creating work note:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to create work note');
+    const headers = await this.getAuthHeaders();
+    const payload = {
+      ...request,
+      work_note_type: request.work_note_type || 'general',
+      priority: request.priority || 'medium',
+      type: request.type || 'markdown'
+    };
+
+    const response = await axios.post<APIResponse<WorkNote>>(
+      `${API_BASE_URL}/work-notes`,
+      payload,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to create work note');
     }
+
+    return this.transformWorkNoteFromAPI(response.data.data);
   }
 
   // 获取工作笔记详情
   async getWorkNote(id: number): Promise<WorkNote> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.get<APIResponse<WorkNote>>(
-        `${API_BASE_URL}/work-notes/${id}`,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to get work note');
-      }
-      
-      return this.transformWorkNoteFromAPI(response.data.data);
-    } catch (error: any) {
-      console.error('Error getting work note:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get work note');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<WorkNote>>(
+      `${API_BASE_URL}/work-notes/${id}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get work note');
     }
+
+    return this.transformWorkNoteFromAPI(response.data.data);
   }
 
   // 更新工作笔记
   async updateWorkNote(id: number, request: UpdateWorkNoteRequest): Promise<WorkNote> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const payload = {
-        ...request
-      };
-      
-      const response = await axios.put<APIResponse<WorkNote>>(
-        `${API_BASE_URL}/work-notes/${id}`,
-        payload,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to update work note');
-      }
-      
-      return this.transformWorkNoteFromAPI(response.data.data);
-    } catch (error: any) {
-      console.error('Error updating work note:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to update work note');
+    const headers = await this.getAuthHeaders();
+    const payload = {
+      ...request
+    };
+
+    const response = await axios.put<APIResponse<WorkNote>>(
+      `${API_BASE_URL}/work-notes/${id}`,
+      payload,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to update work note');
     }
+
+    return this.transformWorkNoteFromAPI(response.data.data);
   }
 
   // 删除工作笔记
   async deleteWorkNote(id: number): Promise<void> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.delete<APIResponse<void>>(
-        `${API_BASE_URL}/work-notes/${id}`,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to delete work note');
-      }
-    } catch (error: any) {
-      console.error('Error deleting work note:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to delete work note');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.delete<APIResponse<void>>(
+      `${API_BASE_URL}/work-notes/${id}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to delete work note');
     }
   }
 
   // 列出工作笔记
   async listWorkNotes(folderId?: number, page?: number, limit?: number): Promise<WorkNotesListResponse> {
-    try {
-      const params = new URLSearchParams();
-      if (folderId !== undefined) {
-        params.append('folder_id', folderId.toString());
-      }
-      if (page !== undefined) {
-        params.append('page', page.toString());
-      }
-      if (limit !== undefined) {
-        params.append('limit', limit.toString());
-      }
-
-      const headers = await this.getAuthHeaders();
-      const response = await axios.get<APIResponse<{notes: WorkNote[], pagination: any}>>(
-        `${API_BASE_URL}/work-notes?${params}`,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to list work notes');
-      }
-      
-      // 适配后端返回格式 {notes: [], pagination: {}} 到前端期望格式 {documents: [], total: number}
-      const backendData = response.data.data;
-      const transformedNotes = (backendData.notes || []).map((note: any) => this.transformWorkNoteFromAPI(note));
-      
-      return {
-        documents: transformedNotes,
-        total: backendData.pagination?.total || transformedNotes.length || 0,
-        page: backendData.pagination?.page || 1,
-        page_size: backendData.pagination?.page_size || 20
-      };
-    } catch (error: any) {
-      console.error('Error listing work notes:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to list work notes');
+    const params = new URLSearchParams();
+    if (folderId !== undefined) {
+      params.append('folder_id', folderId.toString());
     }
+    if (page !== undefined) {
+      params.append('page', page.toString());
+    }
+    if (limit !== undefined) {
+      params.append('limit', limit.toString());
+    }
+
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<{notes: WorkNote[], pagination: any}>>(
+      `${API_BASE_URL}/work-notes?${params}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to list work notes');
+    }
+
+    // 适配后端返回格式 {notes: [], pagination: {}} 到前端期望格式 {documents: [], total: number}
+    const backendData = response.data.data;
+    const transformedNotes = (backendData.notes || []).map((note: any) => this.transformWorkNoteFromAPI(note));
+
+    return {
+      documents: transformedNotes,
+      total: backendData.pagination?.total || transformedNotes.length || 0,
+      page: backendData.pagination?.page || 1,
+      page_size: backendData.pagination?.page_size || 20
+    };
   }
 
   // 搜索工作笔记
   async searchWorkNotes(query: string): Promise<WorkNote[]> {
-    try {
-      const params = new URLSearchParams();
-      if (query) {
-        params.append('query', query);
-      }
-
-      const headers = await this.getAuthHeaders();
-      const response = await axios.get<APIResponse<{ documents: WorkNote[] }>>(
-        `${API_BASE_URL}/work-notes/search?${params}`,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to search work notes');
-      }
-      
-      return (response.data.data.documents || []).map((note: any) => this.transformWorkNoteFromAPI(note));
-    } catch (error: any) {
-      console.error('Error searching work notes:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to search work notes');
+    const params = new URLSearchParams();
+    if (query) {
+      params.append('query', query);
     }
+
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<{ documents: WorkNote[] }>>(
+      `${API_BASE_URL}/work-notes/search?${params}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to search work notes');
+    }
+
+    return (response.data.data.documents || []).map((note: any) => this.transformWorkNoteFromAPI(note));
   }
 
   // 复制工作笔记
   async copyWorkNote(id: number): Promise<WorkNote> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.post<APIResponse<WorkNote>>(
-        `${API_BASE_URL}/work-notes/${id}/copy`,
-        {},
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to copy work note');
-      }
-      
-      return response.data.data;
-    } catch (error: any) {
-      console.error('Error copying work note:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to copy work note');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.post<APIResponse<WorkNote>>(
+      `${API_BASE_URL}/work-notes/${id}/copy`,
+      {},
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to copy work note');
     }
+
+    return response.data.data;
   }
 
   // 切换模板状态
   async toggleTemplate(id: number): Promise<WorkNote> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.post<APIResponse<WorkNote>>(
-        `${API_BASE_URL}/work-notes/${id}/toggle-template`,
-        {},
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to toggle template');
-      }
-      
-      return response.data.data;
-    } catch (error: any) {
-      console.error('Error toggling template:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to toggle template');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.post<APIResponse<WorkNote>>(
+      `${API_BASE_URL}/work-notes/${id}/toggle-template`,
+      {},
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to toggle template');
     }
+
+    return response.data.data;
   }
 
   // 获取文件夹下的工作笔记
@@ -445,29 +452,24 @@ class WorkNotesService {
     total_count: number;
     has_more: boolean;
   }> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.get<APIResponse<{
-        documents: WorkNote[];
-        total_count: number;
-        has_more: boolean;
-      }>>(
-        `${API_BASE_URL}/document-folders/${folderId}/documents?limit=${limit}&offset=${offset}`,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to get folder work notes');
-      }
-      
-      return response.data.data;
-    } catch (error: any) {
-      console.error('Error getting folder work notes:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get folder work notes');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<{
+      documents: WorkNote[];
+      total_count: number;
+      has_more: boolean;
+    }>>(
+      `${API_BASE_URL}/document-folders/${folderId}/documents?limit=${limit}&offset=${offset}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get folder work notes');
     }
+
+    return response.data.data;
   }
 
-  // 获取分类统计数据
+  // 获取分类统计数据（带降级处理）
   async getCategoryStats(): Promise<CategoryStats> {
     try {
       const headers = await this.getAuthHeaders();
@@ -475,16 +477,16 @@ class WorkNotesService {
         `${API_BASE_URL}/work-notes/category-stats`,
         { headers }
       );
-      
+
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to get category stats');
       }
-      
+
       return response.data.data;
     } catch (error: any) {
-      console.error('Error getting category stats:', error);
-      
-      // 如果API不存在，返回模拟数据
+      // 静默记录错误，返回模拟数据作为降级处理
+      ErrorHandler.silent(error);
+
       return {
         categories: {
           frontend: { count: 23, icon: '📝', color: '#1890ff' },
@@ -513,24 +515,24 @@ class WorkNotesService {
     }
   }
 
-  // 获取关联任务信息
+  // 获取关联任务信息（带降级处理）
   async getAssociatedTasks(noteId: number): Promise<AssociatedTask[]> {
     try {
       const headers = await this.getAuthHeaders();
       const response = await axios.get<APIResponse<{ tasks: AssociatedTask[] }>>(
-        `${API_BASE_URL}/work-notes/${noteId}/associated-tasks`,
+        `${API_BASE_URL}/work-notes/${noteId}/tasks`,
         { headers }
       );
-      
+
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to get associated tasks');
       }
-      
+
       return response.data.data.tasks || [];
     } catch (error: any) {
-      console.error('Error getting associated tasks:', error);
-      
-      // 如果API不存在，返回模拟数据
+      // 静默记录错误，返回模拟数据作为降级处理
+      ErrorHandler.silent(error);
+
       return Math.random() > 0.6 ? [
         {
           id: Math.floor(Math.random() * 1000),
@@ -545,79 +547,59 @@ class WorkNotesService {
 
   // 关联任务
   async associateTask(noteId: number, taskId: number): Promise<void> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.post<APIResponse<void>>(
-        `${API_BASE_URL}/work-notes/${noteId}/associate-task`,
-        { task_id: taskId },
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to associate task');
-      }
-    } catch (error: any) {
-      console.error('Error associating task:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to associate task');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.post<APIResponse<void>>(
+      `${API_BASE_URL}/work-notes/${noteId}/attach-task`,
+      { task_id: taskId },
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to associate task');
     }
   }
 
   // 取消关联任务
   async disassociateTask(noteId: number, taskId: number): Promise<void> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.delete<APIResponse<void>>(
-        `${API_BASE_URL}/work-notes/${noteId}/associate-task/${taskId}`,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to disassociate task');
-      }
-    } catch (error: any) {
-      console.error('Error disassociating task:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to disassociate task');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.delete<APIResponse<void>>(
+      `${API_BASE_URL}/work-notes/${noteId}/detach-task/${taskId}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to disassociate task');
     }
   }
 
   // 按分类筛选笔记
   async getWorkNotesByCategory(category: string): Promise<WorkNote[]> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.get<APIResponse<{ documents: WorkNote[] }>>(
-        `${API_BASE_URL}/work-notes?category=${encodeURIComponent(category)}`,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to get work notes by category');
-      }
-      
-      return (response.data.data.documents || []).map((note: any) => this.transformWorkNoteFromAPI(note));
-    } catch (error: any) {
-      console.error('Error getting work notes by category:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get work notes by category');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<{ documents: WorkNote[] }>>(
+      `${API_BASE_URL}/work-notes?category=${encodeURIComponent(category)}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get work notes by category');
     }
+
+    return (response.data.data.documents || []).map((note: any) => this.transformWorkNoteFromAPI(note));
   }
 
   // 按时间范围筛选
   async getWorkNotesByTimeRange(range: string): Promise<WorkNote[]> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.get<APIResponse<{ documents: WorkNote[] }>>(
-        `${API_BASE_URL}/work-notes?time_range=${encodeURIComponent(range)}`,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to get work notes by time range');
-      }
-      
-      return (response.data.data.documents || []).map((note: any) => this.transformWorkNoteFromAPI(note));
-    } catch (error: any) {
-      console.error('Error getting work notes by time range:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get work notes by time range');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<{ documents: WorkNote[] }>>(
+      `${API_BASE_URL}/work-notes?time_range=${encodeURIComponent(range)}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get work notes by time range');
     }
+
+    return (response.data.data.documents || []).map((note: any) => this.transformWorkNoteFromAPI(note));
   }
 
   // =============================================================================
@@ -626,65 +608,192 @@ class WorkNotesService {
 
   // 单个工作笔记转任务文档
   async convertToTaskDocument(workNoteId: number, request: ConvertToTaskDocumentRequest): Promise<ConversionResult> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.post<APIResponse<ConversionResult>>(
-        `${API_BASE_URL}/work-notes/${workNoteId}/convert-to-task-document`,
-        request,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to convert work note to task document');
-      }
-      
-      return response.data.data;
-    } catch (error: any) {
-      console.error('Error converting work note to task document:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to convert work note');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.post<APIResponse<ConversionResult>>(
+      `${API_BASE_URL}/work-notes/${workNoteId}/convert-to-task-document`,
+      request,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to convert work note to task document');
     }
+
+    return response.data.data;
   }
 
   // 转换预览
   async getConversionPreview(workNoteId: number, request: ConvertPreviewRequest): Promise<any> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.post<APIResponse<any>>(
-        `${API_BASE_URL}/work-notes/${workNoteId}/convert-preview`,
-        request,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to get conversion preview');
-      }
-      
-      return response.data.data;
-    } catch (error: any) {
-      console.error('Error getting conversion preview:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get conversion preview');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.post<APIResponse<any>>(
+      `${API_BASE_URL}/work-notes/${workNoteId}/convert-preview`,
+      request,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get conversion preview');
     }
+
+    return response.data.data;
   }
 
   // 批量转换
   async batchConvertToTaskDocuments(request: BatchConvertRequest): Promise<any> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await axios.post<APIResponse<any>>(
-        `${API_BASE_URL}/work-notes/batch-convert-to-task-documents`,
-        request,
-        { headers }
-      );
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to batch convert work notes');
-      }
-      
-      return response.data.data;
-    } catch (error: any) {
-      console.error('Error batch converting work notes:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to batch convert work notes');
+    const headers = await this.getAuthHeaders();
+    const response = await axios.post<APIResponse<any>>(
+      `${API_BASE_URL}/work-notes/batch-convert-to-task-documents`,
+      request,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to batch convert work notes');
     }
+
+    return response.data.data;
+  }
+
+  // =============================================================================
+  // 工作笔记文件夹管理功能
+  // =============================================================================
+
+  // 获取文件夹树
+  async getFolderTree(parentId?: number | null, maxDepth?: number): Promise<WorkNoteFolder[]> {
+    const headers = await this.getAuthHeaders();
+    const params = new URLSearchParams();
+    if (parentId !== undefined && parentId !== null) {
+      params.append('parent_id', parentId.toString());
+    }
+    if (maxDepth !== undefined) {
+      params.append('max_depth', maxDepth.toString());
+    }
+
+    const response = await axios.get<APIResponse<WorkNoteFolder[]>>(
+      `${API_BASE_URL}/work-note-folders/tree?${params}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get folder tree');
+    }
+
+    return response.data.data || [];
+  }
+
+  // 获取单个文件夹
+  async getFolder(id: number): Promise<WorkNoteFolder> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<WorkNoteFolder>>(
+      `${API_BASE_URL}/work-note-folders/${id}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get folder');
+    }
+
+    return response.data.data;
+  }
+
+  // 创建文件夹
+  async createFolder(request: CreateWorkNoteFolderRequest): Promise<WorkNoteFolder> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.post<APIResponse<WorkNoteFolder>>(
+      `${API_BASE_URL}/work-note-folders`,
+      request,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to create folder');
+    }
+
+    return response.data.data;
+  }
+
+  // 更新文件夹
+  async updateFolder(id: number, request: UpdateWorkNoteFolderRequest): Promise<WorkNoteFolder> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.put<APIResponse<WorkNoteFolder>>(
+      `${API_BASE_URL}/work-note-folders/${id}`,
+      request,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to update folder');
+    }
+
+    return response.data.data;
+  }
+
+  // 删除文件夹
+  async deleteFolder(id: number): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.delete<APIResponse<void>>(
+      `${API_BASE_URL}/work-note-folders/${id}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to delete folder');
+    }
+  }
+
+  // 移动文件夹
+  async moveFolder(id: number, targetParentId: number | null, sortOrder?: number): Promise<WorkNoteFolder> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.post<APIResponse<WorkNoteFolder>>(
+      `${API_BASE_URL}/work-note-folders/${id}/move`,
+      {
+        target_parent_id: targetParentId,
+        sort_order: sortOrder || 0
+      },
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to move folder');
+    }
+
+    return response.data.data;
+  }
+
+  // 搜索文件夹
+  async searchFolders(query: string): Promise<WorkNoteFolder[]> {
+    const headers = await this.getAuthHeaders();
+    const params = new URLSearchParams();
+    if (query) {
+      params.append('query', query);
+    }
+
+    const response = await axios.get<APIResponse<{ folders: WorkNoteFolder[] }>>(
+      `${API_BASE_URL}/work-note-folders/search?${params}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to search folders');
+    }
+
+    return response.data.data.folders || [];
+  }
+
+  // 移动笔记到文件夹
+  async moveNoteToFolder(noteId: number, folderId: number | null): Promise<WorkNote> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.post<APIResponse<WorkNote>>(
+      `${API_BASE_URL}/work-notes/${noteId}/move-to-folder`,
+      { folder_id: folderId },
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to move note to folder');
+    }
+
+    return this.transformWorkNoteFromAPI(response.data.data);
   }
 }
 

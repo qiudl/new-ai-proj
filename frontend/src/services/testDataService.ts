@@ -10,7 +10,7 @@ import {
   TestDataApiResponse
 } from '../types/testData';
 
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8081';
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 const API_BASE = `${BASE_URL}/api/v1/test-data`;
 
 class TestDataService {

@@ -74,10 +74,10 @@ func (s *TimerCleanupService) performCleanup(config *TimerCleanupConfig) {
 
 	// Query for running timers that have exceeded the time limit
 	query := `
-		SELECT id, user_id, target_type, target_id, start_time, 
+		SELECT id, user_id, target_type, target_id, start_time,
 		       EXTRACT(EPOCH FROM (NOW() - start_time))::INTEGER as elapsed_seconds
-		FROM unified_timers 
-		WHERE status = 'running' 
+		FROM unified_timer_logs
+		WHERE status = 'running'
 		  AND start_time < $1`
 
 	// Add user exclusions if specified
@@ -125,7 +125,7 @@ func (s *TimerCleanupService) performCleanup(config *TimerCleanupConfig) {
 
 		// Update timer status
 		updateQuery := `
-			UPDATE unified_timers 
+			UPDATE unified_timer_logs
 			SET status = $1, updated_at = NOW()
 			WHERE id = $2`
 
@@ -174,11 +174,11 @@ func (s *TimerCleanupService) GetLongRunningTimers(ctx context.Context, maxDurat
 	query := `
 		SELECT t.id, t.user_id, t.target_type, t.target_id, t.start_time,
 		       EXTRACT(EPOCH FROM (NOW() - t.start_time))::INTEGER as elapsed_seconds,
-		       COALESCE(pt.title, utt.title, 'Unknown Task') as task_title
-		FROM unified_timers t
-		LEFT JOIN project_tasks pt ON t.target_type = 'project_task' AND t.target_id = pt.id
+		       COALESCE(ts.title, utt.title, 'Unknown Task') as task_title
+		FROM unified_timer_logs t
+		LEFT JOIN tasks ts ON t.target_type = 'project_task' AND t.target_id = ts.id
 		LEFT JOIN user_timer_tasks utt ON t.target_type = 'personal_task' AND t.target_id = utt.id
-		WHERE t.status = 'running' 
+		WHERE t.status = 'running'
 		  AND t.start_time < $1
 		ORDER BY t.start_time ASC`
 
@@ -236,10 +236,10 @@ func (s *TimerCleanupService) performFullCleanup(ctx context.Context, config *Ti
 	}
 
 	query := `
-		UPDATE unified_timers 
+		UPDATE unified_timer_logs
 		SET status = $1, updated_at = NOW()
 		WHERE status = 'running' AND start_time < $2
-		RETURNING id, user_id, target_type, target_id, 
+		RETURNING id, user_id, target_type, target_id,
 		          EXTRACT(EPOCH FROM (NOW() - start_time))::INTEGER as elapsed_seconds`
 
 	rows, err := s.db.QueryContext(ctx, query, newStatus, cutoffTime)

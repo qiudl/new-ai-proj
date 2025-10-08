@@ -113,6 +113,9 @@ export class ClaudeProvider {
   async getModels(): Promise<string[]> {
     // Claude API目前不提供模型列表接口，返回已知的模型
     return [
+      'claude-sonnet-4-5-20250929',
+      'claude-sonnet-4-20250514',
+      'claude-opus-4-20250514',
       'claude-3-haiku-20240307',
       'claude-3-sonnet-20240229',
       'claude-3-opus-20240229',

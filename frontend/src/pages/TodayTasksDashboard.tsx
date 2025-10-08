@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Row,
   Col,
@@ -32,7 +33,8 @@ import {
   ReloadOutlined,
   FilterOutlined,
   HourglassOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  FundViewOutlined
 } from '@ant-design/icons';
 import { useTodayTasks } from '../hooks/useTodayTasks';
 import TodayTasksCard from '../components/TodayTasksCard';
@@ -51,6 +53,7 @@ interface TaskActivity {
 }
 
 const TodayTasksDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | undefined>();
@@ -354,11 +357,22 @@ const TodayTasksDashboard: React.FC = () => {
 
   return (
     <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <Title level={2}>今日任务仪表板</Title>
-        <Text type="secondary">
+      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <Title level={2} style={{ marginBottom: '8px' }}>今日任务仪表板</Title>
+          <Text type="secondary">
           管理和跟踪您的今日任务，包括正在进行、到期、新创建和逾期的任务
         </Text>
+      </div>
+
+        <Button
+          type="primary"
+          icon={<FundViewOutlined />}
+          size="large"
+          onClick={() => navigate('/today-tasks/detail')}
+        >
+          查看详细分析
+        </Button>
       </div>
 
       {urgentCount > 0 && (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Drawer,
   Button,
@@ -13,7 +13,8 @@ import {
   Tooltip,
   Dropdown,
   Menu,
-  message
+  message,
+  List
 } from 'antd';
 import {
   EditOutlined,
@@ -28,10 +29,16 @@ import {
   EyeOutlined,
   TagOutlined,
   FileMarkdownOutlined,
-  CloseOutlined
+  CloseOutlined,
+  LinkOutlined,
+  CheckCircleOutlined,
+  SyncOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
-import { WorkNote, workNotesService } from '../services/workNotesService';
+import { WorkNote, workNotesService, AssociatedTask } from '../services/workNotesService';
 import type { MenuProps } from 'antd';
+import WorkNoteMetadataCard from './WorkNoteMetadataCard';
+import TaskAssociationManager from './TaskAssociationManager';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -49,8 +56,26 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
   onEdit
 }) => {
   const [loading, setLoading] = useState(false);
+  const [associatedTasks, setAssociatedTasks] = useState<AssociatedTask[]>([]);
+  const [showTaskManager, setShowTaskManager] = useState(false);
 
   if (!note) return null;
+
+  // 加载关联任务
+  useEffect(() => {
+    if (visible && note) {
+      loadAssociatedTasks();
+    }
+  }, [visible, note]);
+
+  const loadAssociatedTasks = async () => {
+    try {
+      const tasks = await workNotesService.getAssociatedTasks(note.id);
+      setAssociatedTasks(tasks);
+    } catch (error) {
+      console.error('Failed to load associated tasks:', error);
+    }
+  };
 
   // 处理收藏切换
   const handleToggleFavorite = async () => {
@@ -105,6 +130,24 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
       private: { color: 'red', text: '私有', icon: <UserOutlined /> }
     };
     const config = visibilityConfig[visibility as keyof typeof visibilityConfig] || { color: 'default', text: visibility, icon: <EyeOutlined /> };
+    return (
+      <Tag color={config.color} icon={config.icon}>
+        {config.text}
+      </Tag>
+    );
+  };
+
+  // 渲染任务状态标签
+  const renderTaskStatusTag = (status: string) => {
+    const statusConfig: Record<string, { color: string; text: string; icon: React.ReactNode }> = {
+      todo: { color: 'default', text: '待办', icon: <ClockCircleOutlined /> },
+      in_progress: { color: 'blue', text: '进行中', icon: <SyncOutlined spin /> },
+      completed: { color: 'green', text: '已完成', icon: <CheckCircleOutlined /> },
+      blocked: { color: 'red', text: '受阻', icon: <ExclamationCircleOutlined /> }
+    };
+
+    const config = statusConfig[status] || { color: 'default', text: status, icon: null };
+
     return (
       <Tag color={config.color} icon={config.icon}>
         {config.text}
@@ -249,10 +292,75 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
 
         {/* 内容区域 */}
         <div style={{ padding: 24 }}>
+          {/* 元信息卡片 */}
+          <WorkNoteMetadataCard note={note} folderName={note.folder_name} />
+
+          {/* 关联任务 */}
+          <Card
+            title={
+              <Space>
+                <LinkOutlined />
+                <span>关联任务 ({associatedTasks.length})</span>
+              </Space>
+            }
+            extra={
+              <Button
+                type="primary"
+                size="small"
+                icon={<LinkOutlined />}
+                onClick={() => setShowTaskManager(true)}
+              >
+                管理关联
+              </Button>
+            }
+            style={{ marginBottom: 24, borderRadius: 8 }}
+            styles={{ body: { padding: 16 } }}
+          >
+            {associatedTasks.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: '#8c8c8c' }}>
+                <LinkOutlined style={{ fontSize: 24, marginBottom: 8, display: 'block' }} />
+                <Typography.Text type="secondary">暂无关联任务</Typography.Text>
+                <br />
+                <Button
+                  type="link"
+                  onClick={() => setShowTaskManager(true)}
+                  style={{ padding: 0, marginTop: 8 }}
+                >
+                  点击添加关联任务
+                </Button>
+              </div>
+            ) : (
+              <List
+                dataSource={associatedTasks}
+                renderItem={(task) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      title={
+                        <Space>
+                          <Typography.Text strong>#{task.id}</Typography.Text>
+                          <Typography.Text>{task.title}</Typography.Text>
+                        </Space>
+                      }
+                      description={
+                        <Space size={8}>
+                          {renderTaskStatusTag(task.status)}
+                          {task.project_name && (
+                            <Tag color="purple">{task.project_name}</Tag>
+                          )}
+                        </Space>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            )}
+          </Card>
+
+          {/* 内容显示 */}
           {note.content ? (
             <Card
-              
-              style={{ 
+
+              style={{
                 borderRadius: 8,
                 background: '#fafafa',
                 border: '1px solid #f0f0f0'
@@ -272,8 +380,8 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
             </Card>
           ) : (
             <Card
-              
-              style={{ 
+
+              style={{
                 borderRadius: 8,
                 background: '#fafafa',
                 border: '1px dashed #d9d9d9',
@@ -286,8 +394,8 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
                 这个笔记还没有内容
               </Text>
               <br />
-              <Button 
-                type="link" 
+              <Button
+                type="link"
                 onClick={() => onEdit(note)}
                 style={{ fontSize: 14, marginTop: 8 }}
               >
@@ -332,6 +440,14 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
           </Row>
         </Card>
       </div>
+
+      {/* 任务关联管理对话框 */}
+      <TaskAssociationManager
+        visible={showTaskManager}
+        noteId={note.id}
+        onClose={() => setShowTaskManager(false)}
+        onAssociationChange={loadAssociatedTasks}
+      />
     </Drawer>
   );
 };

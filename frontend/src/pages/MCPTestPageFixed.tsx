@@ -554,7 +554,7 @@ const MCPTestPageFixed: React.FC = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), testCase.timeout || 5000);
 
-      const response = await fetch(`http://localhost:8081${testCase.endpoint}`, {
+      const response = await fetch(`http://localhost:8080${testCase.endpoint}`, {
         method: testCase.method,
         headers,
         body: testCase.payload ? JSON.stringify(testCase.payload) : undefined,

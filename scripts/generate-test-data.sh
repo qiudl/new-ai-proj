@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-BASE_URL="${BASE_URL:-http://localhost:8081}"
+BASE_URL="${BASE_URL:-http://localhost:8080}"
 API_BASE="$BASE_URL/api/v1/test-data"
 ACCESS_TOKEN="${ACCESS_TOKEN:-}"
 CONFIG_FILE="$HOME/.ai-proj-test-data.conf"
@@ -362,7 +362,7 @@ AI Project 测试数据生成器
   creative_burst                 创意爆发型
 
 环境变量:
-  BASE_URL                       API基础URL (默认: http://localhost:8081)
+  BASE_URL                       API基础URL (默认: http://localhost:8080)
   ACCESS_TOKEN                   访问令牌
 
 配置文件: $CONFIG_FILE

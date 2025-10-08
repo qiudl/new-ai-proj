@@ -119,18 +119,21 @@ func (t *Tags) Scan(value interface{}) error {
 type Task struct {
 	ID               int          `json:"id" db:"id"`
 	ProjectID        int          `json:"project_id" db:"project_id" validate:"required"`
+	ProjectName      *string      `json:"project_name,omitempty" db:"project_name"` // Added for JOIN queries
 	Title            string       `json:"title" db:"title" validate:"required,min=1,max=255"`
-	Description      string       `json:"description" db:"description"`
+	Description      *string      `json:"description" db:"description"`
 	Status           string       `json:"status" db:"status" validate:"required,oneof=draft planning todo in_progress testing completed cancelled on_hold suspended blocked archived"`
 	AssigneeID       *int         `json:"assignee_id" db:"assignee_id"`
+	Assignee         *User        `json:"assignee,omitempty" db:"-"` // Added for user info, not stored in tasks table
 	DueDate          *time.Time   `json:"due_date" db:"due_date"`
 	CustomFields     CustomFields `json:"custom_fields" db:"custom_fields"`
 	ParentID         *int         `json:"parent_id" db:"parent_id"`
 	TaskLevel        int          `json:"task_level" db:"task_level"`
 	SortOrder        int          `json:"sort_order" db:"sort_order"`
-	TotalTimeSeconds int          `json:"total_time_seconds" db:"total_time_seconds"`
-	ChildrenCount    int          `json:"children_count" db:"children_count"`
-	HasChildren      bool         `json:"has_children" db:"has_children"`
+	TotalTimeSeconds       int          `json:"total_time_seconds" db:"total_time_seconds"`
+	ChildrenCount          int          `json:"children_count" db:"children_count"`
+	CompletedChildrenCount int          `json:"completed_children_count" db:"completed_children_count"`
+	HasChildren            bool         `json:"has_children" db:"has_children"`
 	// Enhanced time management fields
 	StartDatetime      *time.Time `json:"start_datetime" db:"start_datetime"`
 	DueDatetime        *time.Time `json:"due_datetime" db:"due_datetime"`
@@ -160,7 +163,7 @@ type Task struct {
 // TaskRequest represents a task creation/update request
 type TaskRequest struct {
 	Title        string       `json:"title" validate:"required,min=1,max=255"`
-	Description  string       `json:"description"`
+	Description  *string      `json:"description"`
 	Status       string       `json:"status" validate:"required,oneof=draft planning todo in_progress testing completed cancelled on_hold suspended blocked archived"`
 	AssigneeID   *int         `json:"assignee_id"`
 	DueDate      *time.Time   `json:"due_date"`
@@ -192,7 +195,7 @@ type TaskResponse struct {
 	ProjectID     int          `json:"project_id"`
 	ProjectName   string       `json:"project_name,omitempty"`
 	Title         string       `json:"title"`
-	Description   string       `json:"description"`
+	Description   *string      `json:"description"`
 	Status        string       `json:"status"`
 	AssigneeID    *int         `json:"assignee_id"`
 	AssigneeName  string       `json:"assignee_name,omitempty"`
@@ -201,10 +204,11 @@ type TaskResponse struct {
 	ParentID      *int         `json:"parent_id"`
 	TaskLevel     int          `json:"task_level"`
 	SortOrder     int          `json:"sort_order"`
-	ParentTitle   string       `json:"parent_title,omitempty"`
-	ChildrenCount int          `json:"children_count"`
-	Depth         int          `json:"depth"`
-	HasChildren   bool         `json:"has_children"`
+	ParentTitle            string       `json:"parent_title,omitempty"`
+	ChildrenCount          int          `json:"children_count"`
+	CompletedChildrenCount int          `json:"completed_children_count"`
+	Depth                  int          `json:"depth"`
+	HasChildren            bool         `json:"has_children"`
 	// AI-enhanced fields
 	Dependencies     Dependencies `json:"dependencies"`
 	EstimatedHours   *float64     `json:"estimated_hours"`
@@ -258,7 +262,8 @@ type TaskListOptions struct {
 	CompanyID    *int   // 企业数据隔离过滤 (旧系统)
 	EnterpriseID *int   // 企业数据隔离过滤 (新系统)
 	OnlyRoots    bool   // if true, only return root tasks (parent_id IS NULL)
-	SortBy       string // updated_at | due_date | created_at
+	WorkDate     string // YYYY-MM-DD format, filter tasks with work hours on this date
+	SortBy       string // updated_at | due_date | created_at | work_hours
 	SortOrder    string // asc | desc
 }
 
@@ -345,7 +350,7 @@ type RecycledTask struct {
 	ID               int          `json:"id" db:"id"`
 	ProjectID        int          `json:"project_id" db:"project_id"`
 	Title            string       `json:"title" db:"title"`
-	Description      string       `json:"description" db:"description"`
+	Description      *string      `json:"description" db:"description"` // Can be NULL in database
 	Status           string       `json:"status" db:"status"`
 	AssigneeID       *int         `json:"assignee_id" db:"assignee_id"`
 	DueDate          *time.Time   `json:"due_date" db:"due_date"`
@@ -357,6 +362,38 @@ type RecycledTask struct {
 	ProjectName      string       `json:"project_name" db:"project_name"`
 	AssigneeUsername *string      `json:"assignee_username" db:"assignee_username"`
 	ParentTaskTitle  *string      `json:"parent_task_title" db:"parent_task_title"`
+}
+
+// RecycledDocument represents a deleted document in the recycle bin
+type RecycledDocument struct {
+	ID          int        `json:"id" db:"id"`
+	ProjectID   *int       `json:"project_id" db:"project_id"`
+	Title       string     `json:"title" db:"title"`
+	Content     string     `json:"content" db:"content"`
+	Type        string     `json:"type" db:"type"`
+	Status      string     `json:"status" db:"status"`
+	OwnerID     int        `json:"owner_id" db:"owner_id"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	DeletedAt   time.Time  `json:"deleted_at" db:"deleted_at"`
+	ProjectName *string    `json:"project_name" db:"project_name"`
+	OwnerName   string     `json:"owner_name" db:"owner_name"`
+	FileSize    *int64     `json:"file_size" db:"file_size"`
+	Tags        []string   `json:"tags" db:"tags"`
+}
+
+// RecycledWorkNote represents a deleted work note in the recycle bin
+type RecycledWorkNote struct {
+	ID         int        `json:"id" db:"id"`
+	Title      string     `json:"title" db:"title"`
+	Content    string     `json:"content" db:"content"`
+	Type       string     `json:"type" db:"type"`
+	Status     string     `json:"status" db:"status"`
+	OwnerID    int        `json:"owner_id" db:"owner_id"`
+	CreatedAt  time.Time  `json:"created_at" db:"created_at"`
+	DeletedAt  time.Time  `json:"deleted_at" db:"deleted_at"`
+	OwnerName  string     `json:"owner_name" db:"owner_name"`
+	Tags       []string   `json:"tags" db:"tags"`
+	Visibility string     `json:"visibility" db:"visibility"`
 }
 
 // ToResponse converts Task to TaskResponse

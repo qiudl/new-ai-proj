@@ -56,23 +56,27 @@ export interface TaskDetailContextValue {
     updateTask: (updates: TaskUpdate) => Promise<void>;
     deleteTask: () => Promise<void>;
     archiveTask: () => Promise<void>;
-    
+
     // Document operations
     loadDocuments: (page?: number) => Promise<void>;
     createDocument: (document: Partial<TaskDocument>) => Promise<void>;
     updateDocument: (id: number, updates: Partial<TaskDocument>) => Promise<void>;
     deleteDocument: (id: number) => Promise<void>;
-    
+
     // Relations operations
     loadRelations: () => Promise<void>;
     createSubtask: (title: string, description?: string) => Promise<void>;
-    
+
+    // Statistics operations
+    loadStatistics: () => Promise<void>;
+
     // UI operations
     setActiveTab: (tab: string) => void;
     openModal: (modal: string) => void;
     closeModal: (modal: string) => void;
     toggleSidebar: () => void;
-    
+    setUI: (uiUpdates: Partial<TaskDetailUIState>) => void;
+
     // Utility
     reset: () => void;
   };

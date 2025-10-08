@@ -1,4 +1,28 @@
-/* 全屏文档预览Modal样式 */
+/* 全屏文档预览 - Portal 覆盖层样式 */
+.fullscreen-document-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  background: #fff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* 绝对最高优先级的全屏类 */
+.z-fullscreen-absolute {
+  z-index: 99999 !important;
+  position: fixed !important;
+}
+
+/* 旧版 Modal 样式（兼容性保留） */
 .fullscreen-document-modal {
   /* 确保Modal占满整个屏幕 */
   .ant-modal {

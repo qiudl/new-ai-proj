@@ -104,10 +104,14 @@ func (h *AITaskGeneratorHandler) GenerateTasks(c *gin.Context) {
 		existingTasks, _, _ := h.taskRepo.GetByProjectID(c.Request.Context(), *req.ProjectID, 100, 0)
 		taskSummaries := make([]models.TaskSummary, 0, len(existingTasks))
 		for _, task := range existingTasks {
+			desc := ""
+			if task.Description != nil {
+				desc = *task.Description
+			}
 			taskSummaries = append(taskSummaries, models.TaskSummary{
 				ID:          task.ID,
 				Title:       task.Title,
-				Description: task.Description,
+				Description: desc,
 				Priority:    "medium", // Default priority as Task struct doesn't have Priority field
 				Status:      task.Status,
 				Tags:        []string{}, // Default empty tags as Task struct doesn't have Tags field
@@ -1174,13 +1178,17 @@ func (h *AITaskGeneratorHandler) executeAIBulkImport(
 			}
 
 			// 创建任务对象
+			desc := generatedTask.Description
 			task := &models.Task{
-				ProjectID:    req.ProjectID,
-				Title:        generatedTask.Title,
-				Description:  generatedTask.Description,
-				Status:       "todo",
-				ParentID:     req.ParentTaskID,
-				CustomFields: customFields,
+				ProjectID:          req.ProjectID,
+				Title:              generatedTask.Title,
+				Description:        &desc,
+				Status:             "todo",
+				ParentID:           req.ParentTaskID,
+				CustomFields:       customFields,
+				TimeTrackingMode:   "manual", // 设置默认时间追踪模式
+				TimeUnitPreference: "auto",   // 设置默认时间单位偏好
+				WorkHoursPerDay:    8.0,      // 设置默认每日工作时长
 			}
 
 			// 创建任务

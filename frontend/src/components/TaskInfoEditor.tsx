@@ -14,6 +14,7 @@ import {
 import { Task } from '../types/task';
 import TaskMarkdownEditor from './TaskMarkdownEditor';
 import MarkdownRenderer from './MarkdownRenderer';
+import { AIDescriptionButton, UnifiedAIDescriptionModal } from './AI';
 
 const { Title, Text } = Typography;
 
@@ -32,6 +33,7 @@ const TaskInfoEditor: React.FC<TaskInfoEditorProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [description, setDescription] = useState(task.description || '');
+  const [aiModalVisible, setAiModalVisible] = useState(false);
 
   const handleEdit = () => {
     setDescription(task.description || '');
@@ -58,6 +60,34 @@ const TaskInfoEditor: React.FC<TaskInfoEditorProps> = ({
     }
   };
 
+  const handleAIGenerate = () => {
+    setAiModalVisible(true);
+  };
+
+  const handleAIApply = async (generatedDesc: string, mode: 'replace' | 'append') => {
+    let newDescription = generatedDesc;
+
+    if (mode === 'append' && description) {
+      newDescription = description + '\n\n' + generatedDesc;
+    }
+
+    setDescription(newDescription);
+
+    // 如果在编辑模式，只更新文本框；否则直接保存
+    if (!isEditing) {
+      try {
+        const updateData = { description: newDescription };
+        await onUpdate(updateData);
+        message.success('AI生成的描述已应用并保存');
+      } catch (error) {
+        console.error('Save failed:', error);
+        message.error('保存失败');
+      }
+    } else {
+      message.success('AI生成的描述已应用到编辑器');
+    }
+  };
+
   if (isEditing) {
     return (
       <div style={{ ...style, padding: '24px' }}>
@@ -67,12 +97,17 @@ const TaskInfoEditor: React.FC<TaskInfoEditorProps> = ({
             编辑任务描述
           </Title>
           <Space>
+            <AIDescriptionButton
+              onClick={handleAIGenerate}
+              loading={loading}
+              size="middle"
+            />
             <Button icon={<CloseOutlined />} onClick={handleCancel}>
               取消
             </Button>
-            <Button 
-              type="primary" 
-              icon={<SaveOutlined />} 
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
               onClick={handleSave}
               loading={loading}
             >
@@ -104,13 +139,20 @@ const TaskInfoEditor: React.FC<TaskInfoEditorProps> = ({
           <FileTextOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
           任务描述
         </Title>
-        <Button 
-          type="primary" 
-          icon={<EditOutlined />} 
-          onClick={handleEdit}
-        >
-          编辑描述
-        </Button>
+        <Space>
+          <AIDescriptionButton
+            onClick={handleAIGenerate}
+            loading={loading}
+            size="middle"
+          />
+          <Button
+            type="primary"
+            icon={<EditOutlined />}
+            onClick={handleEdit}
+          >
+            编辑描述
+          </Button>
+        </Space>
       </div>
 
       <div>
@@ -147,6 +189,16 @@ const TaskInfoEditor: React.FC<TaskInfoEditorProps> = ({
           </div>
         )}
       </div>
+
+      {/* AI生成描述对话框 */}
+      <UnifiedAIDescriptionModal
+        visible={aiModalVisible}
+        taskId={task.id}
+        taskTitle={task.title}
+        currentDescription={task.description}
+        onCancel={() => setAiModalVisible(false)}
+        onApply={handleAIApply}
+      />
     </div>
   );
 };

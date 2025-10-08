@@ -120,7 +120,7 @@ def main():
     args = parser.parse_args()
     
     # 获取API配置
-    api_url = os.getenv('AI_BACKEND_URL', 'http://localhost:8081/api/v1')
+    api_url = os.getenv('AI_BACKEND_URL', 'http://localhost:8080/api/v1')
     api_token = os.getenv('AI_BACKEND_TOKEN')
     
     # 初始化任务管理器

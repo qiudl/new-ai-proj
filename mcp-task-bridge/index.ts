@@ -1,6 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { 
+import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
@@ -40,10 +40,14 @@ console.error('[MCP] 初始化 TaskMCPServer（连接后端模式）');
 console.error('[MCP] API基础URL:', apiBaseUrl);
 const taskServer = new TaskMCPServer(apiBaseUrl);
 
+// 服务器名称可通过环境变量配置，默认为 ai-proj
+const serverName = process.env.MCP_SERVER_NAME || 'ai-proj';
+console.error('[MCP] 服务器名称:', serverName);
+
 // 创建 MCP Server
 const server = new Server(
   {
-    name: 'task-manager',
+    name: serverName,
     version: '1.0.0',
   },
   {
@@ -373,16 +377,42 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {
-            taskId: { 
-              type: 'number', 
-              description: '任务ID' 
+            taskId: {
+              type: 'number',
+              description: '任务ID'
             },
-            projectId: { 
-              type: 'number', 
-              description: '项目ID（可选，默认为1）' 
+            projectId: {
+              type: 'number',
+              description: '项目ID（可选，默认为1）'
             }
           },
           required: ['taskId']
+        }
+      },
+      {
+        name: 'update_task_document',
+        description: '更新任务文档内容',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: {
+              type: 'number',
+              description: '任务ID'
+            },
+            content: {
+              type: 'string',
+              description: '新的文档内容（Markdown格式）'
+            },
+            title: {
+              type: 'string',
+              description: '新的文档标题（可选）'
+            },
+            projectId: {
+              type: 'number',
+              description: '项目ID（可选，默认为1）'
+            }
+          },
+          required: ['taskId', 'content']
         }
       },
       {
@@ -892,17 +922,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       // 🔄 核心功能2：智能工作切换
       {
         name: 'switch_to_task',
-        description: '从当前任务切换到新任务（自动完成当前任务，启动新任务）',
+        description: '从当前任务切换到新任务（智能多维度匹配：标题相似度、任务状态、优先级、最近更新、Daily Focus）',
         inputSchema: {
           type: 'object',
           properties: {
-            newTaskTitle: { 
-              type: 'string', 
-              description: '要切换到的任务标题（支持模糊匹配）' 
+            newTaskTitle: {
+              type: 'string',
+              description: '要切换到的任务标题（支持智能模糊匹配，会综合评分选择最佳任务）'
             },
-            projectId: { 
-              type: 'number', 
-              description: '项目ID（可选，默认为1）' 
+            projectId: {
+              type: 'number',
+              description: '项目ID（可选，默认为1）'
             }
           },
           required: ['newTaskTitle']
@@ -1367,7 +1397,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       case 'get_task_document':
         try {
-          result = await taskServer.getTaskDocument((args as any).taskId ?? (args as any).task_id as number, (args as any).projectId ?? (args as any).project_id as number);
+          result = await taskServer.getTaskDocument((args as any).taskId ?? (args as any).task_id as number);
         } catch (e: any) {
           result = { success: false, error: e?.message || String(e) };
         }
@@ -1400,7 +1430,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       case 'has_task_document':
         try {
-          result = await taskServer.hasTaskDocument(args.taskId as number, args.projectId as number);
+          result = await taskServer.hasTaskDocument(args.taskId as number);
         } catch (e: any) {
           result = { success: false, error: e?.message || String(e) };
         }
@@ -1461,9 +1491,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       
       case 'delete_task_document':
-        result = await taskServer.deleteTaskDocument(args.taskId as number, args.projectId as number);
+        result = await taskServer.deleteTaskDocument(args.taskId as number);
         break;
-      
+
+      case 'update_task_document': {
+        const taskId = args.taskId as number;
+        const content = args.content as string;
+        const title = args.title as string | undefined;
+        const projectId = args.projectId as number | undefined;
+
+        if (!taskId) {
+          result = { success: false, error: '缺少必要参数：taskId' };
+          break;
+        }
+        if (!content || content.length === 0) {
+          result = { success: false, error: '缺少必要参数：content' };
+          break;
+        }
+
+        const updates: any = { content };
+        if (title) {
+          updates.title = title;
+        }
+
+        result = await taskServer.updateTaskDocument(taskId, updates);
+        break;
+      }
+
       case 'pause_task':
         result = await taskServer.pauseTask(args.id as number);
         break;
@@ -1734,8 +1788,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+// 进程锁管理已移除 - 允许多个MCP实例运行
+
 // 启动服务器
 async function main() {
+  console.error('[MCP] 进程锁已禁用，允许多实例运行');
+
+  process.on('SIGINT', () => {
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    process.exit(0);
+  });
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('[MCP] Task MCP Server 已启动');

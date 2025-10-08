@@ -42,10 +42,12 @@ import {
   MessageOutlined,
   SendOutlined,
   UserOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  HistoryOutlined
 } from '@ant-design/icons';
 import { AIProvider, AI_PROVIDER_INFO, AI_PROVIDER_DEFAULTS } from '../types/ai';
 import aiConfigDatabaseService, { AIConfigRequest, AIConfigUpdateRequest, AIConfigResponse } from '../services/aiConfigDatabaseService';
+import { TestHistoryDrawer } from '../components/AIConfig/TestHistoryDrawer';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -110,8 +112,19 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
   const [testingProvider, setTestingProvider] = useState<AIProvider | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
+
+  // 测试历史抽屉状态
+  const [historyDrawerVisible, setHistoryDrawerVisible] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<AIProvider | null>(null);
   const [isTesting, setIsTesting] = useState(false);
-  
+
+  // 最近测试记录状态
+  const [latestTests, setLatestTests] = useState<Record<AIProvider, { date: string; status: string } | null>>({
+    openai: null,
+    claude: null,
+    deepseek: null
+  });
+
   const loadingRef = useRef(false);
 
   const loadConfigs = useCallback(async () => {
@@ -172,9 +185,45 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
     }
   }, []);
 
+  // 加载最近的测试记录
+  const loadLatestTests = useCallback(async () => {
+    const providers: AIProvider[] = ['openai', 'claude', 'deepseek'];
+    const latestTestsMap: Record<AIProvider, { date: string; status: string } | null> = {
+      openai: null,
+      claude: null,
+      deepseek: null
+    };
+
+    for (const provider of providers) {
+      try {
+        const { AIConfigTestService } = await import('../services/aiConfigTestService');
+        const response = await AIConfigTestService.getTestHistory(provider, {
+          status: 'all',
+          testType: 'all',
+          search: '',
+          page: 1,
+          limit: 1
+        });
+
+        if (response.data && response.data.length > 0) {
+          const latest = response.data[0];
+          latestTestsMap[provider] = {
+            date: latest.createdAt,
+            status: latest.testStatus
+          };
+        }
+      } catch (error) {
+        console.error(`Failed to load latest test for ${provider}:`, error);
+      }
+    }
+
+    setLatestTests(latestTestsMap);
+  }, []);
+
   useEffect(() => {
     loadConfigs();
-  }, [loadConfigs]);
+    loadLatestTests();
+  }, [loadConfigs, loadLatestTests]);
 
   const startEditing = (provider: AIProvider, field: string, currentValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     setEditingField({ provider, field, value: currentValue });
@@ -762,7 +811,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               <Button
                 type="primary"
-                
+
                 icon={<MessageOutlined />}
                 onClick={() => openTestModal(provider)}
                 disabled={!hasConfig}
@@ -771,11 +820,39 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
               >
                 对话测试
               </Button>
-              
+
+              <Button
+                icon={<HistoryOutlined />}
+                onClick={() => {
+                  setSelectedProvider(provider);
+                  setHistoryDrawerVisible(true);
+                }}
+                block
+                style={{ fontSize: '11px', padding: '4px 8px', height: 'auto', lineHeight: '1.4' }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+                  <span>查看历史</span>
+                  <span style={{ fontSize: '10px', color: '#8c8c8c', marginTop: '2px', visibility: latestTests[provider] ? 'visible' : 'hidden' }}>
+                    {latestTests[provider] ? (
+                      <>
+                        (最近: {new Date(latestTests[provider]!.date).toLocaleDateString('zh-CN', {
+                          month: 'numeric',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}, {latestTests[provider]!.status === 'success' ? '✓ 成功' : '✗ 失败'})
+                      </>
+                    ) : (
+                      '\u00A0'
+                    )}
+                  </span>
+                </div>
+              </Button>
+
               {hasConfig && (
                 <Button
                   danger
-                  
+
                   icon={<DeleteOutlined />}
                   onClick={() => handleDelete(provider)}
                   block
@@ -991,9 +1068,9 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                 发送
               </Button>
             </div>
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#8c8c8c', 
+            <div style={{
+              fontSize: '11px',
+              color: '#8c8c8c',
               marginTop: '8px',
               textAlign: 'center'
             }}>
@@ -1002,6 +1079,13 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
           </div>
         </div>
       </Modal>
+
+      {/* 测试历史抽屉 */}
+      <TestHistoryDrawer
+        provider={selectedProvider || 'openai'}
+        visible={historyDrawerVisible}
+        onClose={() => setHistoryDrawerVisible(false)}
+      />
     </div>
   );
 });

@@ -1,0 +1,21 @@
+package com.aiproj.mobile.services
+
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.RemoteMessage
+
+/**
+ * Firebase Cloud Messaging 服务
+ * 处理推送通知的接收和显示
+ */
+class FCMService : FirebaseMessagingService() {
+
+    override fun onMessageReceived(message: RemoteMessage) {
+        super.onMessageReceived(message)
+        // TODO: 实现推送通知处理逻辑
+    }
+
+    override fun onNewToken(token: String) {
+        super.onNewToken(token)
+        // TODO: 实现Token更新逻辑
+    }
+}

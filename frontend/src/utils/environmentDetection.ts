@@ -36,12 +36,12 @@ export const detectEnvironment = (): EnvironmentInfo => {
     });
   }
   
-  // 端口3001 = 本地开发环境（本机PostgreSQL + Go后端8081端口）
-  if (currentPort === '3001') {
+  // 端口3000 = 本地开发环境（本机PostgreSQL + Go后端8080端口）
+  if (currentPort === '3000') {
     return {
       text: '本地开发环境',
       color: '#52c41a',
-      port: '3001',
+      port: '3000',
       detail: '本机PostgreSQL端口5433',
       actualEnv: 'local-dev'
     };
@@ -116,19 +116,16 @@ export const getEnvironmentConfig = () => {
   
   if (env.actualEnv === 'local-dev') {
     // 本地开发环境，使用代理相对路径
-    if (currentPort === '3001' || currentPort === '3002') {
-      // 通过setupProxy.js代理到后端8081端口，使用相对路径
+    if (currentPort === '3000' || currentPort === '3002') {
+      // 通过setupProxy.js代理到后端8080端口，使用相对路径
       apiBaseURL = '/api/v1';
     } else {
       // 直接访问后端端口
-      apiBaseURL = `${protocol}//${hostname}:8081/api/v1`;
+      apiBaseURL = `${protocol}//${hostname}:8080/api/v1`;
     }
-  } else if (env.actualEnv === 'docker-test') {
-    // Docker测试环境，使用相对路径通过代理
-    apiBaseURL = `${protocol}//${hostname}:${currentPort}/api/v1`;
   } else {
-    // 生产环境，使用相对路径通过反向代理
-    apiBaseURL = `${protocol}//${hostname}${currentPort !== '80' && currentPort !== '443' ? `:${currentPort}` : ''}/api/v1`;
+    // 生产环境和Docker测试环境都使用相对路径(通过Nginx代理)
+    apiBaseURL = '/api/v1';
   }
   
   return {

@@ -25,8 +25,9 @@ type AIConfigRepository interface {
 	GetEnabledConfigs() ([]*models.AIConfig, error)
 
 	// 测试相关
-	RecordTestResult(configID int, success bool, responseTime int, errorMsg string, userID int) error
-	GetTestHistory(provider models.AIProvider, limit int) ([]*models.AITestLog, error)
+	RecordTestResult(configID int, success bool, responseTime int, errorMsg string, userID int, conversation *models.AITestConversation, testType string) error
+	GetTestHistory(provider models.AIProvider, page int, limit int) (*models.TestHistoryResponse, error)
+	GetTestLogDetail(logID int) (*models.AIConfigTestLog, error)
 
 	// 统计和管理
 	GetConfigStats() (*models.AIConfigStats, error)
@@ -389,28 +390,184 @@ func (r *aiConfigRepository) GetEnabledConfigs() ([]*models.AIConfig, error) {
 	return configs, nil
 }
 
-// RecordTestResult 记录测试结果
-func (r *aiConfigRepository) RecordTestResult(configID int, success bool, responseTime int, errorMsg string, userID int) error {
-	// 这里需要先创建测试日志表，简化实现
-	query := `
+// RecordTestResult 记录测试结果（支持完整对话数据）
+func (r *aiConfigRepository) RecordTestResult(
+	configID int,
+	success bool,
+	responseTime int,
+	errorMsg string,
+	userID int,
+	conversation *models.AITestConversation,
+	testType string,
+) error {
+	// 使用事务确保统计更新和日志插入的原子性
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback() // 如果没有Commit，自动Rollback
+
+	// 1. 更新ai_configs统计
+	updateQuery := `
 		UPDATE ai_configs SET
 			test_success_count = CASE WHEN $1 THEN test_success_count + 1 ELSE test_success_count END,
-			test_failure_count = CASE WHEN $1 THEN test_failure_count ELSE test_failure_count + 1 END,
+			test_failure_count = CASE WHEN NOT $1 THEN test_failure_count + 1 ELSE test_failure_count END,
 			last_tested_at = NOW()
 		WHERE id = $2`
 
-	_, err := r.db.Exec(query, success, configID)
+	_, err = tx.Exec(updateQuery, success, configID)
 	if err != nil {
-		return fmt.Errorf("failed to record test result: %w", err)
+		return fmt.Errorf("failed to update config stats: %w", err)
+	}
+
+	// 2. 插入ai_config_test_logs日志（适配现有表结构）
+	if conversation != nil {
+		// 获取config的provider
+		var provider string
+		err = tx.Get(&provider, "SELECT provider FROM ai_configs WHERE id = $1", configID)
+		if err != nil {
+			return fmt.Errorf("failed to get provider: %w", err)
+		}
+
+		insertQuery := `
+			INSERT INTO ai_config_test_logs (
+				config_id, provider, test_prompt, test_response,
+				test_status, response_time_ms, tokens_used,
+				error_message, tested_by
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+
+		var errorMsgPtr *string
+		if errorMsg != "" {
+			errorMsgPtr = &errorMsg
+		}
+
+		// 映射到现有表字段
+		testStatus := "success"
+		if !success {
+			testStatus = "failed"
+		}
+
+		_, err = tx.Exec(
+			insertQuery,
+			configID,
+			provider,
+			conversation.TestQuestion, // test_prompt
+			conversation.AIResponse,   // test_response
+			testStatus,                // test_status (success/failed)
+			responseTime,              // response_time_ms
+			conversation.TotalTokens,  // tokens_used (使用total_tokens)
+			errorMsgPtr,               // error_message
+			userID,                    // tested_by
+		)
+		if err != nil {
+			return fmt.Errorf("failed to insert test log: %w", err)
+		}
+	}
+
+	// 3. 提交事务
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
 }
 
-// GetTestHistory 获取测试历史（简化实现）
-func (r *aiConfigRepository) GetTestHistory(provider models.AIProvider, limit int) ([]*models.AITestLog, error) {
-	// 简化实现，返回空数组
-	return []*models.AITestLog{}, nil
+// GetTestHistory 获取测试历史(分页)
+func (r *aiConfigRepository) GetTestHistory(
+	provider models.AIProvider,
+	page int,
+	limit int,
+) (*models.TestHistoryResponse, error) {
+	// 参数验证和默认值
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	offset := (page - 1) * limit
+
+	// 查询总记录数
+	var total int
+	countQuery := `
+		SELECT COUNT(*)
+		FROM ai_config_test_logs tl
+		INNER JOIN ai_configs ac ON tl.config_id = ac.id
+		WHERE ac.provider = $1`
+
+	err := r.db.Get(&total, countQuery, provider)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count test logs: %w", err)
+	}
+
+	// 查询分页数据
+	var logs []*models.AIConfigTestLog
+	dataQuery := `
+		SELECT
+			tl.id, tl.config_id, tl.provider,
+			tl.test_prompt, tl.test_response, tl.test_status,
+			tl.response_time_ms, tl.tokens_used,
+			tl.error_message, tl.error_code, tl.http_status_code,
+			tl.model_used, tl.max_tokens, tl.temperature,
+			tl.tested_by, tl.test_ip, tl.user_agent,
+			tl.created_at
+		FROM ai_config_test_logs tl
+		INNER JOIN ai_configs ac ON tl.config_id = ac.id
+		WHERE ac.provider = $1
+		ORDER BY tl.created_at DESC
+		LIMIT $2 OFFSET $3`
+
+	err = r.db.Select(&logs, dataQuery, provider, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get test logs: %w", err)
+	}
+
+	// 计算总页数
+	totalPages := (total + limit - 1) / limit
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	// 构造响应
+	return &models.TestHistoryResponse{
+		Data: logs,
+		Pagination: models.TestHistoryPagination{
+			Total:      total,
+			Page:       page,
+			Limit:      limit,
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+// GetTestLogDetail 获取单条测试日志详情
+func (r *aiConfigRepository) GetTestLogDetail(logID int) (*models.AIConfigTestLog, error) {
+	var log models.AIConfigTestLog
+	query := `
+		SELECT
+			id, config_id, provider,
+			test_prompt, test_response, test_status,
+			response_time_ms, tokens_used,
+			error_message, error_code, http_status_code,
+			model_used, max_tokens, temperature,
+			tested_by, test_ip, user_agent,
+			created_at
+		FROM ai_config_test_logs
+		WHERE id = $1`
+
+	err := r.db.Get(&log, query, logID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("test log not found: %d", logID)
+		}
+		return nil, fmt.Errorf("failed to get test log detail: %w", err)
+	}
+
+	return &log, nil
 }
 
 // GetConfigStats 获取配置统计

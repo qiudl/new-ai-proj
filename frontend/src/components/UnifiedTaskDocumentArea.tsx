@@ -22,7 +22,8 @@ import {
   Spin,
   Modal,
   Input,
-  message
+  message,
+  Descriptions
 } from 'antd';
 import type { MenuProps, TabsProps } from 'antd';
 import {
@@ -46,13 +47,16 @@ import {
   ArrowsAltOutlined,
   ShrinkOutlined,
   LeftOutlined,
-  RightOutlined
+  RightOutlined,
+  RobotOutlined
 } from '@ant-design/icons';
 
 // 懒加载组件以减少初始渲染负担
 const TaskDocumentEditor = lazy(() => import('./TaskDocumentEditor'));
 const TaskDocumentManager = lazy(() => import('./TaskDocumentManager'));
 const TaskDocumentVersionHistoryButton = lazy(() => import('./TaskDocumentVersionHistoryButton'));
+const TaskMarkdownEditor = lazy(() => import('./TaskMarkdownEditor'));
+const CreateAIDocDialog = lazy(() => import('./CreateAIDocDialog'));
 import { documentService, UnifiedDocument } from '../services/documentService';
 import { taskDocumentService } from '../services/taskDocumentService';
 import { TaskService } from '../services/taskService';
@@ -230,10 +234,22 @@ const DocumentListItem: React.FC<{
             <Button
               type="text"
               icon={<DownloadOutlined />}
-              
+
               onClick={(e) => {
                 e.stopPropagation();
                 onDownload?.(document);
+              }}
+            />
+          </Tooltip>,
+          <Tooltip title="删除">
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(document);
               }}
             />
           </Tooltip>
@@ -308,7 +324,18 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   const [documentListView, setDocumentListView] = useState<'grouped' | 'list' | 'timeline' | 'grid'>('grouped');
   const [documentSortBy, setDocumentSortBy] = useState<'created_at' | 'updated_at'>('created_at');
   const [documentSortOrder, setDocumentSortOrder] = useState<'asc' | 'desc'>('desc');
-  
+  const [aiDocDialogVisible, setAiDocDialogVisible] = useState(false); // AI文档创建对话框
+
+  // 编辑内容和标题状态
+  const [editContent, setEditContent] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+
+  // 信息面板展开/收起状态
+  const [isInfoPanelExpanded, setIsInfoPanelExpanded] = useState(() => {
+    const saved = localStorage.getItem('taskDocPreview_infoPanelExpanded');
+    return saved === 'true';
+  });
+
   // 防抖计时器引用
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -318,11 +345,24 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
     onViewModeChange?.(mode);
   }, [onViewModeChange]);
 
-  // 本地控制“是否包含下级”开关，默认取props
+  // 本地控制"是否包含下级"开关，默认取props
   const [includeDescendants, setIncludeDescendants] = useState<boolean>(includeSubtaskDocuments);
   useEffect(() => {
     setIncludeDescendants(includeSubtaskDocuments);
   }, [includeSubtaskDocuments]);
+
+  // 当选中文档变化时，自动初始化编辑内容和标题
+  useEffect(() => {
+    if (selectedDocument) {
+      setEditContent(selectedDocument.content);
+      setEditTitle(selectedDocument.title);
+    }
+  }, [selectedDocument]);
+
+  // 保存信息面板状态到localStorage
+  useEffect(() => {
+    localStorage.setItem('taskDocPreview_infoPanelExpanded', String(isInfoPanelExpanded));
+  }, [isInfoPanelExpanded]);
 
   // 快速过滤：全部 / 仅本任务 / 仅子任务
   const [filterMode, setFilterMode] = useState<'all' | 'root' | 'desc'>('all');
@@ -336,28 +376,30 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   
   // 加载文档列表 - 高度优化版本，支持渐进式加载
   const loadDocuments = useCallback(async (force = false) => {
+    console.log(`🔍 [LOAD-DOCS] Starting loadDocuments - projectId: ${projectId}, taskId: ${taskId}, force: ${force}, loading: ${loadingRef.current}`);
+
     // 防止重复加载
     if (loadingRef.current && !force) {
-      console.log('Documents already loading, skipping...');
+      console.log('⏸️ [LOAD-DOCS] Documents already loading, skipping...');
       return;
     }
-    
+
     // 检查缓存
     const cacheKey = `${projectId}:${taskId}:${includeDescendants}`;
     const cached = documentCache.current.get(cacheKey);
     if (cached && !force) {
-      console.log('Using cached documents');
+      console.log(`💾 [LOAD-DOCS] Using cached documents (${cached.length} items)`);
       setDocuments(cached);
       onDocumentChange?.(cached);
       return;
     }
-    
+
     loadingRef.current = true;
     setLoading(true);
-    
+    console.log('📥 [LOAD-DOCS] Fetching documents from API...');
+
     // 开始性能监控
     const loadStartTime = performance.now();
-    console.log('📊 Starting document loading...');
     
     // 避免清空文档状态导致重新渲染
     if (force) {
@@ -823,18 +865,64 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     setViewMode('edit');
   }, []);
 
-  const handleDocumentDelete = useCallback(async (doc: DocumentItem) => {
-    try {
-      await documentService.deleteDocument(doc.id);
-      message.success('文档删除成功');
-      await loadDocuments();
-      if (selectedDocument?.id === doc.id) {
-        setSelectedDocument(null);
-      }
-    } catch (error) {
-      console.error('删除失败:', error);
-      message.error('文档删除失败');
+  // 保存预览编辑的内容（包括标题和内容）
+  const handleSavePreviewEdit = useCallback(async () => {
+    if (!selectedDocument) return;
+
+    // 验证标题不能为空
+    if (!editTitle.trim()) {
+      message.error('文档标题不能为空');
+      return;
     }
+
+    try {
+      await documentService.updateDocument(selectedDocument.id, {
+        content: editContent,
+        title: editTitle, // 使用编辑后的标题
+        type: selectedDocument.type as any
+      });
+      message.success('文档保存成功');
+      // 更新本地文档内容和标题
+      setSelectedDocument({ ...selectedDocument, content: editContent, title: editTitle });
+      setDocuments(prev => prev.map(doc =>
+        doc.id === selectedDocument.id ? { ...doc, content: editContent, title: editTitle } : doc
+      ));
+      await loadDocuments();
+    } catch (error) {
+      console.error('保存失败:', error);
+      message.error('文档保存失败');
+    }
+  }, [selectedDocument, editContent, editTitle, loadDocuments]);
+
+  // 取消预览编辑 - 恢复为原始内容
+  const handleCancelPreviewEdit = useCallback(() => {
+    if (selectedDocument) {
+      setEditContent(selectedDocument.content);
+      setEditTitle(selectedDocument.title);
+    }
+  }, [selectedDocument]);
+
+  const handleDocumentDelete = useCallback(async (doc: DocumentItem) => {
+    Modal.confirm({
+      title: '确定删除该文档吗？',
+      content: `文档"${doc.title}"删除后无法恢复，请确认操作`,
+      okText: '删除',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await documentService.deleteDocument(doc.id);
+          message.success('文档删除成功');
+          await loadDocuments();
+          if (selectedDocument?.id === doc.id) {
+            setSelectedDocument(null);
+          }
+        } catch (error) {
+          console.error('删除失败:', error);
+          message.error('文档删除失败');
+        }
+      }
+    });
   }, [loadDocuments, selectedDocument]);
 
   const handleDocumentDownload = useCallback(async (doc: DocumentItem) => {
@@ -1402,55 +1490,6 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     }
   ];
 
-  // 优化Markdown渲染函数 - 使用缓存和分批处理
-  const markdownCache = useRef(new Map<string, string>());
-  
-  const renderMarkdownContent = useCallback((content: string) => {
-    if (!content) return '';
-    
-    // 缓存检查
-    const cacheKey = content.substring(0, 100); // 使用前100个字符作为缓存键
-    if (markdownCache.current.has(cacheKey)) {
-      return markdownCache.current.get(cacheKey)!;
-    }
-    
-    // 对于大文档，使用简化渲染
-    if (content.length > 10000) {
-      const rendered = content.substring(0, 5000) + '\n\n[... 内容过长，部分预览 ...]';
-      markdownCache.current.set(cacheKey, rendered);
-      return rendered;
-    }
-    
-    // 优化后的渲染逻辑
-    let rendered = content
-      // 标题 - 使用更高效的正则
-      .replace(/^### (.+)$/gm, '<h3 style="color: #1890ff; margin: 16px 0 8px 0; font-size: 18px;">$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2 style="color: #1890ff; margin: 20px 0 10px 0; font-size: 22px;">$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1 style="color: #1890ff; margin: 24px 0 12px 0; font-size: 28px;">$1</h1>')
-      // 粗体和斜体
-      .replace(/\*\*(.+?)\*\*/g, '<strong style="color: #333; font-weight: 600;">$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em style="font-style: italic; color: #666;">$1</em>')
-      // 代码块
-      .replace(/```[\w]*\n([\s\S]+?)```/g, '<pre style="background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin: 16px 0; overflow-x: auto; font-family: Consolas, Monaco, monospace; font-size: 14px;"><code>$1</code></pre>')
-      // 行内代码
-      .replace(/`([^`]+)`/g, '<code style="background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: Consolas, Monaco, monospace; font-size: 13px; color: #d73a49;">$1</code>')
-      // 链接
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #1890ff; text-decoration: none;" target="_blank">$1</a>')
-      // 换行
-      .replace(/\n/g, '<br/>');
-    
-    // 缓存结果
-    markdownCache.current.set(cacheKey, rendered);
-    
-    // 限制缓存大小
-    if (markdownCache.current.size > 50) {
-      const firstKey = markdownCache.current.keys().next().value;
-      markdownCache.current.delete(firstKey);
-    }
-    
-    return rendered;
-  }, []);
-
   // 文档统计（基于过滤结果）
   const documentStats = useMemo(() => {
     const total = filteredDocuments.length;
@@ -1492,69 +1531,221 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         );
         
       case 'preview':
+        console.log('🔍 Preview mode - selectedDocument:', !!selectedDocument, 'isInfoPanelExpanded:', isInfoPanelExpanded);
         return selectedDocument ? (
-          <Card 
-            style={{ 
+          <Card
+            style={{
               height: isFullscreen ? 'calc(100vh - 120px)' : 'auto',
-              overflow: isFullscreen ? 'auto' : 'visible'
+              overflow: 'hidden'
             }}
-            bodyStyle={{
-              padding: isFullscreen ? '32px' : '16px',
-              height: isFullscreen ? 'calc(100vh - 180px)' : 'auto',
-              overflow: isFullscreen ? 'auto' : 'visible'
+            styles={{
+              body: {
+                padding: 0,
+                height: isFullscreen ? 'calc(100vh - 180px)' : 'auto',
+                display: 'flex',
+                flexDirection: 'row'
+              }
             }}
           >
-            <div style={{ marginBottom: '16px', textAlign: 'center' }}>
-              <Title level={isFullscreen ? 2 : 3} style={{ color: '#1890ff' }}>
-                {selectedDocument.title}
-              </Title>
-              {isFullscreen && (
-                <div style={{ 
-                  fontSize: '14px', 
-                  color: '#666', 
-                  marginTop: '8px',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: '16px'
-                }}>
-                  <span>📄 {selectedDocument.type?.toUpperCase()} 文档</span>
-                  <span>📅 {new Date(selectedDocument.updated_at).toLocaleDateString()}</span>
-                  <span>📊 {selectedDocument.content?.length || 0} 字符</span>
-                </div>
-              )}
+            {/* 主编辑区域 */}
+            <div className="main-edit-area" style={{
+              flex: 1,
+              minWidth: '600px',
+              padding: isFullscreen ? '32px' : '16px',
+              overflow: 'auto'
+            }}>
+            {/* 标题编辑区域 */}
+            <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="请输入文档标题"
+                style={{
+                  flex: 1,
+                  fontSize: isFullscreen ? '20px' : '16px',
+                  fontWeight: 600,
+                  color: '#1890ff'
+                }}
+              />
+              <Space>
+                <Button type="primary" icon={<SaveOutlined />} onClick={handleSavePreviewEdit}>
+                  保存
+                </Button>
+                <Button onClick={handleCancelPreviewEdit}>取消</Button>
+              </Space>
             </div>
-            <Divider />
-            <div 
-              className={`document-preview-content ${isFullscreen ? 'fullscreen-preview' : ''}`}
-              style={{ 
-                whiteSpace: 'pre-wrap', 
-                lineHeight: '1.8',
-                wordBreak: 'break-word',
-                fontSize: isFullscreen ? '16px' : '14px',
-                maxWidth: isFullscreen ? '900px' : '100%',
-                margin: isFullscreen ? '0 auto' : '0',
-                padding: isFullscreen ? '20px' : '0',
-                backgroundColor: isFullscreen ? '#fafafa' : 'transparent',
-                borderRadius: isFullscreen ? '8px' : '0',
-                minHeight: isFullscreen ? '400px' : 'auto'
-              }}
-              dangerouslySetInnerHTML={{
-                __html: selectedDocument.type === 'markdown' 
-                  ? renderMarkdownContent(selectedDocument.content)
-                  : selectedDocument.content?.replace(/\n/g, '<br/>')
-              }}
-            />
+
             {isFullscreen && (
-              <div style={{ 
-                marginTop: '32px', 
-                textAlign: 'center', 
+              <div style={{
+                fontSize: '14px',
+                color: '#666',
+                marginBottom: '16px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '16px'
+              }}>
+                <span>📄 {selectedDocument.type?.toUpperCase()} 文档</span>
+                <span>📅 {new Date(selectedDocument.updated_at).toLocaleDateString()}</span>
+                <span>📊 {selectedDocument.content?.length || 0} 字符</span>
+              </div>
+            )}
+
+            <Divider />
+
+            {/* 内容区域：直接使用TaskMarkdownEditor组件 */}
+            <Suspense fallback={<Spin size="large" style={{ display: 'block', margin: '40px auto' }} />}>
+              <TaskMarkdownEditor
+                value={editContent}
+                onChange={setEditContent}
+                placeholder="请输入文档内容（支持Markdown格式）..."
+                rows={20}
+                style={{
+                  minHeight: isFullscreen ? '400px' : '300px',
+                  maxWidth: isFullscreen ? '900px' : '100%',
+                  margin: isFullscreen ? '0 auto' : '0'
+                }}
+              />
+            </Suspense>
+
+            {isFullscreen && (
+              <div style={{
+                marginTop: '32px',
+                textAlign: 'center',
                 color: '#999',
                 fontSize: '12px',
                 borderTop: '1px solid #e8e8e8',
                 paddingTop: '16px'
               }}>
                 💡 提示：按 ESC 键退出全屏预览
+              </div>
+            )}
+            </div>
+
+            {/* 右侧：快捷操作栏或信息面板 */}
+            {!isInfoPanelExpanded ? (
+              // 收起状态：快捷操作栏
+              <div className="quick-action-bar" style={{
+                width: '48px',
+                minWidth: '48px',
+                flexShrink: 0,
+                background: '#e6f7ff',  // 改为蓝色背景，更容易看到
+                borderLeft: '2px solid #1890ff',  // 改为蓝色边框
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '8px 4px',
+                gap: '8px',
+                overflow: 'visible'
+              }}>
+                <Tooltip title="展开信息" placement="left">
+                  <Button
+                    icon={<RightOutlined />}
+                    onClick={() => setIsInfoPanelExpanded(true)}
+                    type="text"
+                    style={{ width: '32px', height: '32px' }}
+                  />
+                </Tooltip>
+                <Divider style={{ margin: '4px 0' }} />
+                <Tooltip title="删除" placement="left">
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => handleDocumentDelete(selectedDocument)}
+                    type="text"
+                    style={{ width: '32px', height: '32px' }}
+                  />
+                </Tooltip>
+                <Tooltip title="下载" placement="left">
+                  <Button
+                    icon={<DownloadOutlined />}
+                    onClick={() => {
+                      const blob = new Blob([selectedDocument.content], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${selectedDocument.title}.${selectedDocument.type}`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    type="text"
+                    style={{ width: '32px', height: '32px' }}
+                  />
+                </Tooltip>
+              </div>
+            ) : (
+              // 展开状态：信息面板
+              <div className="info-panel-expanded" style={{
+                width: '30%',
+                minWidth: '280px',
+                maxWidth: '400px',
+                background: '#fafafa',
+                borderLeft: '1px solid #e8e8e8',
+                padding: '16px',
+                overflow: 'auto'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <Button
+                    icon={<LeftOutlined />}
+                    onClick={() => setIsInfoPanelExpanded(false)}
+                    type="text"
+                    size="small"
+                  >
+                    收起
+                  </Button>
+                  <span style={{ fontWeight: 600, fontSize: '16px' }}>文档信息</span>
+                </div>
+
+                <Divider style={{ margin: '8px 0' }} />
+
+                {/* 文档统计 */}
+                <div style={{ marginBottom: '16px' }}>
+                  <h4 style={{ marginBottom: '12px', color: '#333', fontSize: '14px' }}>📊 文档统计</h4>
+                  <Descriptions column={1} size="small">
+                    <Descriptions.Item label="类型">{selectedDocument.type?.toUpperCase()}</Descriptions.Item>
+                    <Descriptions.Item label="大小">{(selectedDocument.file_size / 1024).toFixed(2)} KB</Descriptions.Item>
+                    <Descriptions.Item label="创建时间">
+                      {new Date(selectedDocument.created_at).toLocaleString()}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="更新时间">
+                      {new Date(selectedDocument.updated_at).toLocaleString()}
+                    </Descriptions.Item>
+                  </Descriptions>
+                </div>
+
+                <Divider style={{ margin: '8px 0' }} />
+
+                {/* 快捷操作 */}
+                <div style={{ marginBottom: '16px' }}>
+                  <h4 style={{ marginBottom: '12px', color: '#333', fontSize: '14px' }}>🔧 快捷操作</h4>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Button
+                      danger
+                      block
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleDocumentDelete(selectedDocument)}
+                      size="small"
+                    >
+                      删除文档
+                    </Button>
+                    <Button
+                      block
+                      icon={<DownloadOutlined />}
+                      onClick={() => {
+                        const blob = new Blob([selectedDocument.content], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${selectedDocument.title}.${selectedDocument.type}`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      size="small"
+                    >
+                      下载文档
+                    </Button>
+                  </Space>
+                </div>
               </div>
             )}
           </Card>
@@ -1670,6 +1861,22 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         extra={
           showToolbar && (
             <Space>
+              {/* 创建AI文档按钮 */}
+              <Tooltip title="使用AI生成文档">
+                <Button
+                  type="primary"
+                  icon={<RobotOutlined />}
+                  onClick={() => setAiDocDialogVisible(true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    borderColor: 'transparent',
+                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+                  }}
+                >
+                  创建AI文档
+                </Button>
+              </Tooltip>
+
               {/* 仅保留刷新按钮 */}
               <Tooltip title="刷新">
                 <Button
@@ -1718,7 +1925,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
           )}
 
           {/* 中间内容区域 */}
-          <Col span={showDocumentList ? (compactMode ? 24 : 12) : (selectedDocument ? 18 : 24)}>
+          <Col span={showDocumentList ? (compactMode ? 24 : 18) : 24}>
             <div style={{ 
               padding: '16px'
             }}>
@@ -1726,8 +1933,8 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
             </div>
           </Col>
 
-          {/* 右侧文档概览 */}
-          {selectedDocument && showDocumentList && !compactMode && (
+          {/* 右侧文档概览 - 已移除，功能已整合到preview模式的信息面板中 */}
+          {false && selectedDocument && showDocumentList && !compactMode && (
             <Col 
               span={6}
               style={{ 
@@ -2011,6 +2218,21 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
           />
         </Space>
       </Modal>
+
+      {/* AI文档创建对话框 */}
+      <Suspense fallback={<Spin />}>
+        <CreateAIDocDialog
+          visible={aiDocDialogVisible}
+          taskId={taskId}
+          projectId={projectId}
+          onClose={() => setAiDocDialogVisible(false)}
+          onSuccess={() => {
+            message.success('AI文档创建成功');
+            loadDocuments(); // 刷新文档列表
+            setAiDocDialogVisible(false);
+          }}
+        />
+      </Suspense>
     </div>
   );
 

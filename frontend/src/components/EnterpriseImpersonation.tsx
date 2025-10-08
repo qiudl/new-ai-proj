@@ -268,9 +268,6 @@ const EnterpriseImpersonation: React.FC = () => {
             message="企业模拟功能说明"
             description={
               <div>
-                <p>• 模拟功能允许系统管理员以企业用户身份访问系统</p>
-                <p>• 模拟期间，您将拥有该企业的权限和数据视图</p>
-                <p>• 所有操作都会被审计记录，确保安全性</p>
                 <p>• 模拟会话有时间限制，到期后自动退出</p>
               </div>
             }

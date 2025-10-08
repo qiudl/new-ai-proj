@@ -23,7 +23,9 @@ import {
   SyncOutlined,
   DeleteOutlined,
   EditOutlined,
-  EyeOutlined
+  EyeOutlined,
+  ExpandOutlined,
+  ShrinkOutlined
 } from '@ant-design/icons';
 import TaskDocumentManager from './TaskDocumentManager';
 import { documentService, UnifiedDocument } from '../services/documentService';
@@ -52,6 +54,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
   const [documents, setDocuments] = useState<UnifiedDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [expandedDocIds, setExpandedDocIds] = useState<Set<number>>(new Set()); // 记录哪些文档是展开状态
 
   // Use memory monitoring for component lifecycle tracking
   useMemoryMonitor('TaskDocumentWidget');
@@ -106,6 +109,19 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
       console.error('删除失败:', error);
       message.error('文档删除失败');
     }
+  };
+
+  // Toggle document expand/collapse
+  const toggleDocExpand = (docId: number) => {
+    setExpandedDocIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(docId)) {
+        newSet.delete(docId);
+      } else {
+        newSet.add(docId);
+      }
+      return newSet;
+    });
   };
 
   // Calculate document statistics
@@ -396,10 +412,19 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                         })()}
                       </div>
                       <div style={{ display: 'flex', gap: '4px' }}>
+                        <Tooltip title={expandedDocIds.has(doc.id) ? "收起" : "展开"}>
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={expandedDocIds.has(doc.id) ? <ShrinkOutlined /> : <ExpandOutlined />}
+                            onClick={() => toggleDocExpand(doc.id)}
+                            style={{ padding: '0 4px' }}
+                          />
+                        </Tooltip>
                         <Tooltip title="预览文档">
                           <Button
                             type="text"
-                            
+                            size="small"
                             icon={<EyeOutlined />}
                             onClick={() => setManagerVisible(true)}
                             style={{ padding: '0 4px' }}
@@ -408,7 +433,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                         <Tooltip title="编辑文档">
                           <Button
                             type="text"
-                            
+                            size="small"
                             icon={<EditOutlined />}
                             onClick={() => setManagerVisible(true)}
                             style={{ padding: '0 4px' }}
@@ -425,7 +450,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                           <Tooltip title="删除文档">
                             <Button
                               type="text"
-                              
+                              size="small"
                               icon={<DeleteOutlined />}
                               danger
                               style={{ padding: '0 4px' }}
@@ -440,20 +465,31 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                       </div>
                     )}
                     {doc.content && (
-                      <div style={{ 
-                        /* 移除预览限高，允许内容完整展示 */
-                        maxHeight: 'none',
-                        overflow: 'visible',
+                      <div style={{
+                        maxHeight: expandedDocIds.has(doc.id) ? 'none' : '300px',
+                        overflow: expandedDocIds.has(doc.id) ? 'visible' : 'auto',
                         padding: '8px',
                         backgroundColor: 'white',
                         border: '1px solid #e8e8e8',
                         borderRadius: '4px',
                         fontSize: '13px',
-                        lineHeight: '1.5'
+                        lineHeight: '1.5',
+                        position: 'relative'
                       }}>
                         <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
                           {doc.content}
                         </pre>
+                        {!expandedDocIds.has(doc.id) && doc.content.split('\n').length > 15 && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: '40px',
+                            background: 'linear-gradient(to bottom, transparent, white)',
+                            pointerEvents: 'none'
+                          }} />
+                        )}
                       </div>
                     )}
                   </div>

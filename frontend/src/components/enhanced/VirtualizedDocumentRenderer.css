@@ -1,0 +1,360 @@
+/* 虚拟化文档渲染器样式 */
+.virtualized-document-renderer {
+  height: 100%;
+  width: 100%;
+  position: relative;
+  background: #fff;
+  overflow: hidden;
+}
+
+.virtualized-document-renderer.dark {
+  background: #141414;
+  color: #fff;
+}
+
+/* 虚拟列表容器 */
+.virtual-list {
+  outline: none;
+}
+
+.virtual-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.virtual-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.virtual-list::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.virtual-list::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+.virtualized-document-renderer.dark .virtual-list::-webkit-scrollbar-thumb {
+  background: #404040;
+}
+
+.virtualized-document-renderer.dark .virtual-list::-webkit-scrollbar-thumb:hover {
+  background: #595959;
+}
+
+/* 内容块样式 */
+.chunk-item {
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  transition: background-color 0.2s ease;
+  position: relative;
+}
+
+.chunk-item.compact {
+  padding: 4px 12px;
+}
+
+.chunk-item:hover {
+  background: rgba(24, 144, 255, 0.02);
+}
+
+.virtualized-document-renderer.dark .chunk-item {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.virtualized-document-renderer.dark .chunk-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* 不同类型的块样式 */
+.chunk-text {
+  line-height: 1.6;
+}
+
+.chunk-code {
+  background: #f8f9fa;
+  border-left: 3px solid #1890ff;
+  border-radius: 0 4px 4px 0;
+  margin: 4px 0;
+}
+
+.virtualized-document-renderer.dark .chunk-code {
+  background: #1f2937;
+  border-left-color: #3b82f6;
+}
+
+.chunk-table {
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.chunk-image {
+  text-align: center;
+  margin: 12px 0;
+}
+
+/* 占位符样式 */
+.chunk-placeholder {
+  padding: 8px 16px;
+  background: #fafafa;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 60px;
+}
+
+.virtualized-document-renderer.dark .chunk-placeholder {
+  background: #262626;
+}
+
+.chunk-placeholder .ant-skeleton {
+  margin-bottom: 8px;
+}
+
+/* 加载状态 */
+.virtualized-document-renderer.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.loading-container {
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.loading-container .ant-progress {
+  margin-bottom: 16px;
+}
+
+/* 错误状态 */
+.virtualized-document-renderer.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+/* 空内容状态 */
+.empty-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #8c8c8c;
+}
+
+/* 性能信息 */
+.performance-info {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 100;
+}
+
+.virtualized-document-renderer:hover .performance-info {
+  opacity: 1;
+}
+
+.virtualized-document-renderer.dark .performance-info {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .chunk-item {
+    padding: 6px 12px;
+  }
+  
+  .chunk-item.compact {
+    padding: 3px 8px;
+  }
+  
+  .chunk-placeholder {
+    padding: 6px 12px;
+    min-height: 40px;
+  }
+  
+  .performance-info {
+    bottom: 12px;
+    right: 12px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chunk-item {
+    padding: 4px 8px;
+  }
+  
+  .chunk-item.compact {
+    padding: 2px 6px;
+  }
+  
+  .chunk-code,
+  .chunk-table,
+  .chunk-image {
+    margin: 2px 0;
+  }
+  
+  .loading-container {
+    padding: 20px;
+  }
+  
+  .performance-info {
+    display: none; /* 移动端隐藏性能信息 */
+  }
+}
+
+/* 动画效果 */
+.chunk-item {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 骨架屏优化 */
+.chunk-placeholder .ant-skeleton-content .ant-skeleton-title {
+  width: 60% !important;
+  height: 14px !important;
+}
+
+.chunk-placeholder .ant-skeleton-content .ant-skeleton-paragraph {
+  margin-top: 8px;
+}
+
+.chunk-placeholder .ant-skeleton-content .ant-skeleton-paragraph > li {
+  height: 12px !important;
+}
+
+/* 进度条样式 */
+.loading-container .ant-progress-line {
+  margin-bottom: 12px;
+}
+
+.loading-container .ant-progress-text {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+/* 虚拟列表优化 */
+.virtual-list > div {
+  /* react-window 容器优化 */
+  will-change: transform;
+}
+
+/* 块类型指示器（可选） */
+.chunk-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.chunk-item.chunk-code::before {
+  background: #1890ff;
+}
+
+.chunk-item.chunk-table::before {
+  background: #52c41a;
+}
+
+.chunk-item.chunk-image::before {
+  background: #faad14;
+}
+
+/* 高性能渲染优化 */
+.chunk-item {
+  transform: translateZ(0); /* 启用硬件加速 */
+  backface-visibility: hidden;
+}
+
+/* 深色模式优化 */
+.virtualized-document-renderer.dark .chunk-text {
+  color: #d0d0d0;
+}
+
+.virtualized-document-renderer.dark .loading-container .ant-progress-text {
+  color: #69b7ff;
+}
+
+.virtualized-document-renderer.dark .empty-content {
+  color: #595959;
+}
+
+/* 回到顶部按钮样式 */
+.virtualized-document-renderer .ant-back-top {
+  bottom: 60px; /* 避免与性能信息重叠 */
+}
+
+.virtualized-document-renderer .ant-back-top .ant-back-top-content {
+  background: #1890ff;
+  color: #fff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.virtualized-document-renderer .ant-back-top .ant-back-top-content:hover {
+  background: #40a9ff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.4);
+}
+
+/* 内容渲染优化 */
+.chunk-item .enhanced-markdown-renderer {
+  margin: 0;
+  background: transparent;
+}
+
+.chunk-item .enhanced-markdown-renderer .markdown-content {
+  padding: 0;
+  background: transparent;
+}
+
+/* 选择和复制优化 */
+.chunk-item {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+.chunk-item::selection {
+  background: rgba(24, 144, 255, 0.2);
+}
+
+.virtualized-document-renderer.dark .chunk-item::selection {
+  background: rgba(105, 183, 255, 0.3);
+}

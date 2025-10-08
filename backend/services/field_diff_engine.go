@@ -122,10 +122,18 @@ func (e *FieldDiffEngine) compareBasicFields(oldTask, newTask *models.Task, diff
 	}
 	
 	// 描述变更
-	if oldTask.Description != newTask.Description {
+	oldDesc := ""
+	if oldTask.Description != nil {
+		oldDesc = *oldTask.Description
+	}
+	newDesc := ""
+	if newTask.Description != nil {
+		newDesc = *newTask.Description
+	}
+	if oldDesc != newDesc {
 		diff.DescriptionChanged = true
-		diff.OldDescription = oldTask.Description
-		diff.NewDescription = newTask.Description
+		diff.OldDescription = oldDesc
+		diff.NewDescription = newDesc
 		diff.ChangedFields = append(diff.ChangedFields, "description")
 	}
 	

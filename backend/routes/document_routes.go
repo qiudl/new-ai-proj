@@ -9,10 +9,25 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"ai-project-backend/handlers"
 )
+
+// registerBatchDocumentRoutes 注册批量文档状态API
+func registerBatchDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// 获取数据库连接
+	db := app.GetDB().GetDB().(*sql.DB)
+	batchHandler := handlers.NewBatchDocumentHandler(db)
+
+	// 批量获取文档状态
+	authorized.POST("/documents/batch-status", batchHandler.BatchGetDocumentStatus)
+}
 
 // RegisterDocumentRoutes 注册文档管理相关路由
 func RegisterDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// 注册批量文档状态API
+	registerBatchDocumentRoutes(authorized, app)
+
 	// 注册基础文档CRUD路由
 	registerBasicDocumentRoutes(authorized, app)
 
@@ -74,6 +89,10 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 	authorized.GET("/documents/:id/versions", versionHandler.GetVersionHistory)
 	authorized.GET("/documents/:id/versions/:version_number", versionHandler.GetVersion)
 	authorized.POST("/documents/:id/versions", versionHandler.CreateVersion)
+	authorized.GET("/documents/:id/versions/compare", versionHandler.CompareVersions)
+	authorized.POST("/documents/:id/versions/:version_number/restore", versionHandler.RestoreVersion)
+	authorized.GET("/documents/:id/versions/:version_number/download", versionHandler.DownloadVersion)
+	authorized.DELETE("/documents/:id/versions/:version_number", versionHandler.DeleteVersion)
 
 	// Legacy compatibility routes (使用现有的HybridDocumentHandler方法)
 	authorized.POST("/documents/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
@@ -82,6 +101,9 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 
 // registerUnifiedTaskDocumentRoutes 注册统一任务文档路由（按项目/任务命名空间）
 func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// 添加简短的任务文档路由（用于Android客户端）
+	registerShortTaskDocumentRoutes(authorized, app)
+
 	// 任务文档管理路由
 	projects := authorized.Group("/projects")
 	{
@@ -152,6 +174,10 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 				taskDocuments.GET("/:documentId/versions", versionHandler.GetVersionHistory)
 				taskDocuments.GET("/:documentId/versions/:version_number", versionHandler.GetVersion)
 				taskDocuments.POST("/:documentId/versions", versionHandler.CreateVersion)
+				taskDocuments.GET("/:documentId/versions/compare", versionHandler.CompareVersions)
+				taskDocuments.POST("/:documentId/versions/:version_number/restore", versionHandler.RestoreVersion)
+				taskDocuments.GET("/:documentId/versions/:version_number/download", versionHandler.DownloadVersion)
+				taskDocuments.DELETE("/:documentId/versions/:version_number", versionHandler.DeleteVersion)
 			}
 		}
 	}
@@ -454,6 +480,31 @@ func RegisterDocumentHealthRoute(router *gin.Engine, app ApplicationInterface) {
 			},
 		})
 	})
+}
+
+// registerShortTaskDocumentRoutes 注册简短的任务文档路由（用于移动端API）
+func registerShortTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// 简短路由: /api/v1/tasks/:id/documents
+	tasks := authorized.Group("/tasks")
+	{
+		taskDocuments := tasks.Group("/:id/documents")
+		{
+			// 获取任务的所有文档（需要从taskId反查projectId）
+			taskDocuments.GET("", app.GetDocumentHandler().GetTaskDocumentsWithoutProject)
+
+			// 获取单个文档
+			taskDocuments.GET("/:documentId", app.GetDocumentHandler().GetDocument)
+
+			// 创建文档并关联到任务
+			taskDocuments.POST("", app.GetDocumentHandler().CreateTaskDocumentWithoutProject)
+
+			// 更新文档
+			taskDocuments.PUT("/:documentId", app.GetDocumentHandler().UpdateDocument)
+
+			// 删除文档关联
+			taskDocuments.DELETE("/:documentId", app.GetDocumentHandler().DeleteDocument)
+		}
+	}
 }
 
 // registerRouterBasedTaskDocumentRoutes 注册基于路由器的任务文档路由（新架构）

@@ -2,8 +2,8 @@
  * OKR 功能自动化测试脚本
  * 用于模拟用户操作，测试 OKR 弹窗的各种功能
  * 
- * Docker Compose 版本 - 在 http://localhost:3001 测试
- * 使用方法：打开浏览器访问 http://localhost:3001，打开开发者工具控制台，
+ * Docker Compose 版本 - 在 http://localhost:3000 测试
+ * 使用方法：打开浏览器访问 http://localhost:3000，打开开发者工具控制台，
  * 复制粘贴此脚本后运行 testOKRFunctionality() 或 testResponsiveDesign()
  */
 

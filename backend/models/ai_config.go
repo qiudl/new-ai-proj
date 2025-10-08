@@ -88,24 +88,33 @@ func (m AIConfigMetadata) Value() (driver.Value, error) {
 
 // AIConfig AI配置数据模型
 type AIConfig struct {
-	ID               int              `json:"id" db:"id"`
-	Provider         AIProvider       `json:"provider" db:"provider" binding:"required" validate:"required,oneof=openai claude deepseek"`
-	APIKeyEncrypted  string           `json:"-" db:"api_key_encrypted"` // 加密的API密钥，不返回给前端
-	APIKeyHash       string           `json:"-" db:"api_key_hash"`      // API密钥哈希值，不返回给前端
-	APIKeyMasked     string           `json:"api_key_masked" db:"-"`    // 脱敏显示的API密钥
-	Model            string           `json:"model" db:"model" binding:"required" validate:"required"`
-	BaseURL          *string          `json:"base_url" db:"base_url"`
-	Temperature      float64          `json:"temperature" db:"temperature" validate:"min=0,max=2"`
-	MaxTokens        int              `json:"max_tokens" db:"max_tokens" validate:"min=1,max=32000"`
-	Enabled          bool             `json:"enabled" db:"enabled"`
-	Metadata         AIConfigMetadata `json:"metadata" db:"metadata"`
-	CreatedBy        int              `json:"created_by" db:"created_by"`
-	UpdatedBy        int              `json:"updated_by" db:"updated_by"`
-	CreatedAt        time.Time        `json:"created_at" db:"created_at"`
-	UpdatedAt        time.Time        `json:"updated_at" db:"updated_at"`
-	LastTestedAt     *time.Time       `json:"last_tested_at" db:"last_tested_at"`
-	TestSuccessCount int              `json:"test_success_count" db:"test_success_count"`
-	TestFailureCount int              `json:"test_failure_count" db:"test_failure_count"`
+	ID                    int              `json:"id" db:"id"`
+	Provider              AIProvider       `json:"provider" db:"provider" binding:"required" validate:"required,oneof=openai claude deepseek"`
+	APIKeyEncrypted       string           `json:"-" db:"api_key_encrypted"`     // 加密的API密钥，不返回给前端
+	APIKeyHash            string           `json:"-" db:"api_key_hash"`          // API密钥哈希值，不返回给前端
+	APIKeyMasked          string           `json:"api_key_masked" db:"-"`        // 脱敏显示的API密钥
+	Model                 string           `json:"model" db:"model" binding:"required" validate:"required"`
+	BaseURL               *string          `json:"base_url" db:"base_url"`
+	Temperature           float64          `json:"temperature" db:"temperature" validate:"min=0,max=2"`
+	MaxTokens             int              `json:"max_tokens" db:"max_tokens" validate:"min=1,max=32000"`
+	Enabled               bool             `json:"enabled" db:"enabled"`
+	Metadata              AIConfigMetadata `json:"metadata" db:"metadata"`
+	CreatedBy             int              `json:"created_by" db:"created_by"`
+	UpdatedBy             int              `json:"updated_by" db:"updated_by"`
+	CreatedAt             time.Time        `json:"created_at" db:"created_at"`
+	UpdatedAt             time.Time        `json:"updated_at" db:"updated_at"`
+	LastTestedAt          *time.Time       `json:"last_tested_at" db:"last_tested_at"`
+	TestSuccessCount      int              `json:"test_success_count" db:"test_success_count"`
+	TestFailureCount      int              `json:"test_failure_count" db:"test_failure_count"`
+	// API密钥轮换和过期管理字段
+	APIKeyExpiresAt       *time.Time       `json:"api_key_expires_at" db:"api_key_expires_at"`
+	APIKeyCreatedAt       *time.Time       `json:"api_key_created_at" db:"api_key_created_at"`
+	APIKeyRotatedAt       *time.Time       `json:"api_key_rotated_at" db:"api_key_rotated_at"`
+	APIKeyRotationCount   int              `json:"api_key_rotation_count" db:"api_key_rotation_count"`
+	APIKeyVersion         int              `json:"api_key_version" db:"api_key_version"`
+	ExpiryWarningSent     bool             `json:"expiry_warning_sent" db:"expiry_warning_sent"`
+	AutoRotate            bool             `json:"auto_rotate" db:"auto_rotate"`
+	RotationIntervalDays  int              `json:"rotation_interval_days" db:"rotation_interval_days"`
 }
 
 // AIConfigRequest 创建/更新AI配置的请求模型
@@ -134,24 +143,34 @@ type AIConfigUpdateRequest struct {
 
 // AIConfigResponse 返回给前端的AI配置响应模型
 type AIConfigResponse struct {
-	ID               int              `json:"id"`
-	Provider         AIProvider       `json:"provider"`
-	APIKeyMasked     string           `json:"api_key_masked"` // 脱敏后的API密钥
-	Model            string           `json:"model"`
-	BaseURL          *string          `json:"base_url"`
-	Temperature      float64          `json:"temperature"`
-	MaxTokens        int              `json:"max_tokens"`
-	Enabled          bool             `json:"enabled"`
-	Metadata         AIConfigMetadata `json:"metadata"`
-	CreatedBy        int              `json:"created_by"`
-	UpdatedBy        int              `json:"updated_by"`
-	CreatedAt        time.Time        `json:"created_at"`
-	UpdatedAt        time.Time        `json:"updated_at"`
-	LastTestedAt     *time.Time       `json:"last_tested_at"`
-	TestSuccessCount int              `json:"test_success_count"`
-	TestFailureCount int              `json:"test_failure_count"`
-	Status           string           `json:"status"`     // active, inactive, error
-	LastError        string           `json:"last_error"` // 最后的错误信息
+	ID                   int              `json:"id"`
+	Provider             AIProvider       `json:"provider"`
+	APIKeyMasked         string           `json:"api_key_masked"` // 脱敏后的API密钥
+	Model                string           `json:"model"`
+	BaseURL              *string          `json:"base_url"`
+	Temperature          float64          `json:"temperature"`
+	MaxTokens            int              `json:"max_tokens"`
+	Enabled              bool             `json:"enabled"`
+	Metadata             AIConfigMetadata `json:"metadata"`
+	CreatedBy            int              `json:"created_by"`
+	UpdatedBy            int              `json:"updated_by"`
+	CreatedAt            time.Time        `json:"created_at"`
+	UpdatedAt            time.Time        `json:"updated_at"`
+	LastTestedAt         *time.Time       `json:"last_tested_at"`
+	TestSuccessCount     int              `json:"test_success_count"`
+	TestFailureCount     int              `json:"test_failure_count"`
+	Status               string           `json:"status"`     // active, inactive, error
+	LastError            string           `json:"last_error"` // 最后的错误信息
+	// API密钥过期和轮换信息
+	APIKeyExpiresAt      *time.Time       `json:"api_key_expires_at"`
+	APIKeyCreatedAt      *time.Time       `json:"api_key_created_at"`
+	APIKeyRotatedAt      *time.Time       `json:"api_key_rotated_at"`
+	APIKeyRotationCount  int              `json:"api_key_rotation_count"`
+	APIKeyVersion        int              `json:"api_key_version"`
+	AutoRotate           bool             `json:"auto_rotate"`
+	RotationIntervalDays int              `json:"rotation_interval_days"`
+	ExpiryStatus         string           `json:"expiry_status"`       // never_expires, valid, expiring_later, expiring_soon, expired
+	DaysUntilExpiry      *int             `json:"days_until_expiry"`   // 距离过期还有多少天
 }
 
 // AITestRequest AI连接测试请求
@@ -183,12 +202,18 @@ type AIModelInfo struct {
 	TokenLimit     int      `json:"token_limit,omitempty"`
 }
 
-// AITestConversation 测试对话
+// AITestConversation 测试对话（用于API响应）
 type AITestConversation struct {
-	Question string             `json:"question"`
-	Answer   string             `json:"answer"`
-	Model    string             `json:"model"`
-	Usage    *AIUsageStatistics `json:"usage,omitempty"`
+	Question         string             `json:"question"`
+	Answer           string             `json:"answer"`
+	Model            string             `json:"model"`
+	Usage            *AIUsageStatistics `json:"usage,omitempty"`
+	// 用于存储到数据库的字段
+	TestQuestion     string             `json:"test_question,omitempty"`     // 存储别名
+	AIResponse       string             `json:"ai_response,omitempty"`       // 存储别名
+	PromptTokens     int                `json:"prompt_tokens,omitempty"`     // 直接字段
+	CompletionTokens int                `json:"completion_tokens,omitempty"` // 直接字段
+	TotalTokens      int                `json:"total_tokens,omitempty"`      // 直接字段
 }
 
 // AIUsageStatistics AI使用统计
@@ -283,22 +308,29 @@ func (req *AIConfigUpdateRequest) ValidateForUpdate() error {
 // ToResponse 将内部模型转换为响应模型
 func (config *AIConfig) ToResponse(encryptionService interface{}) *AIConfigResponse {
 	response := &AIConfigResponse{
-		ID:               config.ID,
-		Provider:         config.Provider,
-		APIKeyMasked:     config.APIKeyMasked,
-		Model:            config.Model,
-		BaseURL:          config.BaseURL,
-		Temperature:      config.Temperature,
-		MaxTokens:        config.MaxTokens,
-		Enabled:          config.Enabled,
-		Metadata:         config.Metadata,
-		CreatedBy:        config.CreatedBy,
-		UpdatedBy:        config.UpdatedBy,
-		CreatedAt:        config.CreatedAt,
-		UpdatedAt:        config.UpdatedAt,
-		LastTestedAt:     config.LastTestedAt,
-		TestSuccessCount: config.TestSuccessCount,
-		TestFailureCount: config.TestFailureCount,
+		ID:                   config.ID,
+		Provider:             config.Provider,
+		APIKeyMasked:         config.APIKeyMasked,
+		Model:                config.Model,
+		BaseURL:              config.BaseURL,
+		Temperature:          config.Temperature,
+		MaxTokens:            config.MaxTokens,
+		Enabled:              config.Enabled,
+		Metadata:             config.Metadata,
+		CreatedBy:            config.CreatedBy,
+		UpdatedBy:            config.UpdatedBy,
+		CreatedAt:            config.CreatedAt,
+		UpdatedAt:            config.UpdatedAt,
+		LastTestedAt:         config.LastTestedAt,
+		TestSuccessCount:     config.TestSuccessCount,
+		TestFailureCount:     config.TestFailureCount,
+		APIKeyExpiresAt:      config.APIKeyExpiresAt,
+		APIKeyCreatedAt:      config.APIKeyCreatedAt,
+		APIKeyRotatedAt:      config.APIKeyRotatedAt,
+		APIKeyRotationCount:  config.APIKeyRotationCount,
+		APIKeyVersion:        config.APIKeyVersion,
+		AutoRotate:           config.AutoRotate,
+		RotationIntervalDays: config.RotationIntervalDays,
 	}
 
 	// 设置状态
@@ -310,7 +342,48 @@ func (config *AIConfig) ToResponse(encryptionService interface{}) *AIConfigRespo
 		response.Status = "active"
 	}
 
+	// 计算过期状态
+	response.ExpiryStatus, response.DaysUntilExpiry = config.CalculateExpiryStatus()
+
 	return response
+}
+
+// CalculateExpiryStatus 计算密钥过期状态
+func (config *AIConfig) CalculateExpiryStatus() (status string, daysUntilExpiry *int) {
+	if config.APIKeyExpiresAt == nil {
+		return "never_expires", nil
+	}
+
+	now := time.Now()
+	expiresAt := *config.APIKeyExpiresAt
+	daysRemaining := int(expiresAt.Sub(now).Hours() / 24)
+
+	if expiresAt.Before(now) {
+		return "expired", &daysRemaining
+	} else if daysRemaining < 7 {
+		return "expiring_soon", &daysRemaining
+	} else if daysRemaining < 30 {
+		return "expiring_later", &daysRemaining
+	}
+
+	return "valid", &daysRemaining
+}
+
+// IsExpired 检查密钥是否已过期
+func (config *AIConfig) IsExpired() bool {
+	if config.APIKeyExpiresAt == nil {
+		return false
+	}
+	return config.APIKeyExpiresAt.Before(time.Now())
+}
+
+// ShouldWarn 检查是否应该发送过期警告 (7天内过期)
+func (config *AIConfig) ShouldWarn() bool {
+	if config.APIKeyExpiresAt == nil || config.ExpiryWarningSent {
+		return false
+	}
+	daysUntilExpiry := int(config.APIKeyExpiresAt.Sub(time.Now()).Hours() / 24)
+	return daysUntilExpiry > 0 && daysUntilExpiry <= 7
 }
 
 // DefaultMetadata 返回默认的元数据配置
@@ -387,6 +460,42 @@ type AITestLog struct {
 	TestedAt     time.Time `json:"tested_at" db:"tested_at"`
 }
 
+// AIConfigTestLog AI配置测试日志（实际表结构映射）
+type AIConfigTestLog struct {
+	ID              int        `json:"id" db:"id"`
+	ConfigID        int        `json:"configId" db:"config_id"`
+	Provider        string     `json:"provider" db:"provider"`
+	TestPrompt      string     `json:"testPrompt" db:"test_prompt"`
+	TestResponse    *string    `json:"testResponse,omitempty" db:"test_response"`
+	TestStatus      string     `json:"testStatus" db:"test_status"` // success, failed, timeout, error
+	ResponseTimeMs  *int       `json:"responseTimeMs,omitempty" db:"response_time_ms"`
+	TokensUsed      *int       `json:"tokensUsed,omitempty" db:"tokens_used"`
+	ErrorMessage    *string    `json:"errorMessage,omitempty" db:"error_message"`
+	ErrorCode       *string    `json:"errorCode,omitempty" db:"error_code"`
+	HTTPStatusCode  *int       `json:"httpStatusCode,omitempty" db:"http_status_code"`
+	ModelUsed       *string    `json:"modelUsed,omitempty" db:"model_used"`
+	MaxTokens       *int       `json:"maxTokens,omitempty" db:"max_tokens"`
+	Temperature     *float64   `json:"temperature,omitempty" db:"temperature"`
+	TestedBy        *int       `json:"testedBy,omitempty" db:"tested_by"`
+	TestIP          *string    `json:"testIp,omitempty" db:"test_ip"`
+	UserAgent       *string    `json:"userAgent,omitempty" db:"user_agent"`
+	CreatedAt       time.Time  `json:"createdAt" db:"created_at"`
+}
+
+// TestHistoryPagination 测试历史分页信息
+type TestHistoryPagination struct {
+	Total      int `json:"total"`
+	Page       int `json:"page"`
+	Limit      int `json:"limit"`
+	TotalPages int `json:"totalPages"`
+}
+
+// TestHistoryResponse 测试历史响应
+type TestHistoryResponse struct {
+	Data       []*AIConfigTestLog    `json:"data"`
+	Pagination TestHistoryPagination `json:"pagination"`
+}
+
 // AIUsageStats AI使用统计
 type AIUsageStats struct {
 	ID           int     `json:"id" db:"id"`
@@ -396,4 +505,52 @@ type AIUsageStats struct {
 	RequestCount int     `json:"request_count" db:"request_count"`
 	TokenCount   int     `json:"token_count" db:"token_count"`
 	CostAmount   float64 `json:"cost_amount" db:"cost_amount"`
+}
+
+// AIConfigKeyHistory API密钥轮换历史记录
+type AIConfigKeyHistory struct {
+	ID             int        `json:"id" db:"id"`
+	ConfigID       int        `json:"config_id" db:"config_id"`
+	Provider       string     `json:"provider" db:"provider"`
+	APIKeyHash     string     `json:"-" db:"api_key_hash"` // 不返回给前端
+	APIKeyVersion  int        `json:"api_key_version" db:"api_key_version"`
+	RotatedBy      *int       `json:"rotated_by" db:"rotated_by"`
+	RotationReason *string    `json:"rotation_reason" db:"rotation_reason"`
+	RotationType   string     `json:"rotation_type" db:"rotation_type"` // manual, auto, expired, compromised
+	ValidFrom      time.Time  `json:"valid_from" db:"valid_from"`
+	ValidUntil     *time.Time `json:"valid_until" db:"valid_until"`
+	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
+}
+
+// AIConfigExpiryNotification API密钥过期通知记录
+type AIConfigExpiryNotification struct {
+	ID               int        `json:"id" db:"id"`
+	ConfigID         int        `json:"config_id" db:"config_id"`
+	Provider         string     `json:"provider" db:"provider"`
+	NotificationType string     `json:"notification_type" db:"notification_type"` // warning, expired, rotated
+	NotificationTime time.Time  `json:"notification_time" db:"notification_time"`
+	DaysUntilExpiry  *int       `json:"days_until_expiry" db:"days_until_expiry"`
+	NotifiedUsers    []int      `json:"notified_users" db:"notified_users"`
+	NotificationSent bool       `json:"notification_sent" db:"notification_sent"`
+	NotificationError *string   `json:"notification_error" db:"notification_error"`
+}
+
+// RotateKeyRequest API密钥轮换请求
+type RotateKeyRequest struct {
+	NewAPIKey          string  `json:"new_api_key" binding:"required" validate:"required,min=10"`
+	RotationReason     *string `json:"rotation_reason"`
+	SetExpiryDays      *int    `json:"set_expiry_days"` // 设置新密钥的过期天数
+	EnableAutoRotate   *bool   `json:"enable_auto_rotate"`
+	RotationIntervalDays *int  `json:"rotation_interval_days"`
+}
+
+// APIKeyExpiryStatus API密钥过期状态
+type APIKeyExpiryStatus struct {
+	ConfigID        int        `json:"config_id"`
+	Provider        string     `json:"provider"`
+	ExpiryStatus    string     `json:"expiry_status"` // never_expires, valid, expiring_later, expiring_soon, expired
+	DaysUntilExpiry *int       `json:"days_until_expiry"`
+	ExpiresAt       *time.Time `json:"expires_at"`
+	RotationCount   int        `json:"rotation_count"`
+	LastRotatedAt   *time.Time `json:"last_rotated_at"`
 }

@@ -1,7 +1,7 @@
 # MCP Task Bridge - Development Dockerfile
 # Use Node 20.17.0+ for better compatibility and security
 # Use standard node image instead of alpine for better compatibility with esbuild
-FROM node:20 AS base
+FROM node:20-alpine AS base
 
 # Create non-root user (Debian style for standard node image)
 RUN groupadd -g 1001 nodegroup && useradd -u 1001 -g nodegroup -m nodeuser

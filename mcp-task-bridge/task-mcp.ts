@@ -117,16 +117,34 @@ export class TaskMCPServer {
         return this.documentService.createAndAttachWorkNote(taskId, content, title);
     }
 
-    async getTaskDocument(taskId: number, projectId: number = 1) {
-        return this.documentService.getTaskDocument(taskId, projectId);
+    async getTaskDocument(taskId: number) {
+        return this.documentService.getTaskDocument(taskId);
     }
 
-    async hasTaskDocument(taskId: number, projectId: number = 1) {
-        return this.documentService.hasTaskDocument(taskId, projectId);
+    async hasTaskDocument(taskId: number) {
+        return this.documentService.hasTaskDocument(taskId);
     }
 
-    async deleteTaskDocument(taskId: number, projectId: number = 1) {
-        return this.documentService.deleteTaskDocument(taskId, projectId);
+    async deleteTaskDocument(taskId: number) {
+        return this.documentService.deleteTaskDocument(taskId);
+    }
+
+    /**
+     * 更新任务文档（完全更新）
+     * @param taskId 任务ID
+     * @param updates 更新内容（如content, title等）
+     */
+    async updateTaskDocument(taskId: number, updates: any) {
+        return this.documentService.updateTaskDocument(taskId, updates);
+    }
+
+    /**
+     * 部分更新任务文档
+     * @param taskId 任务ID
+     * @param updates 部分更新内容
+     */
+    async patchTaskDocument(taskId: number, updates: any) {
+        return this.documentService.patchTaskDocument(taskId, updates);
     }
 
     async createBatchDocuments(documents: any[]) {
@@ -289,9 +307,11 @@ export class TaskMCPServer {
                 const token = result.token;
                 this.setAuthToken(token);
                 console.error('[AUTH] Dev quick login: token set in all services via unified context');
+
+                // 保留完整的响应数据（包括tokenState）
                 return {
                     success: true,
-                    data: { token: token },
+                    data: result.data, // 保留完整的context和tokenState
                     token: token,
                     username: result.data?.context?.username || username || 'admin',
                     message: '开发环境快速登录成功，已通过统一上下文更新 Authorization 令牌'
@@ -318,6 +338,19 @@ export class TaskMCPServer {
         this.timerService.setAuthToken(token);
         this.projectService.setAuthToken(token);
         this.dailyFocusService.setAuthToken(token);
+    }
+
+    // Token监控方法（委托给taskService）
+    getTokenRefreshStats() {
+        return this.taskService.getTokenRefreshStats();
+    }
+
+    checkTokenHealth() {
+        return this.taskService.checkTokenHealth();
+    }
+
+    getRecentTokenEvents(limit: number = 10) {
+        return this.taskService.getRecentTokenEvents(limit);
     }
 
     // 设置API基础URL（同步到所有服务）
@@ -423,9 +456,109 @@ export class TaskMCPServer {
     }
 
     // 智能切换任务：完成当前进行中的任务，切换到新任务（不存在则创建）
+    /**
+     * 智能任务匹配评分
+     * @param task 任务对象
+     * @param searchTitle 搜索标题
+     * @param dailyFocusTaskIds Daily Focus任务ID集合
+     * @returns 评分 (0-100)
+     */
+    private calculateTaskScore(task: any, searchTitle: string, dailyFocusTaskIds: Set<number>): number {
+        let score = 0;
+        const title = (task.title || '').toLowerCase();
+        const search = searchTitle.toLowerCase();
+
+        // 1. 标题匹配度 (0-40分)
+        if (title === search) {
+            score += 40; // 完全匹配
+        } else if (title.includes(search)) {
+            score += 30; // 包含关键词
+        } else {
+            // 模糊匹配：计算相似度
+            const similarity = this.calculateStringSimilarity(title, search);
+            score += Math.floor(similarity * 25); // 最多25分
+        }
+
+        // 2. 任务状态 (0-25分)
+        const statusScores: Record<string, number> = {
+            'todo': 25,
+            'in_progress': 20,
+            'planning': 15,
+            'draft': 10,
+            'on_hold': 5,
+            'blocked': 3,
+            'suspended': 2,
+            'completed': 0,
+            'cancelled': 0,
+            'archived': 0
+        };
+        score += statusScores[task.status] || 0;
+
+        // 3. 优先级 (0-15分)
+        const priorityScores: Record<string, number> = {
+            'high': 15,
+            'medium': 10,
+            'low': 5
+        };
+        score += priorityScores[task.priority] || 5;
+
+        // 4. 最近更新 (0-10分) - 最近7天内更新的加分
+        if (task.updated_at) {
+            try {
+                const updatedTime = new Date(task.updated_at).getTime();
+                const now = Date.now();
+                const daysDiff = (now - updatedTime) / (1000 * 60 * 60 * 24);
+                if (daysDiff <= 1) score += 10;      // 1天内
+                else if (daysDiff <= 3) score += 7;   // 3天内
+                else if (daysDiff <= 7) score += 4;   // 7天内
+                else if (daysDiff <= 30) score += 2;  // 30天内
+            } catch { }
+        }
+
+        // 5. Daily Focus任务 (0-10分)
+        if (dailyFocusTaskIds.has(task.id)) {
+            score += 10;
+        }
+
+        return score;
+    }
+
+    /**
+     * 计算字符串相似度 (简单的编辑距离算法)
+     */
+    private calculateStringSimilarity(str1: string, str2: string): number {
+        const len1 = str1.length;
+        const len2 = str2.length;
+
+        if (len1 === 0) return len2 === 0 ? 1 : 0;
+        if (len2 === 0) return 0;
+
+        const matrix: number[][] = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
+
+        for (let i = 0; i <= len1; i++) matrix[i][0] = i;
+        for (let j = 0; j <= len2; j++) matrix[0][j] = j;
+
+        for (let i = 1; i <= len1; i++) {
+            for (let j = 1; j <= len2; j++) {
+                const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j] + 1,      // 删除
+                    matrix[i][j - 1] + 1,      // 插入
+                    matrix[i - 1][j - 1] + cost // 替换
+                );
+            }
+        }
+
+        const maxLen = Math.max(len1, len2);
+        return 1 - matrix[len1][len2] / maxLen;
+    }
+
+    /**
+     * 智能切换任务（多维度匹配）
+     */
     async switchToTask(newTaskTitle: string, projectId: number = 1) {
         try {
-            // 1) 列出当前进行中的任务
+            // 1) 完成当前进行中的任务
             const inProgress = await this.listTasks({ status: ['in_progress'], projectId });
             if (inProgress.success && inProgress.data?.tasks?.length) {
                 for (const t of inProgress.data.tasks) {
@@ -435,26 +568,76 @@ export class TaskMCPServer {
                 }
             }
 
-            // 2) 查找目标任务
+            // 2) 获取Daily Focus任务列表（用于加分）
+            let dailyFocusTaskIds = new Set<number>();
+            try {
+                const dailyFocus = await this.dailyFocusService.getDailyFocusTasks({});
+                if (dailyFocus.success && dailyFocus.data?.focus_tasks) {
+                    dailyFocusTaskIds = new Set(
+                        dailyFocus.data.focus_tasks
+                            .filter((ft: any) => ft.status === 'active')
+                            .map((ft: any) => ft.task_id)
+                    );
+                }
+            } catch { }
+
+            // 3) 查找目标任务（模糊搜索）
             const found = await this.findTaskByName(newTaskTitle);
-            let targetId = null;
+            let candidates: any[] = [];
             if (found.success && found.data?.tasks?.length) {
-                targetId = found.data.tasks[0].id;
-            } else if (found.success && found.tasks?.length) {
-                targetId = found.tasks[0].id;
+                candidates = found.data.tasks;
+            } else if (found.success && (found as any).tasks?.length) {
+                candidates = (found as any).tasks;
             }
 
-            // 3) 不存在则创建
-            if (!targetId) {
+            // 4) 智能评分排序
+            let targetTask = null;
+            if (candidates.length > 0) {
+                const scoredTasks = candidates.map(task => ({
+                    task,
+                    score: this.calculateTaskScore(task, newTaskTitle, dailyFocusTaskIds)
+                }));
+
+                // 按分数降序排序
+                scoredTasks.sort((a, b) => b.score - a.score);
+
+                // 选择得分最高的任务
+                targetTask = scoredTasks[0].task;
+
+                console.error(`[智能匹配] 找到 ${candidates.length} 个候选任务，评分结果：`);
+                scoredTasks.slice(0, 5).forEach((st, idx) => {
+                    console.error(`  ${idx + 1}. [${st.score}分] ${st.task.title} (状态:${st.task.status}, 优先级:${st.task.priority})`);
+                });
+                console.error(`[智能匹配] 选择最佳匹配：${targetTask.title} (${scoredTasks[0].score}分)`);
+            }
+
+            // 5) 不存在则创建新任务
+            if (!targetTask) {
+                console.error(`[智能匹配] 未找到匹配任务，创建新任务: ${newTaskTitle}`);
                 const created = await this.createTask(newTaskTitle, projectId);
                 if (!created.success || !created.data?.id) {
                     return created;
                 }
-                targetId = created.data.id;
+                targetTask = { id: created.data.id, title: newTaskTitle };
             }
 
-            // 4) 启动目标任务
-            const started = await this.startTask(targetId);
+            // 6) 启动目标任务
+            const started = await this.startTask(targetTask.id);
+
+            // 增强返回信息
+            if (started.success) {
+                return {
+                    ...started,
+                    matched_task: {
+                        id: targetTask.id,
+                        title: targetTask.title,
+                        status: targetTask.status,
+                        priority: targetTask.priority
+                    },
+                    match_type: candidates.length > 0 ? 'intelligent_match' : 'created_new',
+                    candidates_count: candidates.length
+                };
+            }
             return started;
         } catch (error: any) {
             return {

@@ -36,12 +36,19 @@ import {
   ReloadOutlined,
   EyeInvisibleOutlined,
   EditOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  HistoryOutlined,
+  ClockCircleOutlined
 } from '@ant-design/icons';
 import { AIProvider, AI_PROVIDER_INFO, AI_PROVIDER_DEFAULTS } from '../types/ai';
 import aiConfigDatabaseService, { AIConfigRequest, AIConfigResponse, AITestRequest } from '../services/aiConfigDatabaseService';
 import AIConfigDatabaseService from '../services/aiConfigDatabaseService';
+import { TestHistoryDrawer } from '../components/AIConfig/TestHistoryDrawer';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 // import realAITestService, { RealAITestResponse } from '../services/realAITestService';
+
+dayjs.extend(relativeTime);
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -90,6 +97,9 @@ const AIConfigPage: React.FC = () => {
     claude: '',
     deepseek: ''
   });
+  // 测试历史抽屉状态
+  const [historyDrawerVisible, setHistoryDrawerVisible] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<AIProvider | null>(null);
 
   const [openaiForm] = Form.useForm();
   const [claudeForm] = Form.useForm();
@@ -368,13 +378,13 @@ const AIConfigPage: React.FC = () => {
       onOk: async () => {
         try {
           const response = await aiConfigDatabaseService.deleteConfig(provider);
-          
+
           if (response.success) {
             setConfigs(prev => ({
               ...prev,
               [provider]: null
             }));
-            
+
             forms[provider].resetFields();
             message.success('配置已删除');
           } else {
@@ -386,6 +396,14 @@ const AIConfigPage: React.FC = () => {
         }
       }
     });
+  };
+
+  /**
+   * 打开测试历史抽屉
+   */
+  const handleViewHistory = (provider: AIProvider) => {
+    setSelectedProvider(provider);
+    setHistoryDrawerVisible(true);
   };
 
   // 监听表单变化
@@ -434,6 +452,39 @@ const AIConfigPage: React.FC = () => {
     return defaultQuestions[provider] || '你好，这是一个连接测试。';
   };
 
+  /**
+   * 渲染上次测试状态标签
+   * TODO: 后端需要添加 totalTests, successfulTests, failedTests, lastTestedAt 等字段
+   * 目前使用testResult作为临时展示
+   */
+  const renderLastTestStatus = (provider: AIProvider) => {
+    const testResult = testResults[provider];
+    const config = configs[provider];
+
+    // 如果有最近的测试结果
+    if (testResult.result) {
+      return (
+        <Tag
+          icon={testResult.result.success ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+          color={testResult.result.success ? 'success' : 'error'}
+        >
+          {testResult.result.success ? '最近测试成功' : '最近测试失败'}
+        </Tag>
+      );
+    }
+
+    // TODO: 当后端支持时,使用以下逻辑
+    // if (!config?.lastTestedAt) {
+    //   return <Tag icon={<ClockCircleOutlined />} color="default">未测试</Tag>;
+    // }
+    // const successRate = config.totalTests && config.successfulTests
+    //   ? (config.successfulTests / config.totalTests) * 100
+    //   : 0;
+    // const lastTestSuccess = successRate >= 50;
+
+    return <Tag icon={<ClockCircleOutlined />} color="default">未测试</Tag>;
+  };
+
   const renderProviderForm = (provider: AIProvider) => {
     const form = forms[provider];
     const info = AI_PROVIDER_INFO[provider];
@@ -457,7 +508,7 @@ const AIConfigPage: React.FC = () => {
               <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
                 <RobotOutlined style={{ marginRight: 8, color: '#1890ff' }} />
                 {info.name}
-                
+
                 {config?.enabled && (
                   <Tag color="green" style={{ marginLeft: 8 }}>已启用</Tag>
                 )}
@@ -467,7 +518,7 @@ const AIConfigPage: React.FC = () => {
                 {!config && (
                   <Tag color="gray" style={{ marginLeft: 8 }}>未配置</Tag>
                 )}
-                
+
                 {hasApiKeyInput && (
                   <Tag color="blue" style={{ marginLeft: 8 }}>可测试</Tag>
                 )}
@@ -475,6 +526,23 @@ const AIConfigPage: React.FC = () => {
               <Paragraph style={{ margin: 0, fontSize: '13px' }}>
                 {info.description}
               </Paragraph>
+
+              {/* 测试状态栏 */}
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #f0f0f0' }}>
+                <Space size="small">
+                  <Text type="secondary" style={{ fontSize: '12px' }}>上次测试:</Text>
+                  {renderLastTestStatus(provider)}
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<HistoryOutlined />}
+                    onClick={() => handleViewHistory(provider)}
+                    style={{ padding: '0 4px', height: 'auto' }}
+                  >
+                    查看历史
+                  </Button>
+                </Space>
+              </div>
             </Col>
             <Col span={8}>
               <div style={{ textAlign: 'right' }}>
@@ -819,9 +887,18 @@ const AIConfigPage: React.FC = () => {
             })}
           />
 
-          
+
         </Spin>
       </Card>
+
+      {/* 测试历史抽屉 */}
+      {selectedProvider && (
+        <TestHistoryDrawer
+          provider={selectedProvider}
+          visible={historyDrawerVisible}
+          onClose={() => setHistoryDrawerVisible(false)}
+        />
+      )}
     </div>
   );
 };

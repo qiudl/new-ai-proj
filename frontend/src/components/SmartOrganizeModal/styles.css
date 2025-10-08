@@ -1,0 +1,18 @@
+.scan-step,
+.organizing-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.preview-step .ant-statistic {
+  text-align: center;
+}
+
+.complete-step .ant-statistic {
+  text-align: center;
+}

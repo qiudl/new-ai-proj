@@ -23,6 +23,17 @@ func RegisterAuthRoutes(api *gin.RouterGroup, app ApplicationInterface) *gin.Rou
 		auth.POST("/dev/quick-login", authHandler.DevQuickLogin) // 兼容两种路径
 		auth.GET("/dev/accounts", authHandler.GetDevAccounts)
 
+		// 服务账号Token生成（使用API Key认证）
+		serviceAccountHandler := app.GetServiceAccountHandler()
+		if serviceAccountHandler != nil {
+			auth.POST("/service-token", serviceAccountHandler.GenerateServiceToken)
+
+			// API Key管理（需要JWT认证）
+			authProtectedService := auth.Group("")
+			authProtectedService.Use(middleware.AuthMiddleware(app.GetJWTManager()))
+			authProtectedService.POST("/service-api-key", serviceAccountHandler.CreateAPIKey)
+		}
+
 		// 统一权限检查路由 - 需要认证但在auth组下
 		authProtected := auth.Group("")
 		authProtected.Use(middleware.AuthMiddleware(app.GetJWTManager()))

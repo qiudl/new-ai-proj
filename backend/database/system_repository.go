@@ -6,6 +6,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
+
+	"github.com/lib/pq"
 )
 
 // PostgresSystemRepository handles system operations like audit logs and recycled items
@@ -20,46 +23,84 @@ func NewSystemRepository(db interface{}) *PostgresSystemRepository {
 
 // getExecer returns the appropriate execer (DB or Tx)
 func (r *PostgresSystemRepository) getExecer() execer {
+	// Check if db is nil
+	if r.db == nil {
+		log.Printf("[ERROR] SystemRepository: database connection is nil")
+		panic("database connection is nil")
+	}
+
+	// Try to get *sql.Tx first
 	if tx, ok := r.db.(*sql.Tx); ok {
+		log.Printf("[DEBUG] SystemRepository: using transaction context")
 		return tx
 	}
-	return r.db.(*sql.DB)
+
+	// Try to get *sql.DB
+	if db, ok := r.db.(*sql.DB); ok {
+		log.Printf("[DEBUG] SystemRepository: using database connection")
+		return db
+	}
+
+	// If it's a custom wrapper type, try to unwrap it
+	type dbWrapper interface {
+		GetDB() *sql.DB
+	}
+	if wrapper, ok := r.db.(dbWrapper); ok {
+		log.Printf("[DEBUG] SystemRepository: using wrapped database connection")
+		return wrapper.GetDB()
+	}
+
+	// Log the actual type for debugging
+	log.Printf("[ERROR] SystemRepository: unsupported database type: %T, value: %+v", r.db, r.db)
+	panic(fmt.Sprintf("unsupported database type: %T", r.db))
 }
 
 // GetRecycledTasks gets all deleted tasks with pagination
 func (r *PostgresSystemRepository) GetRecycledTasks(ctx context.Context, limit, offset int) ([]*models.RecycledTask, int, error) {
+	log.Printf("[INFO] GetRecycledTasks called with limit=%d, offset=%d", limit, offset)
+
 	// First try with the view, if it doesn't exist, use a direct query
 	countQuery := `SELECT COUNT(*) FROM recycled_tasks`
+
+	log.Printf("[DEBUG] Getting execer for database operations")
 	exec := r.getExecer()
+	log.Printf("[DEBUG] Successfully got execer, executing count query")
+
 	row := exec.QueryRowContext(ctx, countQuery)
 
 	var total int
 	if err := row.Scan(&total); err != nil {
+		log.Printf("[WARN] Failed to count from recycled_tasks view: %v, falling back to direct query", err)
 		// If view doesn't exist, fall back to direct query
 		countQuery = `
-			SELECT COUNT(*) 
-			FROM tasks t 
+			SELECT COUNT(*)
+			FROM tasks t
 			WHERE t.deleted_at IS NOT NULL
 		`
 		row = exec.QueryRowContext(ctx, countQuery)
 		if err := row.Scan(&total); err != nil {
+			log.Printf("[ERROR] Failed to get recycled task count from direct query: %v", err)
 			return nil, 0, fmt.Errorf("failed to get recycled task count: %w", err)
 		}
 	}
 
+	log.Printf("[INFO] Found %d total recycled tasks", total)
+
 	// Get recycled tasks with pagination
 	query := `
-		SELECT id, project_id, title, description, status, assignee_id, due_date, 
+		SELECT id, project_id, title, description, status, assignee_id, due_date,
 		       custom_fields, created_at, deleted_at, project_name, assignee_username
 		FROM recycled_tasks
 		ORDER BY deleted_at DESC
 		LIMIT $1 OFFSET $2`
 
+	log.Printf("[DEBUG] Executing query to get recycled tasks")
 	rows, err := exec.QueryContext(ctx, query, limit, offset)
 	if err != nil {
+		log.Printf("[WARN] Failed to query from recycled_tasks view: %v, falling back to direct query", err)
 		// If view doesn't exist, fall back to direct query
 		query = `
-			SELECT t.id, t.project_id, t.title, t.description, t.status, 
+			SELECT t.id, t.project_id, t.title, t.description, t.status,
 				   t.assignee_id, t.due_date, t.custom_fields, t.created_at, t.deleted_at,
 				   COALESCE(p.name, 'Unknown Project') as project_name,
 				   COALESCE(u.username, '') as assignee_username
@@ -72,28 +113,38 @@ func (r *PostgresSystemRepository) GetRecycledTasks(ctx context.Context, limit, 
 
 		rows, err = exec.QueryContext(ctx, query, limit, offset)
 		if err != nil {
+			log.Printf("[ERROR] Failed to list recycled tasks from direct query: %v", err)
 			return nil, 0, fmt.Errorf("failed to list recycled tasks: %w", err)
 		}
 	}
 	defer rows.Close()
 
+	log.Printf("[DEBUG] Successfully executed query, scanning results")
 	var tasks []*models.RecycledTask
+	taskCount := 0
 	for rows.Next() {
 		task := &models.RecycledTask{}
 		var customFieldsJSON []byte
+		var description sql.NullString
 		var assigneeID sql.NullInt64
 		var dueDate sql.NullTime
 		var assigneeUsername sql.NullString
 
 		err := rows.Scan(
-			&task.ID, &task.ProjectID, &task.Title, &task.Description,
+			&task.ID, &task.ProjectID, &task.Title, &description,
 			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
 			&task.CreatedAt, &task.DeletedAt, &task.ProjectName, &assigneeUsername,
 		)
 		if err != nil {
+			log.Printf("[ERROR] Failed to scan recycled task row: %v", err)
 			return nil, 0, fmt.Errorf("failed to scan recycled task: %w", err)
 		}
+		taskCount++
 
+		// Handle nullable description
+		if description.Valid {
+			task.Description = &description.String
+		}
 		if assigneeID.Valid {
 			intVal := int(assigneeID.Int64)
 			task.AssigneeID = &intVal
@@ -115,10 +166,190 @@ func (r *PostgresSystemRepository) GetRecycledTasks(ctx context.Context, limit, 
 	}
 
 	if err := rows.Err(); err != nil {
+		log.Printf("[ERROR] Rows iteration error: %v", err)
 		return nil, 0, fmt.Errorf("rows error: %w", err)
 	}
 
+	log.Printf("[INFO] Successfully retrieved %d recycled tasks (page %d of total %d)", taskCount, offset/limit+1, total)
 	return tasks, total, nil
+}
+
+// GetRecycledDocuments 获取回收站文档列表
+func (r *PostgresSystemRepository) GetRecycledDocuments(ctx context.Context, page, pageSize int) ([]*models.RecycledDocument, int, error) {
+	log.Printf("[DEBUG] GetRecycledDocuments called with page=%d, pageSize=%d", page, pageSize)
+
+	// 计算偏移量
+	offset := (page - 1) * pageSize
+
+	// 获取总数
+	countQuery := `SELECT COUNT(*) FROM documents WHERE deleted_at IS NOT NULL`
+	var total int
+	err := r.getExecer().QueryRowContext(ctx, countQuery).Scan(&total)
+	if err != nil {
+		log.Printf("[ERROR] Failed to count recycled documents: %v", err)
+		return nil, 0, fmt.Errorf("failed to count recycled documents: %w", err)
+	}
+	log.Printf("[INFO] Total recycled documents: %d", total)
+
+	// 查询回收站文档
+	query := `
+		SELECT
+			d.id,
+			d.project_id,
+			d.title,
+			COALESCE(d.content, '') as content,
+			d.type,
+			d.status,
+			d.owner_id,
+			d.created_at,
+			d.deleted_at,
+			p.name as project_name,
+			u.username as owner_name,
+			d.file_size,
+			d.tags
+		FROM documents d
+		LEFT JOIN projects p ON d.project_id = p.id
+		LEFT JOIN users u ON d.owner_id = u.id
+		WHERE d.deleted_at IS NOT NULL
+		ORDER BY d.deleted_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	log.Printf("[DEBUG] Executing query with limit=%d, offset=%d", pageSize, offset)
+	rows, err := r.getExecer().QueryContext(ctx, query, pageSize, offset)
+	if err != nil {
+		log.Printf("[ERROR] Failed to query recycled documents: %v", err)
+		return nil, 0, fmt.Errorf("failed to query recycled documents: %w", err)
+	}
+	defer rows.Close()
+
+	log.Printf("[DEBUG] Successfully executed query, scanning results")
+	var documents []*models.RecycledDocument
+	docCount := 0
+	for rows.Next() {
+		doc := &models.RecycledDocument{}
+		var projectID sql.NullInt64
+		var projectName sql.NullString
+		var fileSize sql.NullInt64
+		var tags pq.StringArray
+
+		err := rows.Scan(
+			&doc.ID, &projectID, &doc.Title, &doc.Content,
+			&doc.Type, &doc.Status, &doc.OwnerID, &doc.CreatedAt,
+			&doc.DeletedAt, &projectName, &doc.OwnerName, &fileSize, &tags,
+		)
+		if err != nil {
+			log.Printf("[ERROR] Failed to scan recycled document row: %v", err)
+			return nil, 0, fmt.Errorf("failed to scan recycled document: %w", err)
+		}
+		docCount++
+
+		// 处理可空字段
+		if projectID.Valid {
+			intVal := int(projectID.Int64)
+			doc.ProjectID = &intVal
+		}
+		if projectName.Valid {
+			doc.ProjectName = &projectName.String
+		}
+		if fileSize.Valid {
+			doc.FileSize = &fileSize.Int64
+		}
+		doc.Tags = []string(tags)
+
+		documents = append(documents, doc)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[ERROR] Row iteration error: %v", err)
+		return nil, 0, fmt.Errorf("row iteration error: %w", err)
+	}
+
+	log.Printf("[INFO] Successfully retrieved %d recycled documents, total: %d", len(documents), total)
+	return documents, total, nil
+}
+
+// GetRecycledWorkNotes 获取回收站工作笔记列表 (work notes are documents with NULL project_id)
+func (r *PostgresSystemRepository) GetRecycledWorkNotes(ctx context.Context, page, pageSize int) ([]*models.RecycledWorkNote, int, error) {
+	log.Printf("[DEBUG] GetRecycledWorkNotes called with page=%d, pageSize=%d", page, pageSize)
+	offset := (page - 1) * pageSize
+
+	// Get total count of deleted work notes
+	countQuery := `SELECT COUNT(*) FROM documents WHERE deleted_at IS NOT NULL AND project_id IS NULL`
+	var total int
+	err := r.getExecer().QueryRowContext(ctx, countQuery).Scan(&total)
+	if err != nil {
+		log.Printf("[ERROR] Failed to count recycled work notes: %v", err)
+		return nil, 0, fmt.Errorf("failed to count recycled work notes: %w", err)
+	}
+
+	log.Printf("[DEBUG] Total recycled work notes count: %d", total)
+
+	// Query recycled work notes
+	query := `
+		SELECT
+			d.id, d.title, COALESCE(d.content, '') as content,
+			d.type, d.status, d.owner_id, d.created_at, d.deleted_at,
+			u.username as owner_name, d.tags, d.visibility
+		FROM documents d
+		LEFT JOIN users u ON d.owner_id = u.id
+		WHERE d.deleted_at IS NOT NULL AND d.project_id IS NULL
+		ORDER BY d.deleted_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	log.Printf("[DEBUG] Executing query with LIMIT=%d, OFFSET=%d", pageSize, offset)
+
+	rows, err := r.getExecer().QueryContext(ctx, query, pageSize, offset)
+	if err != nil {
+		log.Printf("[ERROR] Failed to query recycled work notes: %v", err)
+		return nil, 0, fmt.Errorf("failed to query recycled work notes: %w", err)
+	}
+	defer rows.Close()
+
+	var workNotes []*models.RecycledWorkNote
+	for rows.Next() {
+		note := &models.RecycledWorkNote{}
+		var tags interface{}
+
+		err := rows.Scan(
+			&note.ID, &note.Title, &note.Content,
+			&note.Type, &note.Status, &note.OwnerID,
+			&note.CreatedAt, &note.DeletedAt,
+			&note.OwnerName, &tags, &note.Visibility,
+		)
+		if err != nil {
+			log.Printf("[ERROR] Failed to scan work note row: %v", err)
+			return nil, 0, fmt.Errorf("failed to scan work note: %w", err)
+		}
+
+		// Handle tags array
+		if tags != nil {
+			switch v := tags.(type) {
+			case []byte:
+				var tagArray pq.StringArray
+				if err := tagArray.Scan(v); err == nil {
+					note.Tags = []string(tagArray)
+				}
+			case string:
+				var tagArray pq.StringArray
+				if err := tagArray.Scan([]byte(v)); err == nil {
+					note.Tags = []string(tagArray)
+				}
+			}
+		}
+
+		workNotes = append(workNotes, note)
+		log.Printf("[DEBUG] Scanned work note: ID=%d, Title=%s", note.ID, note.Title)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Printf("[ERROR] Row iteration error: %v", err)
+		return nil, 0, fmt.Errorf("row iteration error: %w", err)
+	}
+
+	log.Printf("[INFO] Successfully retrieved %d recycled work notes, total: %d", len(workNotes), total)
+	return workNotes, total, nil
 }
 
 // RestoreTask restores a deleted task

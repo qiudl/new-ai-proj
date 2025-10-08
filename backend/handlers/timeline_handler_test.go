@@ -14,22 +14,23 @@ func TestTimelineHandler_Unit(t *testing.T) {
 	t.Run("timeline event types validation", func(t *testing.T) {
 		// Test that timeline event types are properly defined
 		eventTypes := []string{
-			string(models.TimelineEventTaskCreated),
-			string(models.TimelineEventTaskUpdated),
-			string(models.TimelineEventTaskDeleted),
-			string(models.TimelineEventStatusChanged),
-			string(models.TimelineEventAssigneeChanged),
-			string(models.TimelineEventPriorityChanged),
-			string(models.TimelineEventDueDateChanged),
-			string(models.TimelineEventTitleChanged),
-			string(models.TimelineEventDescriptionChanged),
-			string(models.TimelineEventEstimatedTimeChanged),
-			string(models.TimelineEventParentChanged),
+			string(models.EventTypeCreated),
+			string(models.EventTypeUpdated),
+			string(models.EventTypeDeleted),
+			string(models.EventTypeStatusChanged),
+			string(models.EventTypeAssigned),
+			string(models.EventTypePriorityChanged),
+			string(models.EventTypeDeadlineChanged),
+			string(models.EventTypeTitleChanged),
+			string(models.EventTypeDescriptionUpdated),
+			string(models.EventTypeEstimateUpdated),
+			string(models.EventTypeParentChanged),
 		}
 
 		for _, eventType := range eventTypes {
 			assert.NotEmpty(t, eventType, "Event type should not be empty")
-			assert.Contains(t, eventType, "_", "Event type should use snake_case format")
+			// Verify event type is valid
+			assert.True(t, models.IsValidEventType(eventType), "Event type should be valid: "+eventType)
 		}
 	})
 
@@ -50,17 +51,17 @@ func TestTimelineHandler_Unit(t *testing.T) {
 	t.Run("timeline filter validation", func(t *testing.T) {
 		// Test timeline filter defaults
 		filter := &models.TimelineEventFilter{}
-		
+
 		// Should have sensible defaults when not specified
-		if filter.Limit == 0 {
-			filter.Limit = 50 // Default limit
+		if filter.PageSize == 0 {
+			filter.PageSize = 50 // Default page size
 		}
-		if filter.Offset == 0 {
-			filter.Offset = 0 // Default offset
+		if filter.Page == 0 {
+			filter.Page = 1 // Default page
 		}
 
-		assert.True(t, filter.Limit > 0, "Limit should be positive")
-		assert.True(t, filter.Limit <= 1000, "Limit should not exceed maximum")
-		assert.True(t, filter.Offset >= 0, "Offset should not be negative")
+		assert.True(t, filter.PageSize > 0, "PageSize should be positive")
+		assert.True(t, filter.PageSize <= 1000, "PageSize should not exceed maximum")
+		assert.True(t, filter.Page >= 1, "Page should start from 1")
 	})
 }

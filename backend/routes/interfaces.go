@@ -20,6 +20,7 @@ type ApplicationInterface interface {
 
 	// 认证处理器
 	GetAuthHandler() *handlers.AuthHandler
+	GetServiceAccountHandler() *handlers.ServiceAccountHandler
 
 	// 基础处理器 (for backward compatibility)
 	GetHealthHandler() gin.HandlerFunc
@@ -98,6 +99,9 @@ type ApplicationInterface interface {
 	// 今日主要任务处理器
 	GetDailyFocusTaskHandler() *handlers.DailyFocusTaskHandler
 
+	// 任务组织处理器
+	GetTaskOrganizationHandler() *handlers.TaskOrganizationHandler
+
 	// 各模块处理器
 	GetArchiveHandler() *handlers.ArchiveHandler
 	GetCalendarSyncHandler() *handlers.CalendarSyncHandler
@@ -172,11 +176,34 @@ type ApplicationInterface interface {
 	GetRecycledProjectsHandler() gin.HandlerFunc
 	RestoreProjectHandler() gin.HandlerFunc
 	HardDeleteProjectHandler() gin.HandlerFunc
+	GetRecycledDocumentsHandler() gin.HandlerFunc
+	GetRecycledWorkNotesHandler() gin.HandlerFunc
 	EmptyRecycleBinHandler() gin.HandlerFunc
 
 	// AI配置处理器
 	GetAIConfigHandler() *handlers.AIConfigHandler
-	
+
+	// API密钥处理器
+	GetAPIKeyHandler() *handlers.APIKeyHandler
+
+	// Dashboard处理器
+	GetDashboardHandler() *handlers.DashboardHandler
+
+	// 效率分析处理器
+	GetEfficiencyHandler() *handlers.EfficiencyHandler
+
+	// AI子任务处理器
+	GetAISubtaskHandler() *handlers.AISubtaskHandler
+
+	// AI文档生成处理器
+	GetAIDocumentHandler() *handlers.AIDocumentHandler
+
+	// AI描述生成处理器
+	GetAIDescriptionHandler() *handlers.AIDescriptionHandler
+
+	// AI限流器
+	GetAIRateLimiter() interface{}
+
 	// 测试数据生成服务
 	GetTestDataGeneratorService() interface{}
 }

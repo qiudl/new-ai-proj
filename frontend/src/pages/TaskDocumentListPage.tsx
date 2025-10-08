@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Card, 
-  Table, 
-  Button, 
-  Input, 
-  Space, 
-  Tag, 
+import {
+  Card,
+  Table,
+  Button,
+  Input,
+  Space,
+  Tag,
   Tooltip,
   message,
   Badge,
@@ -13,10 +13,11 @@ import {
   Select,
   Row,
   Col,
-  Divider
+  Divider,
+  Popconfirm
 } from 'antd';
-import { 
-  FileTextOutlined, 
+import {
+  FileTextOutlined,
   EditOutlined,
   SearchOutlined,
   FilterOutlined,
@@ -26,15 +27,19 @@ import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   SyncOutlined,
-  UnorderedListOutlined
+  UnorderedListOutlined,
+  CloseOutlined,
+  DeleteOutlined
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
+import { documentService } from '../services/documentService';
 import { Task } from '../types/task';
 import ViewSwitcher, { ViewType } from '../components/ViewSwitcher';
 import HierarchicalTaskTable, { HierarchicalTaskWithDocument } from '../components/HierarchicalTaskTable';
 import { useHierarchicalTasks } from '../hooks/useHierarchicalTasks';
+import UnifiedTaskDocumentArea from '../components/UnifiedTaskDocumentArea';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -77,6 +82,9 @@ const TaskDocumentListPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [documentFilter, setDocumentFilter] = useState<string | undefined>();
 
+  // 文档预览状态 - 页面内展开
+  const [expandedDocumentTask, setExpandedDocumentTask] = useState<HierarchicalTaskWithDocument | null>(null);
+
   // 层级任务Hook
   const hierarchicalTasks = useHierarchicalTasks();
 
@@ -89,6 +97,34 @@ const TaskDocumentListPage: React.FC = () => {
     setSearchParams(newSearchParams);
   }, [searchParams, setSearchParams]);
 
+  // 删除文档处理
+  const handleDeleteDocument = async (record: TaskDocumentInfo) => {
+    if (!record.documentId) {
+      message.warning('该任务没有关联文档');
+      return;
+    }
+
+    try {
+      await documentService.deleteDocument(record.documentId);
+      message.success('文档删除成功');
+
+      // 关闭预览（如果正在预览该文档）
+      if (expandedDocumentTask?.id === record.id) {
+        setExpandedDocumentTask(null);
+      }
+
+      // 刷新列表
+      loadTasks();
+    } catch (error) {
+      console.error('删除文档失败:', error);
+      message.error('删除文档失败');
+    }
+  };
+
+  // 使用useRef避免函数依赖导致重复渲染
+  const projectsRef = React.useRef<Project[]>([]);
+  const tasksRef = React.useRef<TaskDocumentInfo[]>([]);
+
   // 加载项目列表
   const loadProjects = useCallback(async () => {
     try {
@@ -96,126 +132,200 @@ const TaskDocumentListPage: React.FC = () => {
       // projectService.getProjects返回PaginatedResponse<Project>，项目列表在response.data中
       const projectList = Array.isArray(response) ? response : response.data || [];
       setProjects(projectList);
+      projectsRef.current = projectList;
     } catch (error) {
       console.error('加载项目列表失败:', error);
       message.error('加载项目列表失败');
     }
   }, []);
 
-  // 加载所有任务
+  // 加载所有任务 - 使用Ref避免依赖变化
   const loadTasks = useCallback(async () => {
+    const currentProjects = projectsRef.current;
+    if (currentProjects.length === 0) return;
+
     setLoading(true);
+    console.time('⏱️ 加载所有任务');
     try {
-      // 获取所有项目的任务
-      const allTasks: TaskDocumentInfo[] = [];
-      
-      for (const project of projects) {
+      // 获取所有项目的任务 - 并行加载优化（支持分页）
+      console.time('⏱️ 加载项目任务列表');
+      const taskPromises = currentProjects.map(async project => {
         try {
-          // 加载所有页面的任务，不受分页限制
-          const response = await TaskService.getTasks(project.id, { 
-            page_size: 1000 // 设置大页面大小以获取所有任务
-          });
-          // TaskService.getTasks返回PaginatedResponse，任务数据在response.data中
-          const projectTasks = response.data || [];
+          let allProjectTasks: any[] = [];
+          let currentPage = 1;
+          let totalPages = 1;
+
+          // 循环加载所有分页
+          do {
+            const response = await TaskService.getTasks(project.id, {
+              page: currentPage,
+              page_size: 100 // 使用100作为页大小（后端最大限制）
+            });
+
+            const pageTasks = response.data || [];
+            allProjectTasks = allProjectTasks.concat(pageTasks);
+
+            // 更新分页信息
+            if (response.pagination) {
+              totalPages = response.pagination.total_pages || 1;
+            }
+
+            currentPage++;
+          } while (currentPage <= totalPages);
+
+          console.log(`✅ 项目 ${project.name}: 加载了 ${allProjectTasks.length} 个任务（共 ${totalPages} 页）`);
+
           // 为每个任务添加项目信息
-          const tasksWithProject = projectTasks.map(task => ({
+          return allProjectTasks.map(task => ({
             ...task,
             projectName: project.name,
             projectId: project.id
           }));
-          allTasks.push(...tasksWithProject);
         } catch (error) {
           console.error(`加载项目 ${project.name} 的任务失败:`, error);
+          return [];
         }
-      }
+      });
 
-      // 检查每个任务的文档状态（优化：每个任务只需1个请求，提高并发数）
-      const CONCURRENCY = 16;
-      const checkTaskDoc = async (task: TaskDocumentInfo) => {
+      const taskResults = await Promise.all(taskPromises);
+      const allTasks: TaskDocumentInfo[] = taskResults.flat();
+      console.timeEnd('⏱️ 加载项目任务列表');
+
+      // 批量检查文档状态 - 使用新的批量API（支持分批）
+      console.time('⏱️ 批量检查文档状态');
+      console.log(`📊 需要检查 ${allTasks.length} 个任务的文档状态`);
+
+      let tasksWithDocumentStatus: TaskDocumentInfo[] = [];
+
+      if (allTasks.length === 0) {
+        tasksWithDocumentStatus = [];
+      } else {
         try {
-          // 直接获取文档信息，一个请求搞定（如果无文档会返回空数组）
-          const docsResp = await fetch(`/api/v1/projects/${task.project_id}/tasks/${task.id}/documents`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json',
-            },
-          });
+          const taskIds = allTasks.map(t => t.id);
+          const docStatusMap = new Map<number, any>();
 
-          let documentExists = false;
-          let lastModified: string | undefined = undefined;
-          let documentId: number | undefined = undefined;
-          let documentTitle: string | undefined = undefined;
-          let documentDescription: string | undefined = undefined;
-          let documentCreatedAt: string | undefined = undefined;
-          let documentUpdatedAt: string | undefined = undefined;
-          
-          if (docsResp.ok) {
-            try {
-              const docsData = await docsResp.json();
-              const docs = docsData?.data || [];
-              if (Array.isArray(docs) && docs.length > 0) {
-                documentExists = true;
-                // 取最新的文档（按updated_at排序，取第一个）
-                const latestDoc = docs.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
-                lastModified = latestDoc?.updated_at;
-                documentId = latestDoc?.id;
-                documentTitle = latestDoc?.title;
-                documentDescription = latestDoc?.description;
-                documentCreatedAt = latestDoc?.created_at;
-                documentUpdatedAt = latestDoc?.updated_at;
-              }
-            } catch {}
+          // 批量API限制：每次最多1000个任务ID
+          const BATCH_SIZE = 1000;
+          const batches = [];
+
+          for (let i = 0; i < taskIds.length; i += BATCH_SIZE) {
+            batches.push(taskIds.slice(i, i + BATCH_SIZE));
           }
 
-          return {
-            ...task,
-            documentExists,
-            lastModified,
-            documentId,
-            documentTitle,
-            documentDescription,
-            documentCreatedAt,
-            documentUpdatedAt,
-          };
+          console.log(`📦 分成 ${batches.length} 批次处理（每批最多${BATCH_SIZE}个）`);
+
+          // 串行处理每批（避免API压力过大）
+          for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+            const batchTaskIds = batches[batchIndex];
+            console.log(`⏳ 处理第 ${batchIndex + 1}/${batches.length} 批（${batchTaskIds.length}个任务）...`);
+
+            const batchResp = await fetch('/api/v1/documents/batch-status', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ task_ids: batchTaskIds }),
+            });
+
+            if (batchResp.ok) {
+              const batchData = await batchResp.json();
+
+              // 构建任务ID到文档状态的映射
+              if (batchData.success && Array.isArray(batchData.data)) {
+                batchData.data.forEach((status: any) => {
+                  docStatusMap.set(status.task_id, status);
+                  // DEBUG: 追踪任务2254
+                  if (status.task_id === 2254) {
+                    console.log('🔍 DEBUG 任务2254的批量API返回:', status);
+                  }
+                });
+              }
+            } else {
+              console.error(`批次 ${batchIndex + 1} 调用失败:`, await batchResp.text());
+            }
+          }
+
+          // 合并文档状态到任务列表
+          tasksWithDocumentStatus = allTasks.map(task => {
+            const docStatus = docStatusMap.get(task.id);
+
+            // DEBUG: 追踪任务2254
+            if (task.id === 2254) {
+              console.log('🔍 DEBUG 任务2254处理前:', { task, docStatus });
+            }
+
+            if (docStatus && docStatus.document_exists) {
+              const result = {
+                ...task,
+                documentExists: true,
+                documentId: docStatus.document_id,
+                documentTitle: docStatus.document_title,
+                lastModified: docStatus.document_updated_at,
+                documentCreatedAt: docStatus.document_created_at,
+                documentUpdatedAt: docStatus.document_updated_at,
+              };
+
+              // DEBUG: 追踪任务2254
+              if (task.id === 2254) {
+                console.log('🔍 DEBUG 任务2254处理后:', result);
+              }
+
+              return result;
+            } else {
+              const result = {
+                ...task,
+                documentExists: false,
+              };
+
+              // DEBUG: 追踪任务2254
+              if (task.id === 2254) {
+                console.log('🔍 DEBUG 任务2254标记为无文档:', result);
+              }
+
+              return result;
+            }
+          });
+
+          // 统计实际有文档的任务数
+          const tasksWithDocs = tasksWithDocumentStatus.filter(t => t.documentExists);
+          console.log(`✅ 批量获取成功: ${tasksWithDocs.length} 个任务有文档`);
         } catch (error) {
-          return {
+          console.error('批量检查文档状态失败:', error);
+          // 降级：所有任务标记为无文档
+          tasksWithDocumentStatus = allTasks.map(task => ({
             ...task,
             documentExists: false,
-          };
+          }));
         }
-      };
-
-      const tasksWithDocumentStatus: TaskDocumentInfo[] = [];
-      for (let i = 0; i < allTasks.length; i += CONCURRENCY) {
-        const chunk = allTasks.slice(i, i + CONCURRENCY);
-        const results = await Promise.all(chunk.map(checkTaskDoc));
-        tasksWithDocumentStatus.push(...results);
       }
+      console.timeEnd('⏱️ 批量检查文档状态');
 
       setTasks(tasksWithDocumentStatus);
       setFilteredTasks(tasksWithDocumentStatus);
+      tasksRef.current = tasksWithDocumentStatus;
+      console.timeEnd('⏱️ 加载所有任务');
     } catch (error) {
       console.error('加载任务列表失败:', error);
       message.error('加载任务列表失败');
     } finally {
       setLoading(false);
     }
-  }, [projects]);
+  }, []); // 移除projects依赖，使用projectsRef
 
   // 检查是否是ID搜索
   const isIdSearch = (query: string): boolean => {
     return query.startsWith('#') && /^#\d+$/.test(query);
   };
 
-  // 筛选任务
+  // 筛选任务 - 使用Ref避免依赖变化
   const filterTasks = useCallback(() => {
-    let filtered = [...tasks];
+    let filtered = [...tasksRef.current];
 
     // 关键词搜索
     if (searchKeyword.trim()) {
       const keyword = searchKeyword.trim();
-      
+
       if (isIdSearch(keyword)) {
         // ID搜索 (格式: #123)
         const id = parseInt(keyword.substring(1));
@@ -250,42 +360,84 @@ const TaskDocumentListPage: React.FC = () => {
       filtered = filtered.filter(task => !task.documentExists);
     }
 
-    setFilteredTasks(filtered);
-  }, [tasks, searchKeyword, selectedProject, statusFilter, documentFilter]);
+    // 分离有文档和无文档的任务，只对有文档的进行排序
+    const tasksWithDocs = filtered.filter(task => task.documentExists && task.documentId);
+    const tasksWithoutDocs = filtered.filter(task => !task.documentExists || !task.documentId);
+
+    // 对有文档的任务排序：优先按最后更新时间降序，其次按文档ID降序
+    tasksWithDocs.sort((a, b) => {
+      // 首先按文档更新时间降序（最新的在前）
+      const aTime = a.documentUpdatedAt || a.lastModified || '';
+      const bTime = b.documentUpdatedAt || b.lastModified || '';
+
+      if (aTime && bTime) {
+        const timeCompare = new Date(bTime).getTime() - new Date(aTime).getTime();
+        if (timeCompare !== 0) return timeCompare;
+      }
+
+      // 如果时间相同或缺失，按文档ID降序
+      return (b.documentId || 0) - (a.documentId || 0);
+    });
+
+    console.log('📊 任务排序结果:', {
+      总任务数: filtered.length,
+      有文档任务数: tasksWithDocs.length,
+      无文档任务数: tasksWithoutDocs.length,
+      前5个有文档任务: tasksWithDocs.slice(0, 5).map(t => ({
+        id: t.id,
+        docId: t.documentId,
+        更新时间: t.documentUpdatedAt || t.lastModified,
+        title: t.title
+      }))
+    });
+
+    // 合并：有文档的在前，无文档的在后
+    setFilteredTasks([...tasksWithDocs, ...tasksWithoutDocs]);
+  }, [searchKeyword, selectedProject, statusFilter, documentFilter]); // 移除tasks依赖
 
   // 初始化加载
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
 
+  // 当projects加载完成后，加载任务（只执行一次）
   useEffect(() => {
     if (projects.length > 0) {
       loadTasks();
     }
-  }, [projects, loadTasks]);
+  }, [projects.length]); // 只依赖长度变化
 
   // 筛选条件变化时重新筛选
   useEffect(() => {
     filterTasks();
   }, [filterTasks]);
 
-  // 加载层级任务数据
+  // 加载层级任务数据 - 只在任务视图下加载
   useEffect(() => {
     if (projects.length > 0 && currentView === 'task') {
       const projectIds = projects.map(p => p.id);
       hierarchicalTasks.loadTasks(projectIds);
     }
-  }, [projects, currentView, hierarchicalTasks]);
+  }, [projects.length, currentView]); // 移除hierarchicalTasks依赖
 
   // 层级任务事件处理
   const handleTaskClick = useCallback((task: HierarchicalTaskWithDocument) => {
     navigate(`/projects/${task.project_id}/tasks/${task.id}`);
   }, [navigate]);
 
-  const handleDocumentView = useCallback((task: HierarchicalTaskWithDocument) => {
-    const previewUrl = `/projects/${task.project_id}/tasks/${task.id}/document-preview?title=${encodeURIComponent(task.title)}`;
-    window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
-  }, []);
+  const handleDocumentView = useCallback((task: HierarchicalTaskWithDocument | null) => {
+    // 改为页面内展开模式
+    if (!task) {
+      // 收起预览
+      setExpandedDocumentTask(null);
+    } else if (expandedDocumentTask?.id === task.id) {
+      // 如果点击的是已展开的任务，则收起
+      setExpandedDocumentTask(null);
+    } else {
+      // 展开新任务的文档预览
+      setExpandedDocumentTask(task);
+    }
+  }, [expandedDocumentTask]);
 
   const handleDocumentEdit = useCallback((task: HierarchicalTaskWithDocument) => {
     if (task.documentCount > 0) {
@@ -320,8 +472,18 @@ const TaskDocumentListPage: React.FC = () => {
       dataIndex: 'documentId',
       key: 'documentId',
       width: 100,
-      sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => (a.documentId || 0) - (b.documentId || 0),
-      defaultSortOrder: 'descend' as const,
+      sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => {
+        // 只对有文档ID的任务排序
+        const aVal = a.documentId || 0;
+        const bVal = b.documentId || 0;
+        // 如果两个都没有文档ID，保持原顺序
+        if (aVal === 0 && bVal === 0) return 0;
+        // 如果只有一个没有文档ID，没有的排在后面
+        if (aVal === 0) return 1;
+        if (bVal === 0) return -1;
+        // 都有值时，按文档ID降序
+        return bVal - aVal;
+      },
       render: (documentId: number | undefined, record: TaskDocumentInfo) => {
         if (!documentId) {
           return <Text type="secondary">无文档</Text>;
@@ -329,17 +491,20 @@ const TaskDocumentListPage: React.FC = () => {
         return (
           <Button
             type="link"
-            style={{ 
-              fontFamily: 'monospace', 
+            style={{
+              fontFamily: 'monospace',
               fontWeight: 'bold',
               color: '#1890ff',
               padding: 0,
               height: 'auto'
             }}
             onClick={() => {
-              // 点击文档ID，打开全屏文档预览（与查看图标一致）
-              const previewUrl = `/projects/${record.project_id}/tasks/${record.id}/document-preview?title=${encodeURIComponent(record.documentTitle || record.title)}`;
-              window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+              // 点击文档ID，页面内展开预览
+              if (expandedDocumentTask?.id === record.id) {
+                setExpandedDocumentTask(null);
+              } else {
+                setExpandedDocumentTask(record as any);
+              }
             }}
           >
             #{documentId}
@@ -448,15 +613,17 @@ const TaskDocumentListPage: React.FC = () => {
       width: 200,
       render: (_: unknown, record: TaskDocumentInfo) => (
         <Space>
-          <Tooltip title="全屏文档预览">
+          <Tooltip title={expandedDocumentTask?.id === record.id ? "收起文档" : "预览文档"}>
             <Button
-              type="text"
-              
+              type={expandedDocumentTask?.id === record.id ? "primary" : "text"}
               icon={<EyeOutlined />}
               onClick={() => {
-                // 打开新窗口显示全屏文档预览
-                const previewUrl = `/projects/${record.project_id}/tasks/${record.id}/document-preview?title=${encodeURIComponent(record.title)}`;
-                window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+                // 改为页面内展开
+                if (expandedDocumentTask?.id === record.id) {
+                  setExpandedDocumentTask(null);
+                } else {
+                  setExpandedDocumentTask(record as any);
+                }
               }}
             />
           </Tooltip>
@@ -479,11 +646,29 @@ const TaskDocumentListPage: React.FC = () => {
           <Tooltip title="打开项目">
             <Button
               type="text"
-              
+
               icon={<FolderOpenOutlined />}
               onClick={() => navigate(`/projects/${record.project_id}`)}
             />
           </Tooltip>
+          {record.documentExists && record.documentId && (
+            <Popconfirm
+              title="确定删除该文档吗？"
+              description="删除后无法恢复，但任务本身不会被删除"
+              onConfirm={() => handleDeleteDocument(record)}
+              okText="删除"
+              cancelText="取消"
+              okType="danger"
+            >
+              <Tooltip title="删除文档">
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -633,11 +818,59 @@ const TaskDocumentListPage: React.FC = () => {
               showTotal: (total) => `共 ${total} 个任务`,
             }}
             scroll={{ x: 1000 }}
+            expandable={{
+              expandedRowKeys: expandedDocumentTask ? [expandedDocumentTask.id] : [],
+              onExpand: (expanded, record) => {
+                if (expanded) {
+                  setExpandedDocumentTask(record as any);
+                } else {
+                  setExpandedDocumentTask(null);
+                }
+              },
+              expandedRowRender: (record) => (
+                <div style={{
+                  padding: 16,
+                  backgroundColor: '#f0f5ff',
+                  border: '2px solid #1890ff',
+                  borderRadius: 8,
+                  margin: '8px 0'
+                }}>
+                  <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 16, fontWeight: 'bold', color: '#1890ff' }}>
+                      📄 任务文档预览 - #{record.id} {record.title}
+                    </span>
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<CloseOutlined />}
+                      onClick={() => setExpandedDocumentTask(null)}
+                    >
+                      收起
+                    </Button>
+                  </div>
+                  <div style={{ backgroundColor: 'white', padding: 16, borderRadius: 4 }}>
+                    <UnifiedTaskDocumentArea
+                      projectId={record.project_id}
+                      taskId={record.id}
+                      height="600px"
+                      defaultViewMode="preview"
+                      showToolbar={true}
+                      showDocumentList={true}
+                      compactMode={false}
+                      headerVisible={true}
+                      includeSubtaskDocuments={false}
+                    />
+                  </div>
+                </div>
+              ),
+              expandIcon: () => null, // 隐藏默认的展开图标，我们用按钮控制
+            }}
           />
         ) : (
           <HierarchicalTaskTable
             tasks={hierarchicalTasks.tasks}
             loading={hierarchicalTasks.loading}
+            expandedDocumentTaskId={expandedDocumentTask?.id}
             onExpand={hierarchicalTasks.expandNode}
             onCollapse={hierarchicalTasks.collapseNode}
             onTaskClick={handleTaskClick}

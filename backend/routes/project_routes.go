@@ -70,6 +70,12 @@ func registerSimpleTaskRoutes(projects *gin.RouterGroup, app ApplicationInterfac
 	projects.GET("/:id/tasks", app.GetTasksHandler())
 	projects.POST("/:id/tasks", app.CreateTaskHandler())
 	projects.DELETE("/:id/tasks", app.BulkDeleteTasksHandler())  // Bulk delete tasks
+
+	// Batch operations for tasks - MUST come before /:taskId routes
+	bulkHandler := app.GetBulkOperationHandler()
+	projects.PATCH("/:id/tasks/batch", bulkHandler.BulkUpdateTasks)  // Batch update tasks (status, parent_id, etc.)
+
+	// Individual task routes
 	projects.GET("/:id/tasks/:taskId", app.GetTaskHandler())
 	projects.PUT("/:id/tasks/:taskId", app.UpdateTaskHandler())
 	projects.DELETE("/:id/tasks/:taskId", app.DeleteTaskHandler())

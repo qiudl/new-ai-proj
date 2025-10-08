@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Table, Tag, Button, Space, Input, Select, DatePicker, Tooltip, Modal, message } from 'antd';
-import { EditOutlined, DeleteOutlined, EyeOutlined, SearchOutlined, FilterOutlined, FileTextOutlined } from '@ant-design/icons';
+import { Table, Tag, Button, Space, Input, Select, DatePicker, Tooltip, Modal, message, Card } from 'antd';
+import { EditOutlined, DeleteOutlined, EyeOutlined, SearchOutlined, FilterOutlined, FileTextOutlined, CloseOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Task } from '../types/task';
 import dayjs from 'dayjs';
-import FullscreenDocumentModal from './FullscreenDocumentModal';
-import '../styles/FullscreenDocumentModal.css';
+import UnifiedTaskDocumentArea from './UnifiedTaskDocumentArea';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -46,10 +45,9 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
     assignee: []
   });
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
-  
-  // 全屏文档预览状态
-  const [fullscreenDocumentVisible, setFullscreenDocumentVisible] = useState(false);
-  const [selectedTaskForDocument, setSelectedTaskForDocument] = useState<Task | null>(null);
+
+  // 文档预览状态 - 改为在页面内展开
+  const [expandedDocumentTaskId, setExpandedDocumentTaskId] = useState<number | null>(null);
 
   React.useEffect(() => {
     applyFilters();
@@ -105,16 +103,15 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
     });
   };
 
-  // 打开全屏文档预览
-  const handleOpenFullscreenDocument = (task: Task) => {
-    setSelectedTaskForDocument(task);
-    setFullscreenDocumentVisible(true);
-  };
-
-  // 关闭全屏文档预览
-  const handleCloseFullscreenDocument = () => {
-    setFullscreenDocumentVisible(false);
-    setSelectedTaskForDocument(null);
+  // 切换文档预览展开状态
+  const handleToggleDocumentPreview = (task: Task) => {
+    if (expandedDocumentTaskId === task.id) {
+      // 如果已经展开，则收起
+      setExpandedDocumentTaskId(null);
+    } else {
+      // 展开新的文档
+      setExpandedDocumentTaskId(task.id);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -333,11 +330,11 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
               onClick={() => onView(record)}
             />
           </Tooltip>
-          <Tooltip title="文档全屏预览">
+          <Tooltip title={expandedDocumentTaskId === record.id ? "收起文档" : "预览文档"}>
             <Button
-              type="text"
+              type={expandedDocumentTaskId === record.id ? "primary" : "text"}
               icon={<FileTextOutlined />}
-              onClick={() => handleOpenFullscreenDocument(record)}
+              onClick={() => handleToggleDocumentPreview(record)}
             />
           </Tooltip>
           <Tooltip title="编辑">
@@ -455,15 +452,43 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
           childrenColumnName: 'nonExistentField' // 禁用默认的展开功能
         }}
       />
-      
-      {/* 全屏文档预览Modal */}
-      {selectedTaskForDocument && (
-        <FullscreenDocumentModal
-          visible={fullscreenDocumentVisible}
-          projectId={selectedTaskForDocument.project_id}
-          taskId={selectedTaskForDocument.id}
-          onClose={handleCloseFullscreenDocument}
-        />
+
+      {/* 文档预览区域 - 在表格下方展开 */}
+      {expandedDocumentTaskId !== null && (
+        <Card
+          style={{
+            marginTop: 16,
+            border: '2px solid #1890ff',
+            borderRadius: 8
+          }}
+          title={
+            <Space>
+              <FileTextOutlined />
+              <span>任务文档预览</span>
+            </Space>
+          }
+          extra={
+            <Button
+              type="text"
+              icon={<CloseOutlined />}
+              onClick={() => setExpandedDocumentTaskId(null)}
+            >
+              关闭
+            </Button>
+          }
+        >
+          <UnifiedTaskDocumentArea
+            projectId={selectedProjectId || 1}
+            taskId={expandedDocumentTaskId}
+            height="600px"
+            defaultViewMode="preview"
+            showToolbar={true}
+            showDocumentList={true}
+            compactMode={false}
+            headerVisible={true}
+            includeSubtaskDocuments={false}
+          />
+        </Card>
       )}
     </div>
   );

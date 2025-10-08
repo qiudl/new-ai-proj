@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,15 +18,17 @@ import (
 
 // AIConfigHandler AI配置处理器
 type AIConfigHandler struct {
-	repo     database.AIConfigRepository
-	aiClient services.AIClient
+	repo               database.AIConfigRepository
+	aiClient           services.AIClient
+	keyRotationService *services.KeyRotationService
 }
 
 // NewAIConfigHandler 创建AI配置处理器
-func NewAIConfigHandler(repo database.AIConfigRepository) *AIConfigHandler {
+func NewAIConfigHandler(repo database.AIConfigRepository, keyRotationService *services.KeyRotationService) *AIConfigHandler {
 	return &AIConfigHandler{
-		repo:     repo,
-		aiClient: services.NewHTTPAIClient(),
+		repo:               repo,
+		aiClient:           services.NewHTTPAIClient(),
+		keyRotationService: keyRotationService,
 	}
 }
 
@@ -249,7 +252,7 @@ func (h *AIConfigHandler) ToggleConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetEnabledConfig 获取启用的配置
+// GetEnabledConfig 获取单个启用的配置（优先级：deepseek > claude > openai）
 func (h *AIConfigHandler) GetEnabledConfig(c *gin.Context) {
 	config, err := h.repo.GetEnabledConfig()
 	if err != nil {
@@ -265,6 +268,31 @@ func (h *AIConfigHandler) GetEnabledConfig(c *gin.Context) {
 	}
 
 	response := models.NewSuccessResponse(config.ToResponse(nil), "Enabled AI configuration retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// GetEnabledConfigs 获取所有启用的AI配置列表（用于前端下拉框）
+func (h *AIConfigHandler) GetEnabledConfigs(c *gin.Context) {
+	configs, err := h.repo.GetEnabledConfigs()
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to get enabled AI configurations", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	if len(configs) == 0 {
+		response := models.NewSuccessResponse([]interface{}{}, "No enabled AI configurations found")
+		c.JSON(http.StatusOK, response)
+		return
+	}
+
+	// 转换为响应格式
+	configResponses := make([]interface{}, len(configs))
+	for i, config := range configs {
+		configResponses[i] = config.ToResponse(nil)
+	}
+
+	response := models.NewSuccessResponse(configResponses, "Enabled AI configurations retrieved successfully")
 	c.JSON(http.StatusOK, response)
 }
 
@@ -308,9 +336,31 @@ func (h *AIConfigHandler) TestConnection(c *gin.Context) {
 	// 执行连接测试（使用现有的testAIConnectionHandler逻辑）
 	testResult := h.performConnectionTest(&req)
 
-	// 如果测试成功，记录测试结果
+	// 记录测试结果（包含完整对话数据）
 	if config, err := h.repo.GetConfig(req.Provider); err == nil && config != nil {
-		h.repo.RecordTestResult(config.ID, testResult.Success, testResult.ResponseTime, testResult.Error, userIDInt)
+		// 从testResult中提取对话数据
+		var conversation *models.AITestConversation
+		if testResult.Conversation != nil && testResult.Conversation.Usage != nil {
+			// 填充用于存储的字段
+			testResult.Conversation.TestQuestion = testResult.Conversation.Question
+			testResult.Conversation.AIResponse = testResult.Conversation.Answer
+			testResult.Conversation.PromptTokens = testResult.Conversation.Usage.PromptTokens
+			testResult.Conversation.CompletionTokens = testResult.Conversation.Usage.CompletionTokens
+			testResult.Conversation.TotalTokens = testResult.Conversation.Usage.TotalTokens
+			conversation = testResult.Conversation
+		}
+
+		// 调用新的RecordTestResult签名
+		testType := "manual" // 手动测试
+		h.repo.RecordTestResult(
+			config.ID,
+			testResult.Success,
+			testResult.ResponseTime,
+			testResult.Error,
+			userIDInt,
+			conversation,
+			testType,
+		)
 	}
 
 	response := models.NewSuccessResponse(testResult, "AI connection test completed")
@@ -655,4 +705,361 @@ func (h *AIConfigHandler) recordUsage(userID int, provider models.AIProvider, us
 	// 例如：保存到数据库，更新配额等
 	log.Printf("[AI_CONFIG] Usage recorded - User: %d, Provider: %s, Tokens: %d, Duration: %v",
 		userID, provider, usage.TotalTokens, duration)
+}
+
+// ==================================================
+// API密钥轮换相关Handler方法
+// ==================================================
+
+// RotateAPIKey 轮换API密钥
+func (h *AIConfigHandler) RotateAPIKey(c *gin.Context) {
+	configID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid config ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var req models.RotateKeyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body: "+err.Error(), nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// 获取用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		response := models.NewErrorResponse(models.ErrCodeUnauthorized, "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	userIDInt, ok := userID.(int)
+	if !ok {
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Invalid user ID", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// 执行密钥轮换
+	config, err := h.keyRotationService.RotateAPIKey(configID, &req, userIDInt)
+	if err != nil {
+		log.Printf("[AI_CONFIG] Failed to rotate API key for config %d: %v", configID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to rotate API key: "+err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	log.Printf("[AI_CONFIG] API key rotated successfully for config %d by user %d", configID, userIDInt)
+	response := models.NewSuccessResponse(config.ToResponse(nil), "API key rotated successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// CheckExpiredKeys 检查过期的密钥
+func (h *AIConfigHandler) CheckExpiredKeys(c *gin.Context) {
+	statuses, err := h.keyRotationService.CheckExpiredKeys()
+	if err != nil {
+		log.Printf("[AI_CONFIG] Failed to check expired keys: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to check expired keys", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(statuses, "Expiry status retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// AutoDisableExpiredKeys 自动禁用过期的密钥
+func (h *AIConfigHandler) AutoDisableExpiredKeys(c *gin.Context) {
+	count, err := h.keyRotationService.AutoDisableExpiredKeys()
+	if err != nil {
+		log.Printf("[AI_CONFIG] Failed to auto-disable expired keys: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to disable expired keys", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	responseData := gin.H{
+		"disabled_count": count,
+		"message":        fmt.Sprintf("Disabled %d expired API keys", count),
+	}
+
+	log.Printf("[AI_CONFIG] Auto-disabled %d expired API keys", count)
+	response := models.NewSuccessResponse(responseData, "Expired keys processed successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// SendExpiryWarnings 发送过期警告
+func (h *AIConfigHandler) SendExpiryWarnings(c *gin.Context) {
+	count, err := h.keyRotationService.SendExpiryWarnings()
+	if err != nil {
+		log.Printf("[AI_CONFIG] Failed to send expiry warnings: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to send warnings", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	responseData := gin.H{
+		"warning_count": count,
+		"message":       fmt.Sprintf("Sent %d expiry warnings", count),
+	}
+
+	log.Printf("[AI_CONFIG] Sent %d expiry warnings", count)
+	response := models.NewSuccessResponse(responseData, "Warnings sent successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// GetRotationHistory 获取密钥轮换历史
+func (h *AIConfigHandler) GetRotationHistory(c *gin.Context) {
+	configID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid config ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	limit := 20
+	if limitParam := c.Query("limit"); limitParam != "" {
+		if parsedLimit, err := strconv.Atoi(limitParam); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	history, err := h.keyRotationService.GetRotationHistory(configID, limit)
+	if err != nil {
+		log.Printf("[AI_CONFIG] Failed to get rotation history for config %d: %v", configID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to get rotation history", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(history, "Rotation history retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// GetExpiryNotifications 获取过期通知记录
+func (h *AIConfigHandler) GetExpiryNotifications(c *gin.Context) {
+	configID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid config ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	limit := 20
+	if limitParam := c.Query("limit"); limitParam != "" {
+		if parsedLimit, err := strconv.Atoi(limitParam); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	notifications, err := h.keyRotationService.GetExpiryNotifications(configID, limit)
+	if err != nil {
+		log.Printf("[AI_CONFIG] Failed to get expiry notifications for config %d: %v", configID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to get notifications", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(notifications, "Notifications retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// SetAPIKeyExpiry 设置API密钥过期时间
+func (h *AIConfigHandler) SetAPIKeyExpiry(c *gin.Context) {
+	configID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid config ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var req struct {
+		ExpiryDays int `json:"expiry_days" binding:"required,min=1"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body: "+err.Error(), nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+	userIDInt, _ := userID.(int)
+
+	err = h.keyRotationService.SetAPIKeyExpiry(configID, req.ExpiryDays, userIDInt)
+	if err != nil {
+		log.Printf("[AI_CONFIG] Failed to set expiry for config %d: %v", configID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to set expiry: "+err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	responseData := gin.H{
+		"config_id":   configID,
+		"expiry_days": req.ExpiryDays,
+		"message":     fmt.Sprintf("API key will expire in %d days", req.ExpiryDays),
+	}
+
+	log.Printf("[AI_CONFIG] Set expiry for config %d to %d days", configID, req.ExpiryDays)
+	response := models.NewSuccessResponse(responseData, "Expiry set successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// EnableAutoRotation 启用自动轮换
+func (h *AIConfigHandler) EnableAutoRotation(c *gin.Context) {
+	configID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid config ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var req struct {
+		IntervalDays int `json:"interval_days" binding:"required,min=1"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body: "+err.Error(), nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+	userIDInt, _ := userID.(int)
+
+	err = h.keyRotationService.EnableAutoRotation(configID, req.IntervalDays, userIDInt)
+	if err != nil {
+		log.Printf("[AI_CONFIG] Failed to enable auto rotation for config %d: %v", configID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to enable auto rotation: "+err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	responseData := gin.H{
+		"config_id":     configID,
+		"interval_days": req.IntervalDays,
+		"message":       fmt.Sprintf("Auto rotation enabled with %d days interval", req.IntervalDays),
+	}
+
+	log.Printf("[AI_CONFIG] Enabled auto rotation for config %d with %d days interval", configID, req.IntervalDays)
+	response := models.NewSuccessResponse(responseData, "Auto rotation enabled successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// DisableAutoRotation 禁用自动轮换
+func (h *AIConfigHandler) DisableAutoRotation(c *gin.Context) {
+	configID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid config ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+	userIDInt, _ := userID.(int)
+
+	err = h.keyRotationService.DisableAutoRotation(configID, userIDInt)
+	if err != nil {
+		log.Printf("[AI_CONFIG] Failed to disable auto rotation for config %d: %v", configID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to disable auto rotation: "+err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	responseData := gin.H{
+		"config_id": configID,
+		"message":   "Auto rotation disabled",
+	}
+
+	log.Printf("[AI_CONFIG] Disabled auto rotation for config %d", configID)
+	response := models.NewSuccessResponse(responseData, "Auto rotation disabled successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// ==================================================
+// 测试历史记录查询API (Task #2779)
+// ==================================================
+
+// GetTestHistory 获取测试历史记录（分页）
+func (h *AIConfigHandler) GetTestHistory(c *gin.Context) {
+	// 1. 获取并验证路径参数
+	providerStr := c.Param("provider")
+	provider := models.AIProvider(providerStr)
+
+	// 验证provider参数
+	if provider != models.ProviderOpenAI && provider != models.ProviderClaude && provider != models.ProviderDeepSeek {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid provider: "+providerStr, nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// 2. 获取并验证查询参数
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "20")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid page parameter", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid limit parameter", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// 限制最大limit为100
+	if limit > 100 {
+		limit = 100
+	}
+
+	// 3. 调用Repository查询测试历史
+	history, err := h.repo.GetTestHistory(provider, page, limit)
+	if err != nil {
+		log.Printf("[AI_CONFIG] Failed to get test history for provider %s: %v", provider, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve test history", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// 4. 返回成功响应
+	response := models.NewSuccessResponse(history, "Test history retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// GetTestLogDetail 获取单条测试日志详情
+func (h *AIConfigHandler) GetTestLogDetail(c *gin.Context) {
+	// 1. 获取并验证路径参数
+	logIDStr := c.Param("id")
+	logID, err := strconv.Atoi(logIDStr)
+	if err != nil || logID < 1 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid log ID: "+logIDStr, nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// 2. 调用Repository查询日志详情
+	logDetail, err := h.repo.GetTestLogDetail(logID)
+	if err != nil {
+		// 判断是否为未找到错误
+		if strings.Contains(err.Error(), "not found") {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Test log not found", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+
+		log.Printf("[AI_CONFIG] Failed to get test log detail for ID %d: %v", logID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve test log detail", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// 3. 返回成功响应
+	response := models.NewSuccessResponse(logDetail, "Test log detail retrieved successfully")
+	c.JSON(http.StatusOK, response)
 }

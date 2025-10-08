@@ -107,16 +107,15 @@ export class DocumentService extends BaseClient {
     }
   }
 
-  // 获取任务文档
-  async getTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
+  // 获取任务文档（使用MCP路由，自动查询projectId）
+  async getTaskDocument(taskId: number): Promise<ApiResponse> {
     try {
-      const response = await this.makeRequest('GET', `/projects/${projectId}/tasks/${taskId}/documents`);
+      const response = await this.makeRequest('GET', `/mcp/task-document/${taskId}`);
 
       if (response.success) {
         return {
           success: true,
           task_id: taskId,
-          project_id: projectId,
           documents: response.data,
           message: `📄 获取任务 ${taskId} 的文档成功`
         };
@@ -131,19 +130,18 @@ export class DocumentService extends BaseClient {
     }
   }
 
-  // 检查任务是否有文档
-  async hasTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
+  // 检查任务是否有文档（使用MCP路由，自动查询projectId）
+  async hasTaskDocument(taskId: number): Promise<ApiResponse> {
     try {
-      const response = await this.makeRequest('GET', `/projects/${projectId}/tasks/${taskId}/documents/has`);
+      const response = await this.makeRequest('GET', `/mcp/task-document/${taskId}/exists`);
 
       if (response.success) {
         return {
           success: true,
           task_id: taskId,
-          project_id: projectId,
           has_document: response.data?.has_document || response.data || false,
-          message: (response.data?.has_document || response.data) 
-            ? `✅ 任务 ${taskId} 已有关联文档` 
+          message: (response.data?.has_document || response.data)
+            ? `✅ 任务 ${taskId} 已有关联文档`
             : `📄 任务 ${taskId} 暂无关联文档`
         };
       } else {
@@ -157,20 +155,16 @@ export class DocumentService extends BaseClient {
     }
   }
 
-  // 删除任务文档
+  // 删除任务文档（使用MCP路由，自动查询projectId）
   // @requiresPermission('delete_document')
-  async deleteTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
+  async deleteTaskDocument(taskId: number): Promise<ApiResponse> {
     try {
-      const response = await this.makeRequest('DELETE', `/mcp/delete-task-document`, undefined, {
-        taskId: taskId,
-        projectId: projectId
-      });
+      const response = await this.makeRequest('DELETE', `/mcp/task-document/${taskId}`);
 
       if (response.success) {
         return {
           success: true,
           task_id: taskId,
-          project_id: projectId,
           message: `🗑️ 任务 ${taskId} 的文档已删除`
         };
       } else {
@@ -371,6 +365,68 @@ export class DocumentService extends BaseClient {
       return {
         success: false,
         error: `更新文档失败: ${error.message || error}`
+      };
+    }
+  }
+
+  /**
+   * 通过任务ID更新任务文档（完全更新）
+   * @param taskId 任务ID
+   * @param updates 更新内容（通常包含content, title等）
+   * @returns Promise<ApiResponse>
+   */
+  async updateTaskDocument(taskId: number, updates: Partial<Document>): Promise<ApiResponse> {
+    try {
+      const response = await this.makeRequest('PUT', `/mcp/task-document/${taskId}`, updates);
+
+      if (response.success) {
+        return {
+          success: true,
+          task_id: taskId,
+          document_id: response.data?.id,
+          version: response.data?.version,
+          updated_at: response.data?.updated_at,
+          updated_fields: Object.keys(updates),
+          message: `✅ 任务 ${taskId} 的文档已更新 (版本: ${response.data?.version})`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `更新任务文档失败: ${error.message || error}`
+      };
+    }
+  }
+
+  /**
+   * 通过任务ID部分更新任务文档
+   * @param taskId 任务ID
+   * @param updates 部分更新内容（只更新指定字段）
+   * @returns Promise<ApiResponse>
+   */
+  async patchTaskDocument(taskId: number, updates: Partial<Document>): Promise<ApiResponse> {
+    try {
+      const response = await this.makeRequest('PATCH', `/mcp/task-document/${taskId}`, updates);
+
+      if (response.success) {
+        return {
+          success: true,
+          task_id: taskId,
+          document_id: response.data?.id,
+          version: response.data?.version,
+          updated_at: response.data?.updated_at,
+          fields_updated: Object.keys(updates),
+          message: `✅ 任务 ${taskId} 的文档已部分更新 (字段: ${Object.keys(updates).join(', ')}, 版本: ${response.data?.version})`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `部分更新任务文档失败: ${error.message || error}`
       };
     }
   }

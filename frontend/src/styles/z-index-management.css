@@ -153,6 +153,11 @@
   z-index: 9999;
 }
 
+/* Fullscreen Document - Highest Priority */
+.z-fullscreen-document {
+  z-index: 99999 !important;
+}
+
 /* Debug Mode - shows z-index values on elements */
 .debug-z-index * {
   position: relative;

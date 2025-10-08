@@ -44,22 +44,31 @@ func (r *PostgresProjectRepository) DeleteWithCascade(ctx context.Context, id in
 		WITH RECURSIVE task_hierarchy AS (
 			-- Find all root tasks in the project
 			SELECT id FROM tasks WHERE project_id = $1 AND deleted_at IS NULL
-			
+
 			UNION ALL
-			
+
 			-- Recursively find all child tasks
 			SELECT t.id FROM tasks t
 			INNER JOIN task_hierarchy th ON t.parent_id = th.id
 			WHERE t.deleted_at IS NULL
 		)
-		UPDATE tasks 
-		SET deleted_at = NOW() 
-		WHERE id IN (SELECT id FROM task_hierarchy) 
+		UPDATE tasks
+		SET deleted_at = NOW()
+		WHERE id IN (SELECT id FROM task_hierarchy)
 		AND deleted_at IS NULL`
 
-	_, err = tx.ExecContext(ctx, taskQuery, id)
+	log.Printf("Executing cascade delete tasks for project_id=%d", id)
+	taskResult, err := tx.ExecContext(ctx, taskQuery, id)
 	if err != nil {
+		log.Printf("Error cascade deleting tasks: %v", err)
 		return fmt.Errorf("failed to cascade delete tasks: %w", err)
+	}
+
+	taskRowsAffected, err := taskResult.RowsAffected()
+	if err != nil {
+		log.Printf("Error getting task rows affected: %v", err)
+	} else {
+		log.Printf("Cascade deleted %d tasks for project_id=%d", taskRowsAffected, id)
 	}
 
 	// 3. Cascade soft delete project documents

@@ -1,18 +1,21 @@
 import React from 'react';
 import { Table, Tag, Button, Space, Tooltip, Badge } from 'antd';
-import { 
-  EyeOutlined, 
-  EditOutlined, 
+import {
+  EyeOutlined,
+  EditOutlined,
   FolderOpenOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   SyncOutlined,
   ExclamationCircleOutlined,
   CaretRightOutlined,
-  CaretDownOutlined
+  CaretDownOutlined,
+  CloseOutlined,
+  FileTextOutlined
 } from '@ant-design/icons';
 import { Task } from '../types/task';
 import dayjs from 'dayjs';
+import UnifiedTaskDocumentArea from './UnifiedTaskDocumentArea';
 import './HierarchicalTaskTable.css';
 
 export interface HierarchicalTaskWithDocument extends Task {
@@ -42,11 +45,13 @@ interface HierarchicalTaskTableProps {
   onDocumentView?: (task: HierarchicalTaskWithDocument) => void;
   onDocumentEdit?: (task: HierarchicalTaskWithDocument) => void;
   onProjectView?: (task: HierarchicalTaskWithDocument) => void;
+  expandedDocumentTaskId?: number | null; // 当前展开的文档任务ID
 }
 
 const HierarchicalTaskTable: React.FC<HierarchicalTaskTableProps> = ({
   tasks,
   loading = false,
+  expandedDocumentTaskId = null,
   onExpand,
   onCollapse,
   onTaskClick,
@@ -313,9 +318,9 @@ const HierarchicalTaskTable: React.FC<HierarchicalTaskTableProps> = ({
       render: (_: unknown, record: HierarchicalTaskWithDocument) => (
         <Space size="small">
           {record.documentCount > 0 && (
-            <Tooltip title="查看文档">
+            <Tooltip title={expandedDocumentTaskId === record.id ? "收起文档" : "查看文档"}>
               <Button
-                type="text"
+                type={expandedDocumentTaskId === record.id ? "primary" : "text"}
                 size="small"
                 icon={<EyeOutlined />}
                 onClick={() => onDocumentView?.(record)}
@@ -358,6 +363,54 @@ const HierarchicalTaskTable: React.FC<HierarchicalTaskTableProps> = ({
       }}
       scroll={{ x: 1200 }}
       className="hierarchical-task-table"
+      expandable={{
+        expandedRowKeys: expandedDocumentTaskId ? [expandedDocumentTaskId] : [],
+        onExpand: (expanded, record) => {
+          if (expanded) {
+            onDocumentView?.(record);
+          } else {
+            // 收起时，通过传递一个特殊值来通知父组件
+            onDocumentView?.(null as any);
+          }
+        },
+        expandedRowRender: (record) => (
+          <div style={{
+            padding: 16,
+            backgroundColor: '#f0f5ff',
+            border: '2px solid #1890ff',
+            borderRadius: 8,
+            margin: '8px 0'
+          }}>
+            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 16, fontWeight: 'bold', color: '#1890ff' }}>
+                📄 任务文档预览 - #{record.id} {record.title}
+              </span>
+              <Button
+                type="primary"
+                size="small"
+                icon={<CloseOutlined />}
+                onClick={() => onDocumentView?.(null as any)}
+              >
+                收起
+              </Button>
+            </div>
+            <div style={{ backgroundColor: 'white', padding: 16, borderRadius: 4 }}>
+              <UnifiedTaskDocumentArea
+                projectId={record.project_id || 1}
+                taskId={record.id}
+                height="600px"
+                defaultViewMode="preview"
+                showToolbar={true}
+                showDocumentList={true}
+                compactMode={false}
+                headerVisible={true}
+                includeSubtaskDocuments={false}
+              />
+            </div>
+          </div>
+        ),
+        expandIcon: () => null, // 隐藏默认的展开图标，我们用按钮控制
+      }}
     />
   );
 };

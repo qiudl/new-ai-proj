@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, memo, Suspense, useMemo } from 'react';
 import {
   Card,
   Row,
@@ -85,8 +85,10 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
   // 性能和UI优化
   const { isFullscreen, toggleFullscreen } = useFullscreen();
   
-  // 获取当前任务
-  const currentTask = taskState.selectedTask || taskState.tasks.find(t => t.id === taskId);
+  // 获取当前任务 - 使用useMemo避免每次render都创建新对象
+  const currentTask = useMemo(() => {
+    return taskState.selectedTask || taskState.tasks.find(t => t.id === taskId);
+  }, [taskState.selectedTask, taskState.tasks, taskId]);
 
   // 设置页面标题
   useDocumentTitle(currentTask ? `任务详情 - ${currentTask.title}` : '任务详情');
@@ -101,23 +103,25 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
         });
       });
     }
-  }, [taskId, currentTask, taskActions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId, currentTask]);
 
   // 选择当前任务
   useEffect(() => {
     if (currentTask && taskState.selectedTask?.id !== currentTask.id) {
       taskActions.selectTask(currentTask);
     }
-  }, [currentTask, taskState.selectedTask, taskActions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTask, taskState.selectedTask?.id]);
 
   // 任务更新处理
   const handleTaskUpdate = useCallback(async (updates: Partial<typeof currentTask>) => {
     if (!taskId) return;
-    
+
     try {
       await taskActions.updateTask(taskId, updates, true);
       setIsEditing(false);
-      
+
       errorLogger.info('ui', 'EnhancedTaskDetailPage: 任务更新成功', {
         taskId,
         updates
@@ -129,10 +133,13 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
       });
       throw error;
     }
-  }, [taskId, taskActions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId]);
 
-  // 获取智能推荐
-  const recommendations = currentTask ? getRecommendedActions(currentTask.id) : [];
+  // 获取智能推荐 - 使用useMemo缓存结果
+  const recommendations = useMemo(() => {
+    return currentTask ? getRecommendedActions(currentTask.id) : [];
+  }, [currentTask, getRecommendedActions]);
 
   // 加载状态
   if (taskState.loading && !currentTask) {

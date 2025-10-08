@@ -42,11 +42,11 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 
 	// 创建JWT令牌服务配置
 	jwtServiceConfig := &services.JWTServiceConfig{
-		AccessTokenExpiry:  15 * time.Minute,
-		RefreshTokenExpiry: 7 * 24 * time.Hour,
+		AccessTokenExpiry:  24 * time.Hour,        // 24小时访问令牌
+		RefreshTokenExpiry: 30 * 24 * time.Hour,   // 30天刷新令牌
 		SecretKey:          f.config.JWT.Secret,
 		RefreshSecretKey:   f.config.JWT.Secret + "-refresh",
-		MaxRefreshCount:    10,
+		MaxRefreshCount:    100,                   // 增加最大刷新次数，支持长期使用
 		CleanupInterval:    time.Hour,
 		EnableBlacklist:    true,
 	}
@@ -83,10 +83,15 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.RoleTemplateHandler = handlers.NewRoleTemplateHandler(roleTemplateService, f.logger)
 
 	// 任务管理处理器
-	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate)
+	// Note: Factory uses nil cache service - automatic cache invalidation not available in factory mode
+	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, nil, f.logger, f.validate)
 	allHandlers.TaskHierarchyHandler = handlers.NewTaskHierarchyHandler(f.db, f.logger, f.validate)
 	allHandlers.DailyFocusTaskHandler = handlers.NewDailyFocusTaskHandler(f.db, f.logger, f.validate)
-	
+
+	// 任务组织处理器
+	taskOrgService := services.NewTaskOrganizationService(f.db)
+	allHandlers.TaskOrganizationHandler = handlers.NewTaskOrganizationHandler(taskOrgService)
+
 	// 时间线处理器
 	allHandlers.TimelineHandler = handlers.NewTimelineHandler(f.db, f.logger, f.validate)
 
@@ -254,7 +259,34 @@ func (f *HandlerFactory) createAIHandlers(h *AllHandlers, sqlxDB *sqlx.DB) error
 		if err != nil {
 			return fmt.Errorf("failed to create AI config repository: %w", err)
 		}
-		h.AIConfigHandler = handlers.NewAIConfigHandler(aiConfigRepo)
+
+		// 创建加密服务
+		encryptionKey := os.Getenv("ENCRYPTION_KEY")
+		if encryptionKey == "" {
+			return fmt.Errorf("ENCRYPTION_KEY environment variable is not set")
+		}
+		// 确保密钥长度为32字节 (AES-256)
+		keyBytes := []byte(encryptionKey)
+		if len(keyBytes) < 32 {
+			// 如果密钥太短，用空字节填充到32字节
+			paddedKey := make([]byte, 32)
+			copy(paddedKey, keyBytes)
+			keyBytes = paddedKey
+		} else if len(keyBytes) > 32 {
+			// 如果密钥太长，截断到32字节
+			keyBytes = keyBytes[:32]
+		}
+
+		encryptionService, err := utils.NewEncryptionService(keyBytes, "default")
+		if err != nil {
+			return fmt.Errorf("failed to create encryption service: %w", err)
+		}
+
+		// 创建密钥轮换服务
+		keyRotationService := services.NewKeyRotationService(sqlxDB, encryptionService)
+
+		// 创建AI配置处理器（传入密钥轮换服务）
+		h.AIConfigHandler = handlers.NewAIConfigHandler(aiConfigRepo, keyRotationService)
 
 		// AI任务生成处理器
 		historyRepo := database.NewAIGenerationHistoryRepository(sqlxDB)

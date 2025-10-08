@@ -7,7 +7,7 @@ ARG REGISTRY_PREFIX=
 # ======================================
 # Stage 1: Base Dependencies (优化版)
 # ======================================
-FROM ${REGISTRY_PREFIX}golang:1.23-alpine AS base
+FROM ${REGISTRY_PREFIX}golang:1.24-alpine AS base
 
 # Use faster APK mirror for CN networks (fallback to default if sed fails)
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencent.com/g' /etc/apk/repositories || true
@@ -17,7 +17,7 @@ RUN apk --no-cache add \
     git \
     ca-certificates \
     curl \
-    tzdata \
+    tzdata libstdc++ libgcc \
     build-base || \
     # Fallback: install only essential packages
     apk --no-cache add ca-certificates
@@ -69,7 +69,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 
 # Change ownership
-RUN chown -R appuser:appgroup /app /go
+RUN chown -R appuser:appgroup /app /go /go
 
 # Switch to non-root user
 USER appuser
@@ -95,7 +95,7 @@ COPY . .
 # Build with cache mount
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/go/cache \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s -X main.Version=dev" \
     -a -installsuffix cgo \
     -o /app/main .
@@ -103,6 +103,19 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # ======================================
 # Stage 4: Production Runtime
 # ======================================
+
+# ======================================
+# Stage: Prepare Gojieba Dictionary  
+# ======================================
+FROM base AS gojieba-prep
+WORKDIR /tmp
+RUN --mount=type=cache,target=/go/pkg/mod \
+    mkdir -p /tmp/gojieba && \
+    cp -r /go/pkg/mod/github.com/yanyiwu /tmp/gojieba/ 2>/dev/null || \
+    (echo "Downloading gojieba..." && \
+     go mod download github.com/yanyiwu/gojieba && \
+     cp -r /go/pkg/mod/github.com/yanyiwu /tmp/gojieba/)
+
 FROM ${REGISTRY_PREFIX}alpine:latest AS production
 
 # Use faster APK mirror for CN networks (fallback to default if sed fails)
@@ -112,7 +125,7 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencent.com/g' /etc/apk/repositorie
 RUN apk --no-cache add \
     ca-certificates \
     curl \
-    tzdata \
+    tzdata libstdc++ libgcc \
     && rm -rf /var/cache/apk/*
 
 ENV TZ=Asia/Shanghai
@@ -129,12 +142,18 @@ COPY --from=builder /app/main .
 # Copy configuration files
 COPY --from=builder /app/config ./config
 
+# Copy gojieba dictionary files
+RUN mkdir -p /go/pkg/mod/github.com/yanyiwu
+COPY --from=gojieba-prep /tmp/gojieba/yanyiwu /go/pkg/mod/github.com/yanyiwu
+
+
 # Change ownership
-RUN chown -R appuser:appgroup /app
+RUN chown -R appuser:appgroup /app /go
 
 USER appuser
 
 EXPOSE 8080
+
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
@@ -153,7 +172,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go install github.com/onsi/gomega/...@latest
 
 COPY . .
-RUN chown -R appuser:appgroup /app
+RUN chown -R appuser:appgroup /app /go
 USER appuser
 
 CMD ["go", "test", "-v", "./..."]

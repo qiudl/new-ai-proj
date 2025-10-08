@@ -1,11 +1,14 @@
 package routes
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterTaskRoutes 注册独立的任务路由
 func RegisterTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	log.Println("[ROUTES] 🚀 Starting task routes registration...")
 	// 全局任务路由（跨项目）
 	tasks := authorized.Group("/tasks")
 	{
@@ -77,5 +80,14 @@ func RegisterTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 			// 创建工作笔记并关联到任务
 			taskWorkNotes.POST("/create-and-attach", workNotesHandler.CreateAndAttachWorkNoteToTask)
 		}
+
+		// AI生成子任务路由
+		aiSubtaskHandler := app.GetAISubtaskHandler()
+		tasks.POST("/:id/ai-generate-subtasks", aiSubtaskHandler.GenerateSubtasks)
+
+		// 批量创建子任务路由
+		tasks.POST("/batch-create-subtasks", aiSubtaskHandler.BatchCreateSubtasks)
 	}
+
+	log.Println("[ROUTES] ✅ Task routes registration completed!")
 }

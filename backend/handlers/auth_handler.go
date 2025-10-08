@@ -54,7 +54,7 @@ type JWTLoginResponse struct {
 // @Accept			json
 // @Produce		json
 // @Param			request	body		LoginRequest	true	"Login credentials"
-// @Success		200		{object}	LoginResponse	"Login successful"
+// @Success		200		{object}	models.APIResponse{data=JWTLoginResponse}	"Login successful"
 // @Failure		400		{object}	models.ErrorResponse	"Bad request"
 // @Failure		401		{object}	models.ErrorResponse	"Unauthorized"
 // @Failure		500		{object}	models.ErrorResponse	"Internal server error"

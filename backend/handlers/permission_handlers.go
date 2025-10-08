@@ -399,28 +399,66 @@ func (h *PermissionHandler) GetUserPermissions(c *gin.Context) {
 		return
 	}
 
-	// Handle enterprise administrators (company_admin role) differently
-	if user.Role == "company_admin" {
-		// For enterprise administrators, return a special permission summary
-		roleDescription := "企业管理员拥有企业内所有权限"
+	// Handle system administrators (admin, super_admin, company_admin roles) differently
+	if user.Role == "admin" || user.Role == "super_admin" || user.Role == "company_admin" {
+		// For administrators, return a special permission summary with full access
+		var roleDescription string
+		var roleName string
+		var roleCode string
+
+		switch user.Role {
+		case "admin", "super_admin":
+			roleDescription = "系统管理员拥有所有权限"
+			roleName = "系统管理员"
+			roleCode = user.Role
+		case "company_admin":
+			roleDescription = "企业管理员拥有企业内所有权限"
+			roleName = "企业管理员"
+			roleCode = "company_admin"
+		default:
+			roleDescription = "管理员拥有所有权限"
+			roleName = "管理员"
+			roleCode = user.Role
+		}
+
+		// Get all permissions for admin users
+		allPermissions, err := h.permissionRepo.GetPermissions(ctx)
+		effectivePerms := []models.PermissionResponse{}
+		if err == nil && len(allPermissions) > 0 {
+			effectivePerms = make([]models.PermissionResponse, 0, len(allPermissions))
+			for _, perm := range allPermissions {
+				effectivePerms = append(effectivePerms, models.PermissionResponse{
+					ID:                    perm.ID,
+					PermissionCode:        perm.PermissionCode,
+					PermissionName:        perm.PermissionName,
+					PermissionDescription: perm.PermissionDescription,
+					Module:                perm.Module,
+					Resource:              perm.Resource,
+					Action:                perm.Action,
+					IsActive:              perm.IsActive,
+					IsGranted:             true, // All permissions granted for admin
+				})
+			}
+		}
+
 		summary := &models.UserPermissionSummary{
 			CompanyUserID:        userID, // Use system user ID as fallback
 			UserName:             user.Username,
 			CustomPermissions:    make(map[string]bool),
 			ProjectPermissions:   []models.CompanyUserProjectPermission{},
-			EffectivePermissions: []models.PermissionResponse{},
+			EffectivePermissions: effectivePerms,
 		}
-		
-		// Set role information for company admin
+
+		// Set role information for admin
 		summary.Role = &models.CompanyRoleResponse{
-			ID:              0, // Special ID for system company_admin
-			RoleCode:        "company_admin",
-			RoleName:        "企业管理员",
+			ID:              0, // Special ID for system roles
+			RoleCode:        roleCode,
+			RoleName:        roleName,
 			RoleDescription: &roleDescription,
 			IsSystemRole:    true,
 			IsActive:        true,
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{"permissions": summary})
 		return
 	}

@@ -41,13 +41,23 @@ import {
   StarOutlined,
   InboxOutlined
 } from '@ant-design/icons';
-import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest } from '../services/workNotesService';
+import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest, WorkNoteFolder } from '../services/workNotesService';
 import WorkNoteConversionModal from './conversion/WorkNoteConversionModal';
 import ModernWorkNoteViewer from './ModernWorkNoteViewer';
 import { WORK_NOTE_TYPES, WORK_NOTE_PRIORITIES, getWorkNoteTypeConfig, getWorkNotePriorityConfig } from '../constants/workNoteTypes';
 import WorkNotesStatsCards from './WorkNotesStatsCards';
 import WorkNotesLayout from './WorkNotesLayout';
 import WorkNotesTreeSidebar from './WorkNotesTreeSidebar';
+import WorkNoteFolderTree from './WorkNoteFolderTree';
+import FolderBreadcrumb from './FolderBreadcrumb';
+import FolderDetailDrawer from './FolderDetailDrawer';
+import { FolderDialog, DeleteFolderDialog, MoveFolderDialog, FolderFormValues } from './FolderDialogs';
+import {
+  deletionManager,
+  getCurrentUserInfo,
+  showUndoNotification,
+  parseErrorMessage
+} from '../utils/deletionManager';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -120,15 +130,32 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
+  // 文件夹状态
+  const [internalFolderId, setInternalFolderId] = useState<number | null>(null);
+  const [currentFolder, setCurrentFolder] = useState<WorkNoteFolder | null>(null);
+  const [folders, setFolders] = useState<WorkNoteFolder[]>([]);
+
+  // 文件夹操作对话框状态
+  const [folderDialogVisible, setFolderDialogVisible] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<WorkNoteFolder | undefined>(undefined);
+  const [deletingFolder, setDeletingFolder] = useState<WorkNoteFolder | undefined>(undefined);
+  const [movingFolder, setMovingFolder] = useState<WorkNoteFolder | undefined>(undefined);
+  const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
+  const [detailFolder, setDetailFolder] = useState<WorkNoteFolder | undefined>(undefined);
+  const [parentFolderId, setParentFolderId] = useState<number | undefined>(undefined);
+
+  // 使用外部prop或内部state
+  const activeFolderId = selectedFolderId !== undefined ? selectedFolderId : internalFolderId;
+
   // 批量操作状态
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchLoading, setBatchLoading] = useState(false);
-  
+
   // API缓存和重试状态
   const [retryCount, setRetryCount] = useState(0);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
-  
+
   // 统计数据
   const [stats, setStats] = useState<WorkNotesStats>({
     total: 0,
@@ -137,7 +164,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     archived: 0,
     associated: 0
   });
-  
+
   // 筛选状态
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -145,7 +172,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [selectedTag, setSelectedTag] = useState<string>('');
   const [selectedAssociation, setSelectedAssociation] = useState<string>('');
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>('');
-  
+
   // 对话框状态
   const [modernViewerVisible, setModernViewerVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -290,26 +317,174 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     return filtered.sort((a, b) => b.id - a.id);
   }, [workNotes, debouncedSearchKeyword, statusFilter, typeFilter, selectedCategory, selectedTag, selectedAssociation, selectedTimeRange]);
 
+  // 文件夹选择处理
+  const handleFolderSelect = useCallback((folderId: number | null, folder: WorkNoteFolder | null) => {
+    setInternalFolderId(folderId);
+    setCurrentFolder(folder);
+    // 清空缓存强制刷新
+    setLastRefreshTime(0);
+  }, []);
+
+  // 加载文件夹列表
+  const loadFolders = useCallback(async () => {
+    try {
+      const data = await workNotesService.getFolderTree(null, 10); // 加载所有层级
+      setFolders(data);
+    } catch (error: any) {
+      console.error('加载文件夹列表失败:', error);
+      message.error('加载文件夹失败');
+    }
+  }, []);
+
+  // 文件夹操作回调
+  const handleFolderCreate = useCallback((parentId?: number) => {
+    setParentFolderId(parentId);
+    setEditingFolder(undefined);
+    setFolderDialogVisible(true);
+  }, []);
+
+  const handleFolderEdit = useCallback((folderId: number) => {
+    const findFolder = (folders: WorkNoteFolder[], id: number): WorkNoteFolder | undefined => {
+      for (const folder of folders) {
+        if (folder.id === id) return folder;
+        if (folder.children) {
+          const found = findFolder(folder.children, id);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    const folder = findFolder(folders, folderId);
+    setEditingFolder(folder);
+    setParentFolderId(undefined);
+    setFolderDialogVisible(true);
+  }, [folders]);
+
+  const handleFolderDelete = useCallback((folderId: number) => {
+    const findFolder = (folders: WorkNoteFolder[], id: number): WorkNoteFolder | undefined => {
+      for (const folder of folders) {
+        if (folder.id === id) return folder;
+        if (folder.children) {
+          const found = findFolder(folder.children, id);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    const folder = findFolder(folders, folderId);
+    setDeletingFolder(folder);
+  }, [folders]);
+
+  const handleFolderMove = useCallback((folderId: number) => {
+    const findFolder = (folders: WorkNoteFolder[], id: number): WorkNoteFolder | undefined => {
+      for (const folder of folders) {
+        if (folder.id === id) return folder;
+        if (folder.children) {
+          const found = findFolder(folder.children, id);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    const folder = findFolder(folders, folderId);
+    setMovingFolder(folder);
+  }, [folders]);
+
+  const handleFolderDetail = useCallback((folderId: number) => {
+    const findFolder = (folders: WorkNoteFolder[], id: number): WorkNoteFolder | undefined => {
+      for (const folder of folders) {
+        if (folder.id === id) return folder;
+        if (folder.children) {
+          const found = findFolder(folder.children, id);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    const folder = findFolder(folders, folderId);
+    setDetailFolder(folder);
+    setDetailDrawerVisible(true);
+  }, [folders]);
+
+  // 文件夹对话框确认操作
+  const handleFolderDialogConfirm = useCallback(async (values: FolderFormValues) => {
+    try {
+      if (editingFolder) {
+        await workNotesService.updateFolder(editingFolder.id, values);
+        message.success('文件夹更新成功');
+      } else {
+        await workNotesService.createFolder({
+          ...values,
+          parent_id: parentFolderId || null,
+        });
+        message.success('文件夹创建成功');
+      }
+      await loadFolders();
+      setFolderDialogVisible(false);
+      setEditingFolder(undefined);
+      setParentFolderId(undefined);
+    } catch (error: any) {
+      console.error('文件夹操作失败:', error);
+      message.error(error.message || '操作失败');
+    }
+  }, [editingFolder, parentFolderId, loadFolders]);
+
+  const handleDeleteFolderConfirm = useCallback(async (force: boolean) => {
+    if (!deletingFolder) return;
+    try {
+      await workNotesService.deleteFolder(deletingFolder.id);
+      message.success('文件夹删除成功');
+      await loadFolders();
+      setDeletingFolder(undefined);
+      // 如果删除的是当前文件夹，清空选择
+      if (activeFolderId === deletingFolder.id) {
+        setInternalFolderId(null);
+        setCurrentFolder(null);
+      }
+    } catch (error: any) {
+      console.error('删除文件夹失败:', error);
+      message.error(error.message || '删除失败');
+    }
+  }, [deletingFolder, activeFolderId, loadFolders]);
+
+  const handleMoveFolderConfirm = useCallback(async (targetParentId: number | null) => {
+    if (!movingFolder) return;
+    try {
+      await workNotesService.moveFolder(movingFolder.id, targetParentId);
+      message.success('文件夹移动成功');
+      await loadFolders();
+      setMovingFolder(undefined);
+    } catch (error: any) {
+      console.error('移动文件夹失败:', error);
+      message.error(error.message || '移动失败');
+    }
+  }, [movingFolder, loadFolders]);
+
+  // 加载文件夹列表
+  useEffect(() => {
+    loadFolders();
+  }, [loadFolders]);
+
   // 优化的加载工作笔记函数，支持缓存和重试
   const loadWorkNotes = useCallback(async (forceRefresh = false) => {
     // 检查缓存时间，5分钟内不重复请求
     const now = Date.now();
     const cacheTimeout = 5 * 60 * 1000; // 5分钟
-    
+
     if (!forceRefresh && workNotes.length > 0 && (now - lastRefreshTime) < cacheTimeout) {
       console.log('使用缓存的工作笔记数据');
       return;
     }
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       // 使用AbortController支持请求取消
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
-      
-      const data = await workNotesService.listWorkNotes(selectedFolderId || undefined);
+
+      const data = await workNotesService.listWorkNotes(activeFolderId || undefined);
       clearTimeout(timeoutId);
       
       // 模拟添加关联任务数据
@@ -350,7 +525,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     } finally {
       setLoading(false);
     }
-  }, [selectedFolderId, calculateStats, workNotes.length, lastRefreshTime, retryCount]);
+  }, [activeFolderId, calculateStats, workNotes.length, lastRefreshTime, retryCount]);
 
   // 初始化加载
   useEffect(() => {
@@ -464,16 +639,117 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     }
   };
 
-  // 删除工作笔记
+  // 删除工作笔记 - 增强版本（带撤销和日志）
   const handleDelete = async (id: number) => {
-    try {
-      await workNotesService.deleteWorkNote(id);
-      message.success('工作笔记删除成功');
-      loadWorkNotes();
-    } catch (error) {
-      console.error('Failed to delete work note:', error);
-      message.error('删除失败');
+    const note = workNotes.find(n => n.id === id);
+    if (!note) {
+      message.error('找不到要删除的笔记');
+      return;
     }
+
+    // 添加到删除队列
+    if (!deletionManager.addToQueue(note)) {
+      // 如果添加失败（重复删除），直接返回
+      return;
+    }
+
+    const userInfo = getCurrentUserInfo();
+    let undoTimeoutId: NodeJS.Timeout | null = null;
+    let isUndone = false;
+
+    // 撤销函数
+    const handleUndo = () => {
+      isUndone = true;
+      if (undoTimeoutId) {
+        clearTimeout(undoTimeoutId);
+      }
+      deletionManager.removeFromQueue(id);
+      deletionManager.logDeletion({
+        userId: userInfo.userId,
+        username: userInfo.username,
+        noteId: id,
+        noteTitle: note.title,
+        operationType: 'single',
+        status: 'cancelled',
+        undoAvailable: false,
+      });
+      message.info(`已取消删除笔记: ${note.title}`);
+      console.log(`[Delete] 用户撤销了笔记 #${id} 的删除`);
+    };
+
+    // 显示撤销通知
+    showUndoNotification(note, handleUndo, 5);
+
+    // 设置5秒延迟后执行实际删除
+    undoTimeoutId = setTimeout(async () => {
+      if (isUndone) {
+        return;
+      }
+
+      try {
+        // 更新队列状态为删除中
+        deletionManager.updateQueueItemStatus(id, 'deleting');
+
+        // 执行删除
+        await workNotesService.deleteWorkNote(id);
+
+        // 更新队列状态为成功
+        deletionManager.updateQueueItemStatus(id, 'success');
+
+        // 记录成功日志
+        deletionManager.logDeletion({
+          userId: userInfo.userId,
+          username: userInfo.username,
+          noteId: id,
+          noteTitle: note.title,
+          operationType: 'single',
+          status: 'success',
+          undoAvailable: false,
+        });
+
+        console.log(`[Delete] 成功删除笔记 #${id} "${note.title}"`);
+
+        // 从队列中移除
+        deletionManager.removeFromQueue(id);
+
+        // 刷新列表
+        loadWorkNotes(true);
+      } catch (error: any) {
+        const errorInfo = parseErrorMessage(error);
+
+        // 更新队列状态为失败
+        deletionManager.updateQueueItemStatus(id, 'failed', errorInfo.technicalMessage);
+
+        // 记录失败日志
+        deletionManager.logDeletion({
+          userId: userInfo.userId,
+          username: userInfo.username,
+          noteId: id,
+          noteTitle: note.title,
+          operationType: 'single',
+          status: 'failed',
+          errorMessage: errorInfo.technicalMessage,
+          undoAvailable: false,
+        });
+
+        console.error(`[Delete] 删除笔记 #${id} 失败:`, errorInfo.technicalMessage);
+        message.error(errorInfo.userMessage);
+
+        // 如果可重试，询问用户
+        if (errorInfo.retryable) {
+          Modal.confirm({
+            title: '删除失败',
+            content: `${errorInfo.userMessage}，是否重试？`,
+            okText: '重试',
+            cancelText: '取消',
+            onOk: () => handleDelete(id),
+          });
+        }
+
+        // 从队列中移除
+        deletionManager.removeFromQueue(id);
+      }
+    }, 5000);
   };
 
   // 复制工作笔记
@@ -571,60 +847,232 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     loadWorkNotes();
   };
 
-  // 批量操作功能 - 优化版本
+  // 批量操作功能 - 增强版本（带撤销、队列管理和详细日志）
   const handleBatchDelete = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('请先选择要删除的笔记');
       return;
     }
 
+    const notesToDelete = workNotes.filter(note => selectedRowKeys.includes(note.id));
+    const userInfo = getCurrentUserInfo();
+
     Modal.confirm({
       title: '批量删除确认',
-      content: `确定要删除选中的 ${selectedRowKeys.length} 个工作笔记吗？此操作不可恢复。`,
+      content: (
+        <div>
+          <div style={{ marginBottom: 12 }}>
+            确定要删除选中的 <strong>{notesToDelete.length}</strong> 个工作笔记吗？
+          </div>
+          <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+            笔记将在5秒内可撤销，之后将永久删除
+          </div>
+        </div>
+      ),
       okText: '确定删除',
       cancelText: '取消',
       okType: 'danger',
       onOk: async () => {
-        try {
-          setBatchLoading(true);
-          let successCount = 0;
-          let failureCount = 0;
-          
-          // 分批处理，避免同时发送过多请求
-          const batchSize = 5;
-          for (let i = 0; i < selectedRowKeys.length; i += batchSize) {
-            const batch = selectedRowKeys.slice(i, i + batchSize);
-            const promises = batch.map(async (id) => {
-              try {
-                await workNotesService.deleteWorkNote(Number(id));
-                successCount++;
-              } catch (error) {
-                failureCount++;
-                console.error(`删除笔记 ${id} 失败:`, error);
-              }
-            });
-            
-            await Promise.all(promises);
-            
-            // 显示进度
-            if (selectedRowKeys.length > batchSize) {
-              message.loading(`正在删除... ${Math.min(i + batchSize, selectedRowKeys.length)}/${selectedRowKeys.length}`, 0.5);
-            }
-          }
-          
-          if (successCount > 0) {
-            message.success(`成功删除 ${successCount} 个工作笔记${failureCount > 0 ? `，失败 ${failureCount} 个` : ''}`);
-            setSelectedRowKeys([]);
-            loadWorkNotes(true); // 强制刷新
-          } else {
-            message.error('批量删除失败');
-          }
-        } catch (error) {
-          console.error('批量删除失败:', error);
-          message.error('批量删除失败');
-        } finally {
-          setBatchLoading(false);
+        // 批量添加到队列
+        const addedNotes = deletionManager.addBatchToQueue(notesToDelete);
+        if (addedNotes.length === 0) {
+          message.warning('所有笔记都已在删除队列中');
+          return;
         }
+
+        let isUndone = false;
+        let undoTimeoutId: NodeJS.Timeout | null = null;
+
+        // 撤销函数
+        const handleUndo = () => {
+          isUndone = true;
+          if (undoTimeoutId) {
+            clearTimeout(undoTimeoutId);
+          }
+
+          // 从队列中移除所有笔记
+          addedNotes.forEach(note => {
+            deletionManager.removeFromQueue(note.id);
+            deletionManager.logDeletion({
+              userId: userInfo.userId,
+              username: userInfo.username,
+              noteId: note.id,
+              noteTitle: note.title,
+              operationType: 'batch',
+              status: 'cancelled',
+              undoAvailable: false,
+            });
+          });
+
+          message.info(`已取消删除 ${addedNotes.length} 个笔记`);
+          console.log(`[BatchDelete] 用户撤销了 ${addedNotes.length} 个笔记的批量删除`);
+        };
+
+        // 显示撤销通知（使用第一个笔记的信息）
+        notification.success({
+          message: `批量删除 ${addedNotes.length} 个笔记`,
+          description: (
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                笔记列表: {addedNotes.slice(0, 3).map(n => n.title).join(', ')}
+                {addedNotes.length > 3 && ` 等${addedNotes.length}个`}
+              </div>
+              <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+                5秒内可撤销
+              </div>
+            </div>
+          ),
+          duration: 5,
+          btn: (
+            <button
+              onClick={() => {
+                handleUndo();
+                notification.destroy();
+              }}
+              style={{
+                padding: '4px 12px',
+                background: '#1890ff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 500,
+              }}
+            >
+              <UndoOutlined /> 撤销全部
+            </button>
+          ),
+          placement: 'bottomRight',
+        });
+
+        // 设置5秒延迟后执行批量删除
+        undoTimeoutId = setTimeout(async () => {
+          if (isUndone) {
+            return;
+          }
+
+          try {
+            setBatchLoading(true);
+            let successCount = 0;
+            let failureCount = 0;
+            const failedNotes: { note: WorkNote; error: string }[] = [];
+
+            // 分批处理，避免同时发送过多请求
+            const batchSize = 5;
+            for (let i = 0; i < addedNotes.length; i += batchSize) {
+              const batch = addedNotes.slice(i, i + batchSize);
+              const promises = batch.map(async (note) => {
+                try {
+                  // 更新队列状态
+                  deletionManager.updateQueueItemStatus(note.id, 'deleting');
+
+                  // 执行删除
+                  await workNotesService.deleteWorkNote(note.id);
+
+                  // 更新队列状态为成功
+                  deletionManager.updateQueueItemStatus(note.id, 'success');
+
+                  // 记录成功日志
+                  deletionManager.logDeletion({
+                    userId: userInfo.userId,
+                    username: userInfo.username,
+                    noteId: note.id,
+                    noteTitle: note.title,
+                    operationType: 'batch',
+                    status: 'success',
+                    undoAvailable: false,
+                  });
+
+                  successCount++;
+                  console.log(`[BatchDelete] 成功删除笔记 #${note.id} "${note.title}"`);
+
+                  // 从队列中移除
+                  deletionManager.removeFromQueue(note.id);
+                } catch (error: any) {
+                  const errorInfo = parseErrorMessage(error);
+
+                  // 更新队列状态为失败
+                  deletionManager.updateQueueItemStatus(note.id, 'failed', errorInfo.technicalMessage);
+
+                  // 记录失败日志
+                  deletionManager.logDeletion({
+                    userId: userInfo.userId,
+                    username: userInfo.username,
+                    noteId: note.id,
+                    noteTitle: note.title,
+                    operationType: 'batch',
+                    status: 'failed',
+                    errorMessage: errorInfo.technicalMessage,
+                    undoAvailable: false,
+                  });
+
+                  failureCount++;
+                  failedNotes.push({ note, error: errorInfo.userMessage });
+                  console.error(`[BatchDelete] 删除笔记 #${note.id} 失败:`, errorInfo.technicalMessage);
+
+                  // 从队列中移除
+                  deletionManager.removeFromQueue(note.id);
+                }
+              });
+
+              await Promise.all(promises);
+
+              // 显示进度
+              if (addedNotes.length > batchSize) {
+                message.loading(
+                  `正在删除... ${Math.min(i + batchSize, addedNotes.length)}/${addedNotes.length}`,
+                  0.5
+                );
+              }
+            }
+
+            // 显示最终结果
+            if (successCount > 0) {
+              if (failureCount === 0) {
+                message.success(`成功删除 ${successCount} 个工作笔记`);
+              } else {
+                Modal.warning({
+                  title: '批量删除部分成功',
+                  content: (
+                    <div>
+                      <div style={{ marginBottom: 8 }}>
+                        成功删除 <strong>{successCount}</strong> 个笔记
+                      </div>
+                      <div style={{ marginBottom: 8 }}>
+                        失败 <strong>{failureCount}</strong> 个笔记
+                      </div>
+                      {failedNotes.length > 0 && (
+                        <div style={{ maxHeight: 200, overflow: 'auto', marginTop: 12 }}>
+                          <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>
+                            失败详情:
+                          </div>
+                          {failedNotes.map(({ note, error }) => (
+                            <div key={note.id} style={{ fontSize: 12, marginBottom: 4 }}>
+                              • #{note.id} {note.title}: {error}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ),
+                  width: 500,
+                });
+              }
+              setSelectedRowKeys([]);
+              loadWorkNotes(true); // 强制刷新
+            } else {
+              message.error('批量删除全部失败');
+            }
+
+            console.log(`[BatchDelete] 批量删除完成 - 成功: ${successCount}, 失败: ${failureCount}`);
+          } catch (error) {
+            console.error('[BatchDelete] 批量删除失败:', error);
+            message.error('批量删除失败');
+          } finally {
+            setBatchLoading(false);
+          }
+        }, 5000);
       }
     });
   };
@@ -976,14 +1424,24 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       width: isMobile ? 80 : 120,
       align: 'center' as const,
       responsive: ['lg'],
-      sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => 
+      sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) =>
         dayjs(a.updated_at).unix() - dayjs(b.updated_at).unix(),
-      render: (date: string) => (
-        <div style={{ fontSize: isMobile ? 10 : 11 }}>
-          <div>{dayjs(date).format('MM-DD')}</div>
-          <div style={{ color: '#8c8c8c' }}>{dayjs(date).format('HH:mm')}</div>
-        </div>
-      ),
+      render: (date: string) => {
+        if (!date || !dayjs(date).isValid()) {
+          return (
+            <div style={{ fontSize: isMobile ? 10 : 11, color: '#bfbfbf' }}>
+              <div>未知</div>
+              <div>时间</div>
+            </div>
+          );
+        }
+        return (
+          <div style={{ fontSize: isMobile ? 10 : 11 }}>
+            <div>{dayjs(date).format('MM-DD')}</div>
+            <div style={{ color: '#8c8c8c' }}>{dayjs(date).format('HH:mm')}</div>
+          </div>
+        );
+      },
     },
     {
       title: '操作',
@@ -1050,17 +1508,47 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       {/* 主要内容区域 */}
       <WorkNotesLayout
         sidebar={
-          <WorkNotesTreeSidebar
-            onCategorySelect={handleCategorySelect}
-            onTagSelect={handleTagSelect}
-            onAssociationSelect={handleAssociationSelect}
-            onTimeRangeSelect={handleTimeRangeSelect}
-            onRefresh={handleTreeRefresh}
-            selectedCategory={selectedCategory}
-            selectedTag={selectedTag}
-            selectedAssociation={selectedAssociation}
-            selectedTimeRange={selectedTimeRange}
-          />
+          <div>
+            {/* 文件夹树形导航 */}
+            <Card
+              title={
+                <Space>
+                  <BookOutlined />
+                  <span>文件夹</span>
+                  {currentFolder && (
+                    <Tag color="blue">{currentFolder.name}</Tag>
+                  )}
+                </Space>
+              }
+              size="small"
+              style={{ marginBottom: 16 }}
+            >
+              <WorkNoteFolderTree
+                selectedFolderId={activeFolderId}
+                onFolderSelect={handleFolderSelect}
+                onFolderCreate={handleFolderCreate}
+                onFolderEdit={handleFolderEdit}
+                onFolderDelete={handleFolderDelete}
+                onFolderMove={handleFolderMove}
+                onFolderDetail={handleFolderDetail}
+                height="300px"
+                showSearch={true}
+              />
+            </Card>
+
+            {/* 分类标签筛选 */}
+            <WorkNotesTreeSidebar
+              onCategorySelect={handleCategorySelect}
+              onTagSelect={handleTagSelect}
+              onAssociationSelect={handleAssociationSelect}
+              onTimeRangeSelect={handleTimeRangeSelect}
+              onRefresh={handleTreeRefresh}
+              selectedCategory={selectedCategory}
+              selectedTag={selectedTag}
+              selectedAssociation={selectedAssociation}
+              selectedTimeRange={selectedTimeRange}
+            />
+          </div>
         }
       >
         {/* 搜索和筛选区 */}
@@ -1124,6 +1612,38 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
             </Col>
           </Row>
         </Card>
+
+        {/* 文件夹面包屑导航 */}
+        {activeFolderId && currentFolder && (
+          <FolderBreadcrumb
+            folder={currentFolder}
+            folders={folders}
+            onNavigate={(folderId) => {
+              if (folderId === null) {
+                setInternalFolderId(null);
+                setCurrentFolder(null);
+              } else {
+                const findFolder = (folders: WorkNoteFolder[], id: number): WorkNoteFolder | undefined => {
+                  for (const folder of folders) {
+                    if (folder.id === id) return folder;
+                    if (folder.children) {
+                      const found = findFolder(folder.children, id);
+                      if (found) return found;
+                    }
+                  }
+                  return undefined;
+                };
+                const folder = findFolder(folders, folderId);
+                if (folder) {
+                  setInternalFolderId(folderId);
+                  setCurrentFolder(folder);
+                }
+              }
+            }}
+            maxItems={5}
+            showIcon={true}
+          />
+        )}
 
         {/* 批量操作工具栏 */}
         {selectedRowKeys.length > 0 && (
@@ -1512,6 +2032,53 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           />
         </FloatButton.Group>
       )}
+
+      {/* 文件夹操作对话框 */}
+      <FolderDialog
+        visible={folderDialogVisible}
+        onClose={() => {
+          setFolderDialogVisible(false);
+          setEditingFolder(undefined);
+          setParentFolderId(undefined);
+        }}
+        onConfirm={handleFolderDialogConfirm}
+        folder={editingFolder}
+        parentId={parentFolderId}
+        folders={folders}
+      />
+
+      <DeleteFolderDialog
+        visible={!!deletingFolder}
+        onClose={() => setDeletingFolder(undefined)}
+        onConfirm={handleDeleteFolderConfirm}
+        folder={deletingFolder}
+      />
+
+      <MoveFolderDialog
+        visible={!!movingFolder}
+        onClose={() => setMovingFolder(undefined)}
+        onConfirm={handleMoveFolderConfirm}
+        folder={movingFolder}
+        folders={folders}
+      />
+
+      <FolderDetailDrawer
+        visible={detailDrawerVisible}
+        onClose={() => {
+          setDetailDrawerVisible(false);
+          setDetailFolder(undefined);
+        }}
+        folder={detailFolder || null}
+        onEdit={(folder) => {
+          setDetailDrawerVisible(false);
+          setEditingFolder(folder);
+          setFolderDialogVisible(true);
+        }}
+        onDelete={(folder) => {
+          setDetailDrawerVisible(false);
+          setDeletingFolder(folder);
+        }}
+      />
 
     </div>
   );

@@ -1,0 +1,31 @@
+/**
+ * TaskDocumentsTab Styles
+ */
+
+.task-documents-tab {
+  padding: 0;
+  height: 100%;
+}
+
+/* Remove default padding from the tab since TaskDocumentWidget handles its own spacing */
+.task-documents-tab .task-document-widget {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Ensure full height usage */
+.task-documents-tab .task-document-widget .ant-card {
+  height: 100%;
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+  .task-documents-tab {
+    padding: 0;
+  }
+  
+  .task-documents-tab .task-document-widget {
+    margin: 0;
+  }
+}

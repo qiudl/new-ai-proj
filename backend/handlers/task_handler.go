@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"ai-project-backend/cache"
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/services"
@@ -19,12 +20,16 @@ import (
 
 // TaskHandler handles all task-related operations
 type TaskHandler struct {
-	db database.DB
+	db             database.DB
+	aiCacheService *cache.AICacheService
 }
 
 // NewTaskHandler creates a new task handler
-func NewTaskHandler(db database.DB, logger *log.Logger, validate interface{}) *TaskHandler {
-	return &TaskHandler{db: db}
+func NewTaskHandler(db database.DB, aiCacheService *cache.AICacheService, logger *log.Logger, validate interface{}) *TaskHandler {
+	return &TaskHandler{
+		db:             db,
+		aiCacheService: aiCacheService,
+	}
 }
 
 // GetTasks godoc
@@ -68,6 +73,7 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 	assigneeID := c.Query("assignee_id")
 	priority := c.Query("priority")
 	taskIDParam := c.Query("task_id")
+	workDate := c.Query("work_date") // YYYY-MM-DD format
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 	onlyRootsParam := c.DefaultQuery("only_roots", "false")
@@ -105,6 +111,7 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 		ProjectID: &projectID,
 		TaskID:    taskIDPtr,
 		OnlyRoots: onlyRoots,
+		WorkDate:  workDate,
 		SortBy:    sortBy,
 		SortOrder: sortOrder,
 	}
@@ -168,6 +175,7 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	priority := c.Query("priority")
 	taskIDParam := c.Query("task_id")
 	enterpriseIDParam := c.Query("enterprise_id")
+	workDate := c.Query("work_date") // YYYY-MM-DD format
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 	preset := c.DefaultQuery("preset", "") // overdue | planning | on_hold
@@ -229,6 +237,7 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 		CompanyID:    companyIDPtr, // 企业数据隔离 (旧系统)
 		EnterpriseID: enterpriseIDPtr, // 企业数据隔离 (新系统)
 		OnlyRoots:    onlyRoots,
+		WorkDate:     workDate,
 		SortBy:       sortBy,
 		SortOrder:    sortOrder,
 	}
@@ -268,7 +277,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 
 	var req struct {
 		Title         string                 `json:"title" binding:"required,min=1,max=255"`
-		Description   string                 `json:"description"`
+		Description   *string                `json:"description"`
 		Status        string                 `json:"status"`
 		Priority      string                 `json:"priority"`
 		AssigneeID    *int                   `json:"assignee_id"`
@@ -424,7 +433,7 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 	var req struct {
 		Tasks []struct {
 			Title         string                 `json:"title" binding:"required"`
-			Description   string                 `json:"description"`
+			Description   *string                `json:"description"`
 			Status        string                 `json:"status"`
 			Priority      string                 `json:"priority"`
 			AssigneeID    *int                   `json:"assignee_id"`
@@ -498,14 +507,17 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 		}
 
 		task := &models.Task{
-			Title:       taskReq.Title,
-			Description: taskReq.Description,
-			Status:      taskReq.Status,
-			Priority:    taskReq.Priority,
-			ProjectID:   projectID,
-			AssigneeID:  taskReq.AssigneeID,
-			ParentID:    taskReq.ParentID,
-			DueDate:     dueDate,
+			Title:              taskReq.Title,
+			Description:        taskReq.Description,
+			Status:             taskReq.Status,
+			Priority:           taskReq.Priority,
+			ProjectID:          projectID,
+			AssigneeID:         taskReq.AssigneeID,
+			ParentID:           taskReq.ParentID,
+			DueDate:            dueDate,
+			TimeTrackingMode:   "manual", // 设置默认时间追踪模式
+			TimeUnitPreference: "auto",   // 设置默认时间单位偏好
+			WorkHoursPerDay:    8.0,      // 设置默认每日工作时长
 		}
 
 		if len(customFieldsJSON) > 0 {
@@ -592,15 +604,92 @@ func (h *TaskHandler) GetTaskDetailedInfo(c *gin.Context) {
 
 	// Build detailed response with hierarchical information
 	response := task.ToResponse()
-	
-	// TODO: Add parent task info, sibling tasks, and child tasks
-	// For now, return the basic task information
+
+	// Get parent task if exists
+	var parentTask interface{}
+	if task.ParentID != nil {
+		parent, err := h.db.Tasks().GetByID(c.Request.Context(), *task.ParentID)
+		if err == nil {
+			parentResp := parent.ToResponse()
+			parentTask = map[string]interface{}{
+				"id":       parentResp.ID,
+				"title":    parentResp.Title,
+				"status":   parentResp.Status,
+				"priority": parentResp.Priority,
+			}
+		}
+	}
+
+	// Get sibling tasks (tasks with same parent)
+	var siblings []interface{}
+	if task.ParentID != nil {
+		siblingTasks, err := h.db.Tasks().GetChildren(c.Request.Context(), *task.ParentID)
+		if err == nil {
+			for _, sibling := range siblingTasks {
+				// Exclude current task from siblings
+				if sibling.ID != task.ID {
+					siblingResp := sibling.ToResponse()
+					siblings = append(siblings, map[string]interface{}{
+						"id":       siblingResp.ID,
+						"title":    siblingResp.Title,
+						"status":   siblingResp.Status,
+						"priority": siblingResp.Priority,
+					})
+				}
+			}
+		}
+	}
+	if siblings == nil {
+		siblings = []interface{}{}
+	}
+
+	// Get child tasks
+	var children []interface{}
+	childTasks, err := h.db.Tasks().GetChildren(c.Request.Context(), task.ID)
+	if err == nil {
+		for _, child := range childTasks {
+			childResp := child.ToResponse()
+			children = append(children, map[string]interface{}{
+				"id":             childResp.ID,
+				"title":          childResp.Title,
+				"status":         childResp.Status,
+				"priority":       childResp.Priority,
+				"has_children":   childResp.HasChildren,
+				"children_count": childResp.ChildrenCount,
+			})
+		}
+	}
+	if children == nil {
+		children = []interface{}{}
+	}
+
+	// Build task path (from root to current task)
+	var path []interface{}
+	if task.ParentID != nil {
+		currentParentID := task.ParentID
+		for currentParentID != nil {
+			parentTaskRecord, err := h.db.Tasks().GetByID(c.Request.Context(), *currentParentID)
+			if err != nil {
+				break
+			}
+			parentResp := parentTaskRecord.ToResponse()
+			path = append([]interface{}{map[string]interface{}{
+				"id":    parentResp.ID,
+				"title": parentResp.Title,
+			}}, path...)
+			currentParentID = parentTaskRecord.ParentID
+		}
+	}
+	if path == nil {
+		path = []interface{}{}
+	}
+
 	detailedInfo := map[string]interface{}{
 		"task":        response,
-		"parent":      nil,
-		"siblings":    []interface{}{},
-		"children":    []interface{}{},
-		"path":        nil,
+		"parent":      parentTask,
+		"siblings":    siblings,
+		"children":    children,
+		"path":        path,
 		"level":       task.TaskLevel,
 		"depth":       task.Depth,
 	}
@@ -671,7 +760,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		task.Title = *req.Title
 	}
 	if req.Description != nil {
-		task.Description = *req.Description
+		task.Description = req.Description
 	}
 	if req.Status != nil {
 		task.Status = *req.Status
@@ -756,6 +845,18 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
+	// 智能缓存失效：任务更新后自动清理相关AI缓存
+	if h.aiCacheService != nil {
+		go func() {
+			ctx := context.Background()
+			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, updatedTask.ID); err != nil {
+				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for task %d: %v", updatedTask.ID, err)
+			} else {
+				log.Printf("[CACHE_INVALIDATION] Successfully invalidated AI cache for task %d", updatedTask.ID)
+			}
+		}()
+	}
+
 	// If task status changed to completed, stop any running timer for this task
 	if originalStatus != "completed" && updatedTask.Status == "completed" {
 		if err := h.stopTimerForCompletedTask(c.Request.Context(), updatedTask.ID); err != nil {
@@ -782,35 +883,67 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	taskID, err := strconv.Atoi(c.Param("taskId"))
 	if err != nil {
+		log.Printf("[DeleteTask] 无效的任务ID参数: %v", err)
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
 	}
+
+	log.Printf("[DeleteTask] 开始删除任务: taskID=%d", taskID)
 
 	// Get existing task to check if archived
 	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			log.Printf("[DeleteTask] 任务不存在: taskID=%d", taskID)
 			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "任务不存在", nil))
 		} else {
-			log.Printf("Error getting task: %v", err)
+			log.Printf("[DeleteTask] 获取任务失败: taskID=%d, error=%v", taskID, err)
 			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务失败", nil))
 		}
 		return
 	}
 
+	log.Printf("[DeleteTask] 任务信息: taskID=%d, title=%s, status=%s, archived=%v",
+		taskID, task.Title, task.Status, task.CustomFields != nil && task.CustomFields["archived"] == "true")
+
 	// Validate task is not archived
 	if errResp := h.validateTaskNotArchived(task, "删除"); errResp != nil {
+		log.Printf("[DeleteTask] 任务已归档，无法删除: taskID=%d", taskID)
 		c.JSON(http.StatusConflict, errResp)
 		return
 	}
 
+	// 执行删除操作
 	err = h.db.Tasks().Delete(c.Request.Context(), taskID)
 	if err != nil {
-		log.Printf("Error deleting task: %v", err)
-		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "删除任务失败", nil))
+		log.Printf("[DeleteTask] 删除任务失败: taskID=%d, error=%v, errorType=%T", taskID, err, err)
+
+		// 尝试提取更详细的错误信息
+		errorMessage := "删除任务失败"
+		if err != nil {
+			errorMessage = fmt.Sprintf("删除任务失败: %v", err)
+		}
+
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, errorMessage, map[string]interface{}{
+			"task_id": taskID,
+			"error_detail": err.Error(),
+		}))
 		return
 	}
 
+	// 智能缓存失效：任务删除后自动清理相关AI缓存
+	if h.aiCacheService != nil {
+		go func() {
+			ctx := context.Background()
+			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, taskID); err != nil {
+				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for deleted task %d: %v", taskID, err)
+			} else {
+				log.Printf("[CACHE_INVALIDATION] Successfully invalidated AI cache for deleted task %d", taskID)
+			}
+		}()
+	}
+
+	log.Printf("[DeleteTask] 任务删除成功: taskID=%d", taskID)
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "任务删除成功"))
 }
 
@@ -1440,7 +1573,7 @@ func (h *TaskHandler) CreateGlobalTask(c *gin.Context) {
 	var req struct {
 		ProjectID      int        `json:"project_id" binding:"required"`
 		Title          string     `json:"title" binding:"required,min=1,max=255"`
-		Description    string     `json:"description"`
+		Description    *string    `json:"description"`
 		Status         string     `json:"status"`
 		Priority       string     `json:"priority"`
 		AssigneeID     *int       `json:"assignee_id"`
@@ -1455,15 +1588,18 @@ func (h *TaskHandler) CreateGlobalTask(c *gin.Context) {
 	}
 
 	task := &models.Task{
-		ProjectID:      req.ProjectID,
-		Title:          req.Title,
-		Description:    req.Description,
-		Status:         getStringValue(&req.Status, "todo"),
-		Priority:       getStringValue(&req.Priority, "medium"),
-		AssigneeID:     req.AssigneeID,
-		ParentID:       req.ParentID,
-		DueDate:        req.DueDate,
-		EstimatedHours: req.EstimatedHours,
+		ProjectID:          req.ProjectID,
+		Title:              req.Title,
+		Description:        req.Description,
+		Status:             getStringValue(&req.Status, "todo"),
+		Priority:           getStringValue(&req.Priority, "medium"),
+		AssigneeID:         req.AssigneeID,
+		ParentID:           req.ParentID,
+		DueDate:            req.DueDate,
+		EstimatedHours:     req.EstimatedHours,
+		TimeTrackingMode:   "manual", // 设置默认时间追踪模式
+		TimeUnitPreference: "auto",   // 设置默认时间单位偏好
+		WorkHoursPerDay:    8.0,      // 设置默认每日工作时长
 	}
 
 	createdTask, err := h.db.Tasks().Create(c.Request.Context(), task)
@@ -1545,6 +1681,16 @@ func (h *TaskHandler) UpdateTaskById(c *gin.Context) {
 		return
 	}
 
+	// 智能缓存失效：任务更新后自动清理相关AI缓存
+	if h.aiCacheService != nil {
+		go func() {
+			ctx := context.Background()
+			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, updatedTask.ID); err != nil {
+				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for task %d: %v", updatedTask.ID, err)
+			}
+		}()
+	}
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务更新成功"))
 }
 
@@ -1583,6 +1729,16 @@ func (h *TaskHandler) DeleteTaskById(c *gin.Context) {
 		return
 	}
 
+	// 智能缓存失效：任务删除后自动清理相关AI缓存
+	if h.aiCacheService != nil {
+		go func() {
+			ctx := context.Background()
+			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, taskID); err != nil {
+				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for deleted task %d: %v", taskID, err)
+			}
+		}()
+	}
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "任务删除成功"))
 }
 
@@ -1619,6 +1775,16 @@ func (h *TaskHandler) UpdateTaskStatus(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("UPDATE_FAILED", "Failed to update task status", err.Error()))
 		return
+	}
+
+	// 智能缓存失效：任务状态更新后自动清理相关AI缓存
+	if h.aiCacheService != nil {
+		go func() {
+			ctx := context.Background()
+			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, updatedTask.ID); err != nil {
+				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for task %d: %v", updatedTask.ID, err)
+			}
+		}()
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务状态更新成功"))
@@ -1729,25 +1895,42 @@ func (h *TaskHandler) getUserCompanyID(userID uint, role string) (uint, error) {
 		// 企业管理员：从 users 表直接获取 company_id
 		user, err := h.db.Users().GetByID(context.Background(), int(userID))
 		if err != nil {
+			log.Printf("[getUserCompanyID] Error getting user %d: %v", userID, err)
 			return 0, err
 		}
 		if user.CompanyID != nil {
 			return uint(*user.CompanyID), nil
 		}
 	}
-	
+
 	if role == "company_user" {
 		// 企业普通用户：从 company_users 表获取 customer_id
 		// 这需要通过数据库原生查询实现，因为repository可能没有对应方法
-		exec := h.db.(*database.PostgresDB).GetDB().(*sql.DB)
+		postgresDB, ok := h.db.(*database.PostgresDB)
+		if !ok {
+			log.Printf("[getUserCompanyID] Failed to cast db to PostgresDB")
+			return 0, fmt.Errorf("database type assertion failed")
+		}
+
+		exec, ok := postgresDB.GetDB().(*sql.DB)
+		if !ok {
+			log.Printf("[getUserCompanyID] Failed to cast GetDB to *sql.DB")
+			return 0, fmt.Errorf("database connection type assertion failed")
+		}
+
 		var customerID int
 		err := exec.QueryRow("SELECT customer_id FROM company_users WHERE user_id = $1", userID).Scan(&customerID)
 		if err != nil {
+			if err == sql.ErrNoRows {
+				log.Printf("[getUserCompanyID] No company_users record for user %d", userID)
+				return 0, nil
+			}
+			log.Printf("[getUserCompanyID] Error querying company_users for user %d: %v", userID, err)
 			return 0, err
 		}
 		return uint(customerID), nil
 	}
-	
+
 	return 0, nil
 }
 

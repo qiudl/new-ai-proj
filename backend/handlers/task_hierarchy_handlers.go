@@ -141,10 +141,14 @@ func (h *TaskHierarchyHandler) getTaskDescendantsV2(c *gin.Context, rootTaskID, 
 	response := models.NewTaskHierarchyResponse("descendants", includeExtended)
 	
 	// Set root info
+	rootDesc := ""
+	if rootTask.Description != nil {
+		rootDesc = *rootTask.Description
+	}
 	response.Root = &models.TaskRootInfo{
 		ID:          rootTask.ID,
 		Title:       rootTask.Title,
-		Description: rootTask.Description,
+		Description: rootDesc,
 		Status:      rootTask.Status,
 	}
 

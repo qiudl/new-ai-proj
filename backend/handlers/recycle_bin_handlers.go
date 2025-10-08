@@ -221,6 +221,106 @@ func (h *RecycleBinHandler) HardDeleteProject(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetRecycledDocuments 获取回收站中的文档
+func (h *RecycleBinHandler) GetRecycledDocuments(c *gin.Context) {
+	// Get pagination parameters
+	page := 1
+	pageSize := 20
+
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	if pageSizeStr := c.Query("page_size"); pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 {
+			pageSize = ps
+		}
+	}
+
+	// Get recycled documents from system repository
+	documents, total, err := h.db.System().GetRecycledDocuments(c.Request.Context(), page, pageSize)
+	if err != nil {
+		h.logger.Printf("Error getting recycled documents: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "获取回收站文档失败", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Build response with pagination
+	paginationData := map[string]interface{}{
+		"page":        page,
+		"page_size":   pageSize,
+		"total":       total,
+		"total_pages": (total + pageSize - 1) / pageSize,
+		"has_next":    (page * pageSize) < total,
+		"has_prev":    page > 1,
+	}
+
+	response := map[string]interface{}{
+		"success":    true,
+		"message":    "获取回收站文档成功",
+		"data":       documents,
+		"pagination": paginationData,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetRecycledWorkNotes 获取回收站中的工作笔记
+func (h *RecycleBinHandler) GetRecycledWorkNotes(c *gin.Context) {
+	page := 1
+	pageSize := 20
+
+	if p := c.Query("page"); p != "" {
+		if pageNum, err := strconv.Atoi(p); err == nil && pageNum > 0 {
+			page = pageNum
+		}
+	}
+
+	if ps := c.Query("page_size"); ps != "" {
+		if pageSizeNum, err := strconv.Atoi(ps); err == nil && pageSizeNum > 0 && pageSizeNum <= 100 {
+			pageSize = pageSizeNum
+		}
+	}
+
+	h.logger.Printf("[INFO] Fetching recycled work notes: page=%d, page_size=%d", page, pageSize)
+
+	workNotes, total, err := h.db.System().GetRecycledWorkNotes(c.Request.Context(), page, pageSize)
+	if err != nil {
+		h.logger.Printf("[ERROR] Failed to get recycled work notes: %v", err)
+		response := models.NewErrorResponse(err.Error(), "获取回收站工作笔记失败", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	h.logger.Printf("[INFO] Successfully retrieved %d recycled work notes", len(workNotes))
+
+	// Calculate pagination info
+	totalPages := (total + pageSize - 1) / pageSize
+	hasNext := page < totalPages
+	hasPrev := page > 1
+
+	paginationData := map[string]interface{}{
+		"page":        page,
+		"page_size":   pageSize,
+		"total":       total,
+		"total_pages": totalPages,
+		"has_next":    hasNext,
+		"has_prev":    hasPrev,
+	}
+
+	response := map[string]interface{}{
+		"success":    true,
+		"message":    "获取回收站工作笔记成功",
+		"data":       workNotes,
+		"pagination": paginationData,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // EmptyRecycleBin 清空回收站（待实现）
 func (h *RecycleBinHandler) EmptyRecycleBin(c *gin.Context) {
 	// TODO: Implement batch deletion of all items in recycle bin

@@ -13,26 +13,43 @@ interface TodayTasksFilter {
 
 interface TodayTasksStats {
   total_count: number;
+  completed_count: number;
   in_progress_count: number;
-  due_today_count: number;
-  created_today_count: number;
-  updated_today_count: number;
+  pending_count: number;
   overdue_count: number;
-  high_priority_count: number;
-  
+  due_today_count: number;
+  created_today_count?: number;
+  updated_today_count?: number;
+  high_priority_count?: number;
+
+  // 优先级统计
+  priority_stats: {
+    high: number;
+    medium: number;
+    low: number;
+  };
+
   // 时间统计 - 精准时间支持
-  totalPlannedTime?: number;   // 分钟 (精准到分钟)
-  totalActualTime?: number;    // 分钟 (精准到分钟)  
-  totalRemainingTime?: number; // 分钟 (精准到分钟)
-  timeEfficiency?: number;     // 百分比
-  
+  totalPlannedTime: number;   // 分钟 (精准到分钟)
+  totalActualTime: number;    // 分钟 (精准到分钟)
+  totalRemainingTime: number; // 分钟 (精准到分钟)
+  timeEfficiency: number;     // 百分比
+
   // 新增：精准时间格式统计
-  totalPlannedTimeFormatted?: string;   // 格式化显示
-  totalActualTimeFormatted?: string;    // 格式化显示
-  totalRemainingTimeFormatted?: string; // 格式化显示
-  
+  totalPlannedTimeFormatted: string;   // 格式化显示
+  totalActualTimeFormatted: string;    // 格式化显示
+  totalRemainingTimeFormatted: string; // 格式化显示
+
   // 时间分布统计
-  timeDistribution?: { [key: string]: number }; // 按时间范围分布统计
+  timeDistribution: {
+    short: number;   // 0-2小时
+    medium: number;  // 2-8小时
+    long: number;    // 8小时以上
+    huge: number;    // 1天以上
+  };
+
+  // 完成率
+  completion_rate: number;
 }
 
 interface TodayTasksResponse {

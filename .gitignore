@@ -20,6 +20,7 @@ vendor/
 *.out
 go.work
 go.work.sum
+backend/bin/*
 
 # Build outputs
 dist/
@@ -98,11 +99,15 @@ Thumbs.db
 debug_files/
 */debug_files/
 
-# Build executables  
+# Build executables (but allow Android src directories)
+!android-app/app/src/main/**
 main
 */main
+!android-app/app/src/main
 app
 */app
+# But allow android-app/app directory
+!android-app/app
 
 # Additional temp files
 temp_build
@@ -149,3 +154,5 @@ config/design/*.secrets.*
 #claude related
 CLAUDE.md
 ./claude/
+
+/backend/ai-project-backend

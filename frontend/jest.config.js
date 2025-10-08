@@ -87,6 +87,37 @@ module.exports = {
       functions: 90,
       lines: 90,
       statements: 90
+    },
+    // 文件夹管理组件
+    './src/components/WorkNoteFolderTree.tsx': {
+      branches: 85,
+      functions: 90,
+      lines: 90,
+      statements: 90
+    },
+    './src/components/FolderDialog.tsx': {
+      branches: 85,
+      functions: 90,
+      lines: 90,
+      statements: 90
+    },
+    './src/components/DeleteFolderDialog.tsx': {
+      branches: 85,
+      functions: 90,
+      lines: 90,
+      statements: 90
+    },
+    './src/components/MoveFolderDialog.tsx': {
+      branches: 85,
+      functions: 90,
+      lines: 90,
+      statements: 90
+    },
+    './src/hooks/useDebounce.ts': {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100
     }
   },
   testTimeout: 30000,

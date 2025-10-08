@@ -404,11 +404,11 @@ func (s *JWTTokenService) cleanupExpiredTokens() {
 // DefaultJWTServiceConfig 返回默认的JWT服务配置
 func DefaultJWTServiceConfig() *JWTServiceConfig {
 	return &JWTServiceConfig{
-		AccessTokenExpiry:  15 * time.Minute,
-		RefreshTokenExpiry: 7 * 24 * time.Hour,
+		AccessTokenExpiry:  24 * time.Hour,        // 24小时访问令牌
+		RefreshTokenExpiry: 30 * 24 * time.Hour,   // 30天刷新令牌
 		SecretKey:          "default-access-secret",
 		RefreshSecretKey:   "default-refresh-secret",
-		MaxRefreshCount:    10,
+		MaxRefreshCount:    100,                   // 增加最大刷新次数，支持长期使用
 		CleanupInterval:    time.Hour,
 		EnableBlacklist:    true,
 	}

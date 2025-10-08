@@ -25,7 +25,7 @@ export const setNavigateFunction = (navigate: (path: string) => void) => {
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 120000, // 增加到120秒，AI请求可能需要更长时间
   headers: {
     'Content-Type': 'application/json',
   },
@@ -221,10 +221,12 @@ api.interceptors.response.use(
       case 500:
       case 502:
       case 503:
+        // 优先使用后端返回的错误信息,如果没有则使用通用提示
         appError = new AppError(
-          '服务器错误，请稍后重试',
+          data?.message || '服务器错误，请稍后重试',
           ErrorType.SYSTEM,
-          status
+          status,
+          data
         );
         break;
       default:

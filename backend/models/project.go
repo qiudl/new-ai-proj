@@ -65,6 +65,8 @@ type ProjectResponse struct {
 	Budget        *float64   `json:"budget,omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
+	TaskCount     int        `json:"task_count"`              // 任务数量
+	MemberCount   int        `json:"member_count"`            // 成员数量
 	TaskStats     *TaskStats `json:"task_stats,omitempty"`
 }
 
@@ -132,6 +134,8 @@ type ProjectUserResponse struct {
 type ProjectWithCompany struct {
 	Project
 	CompanyName *string `db:"company_name"` // 来自 companies 表的客户名称
+	TaskCount   int     `db:"task_count"`   // 任务数量
+	MemberCount int     `db:"member_count"` // 成员数量
 }
 
 // ToResponse converts Project to ProjectResponse
@@ -165,6 +169,10 @@ func (pwc *ProjectWithCompany) ToResponse() ProjectResponse {
 	} else {
 		response.CompanyName = "未分配企业"
 	}
+
+	// 设置任务数和成员数
+	response.TaskCount = pwc.TaskCount
+	response.MemberCount = pwc.MemberCount
 
 	return response
 }

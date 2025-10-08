@@ -2,6 +2,7 @@ package routes
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -73,12 +74,17 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	workNoteHandler := app.GetWorkNoteHandler()
 	reportHandler := app.GetReportHandler()
 
+	// 创建模板处理器
+	templateHandler := handlers.NewMCPTemplateHandler(app.GetDB())
+
 	// 任务文档相关路由
 	mcp.POST("/create-and-attach", createAndAttachTaskDocument(documentHandler, app))
 	mcp.POST("/create-and-attach-work-note", createAndAttachWorkNote(workNoteHandler))
 	mcp.POST("/create-batch-documents", createBatchDocuments(documentHandler))
 	mcp.POST("/create-task-docs", createTaskDocs(documentHandler))
 	mcp.GET("/task-document/:taskId", getTaskDocument(documentHandler))
+	mcp.PUT("/task-document/:taskId", updateTaskDocument(documentHandler, app))    // 更新任务文档
+	mcp.PATCH("/task-document/:taskId", updateTaskDocument(documentHandler, app))  // 部分更新任务文档
 	mcp.DELETE("/task-document/:taskId", deleteTaskDocument(documentHandler))
 	mcp.GET("/task-document/:taskId/exists", hasTaskDocument(documentHandler))
 
@@ -96,6 +102,9 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	// 报告相关路由
 	mcp.GET("/get-daily-work-report", reportHandler.GetDailyWorkReport)
 	mcp.POST("/get-daily-work-report", reportHandler.GetDailyWorkReport)
+
+	// 模板文档生成路由
+	mcp.POST("/generate-document-from-template", templateHandler.GenerateDocumentFromTemplate)
 }
 
 // createAndAttachTaskDocument MCP专用：创建并关联任务文档
@@ -135,10 +144,27 @@ func createAndAttachTaskDocument(h *handlers.DocumentHandler, app ApplicationInt
 			}
 		}
 
-		// 生成默认标题（如果没有提供）
-		title := req.Title
+		// 生成默认标题（如果没有提供或为空）
+		title := strings.TrimSpace(req.Title)
 		if title == "" {
-			title = "任务文档"
+			// 从内容第一行提取标题
+			lines := strings.Split(req.Content, "\n")
+			if len(lines) > 0 {
+				firstLine := strings.TrimSpace(lines[0])
+				// 移除Markdown标题标记
+				firstLine = strings.TrimPrefix(firstLine, "#")
+				firstLine = strings.TrimSpace(firstLine)
+				// 限制标题长度为50个字符
+				if len(firstLine) > 50 {
+					title = firstLine[:50] + "..."
+				} else if firstLine != "" {
+					title = firstLine
+				} else {
+					title = "任务文档"
+				}
+			} else {
+				title = "任务文档"
+			}
 		}
 
 		// 设置路径参数，模拟标准API调用
@@ -260,23 +286,33 @@ func createAndAttachWorkNote(h *handlers.WorkNoteHandler) gin.HandlerFunc {
 func getTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		taskIDStr := c.Param("taskId")
-		if _, err := strconv.Atoi(taskIDStr); err != nil {
+		taskID, err := strconv.Atoi(taskIDStr)
+		if err != nil {
 			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid taskId", err))
 			return
 		}
 
-		// 获取项目ID（默认为1）
-		projectIDStr := c.Query("projectId")
-		projectID := "1"
-		if projectIDStr != "" {
-			if _, err := strconv.Atoi(projectIDStr); err == nil {
-				projectID = projectIDStr
-			}
+		// 从数据库查询任务所属的项目ID
+		sqlDB, ok := c.MustGet("db").(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
+			return
+		}
+
+		var projectID int
+		err = sqlDB.QueryRow(`SELECT project_id FROM tasks WHERE id = $1 AND deleted_at IS NULL`, taskID).Scan(&projectID)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse("Task not found", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to query task", err))
+			return
 		}
 
 		// 设置参数并调用现有逻辑
 		c.Params = gin.Params{
-			{Key: "id", Value: projectID},
+			{Key: "id", Value: strconv.Itoa(projectID)},
 			{Key: "taskId", Value: taskIDStr},
 		}
 		h.GetTaskDocuments(c)
@@ -293,13 +329,22 @@ func deleteTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 			return
 		}
 
-		// 获取项目ID（默认为1）
-		projectIDStr := c.Query("projectId")
-		projectID := 1
-		if projectIDStr != "" {
-			if pid, err := strconv.Atoi(projectIDStr); err == nil {
-				projectID = pid
-			}
+		// 从数据库查询任务所属的项目ID
+		sqlDB, ok := c.MustGet("db").(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
+			return
+		}
+
+		var projectID int
+		err = sqlDB.QueryRow(`SELECT project_id FROM tasks WHERE id = $1 AND deleted_at IS NULL`, taskID).Scan(&projectID)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse("Task not found", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to query task", err))
+			return
 		}
 
 		// 通过调用现有的HasTaskDocument方法来检查文档是否存在
@@ -355,27 +400,83 @@ func deleteTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 func hasTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		taskIDStr := c.Param("taskId")
-		_, err := strconv.Atoi(taskIDStr)
+		taskID, err := strconv.Atoi(taskIDStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid taskId", err))
 			return
 		}
 
-		// 获取项目ID（默认为1）
-		projectIDStr := c.Query("projectId")
-		projectID := "1"
-		if projectIDStr != "" {
-			if _, err := strconv.Atoi(projectIDStr); err == nil {
-				projectID = projectIDStr
-			}
+		// 从数据库查询任务所属的项目ID
+		sqlDB, ok := c.MustGet("db").(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
+			return
+		}
+
+		var projectID int
+		err = sqlDB.QueryRow(`SELECT project_id FROM tasks WHERE id = $1 AND deleted_at IS NULL`, taskID).Scan(&projectID)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse("Task not found", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to query task", err))
+			return
 		}
 
 		// 设置参数并调用现有逻辑
 		c.Params = gin.Params{
-			{Key: "id", Value: projectID},
+			{Key: "id", Value: strconv.Itoa(projectID)},
 			{Key: "taskId", Value: taskIDStr},
 		}
 		h.HasTaskDocument(c)
+	}
+}
+
+// updateTaskDocument MCP专用：更新任务文档
+func updateTaskDocument(h *handlers.DocumentHandler, app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		taskIDStr := c.Param("taskId")
+		taskID, err := strconv.Atoi(taskIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid task ID", err))
+			return
+		}
+
+		// 从数据库获取任务关联的文档ID
+		sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
+			return
+		}
+
+		// 查询任务关联的文档ID
+		var documentID int
+		err = sqlDB.QueryRow(`
+			SELECT d.id
+			FROM documents d
+			INNER JOIN task_documents td ON td.document_id = d.id
+			WHERE td.task_id = $1 AND d.deleted_at IS NULL
+			ORDER BY td.created_at DESC
+			LIMIT 1
+		`, taskID).Scan(&documentID)
+
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse("No document found for this task", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to find task document", err))
+			return
+		}
+
+		// 设置文档ID参数，模拟标准UpdateDocument API调用
+		// UpdateDocument方法期望从"id"或"documentId"参数获取文档ID
+		c.Params = append(c.Params, gin.Param{Key: "id", Value: strconv.Itoa(documentID)})
+
+		// 调用现有的UpdateDocument方法
+		// UpdateDocument会处理请求体解析、权限检查、数据库更新等
+		h.UpdateDocument(c)
 	}
 }
 

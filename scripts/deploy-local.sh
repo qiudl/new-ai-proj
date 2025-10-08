@@ -294,8 +294,8 @@ check_service_health() {
     
     # Determine ports based on environment
     if [ "$env_type" = "development" ]; then
-        BACKEND_PORT=8081
-        FRONTEND_PORT=3001
+        BACKEND_PORT=8080
+        FRONTEND_PORT=3000
     else
         BACKEND_PORT=8080
         FRONTEND_PORT=3000
@@ -343,9 +343,9 @@ show_service_status() {
         docker-compose -f docker-compose.dev.yml ps
         echo
         log_info "Development URLs:"
-        log_info "Frontend: http://localhost:3001"
-        log_info "Backend API: http://localhost:8081/api/v1"
-        log_info "Backend Health: http://localhost:8081/health"
+        log_info "Frontend: http://localhost:3000"
+        log_info "Backend API: http://localhost:8080/api/v1"
+        log_info "Backend Health: http://localhost:8080/health"
         log_info "MCP Server: http://localhost:3100"
     else
         docker-compose -f docker-compose.prod.yml ps

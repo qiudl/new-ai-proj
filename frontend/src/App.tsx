@@ -19,6 +19,7 @@ import { installPerformanceInterceptors, uninstallPerformanceInterceptors } from
 import { getCurrentPerformanceConfig, memoryMonitor } from './config/performance';
 import { setupModalCleanup } from './utils/modalCleanup';
 import { enableGlobalModalHeightManagement, disableGlobalModalHeightManagement } from './utils/modalHeightManager';
+import { initSecurityCheck } from './utils/securityCheck';
 import {
   ENTERPRISE_PERMISSIONS,
   USER_PERMISSIONS,
@@ -45,7 +46,8 @@ const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const DashboardPage = React.lazy(() => import(/* webpackPrefetch: true */ './pages/DashboardPage'));
 const ProjectsPage = React.lazy(() => import(/* webpackPrefetch: true */ './pages/ProjectsPage'));
 const TasksPage = React.lazy(() => import(/* webpackPrefetch: true */ './pages/TasksPage'));
-const TaskDetailPageNew = React.lazy(() => import(/* webpackPrefetch: true */ './pages/TaskDetailPageNew'));
+const TaskDetailRouter = React.lazy(() => import('./routes/TaskDetailRouter'));
+const GrayReleasePanel = React.lazy(() => import('./components/admin/GrayReleasePanel'));
 const TaskEditPage = React.lazy(() => import('./pages/TaskEditPage'));
 const AllFieldsTaskListPage = React.lazy(() => import('./pages/AllFieldsTaskListPage'));
 const SmartSwimlanesPage = React.lazy(() => import('./pages/SmartSwimlanesPage'));
@@ -111,6 +113,10 @@ const CacheMonitoringHub = React.lazy(() => import('./components/cache/CacheMoni
 const RoleTemplateDetailPage = React.lazy(() => import('./pages/RoleTemplateDetailPage'));
 const VersionHistoryPage = React.lazy(() => import('./pages/VersionHistoryPage'));
 const VersionHistoryDemoPage = React.lazy(() => import('./pages/VersionHistoryDemoPage'));
+const EnhancedTaskHeaderCardDemo = React.lazy(() => import('./pages/TaskDetail/demo/EnhancedTaskHeaderCardDemo'));
+const TaskDetailComponentsDemo = React.lazy(() => import('./pages/TaskDetail/demo/TaskDetailComponentsDemo'));
+const TodayTasksDashboard = React.lazy(() => import('./pages/TodayTasksDashboard'));
+const TodayTasksDetailPage = React.lazy(() => import('./pages/TodayTasksDetailPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -198,6 +204,18 @@ const AppContent: React.FC = () => {
                   </PermissionRoute>
                 } />
 
+                {/* 今日任务路由 */}
+                <Route path="/today-tasks" element={
+                  <PermissionRoute permission={TASK_PERMISSIONS.READ}>
+                    <TodayTasksDashboard />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/today-tasks/detail" element={
+                  <PermissionRoute permission={TASK_PERMISSIONS.READ}>
+                    <TodayTasksDetailPage />
+                  </PermissionRoute>
+                } />
 
                 <Route path="/projects" element={
                   <PermissionRoute permission={PROJECT_PERMISSIONS.READ}>
@@ -287,7 +305,8 @@ const AppContent: React.FC = () => {
 
                 <Route path="/projects/:projectId/tasks/:taskId/edit" element={<TaskEditPage />} />
 
-                <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailPageNew />} />
+                {/* 使用TaskDetailRouter进行灰度发布 */}
+                <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailRouter />} />
 
                 <Route path="/projects/:projectId/archived-tasks" element={<ArchivedTasksPage />} />
 
@@ -494,6 +513,15 @@ const AppContent: React.FC = () => {
 
                 {/* 开发测试相关路由 */}
                 <Route path="/test-center" element={<TestCenter />} />
+                <Route path="/demo/enhanced-task-header-card" element={<EnhancedTaskHeaderCardDemo />} />
+                <Route path="/demo/task-detail-components" element={<TaskDetailComponentsDemo />} />
+
+                {/* 灰度发布管理面板 */}
+                <Route path="/admin/gray-release" element={
+                  <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
+                    <GrayReleasePanel />
+                  </PermissionRoute>
+                } />
                 <Route path="/mcp-test" element={
                   <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
                     <MCPTestPage />
@@ -562,17 +590,20 @@ const AppContent: React.FC = () => {
 function App() {
   // 根据环境配置决定是否安装性能监控拦截器
   useEffect(() => {
+    // 初始化安全检查(HTTPS检测等)
+    initSecurityCheck();
+
     const config = getCurrentPerformanceConfig();
-    
+
     if (config.enablePerformanceMonitoring) {
       installPerformanceInterceptors();
     }
-    
+
     // 启动内存监控
     if (config.memoryCheckInterval > 0) {
       memoryMonitor.start();
     }
-    
+
     return () => {
       uninstallPerformanceInterceptors();
       memoryMonitor.cleanup();

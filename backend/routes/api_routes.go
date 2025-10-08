@@ -14,6 +14,8 @@ func RegisterAPIRoutes(router *gin.Engine, authorized *gin.RouterGroup, app Appl
 	registerFileRoutes(authorized, app)
 	// 注册模板管理路由 (需要认证)
 	registerTemplateRoutes(authorized, app)
+	// 注册Dashboard路由 (需要认证)
+	registerDashboardRoutes(authorized, app)
 	// 协作与评论相关路由已在 document_routes.go 中注册，这里不重复注册
 	// 注册管理员路由 (需要管理员权限)
 	registerAdminRoutes(authorized, app)
@@ -80,6 +82,35 @@ func registerTemplateRoutes(authorized *gin.RouterGroup, app ApplicationInterfac
 	// templates.GET("/:id", app.GetSmartTemplateHandler().GetTemplateByID)
 	// templates.POST("/:id/generate", app.GetSmartTemplateHandler().GenerateFromTemplate)
 	// }
+}
+
+// registerDashboardRoutes 注册Dashboard路由
+func registerDashboardRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	dashboard := authorized.Group("/dashboard")
+	{
+		dashboard.GET("/stats", app.GetDashboardHandler().GetStats)
+		dashboard.GET("/time-stats", app.GetDashboardHandler().GetTimeStats)
+		dashboard.GET("/weekly-stats", app.GetDashboardHandler().GetWeeklyStats)
+		dashboard.GET("/daily-tasks", app.GetDashboardHandler().GetDailyTasksWithTimers)
+		dashboard.GET("/notifications", app.GetDashboardHandler().GetNotifications)
+		dashboard.GET("/priority-distribution", app.GetDashboardHandler().GetPriorityDistributionStats)
+	}
+
+	// 注册效率分析路由
+	registerEfficiencyRoutes(authorized, app)
+}
+
+// registerEfficiencyRoutes 注册效率分析路由
+func registerEfficiencyRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	analytics := authorized.Group("/analytics")
+	{
+		efficiency := analytics.Group("/efficiency")
+		{
+			efficiency.GET("/trend", app.GetEfficiencyHandler().GetEfficiencyTrend)
+			efficiency.GET("/suggestions", app.GetEfficiencyHandler().GetSmartSuggestions)
+			efficiency.GET("/analysis", app.GetEfficiencyHandler().GetEfficiencyAnalysis)
+		}
+	}
 }
 
 // registerCollaborationRoutes 注册协作管理路由

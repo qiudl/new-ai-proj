@@ -112,7 +112,7 @@ export const AI_PROVIDER_DEFAULTS: Record<AIProvider, Partial<AIProviderConfig[A
   },
   claude: {
     baseURL: 'https://api.anthropic.com/v1',
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5-20250929',
     temperature: 0.3,
     maxTokens: 10000,
   },
@@ -142,7 +142,8 @@ export const AI_PROVIDER_INFO = {
     name: 'Anthropic Claude',
     description: 'Claude系列模型，在分析和推理方面表现优秀',
     models: [
-      { value: 'claude-sonnet-4-20250514', label: 'Claude 4 Sonnet (推荐)', description: '最新模型，平衡性能和成本' },
+      { value: 'claude-sonnet-4-5-20250929', label: 'Claude 4.5 Sonnet (推荐)', description: '最新模型，最强代码能力' },
+      { value: 'claude-sonnet-4-20250514', label: 'Claude 4 Sonnet', description: '平衡性能和成本' },
       { value: 'claude-opus-4-20250514', label: 'Claude 4 Opus', description: '最强性能，极致推理能力' },
       { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku', description: '快速且经济的上一代模型' },
       { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet', description: '上一代平衡模型' },

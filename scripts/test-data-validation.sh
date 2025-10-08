@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-BASE_URL="${BASE_URL:-http://localhost:8081/api/v1}"
+BASE_URL="${BASE_URL:-http://localhost:8080/api/v1}"
 ACCESS_TOKEN="${ACCESS_TOKEN}"
 
 # Colors for output
@@ -280,12 +280,12 @@ usage() {
     echo "  -h, --help     Show this help message"
     echo ""
     echo "Environment variables:"
-    echo "  BASE_URL       API base URL (default: http://localhost:8081/api/v1)"
+    echo "  BASE_URL       API base URL (default: http://localhost:8080/api/v1)"
     echo "  ACCESS_TOKEN   JWT access token for authentication"
     echo ""
     echo "Examples:"
     echo "  $0"
-    echo "  BASE_URL=http://localhost:8081/api/v1 ACCESS_TOKEN=your_token $0"
+    echo "  BASE_URL=http://localhost:8080/api/v1 ACCESS_TOKEN=your_token $0"
 }
 
 # Parse command line arguments

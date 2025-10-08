@@ -1,10 +1,12 @@
 package application
 
 import (
+	"ai-project-backend/cache"
 	"ai-project-backend/config"
 	"ai-project-backend/database"
 	"ai-project-backend/factories"
 	"ai-project-backend/handlers"
+	"ai-project-backend/security"
 	"ai-project-backend/services"
 	"ai-project-backend/utils"
 	// ws "ai-project-backend/websocket"
@@ -36,11 +38,14 @@ type Application struct {
 	// wsHub          *ws.Hub
 	// wsHandler      *handlers.WebSocketHandler
 	// progressPusher *services.ProgressPusher
-	redisClient *redis.Client
+	redisClient        *redis.Client
+	aiCacheService     *cache.AICacheService
+	aiRateLimiter      *security.RedisRateLimiter
 	// Legacy individual handlers for compatibility
-	authHandler           *handlers.AuthHandler           // Auth handler instance
-	documentHandler       *handlers.DocumentHandler       // Document handler instance (legacy)
-	routerDocumentHandler *handlers.RouterDocumentHandler // Router-based document handler
+	authHandler              *handlers.AuthHandler              // Auth handler instance
+	serviceAccountHandler    *handlers.ServiceAccountHandler    // Service account handler instance
+	documentHandler          *handlers.DocumentHandler          // Document handler instance (legacy)
+	routerDocumentHandler    *handlers.RouterDocumentHandler    // Router-based document handler
 	userProfileHandler    *handlers.UserProfileHandler    // User profile handler instance
 	companyHandler        *handlers.CompanyHandler        // Company handler instance
 	enterpriseHandler     *handlers.EnterpriseHandler     // Enterprise handler instance
@@ -89,9 +94,9 @@ func NewApplication() (*Application, error) {
 	jwtServiceConfig := &services.JWTServiceConfig{
 		SecretKey:          cfg.JWT.Secret,
 		RefreshSecretKey:   cfg.JWT.Secret + "_refresh", // Use a different key for refresh tokens
-		AccessTokenExpiry:  cfg.JWT.Expiration,
-		RefreshTokenExpiry: cfg.JWT.Expiration * 24, // Refresh token lasts longer
-		MaxRefreshCount:    5,
+		AccessTokenExpiry:  24 * time.Hour,              // 24小时访问令牌
+		RefreshTokenExpiry: 30 * 24 * time.Hour,         // 30天刷新令牌
+		MaxRefreshCount:    100,                         // 增加最大刷新次数，支持长期使用
 		CleanupInterval:    time.Hour,
 		EnableBlacklist:    true,
 	}
@@ -99,6 +104,9 @@ func NewApplication() (*Application, error) {
 
 	// Initialize Auth Handler
 	authHandler := handlers.NewAuthHandler(db, cfg.JWT.Secret, jwtTokenService)
+
+	// Initialize Service Account Handler
+	serviceAccountHandler := handlers.NewServiceAccountHandler(db, jwtTokenService)
 
 	// Initialize User Profile Handler
 	userProfileHandler := handlers.NewUserProfileHandler(db, logger, validate)
@@ -115,8 +123,7 @@ func NewApplication() (*Application, error) {
 	// Initialize Project Handler
 	projectHandler := handlers.NewProjectHandler(db, logger, validate)
 
-	// Initialize Task Handler
-	taskHandler := handlers.NewTaskHandler(db, logger, validate)
+	// Note: Task Handler initialization moved after cache service initialization (line ~200)
 
 	// Initialize Task Hierarchy Handler
 	taskHierarchyHandler := handlers.NewTaskHierarchyHandler(db, logger, validate)
@@ -160,6 +167,38 @@ func NewApplication() (*Application, error) {
 		}
 	}
 
+	// Initialize AI Cache Service (requires Redis)
+	var aiCacheService *cache.AICacheService
+	if redisClient != nil {
+		aiCacheService = cache.NewAICacheService(&cache.AICacheConfig{
+			RedisClient: redisClient,
+			DefaultTTL:  1 * time.Hour,
+			EnableCache: true,
+		})
+		logger.Println("✅ AI Cache Service initialized with Redis")
+	} else {
+		// Create a disabled cache service if Redis is not available
+		aiCacheService = cache.NewAICacheService(&cache.AICacheConfig{
+			RedisClient: nil,
+			DefaultTTL:  0,
+			EnableCache: false,
+		})
+		logger.Println("⚠️  AI Cache Service disabled (Redis not available)")
+	}
+
+	// Initialize AI Rate Limiter (requires Redis)
+	var aiRateLimiter *security.RedisRateLimiter
+	if redisClient != nil {
+		// AI接口默认限制：每分钟5次请求
+		aiRateLimiter = security.NewRedisRateLimiter(redisClient, 5, time.Minute)
+		logger.Println("✅ AI Rate Limiter initialized with Redis")
+	} else {
+		logger.Println("⚠️  AI Rate Limiter disabled (Redis not available)")
+	}
+
+	// Initialize Task Handler (after cache service is ready for intelligent cache invalidation)
+	taskHandler := handlers.NewTaskHandler(db, aiCacheService, logger, validate)
+
 	// Initialize WebSocket Hub (temporarily disabled)
 	// wsHub := ws.NewHub(logger)
 	// go wsHub.Run() // Start the hub in a goroutine
@@ -176,21 +215,24 @@ func NewApplication() (*Application, error) {
 	// }
 
 	app := &Application{
-		config:     cfg,
-		db:         db,
-		logger:     logger,
-		validator:  validate,
-		jwtManager: jwtManager,
-		handlers:   allHandlers, // Re-enabled
+		config:         cfg,
+		db:             db,
+		logger:         logger,
+		validator:      validate,
+		jwtManager:     jwtManager,
+		handlers:       allHandlers, // Re-enabled
 		// WebSocket components (temporarily disabled)
 		// wsHub:          wsHub,
 		// wsHandler:      wsHandler,
 		// progressPusher: progressPusher,
-		redisClient: redisClient,
+		redisClient:    redisClient,
+		aiCacheService: aiCacheService,
+		aiRateLimiter:  aiRateLimiter,
 		// Legacy individual handlers for compatibility
-		authHandler:           authHandler,
-		documentHandler:       documentHandler,
-		routerDocumentHandler: routerDocumentHandler,
+		authHandler:              authHandler,
+		serviceAccountHandler:    serviceAccountHandler,
+		documentHandler:          documentHandler,
+		routerDocumentHandler:    routerDocumentHandler,
 		userProfileHandler:    userProfileHandler,
 		companyHandler:        companyHandler,
 		enterpriseHandler:     enterpriseHandler,
@@ -316,6 +358,11 @@ func (app *Application) GetJWTManager() *utils.JWTManager {
 // GetAuthHandler returns the auth handler
 func (app *Application) GetAuthHandler() *handlers.AuthHandler {
 	return app.authHandler
+}
+
+// GetServiceAccountHandler returns the service account handler
+func (app *Application) GetServiceAccountHandler() *handlers.ServiceAccountHandler {
+	return app.serviceAccountHandler
 }
 
 // GetUserProfileHandler returns the user profile handler
@@ -539,6 +586,14 @@ func (app *Application) GetDailyFocusTaskHandler() *handlers.DailyFocusTaskHandl
 	return nil // 需要通过工厂创建
 }
 
+// GetTaskOrganizationHandler returns the task organization handler
+func (app *Application) GetTaskOrganizationHandler() *handlers.TaskOrganizationHandler {
+	if app.handlers != nil && app.handlers.TaskOrganizationHandler != nil {
+		return app.handlers.TaskOrganizationHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
 // GetTimelineHandler returns the timeline handler
 func (app *Application) GetTimelineHandler() *handlers.TimelineHandler {
 	if app.handlers != nil && app.handlers.TimelineHandler != nil {
@@ -645,6 +700,48 @@ func (app *Application) GetAIConfigHandler() *handlers.AIConfigHandler {
 		return app.handlers.AIConfigHandler
 	}
 	return nil // 需要通过工厂创建
+}
+
+// GetAPIKeyHandler returns the API key handler
+func (app *Application) GetAPIKeyHandler() *handlers.APIKeyHandler {
+	if app.handlers != nil && app.handlers.APIKeyHandler != nil {
+		return app.handlers.APIKeyHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
+// GetDashboardHandler returns the Dashboard handler
+func (app *Application) GetDashboardHandler() *handlers.DashboardHandler {
+	if app.handlers != nil && app.handlers.DashboardHandler != nil {
+		return app.handlers.DashboardHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
+// GetEfficiencyHandler returns the Efficiency handler
+func (app *Application) GetEfficiencyHandler() *handlers.EfficiencyHandler {
+	efficiencyRepo := database.NewEfficiencyRepository(app.db.GetDB().(*sql.DB))
+	return handlers.NewEfficiencyHandler(efficiencyRepo)
+}
+
+// GetAISubtaskHandler returns the AI subtask handler
+func (app *Application) GetAISubtaskHandler() *handlers.AISubtaskHandler {
+	return handlers.NewAISubtaskHandler(app.db)
+}
+
+// GetAIDocumentHandler returns the AI document generation handler
+func (app *Application) GetAIDocumentHandler() *handlers.AIDocumentHandler {
+	return handlers.NewAIDocumentHandler(app.db, app.aiCacheService)
+}
+
+// GetAIDescriptionHandler returns the AI description generation handler
+func (app *Application) GetAIDescriptionHandler() *handlers.AIDescriptionHandler {
+	return handlers.NewAIDescriptionHandler(app.db, app.aiCacheService)
+}
+
+// GetAIRateLimiter returns the AI rate limiter
+func (app *Application) GetAIRateLimiter() interface{} {
+	return app.aiRateLimiter
 }
 
 // GetWebSocketHandler returns the WebSocket handler - COMPLETELY DISABLED

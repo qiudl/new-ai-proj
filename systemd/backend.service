@@ -1,0 +1,43 @@
+[Unit]
+Description=AI Project Backend Service
+After=network-online.target ssh-tunnel.service
+Wants=network-online.target
+Requires=ssh-tunnel.service
+Documentation=file:///Users/johnqiu/coding/www/projects/new-ai-proj/docs/SSH_TUNNEL_GUIDE.md
+
+[Service]
+Type=simple
+User=johnqiu
+WorkingDirectory=/Users/johnqiu/coding/www/projects/new-ai-proj/backend
+
+# 环境变量文件
+EnvironmentFile=/Users/johnqiu/coding/www/projects/new-ai-proj/backend/.env
+
+# 启动前等待SSH隧道就绪
+ExecStartPre=/bin/sleep 5
+ExecStartPre=/Users/johnqiu/coding/www/projects/new-ai-proj/scripts/ssh-tunnel-manager.sh check
+
+# 启动后端服务
+ExecStart=/usr/local/go/bin/go run .
+
+# 停止策略
+ExecStop=/bin/kill -SIGTERM $MAINPID
+TimeoutStopSec=30
+
+# 重启策略
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# 资源限制
+MemoryMax=1G
+CPUQuota=100%
+
+# 日志配置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=backend
+
+[Install]
+WantedBy=multi-user.target

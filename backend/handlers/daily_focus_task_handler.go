@@ -351,16 +351,29 @@ func (h *DailyFocusTaskHandler) CreateDailyFocusTask(c *gin.Context) {
 		return
 	}
 
-	// 验证任务是否分配给当前用户
+	// 如果任务未分配给当前用户，自动将其分配给当前用户
 	if taskAssigneeID == nil || *taskAssigneeID != userClaims.UserID {
-		c.JSON(http.StatusForbidden, models.ErrorResponse{
-			Success: false,
-			Error: &models.APIError{
-				Code:    "TASK_NOT_ASSIGNED",
-				Message: "任务未分配给当前用户",
-			},
-		})
-		return
+		h.logger.Printf("Task %d not assigned to user %d, auto-assigning", req.TaskID, userClaims.UserID)
+
+		// 更新任务的assignee_id
+		_, err := h.db.Exec(
+			"UPDATE tasks SET assignee_id = $1, updated_at = NOW() WHERE id = $2",
+			userClaims.UserID,
+			req.TaskID,
+		)
+		if err != nil {
+			h.logger.Printf("Failed to assign task to user: %v", err)
+			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+				Success: false,
+				Error: &models.APIError{
+					Code:    "ASSIGNMENT_FAILED",
+					Message: "自动分配任务失败",
+				},
+			})
+			return
+		}
+
+		h.logger.Printf("Successfully auto-assigned task %d to user %d", req.TaskID, userClaims.UserID)
 	}
 
 	// 设置焦点日期
@@ -680,7 +693,7 @@ func (h *DailyFocusTaskHandler) UpdateDailyFocusTask(c *gin.Context) {
 // @Produce		json
 // @Security		BearerAuth
 // @Param			id	path		int	true	"Daily Focus Task ID"
-// @Success		200	{object}	models.NewSuccessResponse	"Daily focus task deleted successfully"
+// @Success		200	{object}	models.APIResponse	"Daily focus task deleted successfully"
 // @Failure		400	{object}	models.ErrorResponse	"Bad request"
 // @Failure		401	{object}	models.ErrorResponse	"Unauthorized"
 // @Failure		404	{object}	models.ErrorResponse	"Not found"
@@ -1558,11 +1571,15 @@ func (h *DailyFocusTaskHandler) getTaskSuggestionsWithDetails(ctx context.Contex
 			description = *candidate.Description
 		}
 
+		var taskDesc *string
+		if description != "" {
+			taskDesc = &description
+		}
 		task := models.Task{
 			ID:           candidate.TaskID,
 			ProjectID:    candidate.ProjectID,
 			Title:        candidate.Title,
-			Description:  description,
+			Description:  taskDesc,
 			Status:       candidate.Status,
 			Priority:     candidate.Priority,
 			DueDate:      candidate.DueDate,

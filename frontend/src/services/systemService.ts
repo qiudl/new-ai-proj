@@ -27,6 +27,36 @@ export interface RecycledTask {
   assignee_username?: string;
 }
 
+export interface RecycledDocument {
+  id: number;
+  project_id?: number;
+  title: string;
+  content: string;
+  type: string;
+  status: string;
+  owner_id: number;
+  created_at: string;
+  deleted_at: string;
+  project_name?: string;
+  owner_name: string;
+  file_size?: number;
+  tags?: string[];
+}
+
+export interface RecycledWorkNote {
+  id: number;
+  title: string;
+  content: string;
+  type: string;
+  status: string;
+  owner_id: number;
+  created_at: string;
+  deleted_at: string;
+  owner_name: string;
+  tags?: string[];
+  visibility: string;
+}
+
 export interface AuditLog {
   id: number;
   user_id?: number;
@@ -207,6 +237,100 @@ export class SystemService {
 
   static async hardDeleteTask(id: number): Promise<void> {
     await api.delete(`/system/recycle/tasks/${id}`);
+  }
+
+  // Recycled Documents
+  static async getRecycledDocuments(page = 1, pageSize = 20): Promise<PaginatedResponse<RecycledDocument>> {
+    try {
+      const response: any = await api.get<BackendPaginatedResponse>(
+        `/system/recycle/documents?page=${page}&page_size=${pageSize}`
+      );
+
+      const documentsData = Array.isArray(response?.data) ? (response.data as RecycledDocument[]) : [];
+
+      const pagination = (response?.pagination && typeof response.pagination === 'object')
+        ? response.pagination
+        : {
+            page,
+            page_size: pageSize,
+            total: documentsData.length,
+            total_pages: documentsData.length > 0 ? Math.ceil(documentsData.length / pageSize) : 0,
+            has_next: false,
+            has_prev: false,
+          };
+
+      return {
+        data: documentsData,
+        pagination,
+      };
+    } catch (e) {
+      return {
+        data: [],
+        pagination: {
+          page,
+          page_size: pageSize,
+          total: 0,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false,
+        },
+      };
+    }
+  }
+
+  static async restoreDocument(id: number): Promise<void> {
+    await api.post(`/system/recycle/documents/${id}/restore`);
+  }
+
+  static async hardDeleteDocument(id: number): Promise<void> {
+    await api.delete(`/system/recycle/documents/${id}`);
+  }
+
+  // Recycled Work Notes
+  static async getRecycledWorkNotes(page = 1, pageSize = 20): Promise<PaginatedResponse<RecycledWorkNote>> {
+    try {
+      const response: any = await api.get<BackendPaginatedResponse>(
+        `/system/recycle/work-notes?page=${page}&page_size=${pageSize}`
+      );
+
+      const workNotesData = Array.isArray(response?.data) ? (response.data as RecycledWorkNote[]) : [];
+
+      const pagination = (response?.pagination && typeof response.pagination === 'object')
+        ? response.pagination
+        : {
+            page,
+            page_size: pageSize,
+            total: workNotesData.length,
+            total_pages: workNotesData.length > 0 ? Math.ceil(workNotesData.length / pageSize) : 0,
+            has_next: false,
+            has_prev: false,
+          };
+
+      return {
+        data: workNotesData,
+        pagination,
+      };
+    } catch (e) {
+      return {
+        data: [],
+        pagination: {
+          page,
+          page_size: pageSize,
+          total: 0,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false,
+        },
+      };
+    }
+  }
+
+  static async restoreWorkNote(id: number): Promise<void> {
+    await api.post(`/system/recycle/work-notes/${id}/restore`);
+  }
+
+  static async hardDeleteWorkNote(id: number): Promise<void> {
+    await api.delete(`/system/recycle/work-notes/${id}`);
   }
 
   // Audit Logs

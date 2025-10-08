@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -74,17 +75,23 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 // GetByID gets a task by ID (only non-deleted)
 func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.Task, error) {
 	query := `
-		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
+		SELECT t.id, t.project_id, p.name as project_name, t.title, t.description, t.status, t.assignee_id, t.due_date,
 		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
-		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes, 
+		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes,
 		       t.time_unit_preference, t.work_hours_per_day, t.time_tracking_mode,
 		       t.created_at, t.updated_at, t.deleted_at,
-		       COALESCE(c.children_count, 0) as children_count
+		       COALESCE(c.children_count, 0) as children_count,
+		       COALESCE(c.completed_children_count, 0) as completed_children_count,
+		       u.id as assignee_user_id, u.username as assignee_username, u.email as assignee_email
 		FROM tasks t
+		LEFT JOIN projects p ON t.project_id = p.id
+		LEFT JOIN users u ON t.assignee_id = u.id
 		LEFT JOIN (
-			SELECT parent_id, COUNT(*) as children_count 
-			FROM tasks 
-			WHERE deleted_at IS NULL AND parent_id IS NOT NULL 
+			SELECT parent_id,
+			       COUNT(*) as children_count,
+			       COUNT(*) FILTER (WHERE status = 'completed') as completed_children_count
+			FROM tasks
+			WHERE deleted_at IS NULL AND parent_id IS NOT NULL
 			GROUP BY parent_id
 		) c ON t.id = c.parent_id
 		WHERE t.id = $1 AND t.deleted_at IS NULL`
@@ -104,14 +111,20 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	var workHoursPerDay sql.NullFloat64
 	var timeTrackingMode sql.NullString
 	var childrenCount int
+	var completedChildrenCount int
+	var projectName sql.NullString
+	var assigneeUserID sql.NullInt64
+	var assigneeUsername sql.NullString
+	var assigneeEmail sql.NullString
 
 	err := row.Scan(
-		&task.ID, &task.ProjectID, &task.Title, &task.Description,
+		&task.ID, &task.ProjectID, &projectName, &task.Title, &task.Description,
 		&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
 		&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
 		&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
 		&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
-		&task.CreatedAt, &updatedAt, &task.DeletedAt, &childrenCount,
+		&task.CreatedAt, &updatedAt, &task.DeletedAt, &childrenCount, &completedChildrenCount,
+		&assigneeUserID, &assigneeUsername, &assigneeEmail,
 	)
 
 	if err == sql.ErrNoRows {
@@ -119,6 +132,23 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task: %w", err)
+	}
+
+	// Set project name if available
+	if projectName.Valid {
+		task.ProjectName = &projectName.String
+	}
+
+	// Set assignee info if available
+	if assigneeUserID.Valid && assigneeUsername.Valid {
+		assignee := &models.User{
+			ID:       int(assigneeUserID.Int64),
+			Username: assigneeUsername.String,
+		}
+		if assigneeEmail.Valid {
+			assignee.Email = assigneeEmail.String
+		}
+		task.Assignee = assignee
 	}
 
 	if assigneeID.Valid {
@@ -169,6 +199,7 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 
 	// Set children count and has children flag
 	task.ChildrenCount = childrenCount
+	task.CompletedChildrenCount = completedChildrenCount
 	task.HasChildren = childrenCount > 0
 
 	return task, nil
@@ -188,17 +219,20 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 
 	// Get tasks with pagination (including all required fields)
 	query := `
-		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
+		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date,
 		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
-		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes, 
+		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes,
 		       t.time_unit_preference, t.work_hours_per_day, t.time_tracking_mode,
 		       t.created_at, t.updated_at, t.deleted_at,
-		       COALESCE(c.children_count, 0) as children_count
+		       COALESCE(c.children_count, 0) as children_count,
+		       COALESCE(c.completed_children_count, 0) as completed_children_count
 		FROM tasks t
 		LEFT JOIN (
-			SELECT parent_id, COUNT(*) as children_count 
-			FROM tasks 
-			WHERE deleted_at IS NULL AND parent_id IS NOT NULL 
+			SELECT parent_id,
+			       COUNT(*) as children_count,
+			       COUNT(*) FILTER (WHERE status = 'completed') as completed_children_count
+			FROM tasks
+			WHERE deleted_at IS NULL AND parent_id IS NOT NULL
 			GROUP BY parent_id
 		) c ON t.id = c.parent_id
 		WHERE t.project_id = $1 AND t.deleted_at IS NULL AND t.archived_at IS NULL
@@ -224,6 +258,7 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		var workHoursPerDay sql.NullFloat64
 		var timeTrackingMode sql.NullString
 		var childrenCount int
+		var completedChildrenCount int
 
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
@@ -231,7 +266,7 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 			&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
 			&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
 			&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
-			&task.CreatedAt, &task.UpdatedAt, &task.DeletedAt, &childrenCount,
+			&task.CreatedAt, &task.UpdatedAt, &task.DeletedAt, &childrenCount, &completedChildrenCount,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
@@ -280,6 +315,7 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 
 		// Set children count and has children flag
 		task.ChildrenCount = childrenCount
+		task.CompletedChildrenCount = completedChildrenCount
 		task.HasChildren = childrenCount > 0
 
 		tasks = append(tasks, task)
@@ -305,20 +341,23 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 	}
 
 	query := `
-		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
+		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date,
 		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
-		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes, 
+		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes,
 		       t.time_unit_preference, t.work_hours_per_day, t.time_tracking_mode,
 		       t.created_at, t.updated_at, t.deleted_at,
 		       p.name as project_name, u.username as assignee_name,
-		       COALESCE(c.children_count, 0) as children_count
+		       COALESCE(c.children_count, 0) as children_count,
+		       COALESCE(c.completed_children_count, 0) as completed_children_count
 		FROM tasks t
 		LEFT JOIN projects p ON t.project_id = p.id
 		LEFT JOIN users u ON t.assignee_id = u.id
 		LEFT JOIN (
-			SELECT parent_id, COUNT(*) as children_count 
-			FROM tasks 
-			WHERE deleted_at IS NULL AND parent_id IS NOT NULL 
+			SELECT parent_id,
+			       COUNT(*) as children_count,
+			       COUNT(*) FILTER (WHERE status = 'completed') as completed_children_count
+			FROM tasks
+			WHERE deleted_at IS NULL AND parent_id IS NOT NULL
 			GROUP BY parent_id
 		) c ON t.id = c.parent_id
 		WHERE t.deleted_at IS NULL
@@ -347,6 +386,7 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 		var projectName sql.NullString
 		var assigneeName sql.NullString
 		var childrenCount int
+		var completedChildrenCount int
 
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
@@ -355,7 +395,7 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 			&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
 			&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
 			&task.CreatedAt, &updatedAt, &task.DeletedAt,
-			&projectName, &assigneeName, &childrenCount,
+			&projectName, &assigneeName, &childrenCount, &completedChildrenCount,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
@@ -406,6 +446,11 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
 		}
+
+		// Assign children_count and has_children to task fields (Android层级任务功能需要)
+		task.ChildrenCount = childrenCount
+		task.CompletedChildrenCount = completedChildrenCount
+		task.HasChildren = childrenCount > 0
 
 		// Add project_name, assignee_name and children_count to custom fields for frontend display
 		if task.CustomFields == nil {
@@ -491,6 +536,19 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 			argIdx += 2
 		}
 
+		// Work date filtering - tasks that have work hours on a specific date
+		if opts.WorkDate != "" {
+			conditions = append(conditions, fmt.Sprintf(`
+				EXISTS (
+					SELECT 1 FROM unified_timer_logs utl
+					WHERE utl.task_id = t.id
+					AND DATE(utl.start_time) = $%d
+				)
+			`, argIdx))
+			args = append(args, opts.WorkDate)
+			argIdx++
+		}
+
 		if opts.Preset != "" {
 			switch opts.Preset {
 			case "overdue":
@@ -546,6 +604,9 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 			case "updated_at":
 				// explicit mapping for clarity
 				sortBy = "t.updated_at"
+			case "work_hours":
+				// Will be handled in query SELECT with subquery
+				sortBy = "work_hours"
 			default:
 				// fallback to updated_at for unknown values
 				sortBy = "t.updated_at"
@@ -556,8 +617,24 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 		}
 	}
 
-	// 构建ORDER BY子句
+	// 构建ORDER BY子句和额外的SELECT字段
 	var orderByClause string
+	var additionalSelectFields string
+	var additionalJoins string
+
+	needsWorkHours := sortBy == "work_hours"
+	if needsWorkHours {
+		additionalSelectFields = `, COALESCE(wh.work_hours, 0) as work_hours`
+		additionalJoins = `
+		LEFT JOIN (
+			SELECT task_id,
+			       SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 3600.0) as work_hours
+			FROM unified_timer_logs
+			WHERE deleted_at IS NULL
+			GROUP BY task_id
+		) wh ON t.id = wh.task_id`
+	}
+
 	if useRootTaskOrder {
 		// 使用根任务优先的复杂排序逻辑：
 		// 1. 先按是否为根任务排序（根任务在前）
@@ -578,19 +655,22 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 		       t.time_unit_preference, t.work_hours_per_day, t.time_tracking_mode,
 		       t.created_at, t.updated_at, t.deleted_at,
 		       p.name as project_name, u.username as assignee_name,
-		       COALESCE(c.children_count, 0) as children_count
+		       COALESCE(c.children_count, 0) as children_count,
+		       COALESCE(c.completed_children_count, 0) as completed_children_count%s
 		FROM tasks t
 		LEFT JOIN projects p ON t.project_id = p.id
 		LEFT JOIN users u ON t.assignee_id = u.id
 		LEFT JOIN (
-			SELECT parent_id, COUNT(*) as children_count
+			SELECT parent_id,
+			       COUNT(*) as children_count,
+			       COUNT(*) FILTER (WHERE status = 'completed') as completed_children_count
 			FROM tasks
 			WHERE deleted_at IS NULL AND parent_id IS NOT NULL
 			GROUP BY parent_id
-		) c ON t.id = c.parent_id
+		) c ON t.id = c.parent_id%s
 		%s
 		ORDER BY %s
-		LIMIT $%d OFFSET $%d`, where, orderByClause, len(args)+1, len(args)+2)
+		LIMIT $%d OFFSET $%d`, additionalSelectFields, additionalJoins, where, orderByClause, len(args)+1, len(args)+2)
 
 	args = append(args, limit, offset)
 	rows, err := exec.QueryContext(ctx, query, args...)
@@ -615,17 +695,34 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 		var projectName sql.NullString
 		var assigneeName sql.NullString
 		var childrenCount int
+		var completedChildrenCount int
+		var workHours sql.NullFloat64
 
-		if err := rows.Scan(
-			&task.ID, &task.ProjectID, &task.Title, &task.Description,
-			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-			&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
-			&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
-			&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
-			&task.CreatedAt, &updatedAt, &task.DeletedAt,
-			&projectName, &assigneeName, &childrenCount,
-		); err != nil {
-			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
+		if needsWorkHours {
+			if err := rows.Scan(
+				&task.ID, &task.ProjectID, &task.Title, &task.Description,
+				&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
+				&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
+				&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
+				&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
+				&task.CreatedAt, &updatedAt, &task.DeletedAt,
+				&projectName, &assigneeName, &childrenCount, &completedChildrenCount,
+				&workHours,
+			); err != nil {
+				return nil, 0, fmt.Errorf("failed to scan task: %w", err)
+			}
+		} else {
+			if err := rows.Scan(
+				&task.ID, &task.ProjectID, &task.Title, &task.Description,
+				&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
+				&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
+				&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
+				&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
+				&task.CreatedAt, &updatedAt, &task.DeletedAt,
+				&projectName, &assigneeName, &childrenCount, &completedChildrenCount,
+			); err != nil {
+				return nil, 0, fmt.Errorf("failed to scan task: %w", err)
+			}
 		}
 
 		if assigneeID.Valid {
@@ -672,6 +769,11 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
 		}
+
+		// Assign children_count and has_children to task fields (Android层级任务功能需要)
+		task.ChildrenCount = childrenCount
+		task.CompletedChildrenCount = completedChildrenCount
+		task.HasChildren = childrenCount > 0
 
 		// Add project_name, assignee_name and children_count to custom fields for frontend display
 		if task.CustomFields == nil {
@@ -734,37 +836,52 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 
 // Delete soft deletes a task and all its descendants (sets deleted_at timestamp)
 func (r *PostgresTaskRepository) Delete(ctx context.Context, id int) error {
+	log.Printf("[TaskRepository.Delete] 开始删除任务: taskID=%d", id)
+
 	// Use recursive CTE to find all descendants and delete them in one query
 	query := `
 		WITH RECURSIVE task_hierarchy AS (
 			-- Start with the target task (only if it exists and is not deleted)
 			SELECT id FROM tasks WHERE id = $1 AND deleted_at IS NULL
-			
+
 			UNION ALL
-			
+
 			-- Recursively find all children (including already deleted ones to handle edge cases)
 			SELECT t.id FROM tasks t
 			INNER JOIN task_hierarchy th ON t.parent_id = th.id
 			WHERE t.deleted_at IS NULL
 		)
-		UPDATE tasks 
-		SET deleted_at = NOW() 
-		WHERE id IN (SELECT id FROM task_hierarchy) 
+		UPDATE tasks
+		SET deleted_at = NOW()
+		WHERE id IN (SELECT id FROM task_hierarchy)
 		AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to delete task and children: %w", err)
+		log.Printf("[TaskRepository.Delete] SQL执行失败: taskID=%d, error=%v, errorType=%T", id, err, err)
+
+		// 尝试检查是否是外键约束错误
+		errStr := err.Error()
+		if strings.Contains(errStr, "foreign key") || strings.Contains(errStr, "violates") {
+			log.Printf("[TaskRepository.Delete] 外键约束冲突: taskID=%d, detail=%s", id, errStr)
+			return fmt.Errorf("无法删除任务：存在外键约束冲突 (任务ID: %d, 详情: %v)", id, err)
+		}
+
+		return fmt.Errorf("failed to delete task and children (taskID=%d): %w", id, err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to get affected rows: %w", err)
+		log.Printf("[TaskRepository.Delete] 获取影响行数失败: taskID=%d, error=%v", id, err)
+		return fmt.Errorf("failed to get affected rows (taskID=%d): %w", id, err)
 	}
 
+	log.Printf("[TaskRepository.Delete] 删除完成: taskID=%d, rowsAffected=%d", id, rowsAffected)
+
 	if rowsAffected == 0 {
-		return fmt.Errorf("task not found")
+		log.Printf("[TaskRepository.Delete] 任务未找到或已删除: taskID=%d", id)
+		return fmt.Errorf("task not found or already deleted (taskID=%d)", id)
 	}
 
 	return nil

@@ -327,6 +327,44 @@ func (am *AuditMiddleware) determineAction(method, path string) string {
 
 	// System actions
 	if strings.Contains(path, "/system") {
+		// AI Configuration actions
+		if strings.Contains(path, "/ai-configs") {
+			if strings.Contains(path, "/rotate-key") {
+				return models.ActionAIConfigRotateKey
+			}
+			if strings.Contains(path, "/set-expiry") {
+				return models.ActionAIConfigSetExpiry
+			}
+			if strings.Contains(path, "/enable-auto-rotation") {
+				return models.ActionAIConfigEnableAutoRotate
+			}
+			if strings.Contains(path, "/disable-auto-rotation") {
+				return models.ActionAIConfigDisableAutoRotate
+			}
+			if strings.Contains(path, "/auto-disable-expired") {
+				return models.ActionAIConfigDisableExpired
+			}
+			if strings.Contains(path, "/send-expiry-warnings") {
+				return models.ActionAIConfigSendWarnings
+			}
+			if strings.Contains(path, "/test") {
+				return models.ActionAIConfigTest
+			}
+			if strings.Contains(path, "/toggle") {
+				return models.ActionAIConfigToggle
+			}
+
+			switch method {
+			case "POST":
+				return models.ActionAIConfigCreate
+			case "PUT", "PATCH":
+				return models.ActionAIConfigUpdate
+			case "DELETE":
+				return models.ActionAIConfigDelete
+			case "GET":
+				return models.ActionAIConfigView
+			}
+		}
 		return "system.manage"
 	}
 
@@ -338,6 +376,9 @@ func (am *AuditMiddleware) determineAction(method, path string) string {
 func (am *AuditMiddleware) determineResourceType(path string) string {
 	path = strings.ToLower(path)
 
+	if strings.Contains(path, "/ai-configs") {
+		return models.ResourceTypeAIConfig
+	}
 	if strings.Contains(path, "/projects") {
 		return models.ResourceTypeProject
 	}
@@ -360,11 +401,22 @@ func (am *AuditMiddleware) extractResourceID(path string) string {
 	segments := strings.Split(strings.Trim(path, "/"), "/")
 
 	for i, segment := range segments {
-		// Look for numeric IDs after resource names
+		// Look for IDs after resource names
 		if (segment == "projects" || segment == "tasks" || segment == "users") && i+1 < len(segments) {
 			nextSegment := segments[i+1]
 			// Check if it's a numeric ID (simple check)
 			if len(nextSegment) > 0 && nextSegment[0] >= '0' && nextSegment[0] <= '9' {
+				return nextSegment
+			}
+		}
+
+		// For AI configs, extract provider name or ID
+		if segment == "ai-configs" && i+1 < len(segments) {
+			nextSegment := segments[i+1]
+			// Provider name (openai, claude, deepseek) or numeric ID
+			if nextSegment != "" && nextSegment != "enabled" && nextSegment != "stats" &&
+			   nextSegment != "test" && nextSegment != "auto-disable-expired" &&
+			   nextSegment != "send-expiry-warnings" && nextSegment != "expiry-status" {
 				return nextSegment
 			}
 		}

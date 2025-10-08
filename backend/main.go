@@ -8,8 +8,27 @@ import (
 	"os"
 )
 
+// @title			AI Project Backend API
+// @version		1.0
+// @description	AI项目管理后端API服务，提供项目管理、任务管理、文档生成等功能
+// @termsOfService	http://swagger.io/terms/
+
+// @contact.name	API Support
+// @contact.url	http://www.swagger.io/support
+// @contact.email	support@swagger.io
+
+// @license.name	Apache 2.0
+// @license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host		localhost:8080
+// @BasePath	/api/v1
+
+// @securityDefinitions.apikey	BearerAuth
+// @in							header
+// @name						Authorization
+// @description				Type "Bearer" followed by a space and JWT token.
+
 func main() {
-	log.Println("🚀 启动AI项目后端服务...")
 
 	// 创建应用程序实例
 	app, err := application.NewApplication()

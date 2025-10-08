@@ -62,7 +62,7 @@ services:
       http_proxy: ""
       https_proxy: ""
     ports:
-      - "127.0.0.1:8081:8080"  # 使用不同端口
+      - "127.0.0.1:8080:8080"  # 使用不同端口
     volumes:
       - ./logs:/app/logs
       - ./uploads:/app/uploads
@@ -96,7 +96,7 @@ services:
       REACT_APP_ENVIRONMENT: staging
       NODE_ENV: production
     ports:
-      - "127.0.0.1:3001:80"  # 使用不同端口
+      - "127.0.0.1:3000:80"  # 使用不同端口
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]

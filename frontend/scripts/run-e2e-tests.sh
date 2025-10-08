@@ -53,7 +53,7 @@ fi
 case $ENVIRONMENT in
     "development")
         export E2E_BASE_URL="http://localhost:3000"
-        export E2E_API_BASE_URL="http://localhost:8081/api/v1"
+        export E2E_API_BASE_URL="http://localhost:8080/api/v1"
         ;;
     "staging")
         export E2E_BASE_URL="https://staging.example.com"
