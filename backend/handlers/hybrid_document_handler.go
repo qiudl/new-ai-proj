@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/services"
+	"ai-project-backend/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
 )
@@ -285,7 +287,7 @@ func (h *HybridDocumentHandler) CreateDocument(c *gin.Context) {
 	})
 }
 
-// GetDocument 获取单个文档
+// GetDocument 获取单个文档 - 支持内部ID和display_id两种格式
 func (h *HybridDocumentHandler) GetDocument(c *gin.Context) {
 	// 尝试从documentId参数获取（用于短路由 /tasks/:id/documents/:documentId）
 	idStr := c.Param("documentId")
@@ -296,37 +298,60 @@ func (h *HybridDocumentHandler) GetDocument(c *gin.Context) {
 		log.Printf("[DEBUG] GetDocument: id param = '%s'", idStr)
 	}
 
-	id, err := strconv.Atoi(idStr)
+	if idStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Document ID is required",
+		})
+		return
+	}
+
+	sqlDB := h.db.GetDB().(*sql.DB)
+
+	// 解析输入的ID - 支持纯数字ID和display_id格式
+	isDisplayID, normalizedValue, err := utils.NormalizeDocumentID(idStr)
 	if err != nil {
 		log.Printf("[ERROR] GetDocument: Invalid document ID '%s': %v", idStr, err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": "Invalid document ID",
+			"message": fmt.Sprintf("Invalid document ID format: %s", err.Error()),
 		})
 		return
 	}
-	log.Printf("[DEBUG] GetDocument: Fetching document ID = %d", id)
 
-	sqlDB := h.db.GetDB().(*sql.DB)
+	var query string
+	var args []interface{}
 
-	query := `
-		SELECT d.id, d.folder_id, d.title, d.content, d.type, d.status, d.description, 
-			   COALESCE(d.tags, '{}') as tags, d.owner_id, d.visibility, d.version, 
+	baseQuery := `
+		SELECT d.id, d.display_id, d.doc_type_prefix, d.folder_id, d.title, d.content, d.type, d.status, d.description,
+			   COALESCE(d.tags, '{}') as tags, d.owner_id, d.visibility, d.version,
 			   d.is_template, d.created_at, d.updated_at, d.created_by,
 			   u.username as owner_name, df.name as folder_name,
 			   d.project_id
 		FROM documents d
 		LEFT JOIN users u ON d.owner_id = u.id
-		LEFT JOIN document_folders df ON d.folder_id = df.id
-		WHERE d.id = $1
-	`
+		LEFT JOIN document_folders df ON d.folder_id = df.id`
+
+	if isDisplayID {
+		// 使用display_id查询
+		query = baseQuery + " WHERE d.display_id = $1 AND d.deleted_at IS NULL"
+		args = []interface{}{normalizedValue}
+		log.Printf("[DEBUG] GetDocument: Fetching document by display_id = '%s'", normalizedValue)
+	} else {
+		// 使用内部ID查询
+		id, _ := strconv.Atoi(normalizedValue)
+		query = baseQuery + " WHERE d.id = $1 AND d.deleted_at IS NULL"
+		args = []interface{}{id}
+		log.Printf("[DEBUG] GetDocument: Fetching document by internal ID = %d", id)
+	}
 
 	var doc models.Document
+	var displayID, docTypePrefix sql.NullString
 	var ownerName, folderName sql.NullString
 	var tags string
 
-	err = sqlDB.QueryRow(query, id).Scan(
-		&doc.ID, &doc.FolderID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
+	err = sqlDB.QueryRow(query, args...).Scan(
+		&doc.ID, &displayID, &docTypePrefix, &doc.FolderID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
 		&doc.Description, &tags, &doc.OwnerID, &doc.Visibility, &doc.Version,
 		&doc.IsTemplate, &doc.CreatedAt, &doc.UpdatedAt, &doc.CreatedBy,
 		&ownerName, &folderName, &doc.ProjectID,
@@ -339,6 +364,7 @@ func (h *HybridDocumentHandler) GetDocument(c *gin.Context) {
 				"message": "Document not found",
 			})
 		} else {
+			log.Printf("[ERROR] GetDocument: Query error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
 				"message": "Failed to get document",
@@ -348,24 +374,34 @@ func (h *HybridDocumentHandler) GetDocument(c *gin.Context) {
 		return
 	}
 
+	// 设置display_id和doc_type_prefix
+	if displayID.Valid {
+		doc.DisplayID = &displayID.String
+	}
+	if docTypePrefix.Valid {
+		doc.DocTypePrefix = &docTypePrefix.String
+	}
+
 	// 构建响应对象
 	docResponse := map[string]interface{}{
-		"id":          doc.ID,
-		"folder_id":   doc.FolderID,
-		"title":       doc.Title,
-		"content":     doc.Content,
-		"type":        doc.Type,
-		"status":      doc.Status,
-		"description": doc.Description,
-		"tags":        []string{},
-		"owner_id":    doc.OwnerID,
-		"visibility":  doc.Visibility,
-		"version":     doc.Version,
-		"is_template": doc.IsTemplate,
-		"created_at":  doc.CreatedAt,
-		"updated_at":  doc.UpdatedAt,
-		"created_by":  doc.CreatedBy,
-		"project_id":  doc.ProjectID,
+		"id":              doc.ID,
+		"display_id":      doc.DisplayID,
+		"doc_type_prefix": doc.DocTypePrefix,
+		"folder_id":       doc.FolderID,
+		"title":           doc.Title,
+		"content":         doc.Content,
+		"type":            doc.Type,
+		"status":          doc.Status,
+		"description":     doc.Description,
+		"tags":            []string{},
+		"owner_id":        doc.OwnerID,
+		"visibility":      doc.Visibility,
+		"version":         doc.Version,
+		"is_template":     doc.IsTemplate,
+		"created_at":      doc.CreatedAt,
+		"updated_at":      doc.UpdatedAt,
+		"created_by":      doc.CreatedBy,
+		"project_id":      doc.ProjectID,
 	}
 
 	if ownerName.Valid {
@@ -1124,7 +1160,8 @@ func (h *HybridDocumentHandler) HasTaskDocument(c *gin.Context) {
 	projectIDStr := c.Param("id")
 	taskIDStr := c.Param("taskId")
 
-	projectID, err := strconv.Atoi(projectIDStr)
+	// 保留 projectID 解析用于参数验证，但查询中不再使用（修复bug：不应要求文档的project_id匹配）
+	_, err := strconv.Atoi(projectIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -1145,14 +1182,17 @@ func (h *HybridDocumentHandler) HasTaskDocument(c *gin.Context) {
 	sqlDB := h.db.GetDB().(*sql.DB)
 
 	// 查询任务是否有关联文档
+	// 修复: 不再要求 document.project_id 必须匹配，因为 task_documents 表已建立了关联关系
 	query := `
-		SELECT COUNT(*) 
-		FROM documents d
-		INNER JOIN task_documents td ON d.id = td.document_id
-		WHERE td.task_id = $1 AND d.project_id = $2 AND d.deleted_at IS NULL AND td.deleted_at IS NULL`
+		SELECT COUNT(*)
+		FROM task_documents td
+		INNER JOIN documents d ON d.id = td.document_id
+		WHERE td.task_id = $1
+		  AND d.deleted_at IS NULL
+		  AND td.deleted_at IS NULL`
 
 	var count int
-	err = sqlDB.QueryRow(query, taskID, projectID).Scan(&count)
+	err = sqlDB.QueryRow(query, taskID).Scan(&count)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

@@ -72,28 +72,30 @@ func (dm *DocumentMetadata) Scan(value interface{}) error {
 
 // Document 文档模型
 type Document struct {
-	ID          int              `json:"id" db:"id"`
-	ProjectID   *int             `json:"project_id" db:"project_id"`
-	FolderID    *int             `json:"folder_id" db:"folder_id"`
-	Title       string           `json:"title" db:"title" validate:"required,min=1,max=255"`
-	Content     *string          `json:"content" db:"content"`
-	Type        DocumentType     `json:"type" db:"type" validate:"required"`
-	Status      DocumentStatus   `json:"status" db:"status" validate:"required"`
-	FileURL     *string          `json:"file_url" db:"file_url"`
-	FileSize    *int64           `json:"file_size" db:"file_size"`
-	MimeType    *string          `json:"mime_type" db:"mime_type"`
-	Description *string          `json:"description" db:"description"`
-	Tags        []string         `json:"tags" db:"tags"`
-	Metadata    DocumentMetadata `json:"metadata" db:"metadata"`
-	OwnerID     int              `json:"owner_id" db:"owner_id" validate:"required"`
-	Visibility  Visibility       `json:"visibility" db:"visibility" validate:"required"`
-	Version     int              `json:"version" db:"version"`
-	ParentDocID *int             `json:"parent_document_id" db:"parent_document_id"`
-	IsTemplate  bool             `json:"is_template" db:"is_template"`
-	CreatedBy   int              `json:"created_by" db:"created_by" validate:"required"`
-	CreatedAt   time.Time        `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time        `json:"updated_at" db:"updated_at"`
-	DeletedAt   *time.Time       `json:"deleted_at" db:"deleted_at"`
+	ID            int              `json:"id" db:"id"`
+	DisplayID     *string          `json:"display_id" db:"display_id"`                   // 对外展示的格式化ID (如 DOC-10001)
+	DocTypePrefix *string          `json:"doc_type_prefix" db:"doc_type_prefix"`         // 文档类型前缀 (DOC/NOTE/API/SPEC/FILE)
+	ProjectID     *int             `json:"project_id" db:"project_id"`
+	FolderID      *int             `json:"folder_id" db:"folder_id"`
+	Title         string           `json:"title" db:"title" validate:"required,min=1,max=255"`
+	Content       *string          `json:"content" db:"content"`
+	Type          DocumentType     `json:"type" db:"type" validate:"required"`
+	Status        DocumentStatus   `json:"status" db:"status" validate:"required"`
+	FileURL       *string          `json:"file_url" db:"file_url"`
+	FileSize      *int64           `json:"file_size" db:"file_size"`
+	MimeType      *string          `json:"mime_type" db:"mime_type"`
+	Description   *string          `json:"description" db:"description"`
+	Tags          []string         `json:"tags" db:"tags"`
+	Metadata      DocumentMetadata `json:"metadata" db:"metadata"`
+	OwnerID       int              `json:"owner_id" db:"owner_id" validate:"required"`
+	Visibility    Visibility       `json:"visibility" db:"visibility" validate:"required"`
+	Version       int              `json:"version" db:"version"`
+	ParentDocID   *int             `json:"parent_document_id" db:"parent_document_id"`
+	IsTemplate    bool             `json:"is_template" db:"is_template"`
+	CreatedBy     int              `json:"created_by" db:"created_by" validate:"required"`
+	CreatedAt     time.Time        `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time        `json:"updated_at" db:"updated_at"`
+	DeletedAt     *time.Time       `json:"deleted_at" db:"deleted_at"`
 
 	Archived     bool       `json:"archived" db:"archived"`
 	ArchivedAt   *time.Time `json:"archived_at" db:"archived_at"`

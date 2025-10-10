@@ -33,6 +33,8 @@ const { Title } = Typography;
 
 export interface DocItem {
   id: number;
+  display_id?: string;  // 格式化显示ID (如 DOC-10001)
+  doc_type_prefix?: string;  // 文档类型前缀 (DOC/NOTE/API/SPEC/FILE)
   title: string;
   file_name: string;
   file_type: string;
@@ -245,6 +247,29 @@ const DocumentList: React.FC<DocumentListProps> = ({
   // 表格列定义
   const columns: ColumnsType<DocItem> = [
     {
+      title: '文档ID',
+      dataIndex: 'display_id',
+      key: 'display_id',
+      width: 120,
+      render: (display_id: string | undefined, record: DocItem) => (
+        <Space direction="vertical" size={2}>
+          <span style={{
+            fontSize: '13px',
+            fontWeight: 500,
+            fontFamily: 'monospace',
+            color: '#1890ff'
+          }}>
+            {display_id || `#${record.id}`}
+          </span>
+          {record.doc_type_prefix && (
+            <Tag style={{ fontSize: '11px', padding: '0 4px' }}>
+              {record.doc_type_prefix}
+            </Tag>
+          )}
+        </Space>
+      )
+    },
+    {
       title: '文档',
       dataIndex: 'title',
       key: 'title',
@@ -253,8 +278,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
         <Space direction="vertical" size={2}>
           <Space>
             <span style={{ fontSize: '16px' }}>{getFileTypeIcon(record.file_type)}</span>
-            <Button 
-              type="link" 
+            <Button
+              type="link"
               onClick={() => onView?.(record)}
               style={{ padding: 0, height: 'auto', fontWeight: 500 }}
             >
