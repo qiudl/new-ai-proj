@@ -543,6 +543,16 @@ func (app *Application) GetTaskDocumentHandler() *handlers.TaskDocumentHandler {
 	return nil
 }
 
+// GetTaskCommentHandler returns the task comment handler
+func (app *Application) GetTaskCommentHandler() *handlers.TaskCommentHandler {
+	// Get necessary repositories
+	commentRepo := database.NewTaskCommentRepository(app.db.GetDB().(*sql.DB))
+	taskRepo := app.db.Tasks()
+
+	// Create and return handler
+	return handlers.NewTaskCommentHandler(commentRepo, taskRepo)
+}
+
 // GetDocumentProjectsHandler returns the document projects handler
 func (app *Application) GetDocumentProjectsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {

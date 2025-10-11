@@ -100,6 +100,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册独立的任务路由
 	RegisterTaskRoutes(authorized, app)
 
+	// 注册任务评论路由
+	RegisterTaskCommentRoutes(authorized, app)
+
 	// 注册AI文档生成路由
 	RegisterAIDocumentRoutes(authorized, app)
 

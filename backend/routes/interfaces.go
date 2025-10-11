@@ -143,6 +143,9 @@ type ApplicationInterface interface {
 	GetTaskDocumentFileHandler() *handlers.TaskDocumentFileHandler
 	GetTaskDocumentHandler() *handlers.TaskDocumentHandler
 
+	// 任务评论处理器
+	GetTaskCommentHandler() *handlers.TaskCommentHandler
+
 	// 文档元数据处理器
 	GetDocumentProjectsHandler() gin.HandlerFunc
 	GetDocumentCustomersHandler() gin.HandlerFunc
