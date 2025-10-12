@@ -264,20 +264,15 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, "获取任务列表成功"))
 }
 
-// CreateTask handles POST /api/v1/projects/:projectId/tasks
+// CreateTask handles POST /api/v1/projects/:projectId/tasks and POST /api/v1/tasks
 func (h *TaskHandler) CreateTask(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的项目ID", nil))
-		return
-	}
-
 	userID := c.GetInt("user_id") // For future implementation
 	_ = userID
 
 	var req struct {
 		Title         string                 `json:"title" binding:"required,min=1,max=255"`
 		Description   *string                `json:"description"`
+		ProjectID     *int                   `json:"project_id"` // Support project_id from request body
 		Status        string                 `json:"status"`
 		Priority      string                 `json:"priority"`
 		AssigneeID    *int                   `json:"assignee_id"`
@@ -298,6 +293,53 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "请求数据格式错误", nil))
+		return
+	}
+
+	// Validate and normalize status field
+	validStatuses := map[string]bool{
+		"draft": true, "planning": true, "todo": true, "in_progress": true,
+		"testing": true, "completed": true, "cancelled": true,
+		"on_hold": true, "suspended": true, "blocked": true, "archived": true,
+	}
+	if req.Status == "" {
+		req.Status = "todo" // Default status
+	} else if !validStatuses[req.Status] {
+		log.Printf("[CreateTask] Invalid status provided: %s", req.Status)
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, 
+			fmt.Sprintf("无效的任务状态: %s. 有效值: draft, planning, todo, in_progress, testing, completed, cancelled, on_hold, suspended, blocked, archived", req.Status), nil))
+		return
+	}
+
+	// Get project_id: priority order: request body > path parameter
+	var projectID int
+	if req.ProjectID != nil && *req.ProjectID > 0 {
+		// From request body (Android/mobile client)
+		projectID = *req.ProjectID
+	} else if paramID := c.Param("id"); paramID != "" {
+		// From path parameter (Web client via /projects/:id/tasks)
+		var err error
+		projectID, err = strconv.Atoi(paramID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的项目ID", nil))
+			return
+		}
+	} else {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "请提供项目ID (请求体project_id字段或路径参数)", nil))
+		return
+	}
+
+	// Verify project exists with improved error handling
+	ctx := c.Request.Context()
+	project, err := h.db.Projects().GetByID(ctx, projectID)
+	if err != nil {
+		log.Printf("[CreateTask] Database error checking project existence: projectID=%d, error=%v", projectID, err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "数据库查询失败，请稍后重试", nil))
+		return
+	}
+	if project == nil {
+		log.Printf("[CreateTask] Project not found: projectID=%d", projectID)
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, fmt.Sprintf("项目不存在 (ID: %d)", projectID), nil))
 		return
 	}
 
@@ -334,33 +376,63 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		}
 	}
 
-	// Parse due date
+	// Parse due date with multiple format support
 	var dueDate *time.Time
 	if req.DueDate != nil && *req.DueDate != "" {
-		if parsed, err := time.Parse("2006-01-02T15:04:05Z", *req.DueDate); err == nil {
-			dueDate = &parsed
-		} else if parsed, err := time.Parse("2006-01-02", *req.DueDate); err == nil {
-			dueDate = &parsed
+		parsed, err := parseDateTimeFlexible(*req.DueDate)
+		if err != nil {
+			log.Printf("[CreateTask] Failed to parse due_date '%s': %v", *req.DueDate, err)
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, 
+				fmt.Sprintf("无效的截止日期格式: %s. 支持格式: 2006-01-02, 2006-01-02T15:04:05Z, 2006-01-02 15:04:05", *req.DueDate), nil))
+			return
 		}
+		dueDate = &parsed
 	}
 
-	// Parse start datetime
+	// Parse start datetime with multiple format support
 	var startDatetime *time.Time
 	if req.StartDatetime != nil && *req.StartDatetime != "" {
-		if parsed, err := time.Parse("2006-01-02T15:04:05Z", *req.StartDatetime); err == nil {
-			startDatetime = &parsed
-		} else if parsed, err := time.Parse("2006-01-02", *req.StartDatetime); err == nil {
-			startDatetime = &parsed
+		parsed, err := parseDateTimeFlexible(*req.StartDatetime)
+		if err != nil {
+			log.Printf("[CreateTask] Failed to parse start_datetime '%s': %v", *req.StartDatetime, err)
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal,
+				fmt.Sprintf("无效的开始日期格式: %s. 支持格式: 2006-01-02, 2006-01-02T15:04:05Z, 2006-01-02 15:04:05", *req.StartDatetime), nil))
+			return
 		}
+		startDatetime = &parsed
 	}
 
-	// Parse due datetime
+	// Parse due datetime with multiple format support
 	var dueDatetime *time.Time
 	if req.DueDatetime != nil && *req.DueDatetime != "" {
-		if parsed, err := time.Parse("2006-01-02T15:04:05Z", *req.DueDatetime); err == nil {
-			dueDatetime = &parsed
-		} else if parsed, err := time.Parse("2006-01-02", *req.DueDatetime); err == nil {
-			dueDatetime = &parsed
+		parsed, err := parseDateTimeFlexible(*req.DueDatetime)
+		if err != nil {
+			log.Printf("[CreateTask] Failed to parse due_datetime '%s': %v", *req.DueDatetime, err)
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal,
+				fmt.Sprintf("无效的截止时间格式: %s. 支持格式: 2006-01-02, 2006-01-02T15:04:05Z, 2006-01-02 15:04:05", *req.DueDatetime), nil))
+			return
+		}
+		dueDatetime = &parsed
+	}
+
+	// Verify parent task exists if provided
+	if req.ParentID != nil && *req.ParentID > 0 {
+		parentTask, err := h.db.Tasks().GetByID(ctx, *req.ParentID)
+		if err != nil {
+			log.Printf("[CreateTask] Database error checking parent task: parentID=%d, error=%v", *req.ParentID, err)
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "数据库查询失败，请稍后重试", nil))
+			return
+		}
+		if parentTask == nil {
+			log.Printf("[CreateTask] Parent task not found: parentID=%d", *req.ParentID)
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, fmt.Sprintf("父任务不存在 (ID: %d)", *req.ParentID), nil))
+			return
+		}
+		// Verify parent task is in the same project
+		if parentTask.ProjectID != projectID {
+			log.Printf("[CreateTask] Parent task project mismatch: parentID=%d, parentProjectID=%d, currentProjectID=%d", *req.ParentID, parentTask.ProjectID, projectID)
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, fmt.Sprintf("父任务不在当前项目中 (Parent Project ID: %d, Current Project ID: %d)", parentTask.ProjectID, projectID), nil))
+			return
 		}
 	}
 
@@ -398,10 +470,14 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 
 	createdTask, err := h.db.Tasks().Create(c.Request.Context(), task)
 	if err != nil {
-		log.Printf("Error creating task: %v", err)
+		log.Printf("[CreateTask] Database error creating task: projectID=%d, title=%s, error=%v", projectID, req.Title, err)
 		// Check if it's a duplicate title error
 		if strings.Contains(err.Error(), "任务标题重复") {
 			c.JSON(http.StatusConflict, models.NewErrorResponse("DUPLICATE_TITLE", err.Error(), nil))
+		} else if strings.Contains(err.Error(), "foreign key") || strings.Contains(err.Error(), "violates") {
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "数据关联错误，请检查相关数据是否存在", nil))
+		} else if strings.Contains(err.Error(), "connection") || strings.Contains(err.Error(), "timeout") {
+			c.JSON(http.StatusServiceUnavailable, models.NewErrorResponse(models.ErrCodeInternal, "数据库连接失败，请稍后重试", nil))
 		} else {
 			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "创建任务失败", nil))
 		}
@@ -409,10 +485,23 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	// Lifecycle trigger: Auto-create Task Description document upon task creation
+	// Using a background goroutine with proper error handling and timeout
 	go func() {
-		ctx := c.Request.Context()
+		// Create a new context with timeout for the async operation
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		
+		// Add structured logging with timestamp
+		start := time.Now()
+		log.Printf("[AsyncTask][CreateTask][Start] Creating auto-doc for task_id=%d, user_id=%d", 
+			createdTask.ID, userID)
+		
 		if err := h.autoCreateTaskDescription(ctx, createdTask, userID); err != nil {
-			log.Printf("[AutoDoc] failed to create task description for task %d: %v", createdTask.ID, err)
+			log.Printf("[AsyncTask][CreateTask][Error] Failed to create task description: task_id=%d, user_id=%d, duration=%v, error=%v",
+				createdTask.ID, userID, time.Since(start), err)
+		} else {
+			log.Printf("[AsyncTask][CreateTask][Success] Auto-doc created: task_id=%d, duration=%v",
+				createdTask.ID, time.Since(start))
 		}
 	}()
 
@@ -728,7 +817,12 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "请求数据格式错误", nil))
+		log.Printf("[UpdateTask] JSON binding error for task %d: %v", taskID, err)
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.ErrCodeValidation,
+			fmt.Sprintf("请求数据格式错误: %v", err),
+			nil,
+		))
 		return
 	}
 
@@ -763,10 +857,36 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		task.Description = req.Description
 	}
 	if req.Status != nil {
+		// Validate status field
+		validStatuses := map[string]bool{
+			"draft": true, "planning": true, "todo": true, "in_progress": true,
+			"testing": true, "completed": true, "cancelled": true,
+			"on_hold": true, "suspended": true, "blocked": true, "archived": true,
+		}
+		if !validStatuses[*req.Status] {
+			log.Printf("[UpdateTask] Invalid status provided: %s", *req.Status)
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation,
+				fmt.Sprintf("无效的任务状态: %s. 有效值: draft, planning, todo, in_progress, testing, completed, cancelled, on_hold, suspended, blocked, archived", *req.Status), nil))
+			return
+		}
 		task.Status = *req.Status
 	}
 	if req.Priority != nil {
-		task.Priority = *req.Priority
+		priority := *req.Priority
+		// Validate priority value
+		validPriorities := map[string]bool{
+			"low": true, "medium": true, "high": true,
+		}
+		if priority != "" && !validPriorities[priority] {
+			log.Printf("[UpdateTask] Invalid priority value: %s", priority)
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+				models.ErrCodeValidation,
+				fmt.Sprintf("无效的优先级值: %s, 必须是 low, medium 或 high", priority),
+				nil,
+			))
+			return
+		}
+		task.Priority = priority
 	}
 	if req.AssigneeID != nil {
 		task.AssigneeID = req.AssigneeID
@@ -778,35 +898,44 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		task.ProjectID = *req.ProjectID
 	}
 
-	// Parse due date
+	// Parse due date with improved flexible parsing
 	if req.DueDate != nil && *req.DueDate != "" {
-		if parsed, err := time.Parse("2006-01-02T15:04:05Z", *req.DueDate); err == nil {
-			task.DueDate = &parsed
-		} else if parsed, err := time.Parse("2006-01-02", *req.DueDate); err == nil {
-			task.DueDate = &parsed
+		parsed, err := parseDateTimeFlexible(*req.DueDate)
+		if err != nil {
+			log.Printf("[UpdateTask] Failed to parse due_date '%s': %v", *req.DueDate, err)
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation,
+				fmt.Sprintf("无效的截止日期格式: %s. 支持格式: 2006-01-02, 2006-01-02T15:04:05Z, 2006-01-02 15:04:05", *req.DueDate), nil))
+			return
 		}
+		task.DueDate = &parsed
 	} else {
 		task.DueDate = nil
 	}
 
-	// Parse and update start datetime
+	// Parse and update start datetime with improved flexible parsing
 	if req.StartDatetime != nil && *req.StartDatetime != "" {
-		if parsed, err := time.Parse("2006-01-02T15:04:05Z", *req.StartDatetime); err == nil {
-			task.StartDatetime = &parsed
-		} else if parsed, err := time.Parse("2006-01-02", *req.StartDatetime); err == nil {
-			task.StartDatetime = &parsed
+		parsed, err := parseDateTimeFlexible(*req.StartDatetime)
+		if err != nil {
+			log.Printf("[UpdateTask] Failed to parse start_datetime '%s': %v", *req.StartDatetime, err)
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation,
+				fmt.Sprintf("无效的开始日期格式: %s. 支持格式: 2006-01-02, 2006-01-02T15:04:05Z, 2006-01-02 15:04:05", *req.StartDatetime), nil))
+			return
 		}
+		task.StartDatetime = &parsed
 	} else {
 		task.StartDatetime = nil
 	}
 
-	// Parse and update due datetime
+	// Parse and update due datetime with improved flexible parsing
 	if req.DueDatetime != nil && *req.DueDatetime != "" {
-		if parsed, err := time.Parse("2006-01-02T15:04:05Z", *req.DueDatetime); err == nil {
-			task.DueDatetime = &parsed
-		} else if parsed, err := time.Parse("2006-01-02", *req.DueDatetime); err == nil {
-			task.DueDatetime = &parsed
+		parsed, err := parseDateTimeFlexible(*req.DueDatetime)
+		if err != nil {
+			log.Printf("[UpdateTask] Failed to parse due_datetime '%s': %v", *req.DueDatetime, err)
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation,
+				fmt.Sprintf("无效的截止时间格式: %s. 支持格式: 2006-01-02, 2006-01-02T15:04:05Z, 2006-01-02 15:04:05", *req.DueDatetime), nil))
+			return
 		}
+		task.DueDatetime = &parsed
 	} else {
 		task.DueDatetime = nil
 	}
@@ -830,12 +959,28 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 
 	// Convert custom fields to JSON
 	if req.CustomFields != nil {
-		if customFieldsJSON, err := json.Marshal(req.CustomFields); err == nil {
-			var customFields models.CustomFields
-			if err := json.Unmarshal(customFieldsJSON, &customFields); err == nil {
-				task.CustomFields = customFields
-			}
+		customFieldsJSON, err := json.Marshal(req.CustomFields)
+		if err != nil {
+			log.Printf("[UpdateTask] Error marshaling custom fields for task %d: %v", taskID, err)
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+				models.ErrCodeValidation,
+				"自定义字段格式错误: 无法序列化",
+				nil,
+			))
+			return
 		}
+
+		var customFields models.CustomFields
+		if err := json.Unmarshal(customFieldsJSON, &customFields); err != nil {
+			log.Printf("[UpdateTask] Error unmarshaling custom fields for task %d: %v", taskID, err)
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+				models.ErrCodeValidation,
+				fmt.Sprintf("自定义字段格式错误: %v", err),
+				nil,
+			))
+			return
+		}
+		task.CustomFields = customFields
 	}
 
 	updatedTask, err := h.db.Tasks().Update(c.Request.Context(), task)
@@ -846,13 +991,23 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	}
 
 	// 智能缓存失效：任务更新后自动清理相关AI缓存
+	// Using a background goroutine with proper error handling and timeout
 	if h.aiCacheService != nil {
 		go func() {
-			ctx := context.Background()
+			// Create a new context with timeout for the async operation
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			
+			// Add structured logging with timestamp
+			start := time.Now()
+			log.Printf("[AsyncTask][UpdateTask][Start] Invalidating cache for task_id=%d", updatedTask.ID)
+			
 			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, updatedTask.ID); err != nil {
-				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for task %d: %v", updatedTask.ID, err)
+				log.Printf("[AsyncTask][UpdateTask][Error] Failed to invalidate cache: task_id=%d, duration=%v, error=%v",
+					updatedTask.ID, time.Since(start), err)
 			} else {
-				log.Printf("[CACHE_INVALIDATION] Successfully invalidated AI cache for task %d", updatedTask.ID)
+				log.Printf("[AsyncTask][UpdateTask][Success] Cache invalidated: task_id=%d, duration=%v",
+					updatedTask.ID, time.Since(start))
 			}
 		}()
 	}
@@ -1889,6 +2044,26 @@ func (h *TaskHandler) ReorderTaskById(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务重排序成功"))
 }
 
+// parseDateTimeFlexible parses datetime strings in multiple formats
+func parseDateTimeFlexible(dateStr string) (time.Time, error) {
+	// Try multiple datetime formats
+	formats := []string{
+		"2006-01-02T15:04:05Z",     // ISO 8601 UTC
+		"2006-01-02T15:04:05Z07:00", // ISO 8601 with timezone
+		"2006-01-02 15:04:05",      // Date time
+		"2006-01-02",               // Date only
+		time.RFC3339,               // RFC3339
+	}
+	
+	for _, format := range formats {
+		if parsed, err := time.Parse(format, dateStr); err == nil {
+			return parsed, nil
+		}
+	}
+	
+	return time.Time{}, fmt.Errorf("unable to parse date time: %s", dateStr)
+}
+
 // getUserCompanyID 获取用户关联的企业ID
 func (h *TaskHandler) getUserCompanyID(userID uint, role string) (uint, error) {
 	if role == "company_admin" {
@@ -2256,4 +2431,83 @@ func (h *TaskHandler) BulkUnarchiveTasks(c *gin.Context) {
 	}
 
 	c.JSON(statusCode, models.NewSuccessResponse(responseData, message))
+}
+
+// CheckTaskTitleUnique godoc
+// @Summary		Check if task title is unique
+// @Description	Check if a task title is unique within a project (for real-time validation)
+// @Tags			Tasks
+// @Accept			json
+// @Produce		json
+// @Security		BearerAuth
+// @Param			id			path		int		true	"Project ID"
+// @Param			title		query		string	true	"Task title to check"
+// @Param			exclude_id	query		int		false	"Task ID to exclude from check (for edit mode)"
+// @Success		200			{object}	models.SuccessResponse	"Title uniqueness check result"
+// @Failure		400			{object}	models.ErrorResponse	"Bad request"
+// @Failure		401			{object}	models.ErrorResponse	"Unauthorized"
+// @Failure		500			{object}	models.ErrorResponse	"Internal server error"
+// @Router			/projects/{id}/tasks/check-title [get]
+func (h *TaskHandler) CheckTaskTitleUnique(c *gin.Context) {
+	// Parse project ID
+	projectID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.ErrCodeValidation,
+			"无效的项目ID",
+			nil,
+		))
+		return
+	}
+
+	// Get title from query parameter
+	title := c.Query("title")
+	if title == "" {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.ErrCodeValidation,
+			"请提供任务标题",
+			nil,
+		))
+		return
+	}
+
+	// Get optional exclude_id (for edit mode)
+	excludeID := 0
+	if excludeIDStr := c.Query("exclude_id"); excludeIDStr != "" {
+		excludeID, err = strconv.Atoi(excludeIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+				models.ErrCodeValidation,
+				"无效的exclude_id参数",
+				nil,
+			))
+			return
+		}
+	}
+
+	// Check title uniqueness
+	ctx := c.Request.Context()
+	isUnique, conflictTaskID, err := h.db.Tasks().CheckTitleUnique(ctx, projectID, title, excludeID)
+	if err != nil {
+		log.Printf("[CheckTaskTitleUnique] Error checking title uniqueness: %v", err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.ErrCodeInternal,
+			"检查标题唯一性失败",
+			nil,
+		))
+		return
+	}
+
+	responseData := map[string]interface{}{
+		"is_unique": isUnique,
+		"title":     title,
+	}
+
+	message := "标题可用"
+	if !isUnique && conflictTaskID != nil {
+		responseData["conflict_task_id"] = *conflictTaskID
+		message = fmt.Sprintf("标题 \"%s\" 已被任务 #%d 使用", title, *conflictTaskID)
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, message))
 }

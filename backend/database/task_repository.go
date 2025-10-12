@@ -45,9 +45,14 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 		return nil, fmt.Errorf("任务标题重复：'%s' 已存在于当前项目中（任务ID: %d）。请修改任务标题后重试，或者查看已存在的任务是否可以复用", task.Title, existingTaskID)
 	}
 
-	customFieldsJSON, err := json.Marshal(task.CustomFields)
+	// Use CustomFields.Value() method for consistent serialization
+	customFieldsValue, err := task.CustomFields.Value()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal custom fields: %w", err)
+	}
+	customFieldsJSON, ok := customFieldsValue.([]byte)
+	if !ok && customFieldsValue != nil {
+		return nil, fmt.Errorf("custom fields value is not []byte")
 	}
 
 	query := `
@@ -799,9 +804,14 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 
 // Update updates a task
 func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) (*models.Task, error) {
-	customFieldsJSON, err := json.Marshal(task.CustomFields)
+	// Use CustomFields.Value() method for consistent serialization
+	customFieldsValue, err := task.CustomFields.Value()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal custom fields: %w", err)
+	}
+	customFieldsJSON, ok := customFieldsValue.([]byte)
+	if !ok && customFieldsValue != nil {
+		return nil, fmt.Errorf("custom fields value is not []byte")
 	}
 
 	query := `
@@ -1253,9 +1263,9 @@ func (r *PostgresTaskRepository) CheckCircularDependency(ctx context.Context, ta
 		WITH RECURSIVE task_hierarchy AS (
 			-- Start with the task we want to check
 			SELECT id, parent_id FROM tasks WHERE id = $1 AND deleted_at IS NULL
-			
+
 			UNION ALL
-			
+
 			-- Recursively find all descendants
 			SELECT t.id, t.parent_id FROM tasks t
 			INNER JOIN task_hierarchy th ON t.parent_id = th.id
@@ -1271,4 +1281,42 @@ func (r *PostgresTaskRepository) CheckCircularDependency(ctx context.Context, ta
 	}
 
 	return hasCircularDependency, nil
+}
+
+// CheckTitleUnique checks if a task title is unique within a project
+// Returns: (isUnique, conflictTaskID, error)
+// - excludeTaskID: task ID to exclude from the check (used when editing existing tasks, pass 0 to check all tasks)
+func (r *PostgresTaskRepository) CheckTitleUnique(ctx context.Context, projectID int, title string, excludeTaskID int) (bool, *int, error) {
+	query := `
+		SELECT id
+		FROM tasks
+		WHERE project_id = $1
+		  AND title = $2
+		  AND deleted_at IS NULL`
+
+	args := []interface{}{projectID, title}
+
+	// If editing an existing task, exclude it from the check
+	if excludeTaskID > 0 {
+		query += ` AND id != $3`
+		args = append(args, excludeTaskID)
+	}
+
+	query += ` LIMIT 1`
+
+	exec := r.getExecer()
+	var conflictTaskID int
+	err := exec.QueryRowContext(ctx, query, args...).Scan(&conflictTaskID)
+
+	if err == sql.ErrNoRows {
+		// No conflict found, title is unique
+		return true, nil, nil
+	}
+
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to check title uniqueness: %w", err)
+	}
+
+	// Conflict found
+	return false, &conflictTaskID, nil
 }

@@ -54,18 +54,10 @@ func (pdb *PostgresDB) QueryRow(query string, args ...interface{}) *sql.Row {
 	return pdb.db.QueryRow(query, args...)
 }
 
-// NewPostgresDB creates a new PostgreSQL database connection
+// NewPostgresDB creates a new PostgreSQL database connection with default settings
 func NewPostgresDB(dsn string) (*PostgresDB, error) {
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
-
-	return &PostgresDB{db: db}, nil
+	// Use NewPostgresDBWithConfig with default values for better connection management
+	return NewPostgresDBWithConfig(dsn, 25, 5, 5*time.Minute)
 }
 
 // NewPostgresDBWithConfig creates a new PostgreSQL database connection with configuration
@@ -75,12 +67,28 @@ func NewPostgresDBWithConfig(dsn string, maxOpen, maxIdle int, maxLifetime time.
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Set connection pool settings
+	// Set connection pool settings with reasonable defaults
+	if maxOpen <= 0 {
+		maxOpen = 25 // Default max open connections
+	}
+	if maxIdle <= 0 {
+		maxIdle = 5 // Default max idle connections
+	}
+	if maxLifetime <= 0 {
+		maxLifetime = 5 * time.Minute // Default connection lifetime
+	}
+	
 	db.SetMaxOpenConns(maxOpen)
 	db.SetMaxIdleConns(maxIdle)
 	db.SetConnMaxLifetime(maxLifetime)
+	// Set maximum idle time for connections
+	db.SetConnMaxIdleTime(1 * time.Minute)
 
-	if err := db.Ping(); err != nil {
+	// Verify database connectivity with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	if err := db.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
@@ -125,6 +133,34 @@ func (pdb *PostgresDB) Permissions() PermissionRepository {
 // DB returns the underlying *sql.DB instance
 func (pdb *PostgresDB) DB() *sql.DB {
 	return pdb.db
+}
+
+// HealthCheck performs a database health check
+func (pdb *PostgresDB) HealthCheck(ctx context.Context) error {
+	// Create context with timeout if not provided
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+	}
+	
+	// Ping database to check connectivity
+	if err := pdb.db.PingContext(ctx); err != nil {
+		return fmt.Errorf("database ping failed: %w", err)
+	}
+	
+	// Simple query to verify database is operational
+	var result int
+	if err := pdb.db.QueryRowContext(ctx, "SELECT 1").Scan(&result); err != nil {
+		return fmt.Errorf("database query failed: %w", err)
+	}
+	
+	return nil
+}
+
+// GetStats returns database connection pool statistics
+func (pdb *PostgresDB) GetStats() sql.DBStats {
+	return pdb.db.Stats()
 }
 
 // System returns the system repository
