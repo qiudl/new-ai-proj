@@ -22,7 +22,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import com.aiproj.mobile.data.repository.AttachmentRepository
-import com.aiproj.mobile.data.repository.CommentRepository
 import com.aiproj.mobile.data.repository.TaskRepository
 import com.aiproj.mobile.data.repository.TimeLogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,12 +43,13 @@ import javax.inject.Inject
  * - 任务总览统计数据计算
  * - 时间范围筛选
  * - 任务状态变更操作
+ * - 评论管理（创建、删除、分页加载）with 乐观更新
  *
- * @property taskRepository 任务数据仓库
+ * @property taskRepository 任务数据仓库（包含评论方法）
  * @property timeLogRepository 时间日志数据仓库
  * @property attachmentRepository 附件数据仓库
- * @property commentRepository 评论数据仓库
  * @property documentRepository 文档数据仓库
+ * @property timerRepository 计时器数据仓库
  * @property savedStateHandle 用于获取导航参数
  *
  * @see TaskOverviewStats
@@ -60,7 +60,6 @@ class TaskDetailViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val timeLogRepository: TimeLogRepository,
     private val attachmentRepository: AttachmentRepository,
-    private val commentRepository: CommentRepository,
     private val documentRepository: com.aiproj.mobile.data.repository.DocumentRepository,
     private val timerRepository: com.aiproj.mobile.data.repository.TimerRepository,
     savedStateHandle: SavedStateHandle
@@ -109,7 +108,7 @@ class TaskDetailViewModel @Inject constructor(
                 val subtasksDeferred = async { taskRepository.getSubtasks(taskId).first() }
                 val timeLogsDeferred = async { timeLogRepository.getTaskTimeLogs(taskId) }
                 val attachmentsDeferred = async { attachmentRepository.getAttachments(taskId) }
-                val commentsDeferred = async { commentRepository.getComments(taskId) }
+                val commentsDeferred = async { taskRepository.getComments(taskId) }
                 val documentsDeferred = async { documentRepository.getDocuments(taskId) }
 
                 Log.d(TAG, "等待API响应...")
@@ -361,50 +360,122 @@ class TaskDetailViewModel @Inject constructor(
     }
 
     /**
-     * 添加评论
+     * 添加评论（带乐观更新）
      */
     fun addComment(content: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(error = null) }
+            Log.d(TAG, "添加评论 - taskId: $taskId, content: ${content.take(50)}...")
 
-            val result = commentRepository.addComment(
+            // 设置加载状态
+            _uiState.update { it.copy(isCommentLoading = true, error = null) }
+
+            val result = taskRepository.createComment(
                 taskId = taskId,
                 content = content
             )
 
-            result.onSuccess {
-                // 添加成功，刷新评论列表
-                loadTaskDetail()
+            result.onSuccess { newComment ->
+                Log.d(TAG, "✅ 评论添加成功 - commentId: ${newComment.id}")
+                // 乐观更新：立即添加到列表
+                _uiState.update {
+                    it.copy(
+                        comments = listOf(newComment) + it.comments,
+                        isCommentLoading = false,
+                        successMessage = "评论已发布"
+                    )
+                }
             }
 
             result.onFailure { error ->
+                Log.e(TAG, "❌ 添加评论失败: ${error.message}")
                 _uiState.update {
-                    it.copy(error = "发送评论失败: ${error.message}")
+                    it.copy(
+                        isCommentLoading = false,
+                        error = "发送评论失败: ${error.message}"
+                    )
                 }
             }
         }
     }
 
     /**
-     * 删除评论
+     * 删除评论（带乐观更新）
      */
     fun deleteComment(comment: Comment) {
         viewModelScope.launch {
-            _uiState.update { it.copy(error = null) }
+            Log.d(TAG, "删除评论 - commentId: ${comment.id}")
 
-            val result = commentRepository.deleteComment(
+            // 乐观更新：立即从列表移除
+            val originalComments = _uiState.value.comments
+            _uiState.update {
+                it.copy(
+                    comments = it.comments.filter { c -> c.id != comment.id },
+                    error = null
+                )
+            }
+
+            val result = taskRepository.deleteComment(
                 taskId = taskId,
                 commentId = comment.id
             )
 
             result.onSuccess {
-                // 删除成功，刷新评论列表
-                loadTaskDetail()
+                Log.d(TAG, "✅ 评论删除成功 - commentId: ${comment.id}")
+                _uiState.update {
+                    it.copy(successMessage = "评论已删除")
+                }
             }
 
             result.onFailure { error ->
+                Log.e(TAG, "❌ 删除评论失败: ${error.message}")
+                // 恢复原列表
                 _uiState.update {
-                    it.copy(error = "删除评论失败: ${error.message}")
+                    it.copy(
+                        comments = originalComments,
+                        error = "删除评论失败: ${error.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * 加载更多评论（分页）
+     */
+    fun loadMoreComments() {
+        viewModelScope.launch {
+            val currentPage = _uiState.value.commentsPage
+            val nextPage = currentPage + 1
+
+            Log.d(TAG, "加载更多评论 - page: $nextPage")
+
+            _uiState.update { it.copy(isLoadingMoreComments = true) }
+
+            val result = taskRepository.getComments(
+                taskId = taskId,
+                page = nextPage,
+                limit = 20
+            )
+
+            result.onSuccess { newComments ->
+                Log.d(TAG, "✅ 加载评论成功 - 共${newComments.size}条")
+                _uiState.update {
+                    it.copy(
+                        comments = it.comments + newComments,
+                        commentsPage = nextPage,
+                        hasMoreComments = newComments.size >= 20,
+                        isLoadingMoreComments = false
+                    )
+                }
+            }
+
+            result.onFailure { error ->
+                Log.e(TAG, "❌ 加载更多评论失败: ${error.message}")
+                _uiState.update {
+                    it.copy(
+                        isLoadingMoreComments = false,
+                        error = "加载评论失败: ${error.message}"
+                    )
                 }
             }
         }
@@ -691,6 +762,12 @@ data class TaskDetailUiState(
     val documents: List<com.aiproj.mobile.data.models.Document> = emptyList(),
     val error: String? = null,
     val successMessage: String? = null,
+
+    // 评论相关状态
+    val isCommentLoading: Boolean = false,
+    val isLoadingMoreComments: Boolean = false,
+    val commentsPage: Int = 1,
+    val hasMoreComments: Boolean = false,
 
     // 任务总览统计相关
     val overviewStats: TaskOverviewStats? = null,

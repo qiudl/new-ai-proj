@@ -66,7 +66,7 @@ fun CommentItem(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = comment.userName ?: "用户 #${comment.userId}",
+                        text = comment.user?.name ?: "用户 #${comment.userId}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )

@@ -1,6 +1,8 @@
 package com.aiproj.mobile.data.api
 
+import com.aiproj.mobile.data.models.AddCommentRequest
 import com.aiproj.mobile.data.models.Comment
+import com.aiproj.mobile.data.models.CommentListResponse
 import com.google.gson.annotations.SerializedName
 import retrofit2.Response
 import retrofit2.http.*
@@ -57,28 +59,3 @@ interface CommentApi {
         @Path("commentId") commentId: Int
     ): Response<Unit>
 }
-
-/**
- * 评论列表响应
- */
-data class CommentListResponse(
-    @SerializedName("comments")
-    val comments: List<Comment>,
-
-    @SerializedName("total")
-    val total: Int? = null,
-
-    @SerializedName("page")
-    val page: Int? = null,
-
-    @SerializedName("limit")
-    val limit: Int? = null
-)
-
-/**
- * 添加评论请求
- */
-data class AddCommentRequest(
-    @SerializedName("content")
-    val content: String
-)

@@ -1,7 +1,7 @@
 package com.aiproj.mobile.data.repository
 
-import com.aiproj.mobile.data.api.AddCommentRequest
 import com.aiproj.mobile.data.api.CommentApi
+import com.aiproj.mobile.data.models.AddCommentRequest
 import com.aiproj.mobile.data.models.Comment
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,7 +29,12 @@ class CommentRepository @Inject constructor(
             val response = commentApi.getComments(taskId, page, limit)
 
             if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!.comments)
+                val commentListResponse = response.body()!!
+                if (commentListResponse.success) {
+                    Result.success(commentListResponse.data.comments)
+                } else {
+                    Result.failure(Exception("获取评论失败"))
+                }
             } else {
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "获取评论失败")
