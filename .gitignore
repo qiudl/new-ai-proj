@@ -155,4 +155,4 @@ config/design/*.secrets.*
 CLAUDE.md
 ./claude/
 
-/backend/ai-project-backend
+/backend/ai-project-backend.worktree-config.json
