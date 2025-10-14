@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务编辑测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #1890ff;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+            font-family: inherit;
+        }
+        button {
+            background: #1890ff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #40a9ff;
+        }
+        button.secondary {
+            background: #52c41a;
+        }
+        button.danger {
+            background: #ff4d4f;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .result.success {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        .result.error {
+            background: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .info-box {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 任务编辑保存测试</h1>
+
+        <div class="info-box">
+            <strong>测试说明：</strong>
+            <p>这个测试页面用于诊断任务编辑页保存失败的问题。请先加载一个任务，然后修改字段，最后保存。</p>
+        </div>
+
+        <div class="form-group">
+            <label>API基础URL:</label>
+            <input type="text" id="apiUrl" value="http://localhost:8080/api/v1" />
+        </div>
+
+        <div class="form-group">
+            <label>JWT Token:</label>
+            <input type="text" id="token" placeholder="请输入JWT token" />
+        </div>
+
+        <div class="form-group">
+            <label>项目ID:</label>
+            <input type="number" id="projectId" value="1" />
+        </div>
+
+        <div class="form-group">
+            <label>任务ID:</label>
+            <input type="number" id="taskId" value="2314" />
+        </div>
+
+        <button onclick="loadTask()">1. 加载任务</button>
+        <button class="secondary" onclick="testSave()">2. 测试保存</button>
+        <button class="danger" onclick="clearResult()">清除结果</button>
+
+        <div id="taskForm" style="display: none; margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px;">
+            <h3>任务信息</h3>
+
+            <div class="form-group">
+                <label>标题 *:</label>
+                <input type="text" id="title" required />
+            </div>
+
+            <div class="form-group">
+                <label>描述:</label>
+                <textarea id="description"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>状态 *:</label>
+                <select id="status">
+                    <option value="todo">待开始</option>
+                    <option value="in_progress">进行中</option>
+                    <option value="completed">已完成</option>
+                    <option value="cancelled">已取消</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>优先级:</label>
+                <select id="priority">
+                    <option value="">无</option>
+                    <option value="low">低</option>
+                    <option value="medium">中</option>
+                    <option value="high">高</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>预估工时 (小时):</label>
+                <input type="number" id="estimated_hours" step="0.5" min="0" />
+            </div>
+        </div>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        let currentTask = null;
+
+        function getHeaders() {
+            const token = document.getElementById('token').value;
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        async function loadTask() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const projectId = document.getElementById('projectId').value;
+            const taskId = document.getElementById('taskId').value;
+
+            if (!document.getElementById('token').value) {
+                showResult('error', '请先输入JWT Token');
+                return;
+            }
+
+            const url = `${apiUrl}/projects/${projectId}/tasks/${taskId}`;
+            console.log('Loading task from:', url);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: getHeaders()
+                });
+
+                const data = await response.json();
+                console.log('Load response:', data);
+
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP ${response.status}`);
+                }
+
+                // 处理不同的响应格式
+                currentTask = data.data || data;
+
+                // 填充表单
+                document.getElementById('title').value = currentTask.title || '';
+                document.getElementById('description').value = currentTask.description || '';
+                document.getElementById('status').value = currentTask.status || 'todo';
+                document.getElementById('priority').value = currentTask.priority || currentTask.custom_fields?.priority || '';
+                document.getElementById('estimated_hours').value = currentTask.estimated_hours || currentTask.custom_fields?.estimated_hours || '';
+
+                document.getElementById('taskForm').style.display = 'block';
+                showResult('success', '任务加载成功！\\n\\n' + JSON.stringify(currentTask, null, 2));
+            } catch (error) {
+                console.error('Load error:', error);
+                showResult('error', '加载任务失败：' + error.message);
+            }
+        }
+
+        async function testSave() {
+            if (!currentTask) {
+                showResult('error', '请先加载任务');
+                return;
+            }
+
+            const apiUrl = document.getElementById('apiUrl').value;
+            const projectId = document.getElementById('projectId').value;
+            const taskId = document.getElementById('taskId').value;
+
+            // 构造更新数据 - 模拟前端的逻辑
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const status = document.getElementById('status').value;
+            const priority = document.getElementById('priority').value;
+            const estimated_hours = document.getElementById('estimated_hours').value;
+
+            const updateData = {
+                title: title,
+                description: description || '',
+                status: status
+            };
+
+            // 只在有值时才添加这些字段
+            if (priority && ['low', 'medium', 'high'].includes(priority)) {
+                updateData.priority = priority;
+            }
+
+            if (estimated_hours !== null && estimated_hours !== '' && !isNaN(Number(estimated_hours))) {
+                updateData.estimated_hours = Number(estimated_hours);
+            }
+
+            // 保留原有的 custom_fields
+            updateData.custom_fields = currentTask.custom_fields || {};
+
+            const url = `${apiUrl}/projects/${projectId}/tasks/${taskId}`;
+            console.log('Saving to:', url);
+            console.log('Update data:', updateData);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: getHeaders(),
+                    body: JSON.stringify(updateData)
+                });
+
+                const data = await response.json();
+                console.log('Save response:', data);
+
+                if (!response.ok) {
+                    throw new Error(JSON.stringify(data, null, 2));
+                }
+
+                showResult('success', '保存成功！\\n\\nRequest:\\n' + JSON.stringify(updateData, null, 2) + '\\n\\nResponse:\\n' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                console.error('Save error:', error);
+                showResult('error', '保存失败：\\n\\n' + error.message);
+            }
+        }
+
+        function showResult(type, message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `<strong>${type === 'success' ? '✅ 成功' : '❌ 错误'}:</strong><pre>${message}</pre>`;
+            resultDiv.style.display = 'block';
+        }
+
+        function clearResult() {
+            document.getElementById('result').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

@@ -47,26 +47,30 @@ func (g *TemplateGenerator) generateBugReport(ctx models.TemplateContext) (strin
 	title := getOrDefault(ctx.Title, "Bug报告")
 	requirements := getOrDefault(ctx.Requirements, "待补充")
 
+	// 智能解析requirements生成更详细的内容
+	reproduceSteps := g.extractReproduceSteps(requirements)
+	expectedBehavior := g.extractExpectedBehavior(requirements)
+	actualBehavior := g.extractActualBehavior(requirements)
+
+	// 根据title推断相关信息
+	environmentHints := g.inferEnvironmentInfo(title)
+
 	content := fmt.Sprintf(`# %s
 
 ## 问题描述
 %s
 
 ## 复现步骤
-1. 打开应用
-2. 执行操作...
-3. 观察结果
+%s
 
 ## 预期行为
-描述应该发生的正确行为
+%s
 
 ## 实际行为
-描述实际观察到的错误行为
+%s
 
 ## 环境信息
-- 操作系统:
-- 浏览器/版本:
-- 应用版本:
+%s
 
 ## 截图/日志
 如有相关截图或日志，请在此处添加
@@ -85,6 +89,10 @@ func (g *TemplateGenerator) generateBugReport(ctx models.TemplateContext) (strin
 `,
 		title,
 		requirements,
+		reproduceSteps,
+		expectedBehavior,
+		actualBehavior,
+		environmentHints,
 		getOrDefault(ctx.Priority, "medium"),
 		getOrDefault(ctx.Assignee, "待分配"),
 		getOrDefault(ctx.Deadline, "待定"))
@@ -96,6 +104,188 @@ func (g *TemplateGenerator) generateBugReport(ctx models.TemplateContext) (strin
 	}
 
 	return content, metadata, nil
+}
+
+// extractReproduceSteps 从requirements中提取复现步骤
+func (g *TemplateGenerator) extractReproduceSteps(requirements string) string {
+	if requirements == "" || requirements == "待补充" {
+		return `1. 打开应用
+2. 执行操作...
+3. 观察结果`
+	}
+
+	// 查找步骤相关的关键词
+	lines := strings.Split(requirements, "\n")
+	var steps []string
+	foundSteps := false
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// 检测是否包含步骤相关的关键词
+		lowerLine := strings.ToLower(line)
+		if strings.Contains(lowerLine, "步骤") || strings.Contains(lowerLine, "复现") ||
+		   strings.Contains(lowerLine, "操作") || strings.Contains(lowerLine, "step") {
+			foundSteps = true
+			continue
+		}
+
+		// 如果找到了步骤部分，收集后续的步骤描述
+		if foundSteps {
+			// 如果遇到其他章节关键词，停止收集
+			if strings.Contains(lowerLine, "预期") || strings.Contains(lowerLine, "实际") ||
+			   strings.Contains(lowerLine, "环境") || strings.Contains(lowerLine, "expected") {
+				break
+			}
+
+			// 如果行以数字开头，认为是步骤
+			if len(line) > 0 && (line[0] >= '0' && line[0] <= '9' || line[0] == '-' || line[0] == '*') {
+				steps = append(steps, line)
+			} else if len(steps) > 0 {
+				// 如果已经收集了步骤，且当前行不是步骤格式，则停止
+				break
+			}
+		}
+	}
+
+	if len(steps) > 0 {
+		return strings.Join(steps, "\n")
+	}
+
+	// 如果没有找到明确的步骤，尝试从描述中智能生成
+	if strings.Contains(strings.ToLower(requirements), "登录") {
+		return `1. 打开应用登录页面
+2. 输入用户名和密码
+3. 点击登录按钮
+4. 观察登录结果`
+	} else if strings.Contains(strings.ToLower(requirements), "创建") ||
+	          strings.Contains(strings.ToLower(requirements), "新建") {
+		return `1. 打开应用
+2. 点击创建/新建按钮
+3. 填写相关信息
+4. 点击保存/提交
+5. 观察结果`
+	}
+
+	// 默认使用简化的步骤描述
+	return fmt.Sprintf(`1. 打开应用
+2. 尝试重现以下场景：%s
+3. 观察实际行为`, strings.Split(requirements, "\n")[0])
+}
+
+// extractExpectedBehavior 从requirements中提取预期行为
+func (g *TemplateGenerator) extractExpectedBehavior(requirements string) string {
+	if requirements == "" || requirements == "待补充" {
+		return "描述应该发生的正确行为"
+	}
+
+	lines := strings.Split(requirements, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		lowerLine := strings.ToLower(line)
+
+		// 查找包含"预期"、"应该"、"期望"等关键词的行
+		if strings.Contains(lowerLine, "预期") || strings.Contains(lowerLine, "应该") ||
+		   strings.Contains(lowerLine, "期望") || strings.Contains(lowerLine, "expected") ||
+		   strings.Contains(lowerLine, "should") {
+			// 移除"预期："等前缀
+			result := strings.TrimPrefix(line, "预期:")
+			result = strings.TrimPrefix(result, "预期行为:")
+			result = strings.TrimPrefix(result, "Expected:")
+			result = strings.TrimSpace(result)
+			if result != "" {
+				return result
+			}
+		}
+	}
+
+	// 如果找不到明确的预期行为，根据问题类型推断
+	if strings.Contains(strings.ToLower(requirements), "应该") {
+		// 提取"应该"后面的内容
+		parts := strings.Split(requirements, "应该")
+		if len(parts) > 1 {
+			expected := strings.TrimSpace(parts[1])
+			if expected != "" {
+				return "应该" + strings.Split(expected, "\n")[0]
+			}
+		}
+	}
+
+	return "系统应该正常工作，完成预期的功能操作"
+}
+
+// extractActualBehavior 从requirements中提取实际行为
+func (g *TemplateGenerator) extractActualBehavior(requirements string) string {
+	if requirements == "" || requirements == "待补充" {
+		return "描述实际观察到的错误行为"
+	}
+
+	lines := strings.Split(requirements, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		lowerLine := strings.ToLower(line)
+
+		// 查找包含"实际"、"但是"、"却"等关键词的行
+		if strings.Contains(lowerLine, "实际") || strings.Contains(lowerLine, "但是") ||
+		   strings.Contains(lowerLine, "却") || strings.Contains(lowerLine, "actual") ||
+		   strings.Contains(lowerLine, "however") || strings.Contains(lowerLine, "but") {
+			// 移除"实际："等前缀
+			result := strings.TrimPrefix(line, "实际:")
+			result = strings.TrimPrefix(result, "实际行为:")
+			result = strings.TrimPrefix(result, "Actual:")
+			result = strings.TrimSpace(result)
+			if result != "" {
+				return result
+			}
+		}
+	}
+
+	// 如果找不到明确的实际行为，使用requirements的主要描述
+	// 获取第一句话作为实际行为描述
+	firstLine := strings.Split(requirements, "\n")[0]
+	if len(firstLine) > 10 {
+		return firstLine
+	}
+
+	return "系统出现异常行为，未能正确完成预期功能"
+}
+
+// inferEnvironmentInfo 根据title推断环境信息
+func (g *TemplateGenerator) inferEnvironmentInfo(title string) string {
+	lowerTitle := strings.ToLower(title)
+
+	envInfo := []string{}
+
+	// 根据title中的关键词推断相关环境
+	if strings.Contains(lowerTitle, "ios") || strings.Contains(lowerTitle, "iphone") {
+		envInfo = append(envInfo, "- 操作系统: iOS")
+		envInfo = append(envInfo, "- 设备型号: iPhone")
+	} else if strings.Contains(lowerTitle, "android") {
+		envInfo = append(envInfo, "- 操作系统: Android")
+		envInfo = append(envInfo, "- 设备型号: ")
+	} else if strings.Contains(lowerTitle, "web") || strings.Contains(lowerTitle, "浏览器") ||
+	          strings.Contains(lowerTitle, "chrome") || strings.Contains(lowerTitle, "safari") {
+		envInfo = append(envInfo, "- 操作系统: ")
+		envInfo = append(envInfo, "- 浏览器/版本: ")
+	} else {
+		envInfo = append(envInfo, "- 操作系统:")
+		envInfo = append(envInfo, "- 浏览器/版本:")
+	}
+
+	// 添加通用环境信息
+	envInfo = append(envInfo, "- 应用版本:")
+
+	// 如果title中提到后端或API，添加后端环境信息
+	if strings.Contains(lowerTitle, "api") || strings.Contains(lowerTitle, "后端") ||
+	   strings.Contains(lowerTitle, "backend") || strings.Contains(lowerTitle, "接口") {
+		envInfo = append(envInfo, "- 后端环境: 测试环境/生产环境")
+		envInfo = append(envInfo, "- API版本:")
+	}
+
+	return strings.Join(envInfo, "\n")
 }
 
 // generateFeatureSpec 生成功能规格说明
