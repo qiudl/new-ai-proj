@@ -54,6 +54,11 @@ type Application struct {
 	taskHierarchyHandler     *handlers.TaskHierarchyHandler     // Task hierarchy handler instance
 	reportHandler            *handlers.ReportHandler            // Report handler instance
 	testDataGeneratorService *services.TestDataGeneratorService // Test data generator service instance
+	worktreeHandler          *handlers.WorktreeHandler          // Worktree handler instance
+	worktreeCoordinatorHandler *handlers.WorktreeCoordinatorHandler // Worktree coordinator handler instance
+	conflictHandler          *handlers.ConflictHandler          // Conflict management handler instance (Phase 4)
+	mcpWorktreeHandler       *handlers.MCPWorktreeHandler       // MCP Worktree handler instance (Phase 5)
+	monitoringHandler        *handlers.WorktreeMonitoringHandler // Worktree monitoring handler instance (Phase 6)
 	mirrorWritable           bool
 }
 
@@ -199,6 +204,44 @@ func NewApplication() (*Application, error) {
 	// Initialize Task Handler (after cache service is ready for intelligent cache invalidation)
 	taskHandler := handlers.NewTaskHandler(db, aiCacheService, logger, validate)
 
+	// Initialize Worktree Service and Handler
+	worktreeBaseDir := "/var/ai-proj-worktrees" // Default location
+	if cfg.App.MirrorBasePath != "" {
+		worktreeBaseDir = filepath.Join(cfg.App.MirrorBasePath, "worktrees")
+	}
+	worktreeService := services.NewWorktreeService(db, worktreeBaseDir)
+	worktreeHandler := handlers.NewWorktreeHandler(worktreeService)
+
+	// Initialize Worktree Coordination Services (Phase 3)
+	workspaceCoordinator := services.NewAIWorkspaceCoordinator(db, worktreeService)
+	taskBindingCoordinator := services.NewTaskBindingCoordinator(db, worktreeService, workspaceCoordinator)
+	workspaceReclaimService := services.NewWorkspaceReclaimService(db, worktreeService, workspaceCoordinator)
+	worktreeCoordinatorHandler := handlers.NewWorktreeCoordinatorHandler(workspaceCoordinator, taskBindingCoordinator, workspaceReclaimService)
+
+	// Initialize Conflict Management Services (Phase 4)
+	gitOpsLayer := services.NewGitIntegrationLayer()
+	conflictDetectionEngine := services.NewConflictDetectionEngine(db, gitOpsLayer, worktreeService)
+	conflictMonitor := services.NewConflictMonitor(db, conflictDetectionEngine, worktreeService)
+	conflictResolutionService := services.NewConflictResolutionService(db, conflictDetectionEngine, worktreeService, taskBindingCoordinator)
+	conflictHandler := handlers.NewConflictHandler(conflictDetectionEngine, conflictMonitor, conflictResolutionService)
+
+	// Inject conflict detection engine into workspace coordinator
+	workspaceCoordinator.SetConflictEngine(conflictDetectionEngine)
+
+	// Initialize MCP Worktree Handler (Phase 5)
+	mcpWorktreeHandler := handlers.NewMCPWorktreeHandler(
+		worktreeService,
+		workspaceCoordinator,
+		taskBindingCoordinator,
+		conflictDetectionEngine,
+		conflictMonitor,
+		conflictResolutionService,
+	)
+
+	// Initialize Worktree Monitoring Service (Phase 6)
+	monitoringService := services.NewWorktreeMonitoringService(db, worktreeService, worktreeBaseDir)
+	monitoringHandler := handlers.NewWorktreeMonitoringHandler(monitoringService)
+
 	// Initialize WebSocket Hub (temporarily disabled)
 	// wsHub := ws.NewHub(logger)
 	// go wsHub.Run() // Start the hub in a goroutine
@@ -241,6 +284,11 @@ func NewApplication() (*Application, error) {
 		taskHierarchyHandler:     taskHierarchyHandler,
 		reportHandler:            reportHandler,
 		testDataGeneratorService: testDataGeneratorService,
+		worktreeHandler:          worktreeHandler,
+		worktreeCoordinatorHandler: worktreeCoordinatorHandler,
+		conflictHandler:          conflictHandler, // Phase 4
+		mcpWorktreeHandler:       mcpWorktreeHandler, // Phase 5
+		monitoringHandler:        monitoringHandler,  // Phase 6
 	}
 
 	// Perform startup permission/volume checks
@@ -765,6 +813,55 @@ func (app *Application) GetAIRateLimiter() interface{} {
 // GetTestDataGeneratorService returns the test data generator service
 func (app *Application) GetTestDataGeneratorService() interface{} {
 	return app.testDataGeneratorService
+}
+
+// GetRequirementHandler returns the requirement handler
+func (app *Application) GetRequirementHandler() *handlers.RequirementHandler {
+	return handlers.NewRequirementHandler(app.db, app.logger, app.validator)
+}
+
+// GetRequirementStatusHandler returns the requirement status handler with integrated permission service
+func (app *Application) GetRequirementStatusHandler() *handlers.RequirementStatusHandler {
+	// Get the underlying *sql.DB for RequirementPermissionService
+	sqlDB, ok := app.db.GetDB().(*sql.DB)
+	if !ok {
+		app.logger.Printf("Warning: RequirementStatusHandler requires *sql.DB but got %T", app.db.GetDB())
+		return nil
+	}
+
+	// Initialize PermissionService (required by RequirementPermissionService)
+	permissionService := services.NewPermissionService(sqlDB)
+
+	// Initialize RequirementPermissionService
+	reqPermService := services.NewRequirementPermissionService(permissionService, sqlDB)
+
+	// Create and return the status handler
+	return handlers.NewRequirementStatusHandler(app.db, reqPermService)
+}
+
+// GetWorktreeHandler returns the worktree handler
+func (app *Application) GetWorktreeHandler() *handlers.WorktreeHandler {
+	return app.worktreeHandler
+}
+
+// GetWorktreeCoordinatorHandler returns the worktree coordinator handler
+func (app *Application) GetWorktreeCoordinatorHandler() *handlers.WorktreeCoordinatorHandler {
+	return app.worktreeCoordinatorHandler
+}
+
+// GetConflictHandler returns the conflict management handler (Phase 4)
+func (app *Application) GetConflictHandler() *handlers.ConflictHandler {
+	return app.conflictHandler
+}
+
+// GetMCPWorktreeHandler returns the MCP Worktree handler (Phase 5)
+func (app *Application) GetMCPWorktreeHandler() *handlers.MCPWorktreeHandler {
+	return app.mcpWorktreeHandler
+}
+
+// GetMonitoringHandler returns the worktree monitoring handler (Phase 6)
+func (app *Application) GetMonitoringHandler() *handlers.WorktreeMonitoringHandler {
+	return app.monitoringHandler
 }
 
 // GetProgressPusher returns the progress pusher service

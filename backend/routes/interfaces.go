@@ -64,6 +64,7 @@ type ApplicationInterface interface {
 	GetTaskHandler() gin.HandlerFunc
 	UpdateTaskHandler() gin.HandlerFunc
 	DeleteTaskHandler() gin.HandlerFunc
+	CheckTaskTitleUniqueHandler() gin.HandlerFunc
 
 	// 任务移动与排序接口
 	MoveTaskHandler() gin.HandlerFunc
@@ -209,4 +210,21 @@ type ApplicationInterface interface {
 
 	// 测试数据生成服务
 	GetTestDataGeneratorService() interface{}
+
+	// 需求管理处理器
+	GetRequirementHandler() *handlers.RequirementHandler
+	GetRequirementStatusHandler() *handlers.RequirementStatusHandler
+
+	// Worktree管理处理器
+	GetWorktreeHandler() *handlers.WorktreeHandler
+	GetWorktreeCoordinatorHandler() *handlers.WorktreeCoordinatorHandler
+
+	// 冲突管理处理器 (Phase 4)
+	GetConflictHandler() *handlers.ConflictHandler
+
+	// MCP Worktree处理器 (Phase 5)
+	GetMCPWorktreeHandler() *handlers.MCPWorktreeHandler
+
+	// Worktree监控处理器 (Phase 6)
+	GetMonitoringHandler() *handlers.WorktreeMonitoringHandler
 }

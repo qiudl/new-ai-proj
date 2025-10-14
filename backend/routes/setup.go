@@ -97,6 +97,21 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册项目路由
 	RegisterProjectRoutes(authorized, app)
 
+	// 注册需求管理路由
+	RegisterRequirementRoutes(authorized, app)
+
+	// 注册Worktree管理路由
+	RegisterWorktreeRoutes(authorized, app)
+
+	// 注册Worktree协调路由（Phase 3: 智能分配、任务绑定、资源回收）
+	RegisterWorktreeCoordinatorRoutes(authorized, app)
+
+	// 注册冲突管理路由（Phase 4: 多层冲突检测与解决）
+	RegisterConflictRoutes(authorized, app)
+
+	// 注册Worktree监控路由（Phase 6: 系统监控、资源管理、健康检查）
+	RegisterMonitoringRoutes(authorized, app)
+
 	// 注册独立的任务路由
 	RegisterTaskRoutes(authorized, app)
 

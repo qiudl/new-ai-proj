@@ -179,6 +179,13 @@ func (app *Application) DeleteTaskHandler() gin.HandlerFunc {
 	return app.taskHandler.DeleteTask
 }
 
+func (app *Application) CheckTaskTitleUniqueHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.CheckTaskTitleUnique
+	}
+	return app.taskHandler.CheckTaskTitleUnique
+}
+
 func (app *Application) MoveTaskHandler() gin.HandlerFunc {
 	if app.handlers != nil && app.handlers.TaskHandler != nil {
 		return app.handlers.TaskHandler.MoveTask
