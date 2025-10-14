@@ -44,6 +44,7 @@ fun TaskListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
+    val taskIdSearchState by viewModel.taskIdSearchState.collectAsState()
 
     // 🆕 项目抽屉状态
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -215,6 +216,113 @@ fun TaskListScreen(
                     onQueryChange = { viewModel.searchTasks(it) },
                     modifier = Modifier.padding(16.dp)
                 )
+
+                // 任务ID搜索结果
+                when (val searchState = taskIdSearchState) {
+                    is TaskIdSearchState.Loading -> {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("正在查找任务...")
+                            }
+                        }
+                    }
+                    is TaskIdSearchState.Success -> {
+                        TaskIdSearchResultCard(
+                            task = searchState.task,
+                            onNavigateToDetail = { taskId ->
+                                onTaskClick(taskId)
+                                viewModel.clearTaskIdSearch()
+                            },
+                            onDismiss = { viewModel.clearTaskIdSearch() }
+                        )
+                    }
+                    is TaskIdSearchState.NotFound -> {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Error,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        "任务 #${searchState.taskId} 不存在",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                                IconButton(onClick = { viewModel.clearTaskIdSearch() }) {
+                                    Icon(Icons.Default.Close, contentDescription = "关闭")
+                                }
+                            }
+                        }
+                    }
+                    is TaskIdSearchState.Error -> {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Error,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        searchState.message,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                                IconButton(onClick = { viewModel.clearTaskIdSearch() }) {
+                                    Icon(Icons.Default.Close, contentDescription = "关闭")
+                                }
+                            }
+                        }
+                    }
+                    TaskIdSearchState.Idle -> {
+                        // 不显示任何内容
+                    }
+                }
 
                 // 🆕 项目筛选标签（当选中项目时显示）
                 if (filterState.selectedProjectId != null) {
@@ -731,6 +839,137 @@ fun getPriorityLabel(priority: TaskPriority): String = when (priority) {
     TaskPriority.HIGH -> "高"
     TaskPriority.MEDIUM -> "中"
     TaskPriority.LOW -> "低"
+}
+
+/**
+ * 任务ID搜索结果卡片
+ */
+@Composable
+fun TaskIdSearchResultCard(
+    task: Task,
+    onNavigateToDetail: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // 标题行
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "找到任务 #${task.id}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "关闭",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 任务标题
+            Text(
+                text = task.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+
+            // 任务描述（如果有）
+            task.description?.let { desc ->
+                if (desc.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = desc,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        maxLines = 2
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 状态和优先级
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TaskStatusChip(status = task.status)
+
+                task.priority?.let { priority ->
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = when (priority) {
+                            TaskPriority.HIGH -> Color(0xFFFFEBEE)
+                            TaskPriority.MEDIUM -> Color(0xFFFFF3E0)
+                            TaskPriority.LOW -> Color(0xFFF5F5F5)
+                        }
+                    ) {
+                        Text(
+                            text = getPriorityLabel(priority),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = when (priority) {
+                                TaskPriority.HIGH -> Color(0xFFC62828)
+                                TaskPriority.MEDIUM -> Color(0xFFE65100)
+                                TaskPriority.LOW -> Color(0xFF616161)
+                            },
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 跳转按钮
+            Button(
+                onClick = { onNavigateToDetail(task.id) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("跳转到任务详情")
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    Icons.Default.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
 }
 
 // TODO: SwipeToDismiss功能暂时移除，等待Material 3 API稳定后重新实现

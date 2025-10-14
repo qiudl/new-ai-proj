@@ -37,7 +37,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "0.0.1"
 
         testInstrumentationRunner = "com.aiproj.mobile.HiltTestRunner"
         vectorDrawables {
@@ -49,9 +49,9 @@ android {
 
     buildTypes {
         release {
-            // 启用代码混淆和资源压缩（安全审查要求）
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // 暂时禁用代码混淆和资源压缩以减少内存使用
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -50,6 +50,10 @@ class TaskListViewModel @Inject constructor(
     private val _projectsLoading = MutableStateFlow(false)
     val projectsLoading: StateFlow<Boolean> = _projectsLoading.asStateFlow()
 
+    // 任务ID搜索状态
+    private val _taskIdSearchState = MutableStateFlow<TaskIdSearchState>(TaskIdSearchState.Idle)
+    val taskIdSearchState: StateFlow<TaskIdSearchState> = _taskIdSearchState.asStateFlow()
+
     // Paging数据流
     val tasksPagingData: Flow<PagingData<Task>> = filterState
         .flatMapLatest { filter ->
@@ -73,7 +77,54 @@ class TaskListViewModel @Inject constructor(
      */
     fun searchTasks(query: String) {
         _filterState.update { it.copy(searchQuery = query) }
+
+        // 检查是否为纯数字（任务ID）
+        if (query.isNotBlank() && query.all { it.isDigit() }) {
+            checkTaskById(query.toIntOrNull())
+        } else {
+            clearTaskIdSearch()
+        }
         // flatMapLatest会自动触发新的Paging数据流
+    }
+
+    /**
+     * 按任务ID检查任务是否存在
+     */
+    fun checkTaskById(taskId: Int?) {
+        if (taskId == null) {
+            _taskIdSearchState.value = TaskIdSearchState.Idle
+            return
+        }
+
+        viewModelScope.launch {
+            _taskIdSearchState.value = TaskIdSearchState.Loading
+            try {
+                val result = taskRepository.getTaskById(taskId)
+                result.onSuccess { task ->
+                    _taskIdSearchState.value = TaskIdSearchState.Success(task)
+                }.onFailure { error ->
+                    if (error.message?.contains("404") == true ||
+                        error.message?.contains("不存在") == true) {
+                        _taskIdSearchState.value = TaskIdSearchState.NotFound(taskId)
+                    } else {
+                        _taskIdSearchState.value = TaskIdSearchState.Error(
+                            error.message ?: "查询失败"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _taskIdSearchState.value = TaskIdSearchState.Error(
+                    e.message ?: "查询失败"
+                )
+            }
+        }
+    }
+
+    /**
+     * 清除任务ID搜索状态
+     */
+    fun clearTaskIdSearch() {
+        _taskIdSearchState.value = TaskIdSearchState.Idle
     }
 
     /**
@@ -359,4 +410,15 @@ enum class SortOption(val label: String) {
     PRIORITY("优先级"),
     TITLE("标题"),
     STATUS("状态")
+}
+
+/**
+ * 任务ID搜索状态
+ */
+sealed class TaskIdSearchState {
+    object Idle : TaskIdSearchState()
+    object Loading : TaskIdSearchState()
+    data class Success(val task: Task) : TaskIdSearchState()
+    data class NotFound(val taskId: Int) : TaskIdSearchState()
+    data class Error(val message: String) : TaskIdSearchState()
 }
