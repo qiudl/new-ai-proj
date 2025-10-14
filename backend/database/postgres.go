@@ -249,6 +249,51 @@ func (pdb *PostgresDB) GoogleAuth() GoogleAuthRepository {
 	return NewGoogleAuthRepository(pdb.db)
 }
 
+// Requirements returns the requirement repository
+func (pdb *PostgresDB) Requirements() RequirementRepository {
+	return NewRequirementRepository(pdb.db)
+}
+
+// RequirementComments returns the requirement comment repository
+func (pdb *PostgresDB) RequirementComments() RequirementCommentRepository {
+	return NewRequirementCommentRepository(pdb.db)
+}
+
+// RequirementHistory returns the requirement history repository
+func (pdb *PostgresDB) RequirementHistory() RequirementHistoryRepository {
+	return NewRequirementHistoryRepository(pdb.db)
+}
+
+// WorktreeConfigs returns the worktree configuration repository
+func (pdb *PostgresDB) WorktreeConfigs() WorktreeConfigRepository {
+	return NewWorktreeConfigRepository(pdb.db)
+}
+
+// Worktrees returns the worktree repository
+func (pdb *PostgresDB) Worktrees() WorktreeRepository {
+	return NewWorktreeRepository(pdb.db)
+}
+
+// WorktreeTaskBindings returns the worktree task binding repository
+func (pdb *PostgresDB) WorktreeTaskBindings() WorktreeTaskBindingRepository {
+	return NewWorktreeTaskBindingRepository(pdb.db)
+}
+
+// AIWorkspaceAssignments returns the AI workspace assignment repository
+func (pdb *PostgresDB) AIWorkspaceAssignments() AIWorkspaceAssignmentRepository {
+	return NewAIWorkspaceAssignmentRepository(pdb.db)
+}
+
+// WorktreeConflicts returns the worktree conflict repository
+func (pdb *PostgresDB) WorktreeConflicts() WorktreeConflictRepository {
+	return NewWorktreeConflictRepository(pdb.db)
+}
+
+// WorktreeActivities returns the worktree activity repository
+func (pdb *PostgresDB) WorktreeActivities() WorktreeActivityRepository {
+	return NewWorktreeActivityRepository(pdb.db)
+}
+
 // GetDB returns the underlying database connection
 func (pdb *PostgresDB) GetDB() interface{} {
 	return pdb.db
@@ -464,6 +509,51 @@ func (ptx *PostgresTx) OKR() OKRRepository {
 // TimelineEvents returns the timeline events repository for transaction
 func (ptx *PostgresTx) TimelineEvents() TimelineEventsRepository {
 	return NewTimelineEventsRepository(ptx.tx)
+}
+
+// Requirements returns the requirement repository for transaction
+func (ptx *PostgresTx) Requirements() RequirementRepository {
+	return NewRequirementRepository(ptx.tx)
+}
+
+// RequirementComments returns the requirement comment repository for transaction
+func (ptx *PostgresTx) RequirementComments() RequirementCommentRepository {
+	return NewRequirementCommentRepository(ptx.tx)
+}
+
+// RequirementHistory returns the requirement history repository for transaction
+func (ptx *PostgresTx) RequirementHistory() RequirementHistoryRepository {
+	return NewRequirementHistoryRepository(ptx.tx)
+}
+
+// WorktreeConfigs returns the worktree configuration repository for transaction
+func (ptx *PostgresTx) WorktreeConfigs() WorktreeConfigRepository {
+	return NewWorktreeConfigRepository(ptx.tx)
+}
+
+// Worktrees returns the worktree repository for transaction
+func (ptx *PostgresTx) Worktrees() WorktreeRepository {
+	return NewWorktreeRepository(ptx.tx)
+}
+
+// WorktreeTaskBindings returns the worktree task binding repository for transaction
+func (ptx *PostgresTx) WorktreeTaskBindings() WorktreeTaskBindingRepository {
+	return NewWorktreeTaskBindingRepository(ptx.tx)
+}
+
+// AIWorkspaceAssignments returns the AI workspace assignment repository for transaction
+func (ptx *PostgresTx) AIWorkspaceAssignments() AIWorkspaceAssignmentRepository {
+	return NewAIWorkspaceAssignmentRepository(ptx.tx)
+}
+
+// WorktreeConflicts returns the worktree conflict repository for transaction
+func (ptx *PostgresTx) WorktreeConflicts() WorktreeConflictRepository {
+	return NewWorktreeConflictRepository(ptx.tx)
+}
+
+// WorktreeActivities returns the worktree activity repository for transaction
+func (ptx *PostgresTx) WorktreeActivities() WorktreeActivityRepository {
+	return NewWorktreeActivityRepository(ptx.tx)
 }
 
 // Commit commits the transaction

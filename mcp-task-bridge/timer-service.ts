@@ -27,10 +27,11 @@ export class TimerService extends BaseClient {
         data?: any;
       }>('POST', '/user/timer/start', payload);
 
-      // 兼容后端统一计时器返回格式：顶层即为结果字段，不一定包含 success/data 嵌套
-      const timerId = (response as any)?.timer_id;
-      const startedAt = (response as any)?.started_at;
-      const ok = (response as any)?.success === undefined ? (timerId !== undefined) : !!(response as any)?.success;
+      // 兼容后端统一计时器返回格式：可能是顶层字段或嵌套在data中
+      // 后端实际返回格式: { success: true, data: { id, task_id, ... }, message: "..." }
+      const timerId = (response as any)?.data?.id || (response as any)?.timer_id;
+      const startedAt = (response as any)?.data?.started_at || (response as any)?.started_at;
+      const ok = (response as any)?.success === true || (timerId !== undefined);
 
       if (ok && timerId !== undefined) {
         const timerData: TimerData = {

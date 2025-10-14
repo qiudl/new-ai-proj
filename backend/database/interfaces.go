@@ -105,6 +105,9 @@ type TaskRepository interface {
 	CreateTimelineEvent(ctx context.Context, event *models.TimelineEvent) error
 	GetTaskTimeline(ctx context.Context, taskID int, limit, offset int) ([]*models.TimelineEvent, int, error)
 	GetProjectTimeline(ctx context.Context, projectID int, limit, offset int) ([]*models.TimelineEvent, int, error)
+
+	// Title uniqueness check
+	CheckTitleUnique(ctx context.Context, projectID int, title string, excludeTaskID int) (bool, *int, error)
 }
 
 // CustomerRepository defines the interface for customer database operations
@@ -587,6 +590,15 @@ type DB interface {
 	TimelineEvents() TimelineEventsRepository // Task timeline events
 	OKR() OKRRepository              // OKR management
 	GoogleAuth() GoogleAuthRepository // Google Calendar integration
+	Requirements() RequirementRepository // Requirement management
+	RequirementComments() RequirementCommentRepository // Requirement comments
+	RequirementHistory() RequirementHistoryRepository // Requirement history/audit
+	WorktreeConfigs() WorktreeConfigRepository // Worktree configuration management
+	Worktrees() WorktreeRepository // Worktree management
+	WorktreeTaskBindings() WorktreeTaskBindingRepository // Worktree-task bindings
+	AIWorkspaceAssignments() AIWorkspaceAssignmentRepository // AI workspace assignments
+	WorktreeConflicts() WorktreeConflictRepository // Worktree conflict management
+	WorktreeActivities() WorktreeActivityRepository // Worktree activity logs
 	GetDB() interface{}               // Access to underlying database connection
 	Close() error
 	Ping() error
@@ -621,6 +633,15 @@ type Tx interface {
 	// DocumentRegistry() DocumentRegistryRepository // Disabled - conflicting models
 	Timer() TimerRepository
 	UserTimer() UserTimerRepository
+	Requirements() RequirementRepository
+	RequirementComments() RequirementCommentRepository
+	RequirementHistory() RequirementHistoryRepository
+	WorktreeConfigs() WorktreeConfigRepository
+	Worktrees() WorktreeRepository
+	WorktreeTaskBindings() WorktreeTaskBindingRepository
+	AIWorkspaceAssignments() AIWorkspaceAssignmentRepository
+	WorktreeConflicts() WorktreeConflictRepository
+	WorktreeActivities() WorktreeActivityRepository
 
 	// Minimal helpers in transaction
 	Exec(query string, args ...interface{}) (sql.Result, error)
@@ -629,6 +650,156 @@ type Tx interface {
 
 	Commit() error
 	Rollback() error
+}
+
+// WorktreeConfigRepository defines the interface for worktree configuration operations
+type WorktreeConfigRepository interface {
+	// Basic CRUD operations
+	Create(ctx context.Context, config *models.WorktreeConfig) (*models.WorktreeConfig, error)
+	GetByID(ctx context.Context, id int) (*models.WorktreeConfig, error)
+	GetByProjectID(ctx context.Context, projectID int) (*models.WorktreeConfig, error)
+	Update(ctx context.Context, config *models.WorktreeConfig) (*models.WorktreeConfig, error)
+	Delete(ctx context.Context, id int) error
+
+	// Configuration management
+	UpdateAIExpert(ctx context.Context, projectID int, expertID string, expertConfig map[string]interface{}) error
+	RemoveAIExpert(ctx context.Context, projectID int, expertID string) error
+	GetAIExpertConfig(ctx context.Context, projectID int, expertID string) (map[string]interface{}, error)
+}
+
+// WorktreeRepository defines the interface for worktree operations
+type WorktreeRepository interface {
+	// Basic CRUD operations
+	Create(ctx context.Context, worktree *models.Worktree) (*models.Worktree, error)
+	GetByID(ctx context.Context, id int) (*models.Worktree, error)
+	GetByPath(ctx context.Context, path string) (*models.Worktree, error)
+	GetByExpertID(ctx context.Context, projectID int, expertID string) (*models.Worktree, error)
+	Update(ctx context.Context, worktree *models.Worktree) (*models.Worktree, error)
+	Delete(ctx context.Context, id int) error
+	SoftDelete(ctx context.Context, id int) error
+
+	// Listing and querying
+	List(ctx context.Context, opts *models.WorktreeListOptions) ([]*models.Worktree, int, error)
+	GetByProjectID(ctx context.Context, projectID int, limit, offset int) ([]*models.Worktree, int, error)
+	GetByStatus(ctx context.Context, status string, limit, offset int) ([]*models.Worktree, int, error)
+	GetActiveWorktrees(ctx context.Context, projectID int) ([]*models.Worktree, error)
+
+	// Status management
+	UpdateStatus(ctx context.Context, id int, status string) error
+	LockWorktree(ctx context.Context, id int, reason string) error
+	UnlockWorktree(ctx context.Context, id int) error
+
+	// Git status tracking
+	UpdateGitStatus(ctx context.Context, id int, status *models.WorktreeGitStatus) error
+	GetWorktreesNeedingSync(ctx context.Context, projectID int) ([]*models.Worktree, error)
+
+	// AI and task assignment
+	AssignAI(ctx context.Context, id int, aiID int) error
+	UnassignAI(ctx context.Context, id int) error
+	AssignTask(ctx context.Context, id int, taskID int) error
+	UnassignTask(ctx context.Context, id int) error
+
+	// Monitoring and statistics
+	UpdateDiskUsage(ctx context.Context, id int, diskUsageMB int64) error
+	UpdateLastActive(ctx context.Context, id int) error
+	GetWorktreeStats(ctx context.Context, projectID int) (*models.WorktreeStatsResponse, error)
+}
+
+// WorktreeTaskBindingRepository defines the interface for worktree-task binding operations
+type WorktreeTaskBindingRepository interface {
+	// Basic CRUD operations
+	Create(ctx context.Context, binding *models.WorktreeTaskBinding) (*models.WorktreeTaskBinding, error)
+	GetByID(ctx context.Context, id int) (*models.WorktreeTaskBinding, error)
+	Delete(ctx context.Context, id int) error
+
+	// Query operations
+	GetByWorktreeID(ctx context.Context, worktreeID int) ([]*models.WorktreeTaskBinding, error)
+	GetByTaskID(ctx context.Context, taskID int) ([]*models.WorktreeTaskBinding, error)
+	GetPrimaryWorktree(ctx context.Context, taskID int) (*models.WorktreeTaskBinding, error)
+	GetSecondaryWorktrees(ctx context.Context, taskID int) ([]*models.WorktreeTaskBinding, error)
+
+	// Binding management
+	SetPrimaryWorktree(ctx context.Context, taskID int, worktreeID int) error
+	AddSecondaryWorktree(ctx context.Context, taskID int, worktreeID int) error
+	RemoveBinding(ctx context.Context, taskID int, worktreeID int) error
+	RemoveAllBindings(ctx context.Context, taskID int) error
+
+	// Statistics
+	GetTaskWorktreeCount(ctx context.Context, taskID int) (int, error)
+	GetWorktreeTaskCount(ctx context.Context, worktreeID int) (int, error)
+}
+
+// AIWorkspaceAssignmentRepository defines the interface for AI workspace assignment operations
+type AIWorkspaceAssignmentRepository interface {
+	// Basic CRUD operations
+	Create(ctx context.Context, assignment *models.AIWorkspaceAssignment) (*models.AIWorkspaceAssignment, error)
+	GetByID(ctx context.Context, id int) (*models.AIWorkspaceAssignment, error)
+	Update(ctx context.Context, assignment *models.AIWorkspaceAssignment) (*models.AIWorkspaceAssignment, error)
+	Delete(ctx context.Context, id int) error
+
+	// Query operations
+	GetByAIID(ctx context.Context, aiID int) ([]*models.AIWorkspaceAssignment, error)
+	GetByWorktreeID(ctx context.Context, worktreeID int) ([]*models.AIWorkspaceAssignment, error)
+	GetActiveAssignment(ctx context.Context, aiID int) (*models.AIWorkspaceAssignment, error)
+	GetCurrentAssignmentForWorktree(ctx context.Context, worktreeID int) (*models.AIWorkspaceAssignment, error)
+
+	// Assignment management
+	StartAssignment(ctx context.Context, aiID int, worktreeID int, taskID *int) (*models.AIWorkspaceAssignment, error)
+	EndAssignment(ctx context.Context, id int) error
+	SwitchWorktree(ctx context.Context, aiID int, newWorktreeID int) (*models.AIWorkspaceAssignment, error)
+
+	// Statistics and monitoring
+	GetActiveAICount(ctx context.Context, projectID int) (int, error)
+	GetAssignmentHistory(ctx context.Context, aiID int, limit, offset int) ([]*models.AIWorkspaceAssignment, int, error)
+	GetWorktreeUsageStats(ctx context.Context, worktreeID int) (*models.WorktreeUsageStats, error)
+}
+
+// WorktreeConflictRepository defines the interface for worktree conflict operations
+type WorktreeConflictRepository interface {
+	// Basic CRUD operations
+	Create(ctx context.Context, conflict *models.WorktreeConflict) (*models.WorktreeConflict, error)
+	GetByID(ctx context.Context, id int) (*models.WorktreeConflict, error)
+	Update(ctx context.Context, conflict *models.WorktreeConflict) (*models.WorktreeConflict, error)
+	Delete(ctx context.Context, id int) error
+
+	// Query operations
+	GetByWorktreeID(ctx context.Context, worktreeID int) ([]*models.WorktreeConflict, error)
+	GetByTaskID(ctx context.Context, taskID int) ([]*models.WorktreeConflict, error)
+	GetPendingConflicts(ctx context.Context, projectID int) ([]*models.WorktreeConflict, error)
+	GetResolvedConflicts(ctx context.Context, projectID int, limit, offset int) ([]*models.WorktreeConflict, int, error)
+
+	// Conflict resolution
+	MarkAsResolved(ctx context.Context, id int, resolvedBy int, resolution string) error
+	MarkAsIgnored(ctx context.Context, id int, ignoredBy int, reason string) error
+	ReopenConflict(ctx context.Context, id int) error
+
+	// Statistics
+	GetConflictStats(ctx context.Context, projectID int) (*models.WorktreeConflictStats, error)
+	GetConflictsByType(ctx context.Context, projectID int, conflictType string) ([]*models.WorktreeConflict, error)
+}
+
+// WorktreeActivityRepository defines the interface for worktree activity log operations
+type WorktreeActivityRepository interface {
+	// Basic CRUD operations
+	Create(ctx context.Context, activity *models.WorktreeActivity) (*models.WorktreeActivity, error)
+	GetByID(ctx context.Context, id int) (*models.WorktreeActivity, error)
+
+	// Query operations
+	GetByWorktreeID(ctx context.Context, worktreeID int, limit, offset int) ([]*models.WorktreeActivity, int, error)
+	GetByProjectID(ctx context.Context, projectID int, limit, offset int) ([]*models.WorktreeActivity, int, error)
+	GetByAIID(ctx context.Context, aiID int, limit, offset int) ([]*models.WorktreeActivity, int, error)
+	GetByActivityType(ctx context.Context, activityType string, limit, offset int) ([]*models.WorktreeActivity, int, error)
+
+	// Filtering and search
+	GetActivities(ctx context.Context, filter *models.WorktreeActivityFilter) ([]*models.WorktreeActivity, int, error)
+	GetRecentActivities(ctx context.Context, projectID int, limit int) ([]*models.WorktreeActivity, error)
+
+	// Statistics and analytics
+	GetActivityStats(ctx context.Context, projectID int, startDate, endDate *string) (*models.WorktreeActivityStats, error)
+	GetAIActivitySummary(ctx context.Context, aiID int, startDate, endDate *string) (*models.AIActivitySummary, error)
+
+	// Cleanup
+	DeleteOldActivities(ctx context.Context, beforeDate string) (int, error)
 }
 
 // Repository defines the main repository interface that combines all repositories

@@ -82,11 +82,11 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	mcp.POST("/create-and-attach-work-note", createAndAttachWorkNote(workNoteHandler))
 	mcp.POST("/create-batch-documents", createBatchDocuments(documentHandler))
 	mcp.POST("/create-task-docs", createTaskDocs(documentHandler))
-	mcp.GET("/task-document/:taskId", getTaskDocument(documentHandler))
+	mcp.GET("/task-document/:taskId", getTaskDocument(documentHandler, app))
 	mcp.PUT("/task-document/:taskId", updateTaskDocument(documentHandler, app))    // 更新任务文档
 	mcp.PATCH("/task-document/:taskId", updateTaskDocument(documentHandler, app))  // 部分更新任务文档
-	mcp.DELETE("/task-document/:taskId", deleteTaskDocument(documentHandler))
-	mcp.GET("/task-document/:taskId/exists", hasTaskDocument(documentHandler))
+	mcp.DELETE("/task-document/:taskId", deleteTaskDocument(documentHandler, app))
+	mcp.GET("/task-document/:taskId/exists", hasTaskDocument(documentHandler, app))
 
 	// 工作笔记相关路由
 	mcp.POST("/create-work-note", createWorkNote(workNoteHandler))
@@ -105,6 +105,9 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 
 	// 模板文档生成路由
 	mcp.POST("/generate-document-from-template", templateHandler.GenerateDocumentFromTemplate)
+
+	// MCP Worktree工具路由 (Phase 5)
+	RegisterMCPWorktreeRoutes(mcp, app)
 }
 
 // createAndAttachTaskDocument MCP专用：创建并关联任务文档
@@ -154,9 +157,10 @@ func createAndAttachTaskDocument(h *handlers.DocumentHandler, app ApplicationInt
 				// 移除Markdown标题标记
 				firstLine = strings.TrimPrefix(firstLine, "#")
 				firstLine = strings.TrimSpace(firstLine)
-				// 限制标题长度为50个字符
-				if len(firstLine) > 50 {
-					title = firstLine[:50] + "..."
+				// 限制标题长度为60个中文字符（使用rune计数避免UTF-8乱码）
+				runes := []rune(firstLine)
+				if len(runes) > 60 {
+					title = string(runes[:60]) + "..."
 				} else if firstLine != "" {
 					title = firstLine
 				} else {
@@ -283,7 +287,7 @@ func createAndAttachWorkNote(h *handlers.WorkNoteHandler) gin.HandlerFunc {
 }
 
 // getTaskDocument MCP专用：获取任务文档
-func getTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
+func getTaskDocument(h *handlers.DocumentHandler, app ApplicationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		taskIDStr := c.Param("taskId")
 		taskID, err := strconv.Atoi(taskIDStr)
@@ -293,7 +297,7 @@ func getTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 		}
 
 		// 从数据库查询任务所属的项目ID
-		sqlDB, ok := c.MustGet("db").(*sql.DB)
+		sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
 		if !ok {
 			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
 			return
@@ -310,17 +314,111 @@ func getTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 			return
 		}
 
-		// 设置参数并调用现有逻辑
-		c.Params = gin.Params{
-			{Key: "id", Value: strconv.Itoa(projectID)},
-			{Key: "taskId", Value: taskIDStr},
+		// 查询任务关联的主文档（第一个文档）
+		query := `
+			SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
+			       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
+			       d.owner_id, d.visibility, d.version, d.is_template,
+			       d.created_by, d.created_at, d.updated_at,
+			       u.username as owner_name, td.relationship_type
+			FROM documents d
+			INNER JOIN task_documents td ON d.id = td.document_id
+			LEFT JOIN users u ON d.owner_id = u.id
+			WHERE td.task_id = $1 AND d.project_id = $2 AND d.deleted_at IS NULL AND td.deleted_at IS NULL
+			ORDER BY td.sort_order, td.created_at
+			LIMIT 1`
+
+		var doc struct {
+			ID               int            `json:"id"`
+			ProjectID        int            `json:"project_id"`
+			Title            string         `json:"title"`
+			Content          string         `json:"content"`
+			Type             string         `json:"type"`
+			Status           string         `json:"status"`
+			FileURL          sql.NullString `json:"file_url"`
+			FileSize         sql.NullInt64  `json:"file_size"`
+			MimeType         sql.NullString `json:"mime_type"`
+			Description      sql.NullString `json:"description"`
+			Tags             sql.NullString `json:"tags"`
+			OwnerID          int            `json:"owner_id"`
+			Visibility       string         `json:"visibility"`
+			Version          int            `json:"version"`
+			IsTemplate       bool           `json:"is_template"`
+			CreatedBy        int            `json:"created_by"`
+			CreatedAt        time.Time      `json:"created_at"`
+			UpdatedAt        time.Time      `json:"updated_at"`
+			OwnerName        sql.NullString `json:"owner_name"`
+			RelationshipType sql.NullString `json:"relationship_type"`
 		}
-		h.GetTaskDocuments(c)
+
+		err = sqlDB.QueryRow(query, taskID, projectID).Scan(
+			&doc.ID, &doc.ProjectID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
+			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &doc.Tags,
+			&doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
+			&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt,
+			&doc.OwnerName, &doc.RelationshipType,
+		)
+
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse("No document found for task", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to retrieve task document", err))
+			return
+		}
+
+		// 处理 tags 字段
+		var tags []string
+		if doc.Tags.Valid && doc.Tags.String != "" {
+			if err := json.Unmarshal([]byte(doc.Tags.String), &tags); err != nil {
+				tags = []string{}
+			}
+		} else {
+			tags = []string{}
+		}
+
+		// 构建响应对象
+		docData := map[string]interface{}{
+			"id":                doc.ID,
+			"project_id":        doc.ProjectID,
+			"title":             doc.Title,
+			"content":           doc.Content,
+			"type":              doc.Type,
+			"status":            doc.Status,
+			"description":       doc.Description.String,
+			"tags":              tags,
+			"owner_id":          doc.OwnerID,
+			"visibility":        doc.Visibility,
+			"version":           doc.Version,
+			"is_template":       doc.IsTemplate,
+			"created_by":        doc.CreatedBy,
+			"created_at":        doc.CreatedAt,
+			"updated_at":        doc.UpdatedAt,
+		}
+
+		if doc.FileURL.Valid {
+			docData["file_url"] = doc.FileURL.String
+		}
+		if doc.FileSize.Valid {
+			docData["file_size"] = doc.FileSize.Int64
+		}
+		if doc.MimeType.Valid {
+			docData["mime_type"] = doc.MimeType.String
+		}
+		if doc.OwnerName.Valid {
+			docData["owner_name"] = doc.OwnerName.String
+		}
+		if doc.RelationshipType.Valid {
+			docData["relationship_type"] = doc.RelationshipType.String
+		}
+
+		c.JSON(http.StatusOK, standardSuccessResponse("Task document retrieved successfully", docData))
 	}
 }
 
 // deleteTaskDocument MCP专用：删除任务文档
-func deleteTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
+func deleteTaskDocument(h *handlers.DocumentHandler, app ApplicationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		taskIDStr := c.Param("taskId")
 		taskID, err := strconv.Atoi(taskIDStr)
@@ -330,7 +428,7 @@ func deleteTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 		}
 
 		// 从数据库查询任务所属的项目ID
-		sqlDB, ok := c.MustGet("db").(*sql.DB)
+		sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
 		if !ok {
 			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
 			return
@@ -397,7 +495,7 @@ func deleteTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 }
 
 // hasTaskDocument MCP专用：检查任务是否有文档
-func hasTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
+func hasTaskDocument(h *handlers.DocumentHandler, app ApplicationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		taskIDStr := c.Param("taskId")
 		taskID, err := strconv.Atoi(taskIDStr)
@@ -407,7 +505,7 @@ func hasTaskDocument(h *handlers.DocumentHandler) gin.HandlerFunc {
 		}
 
 		// 从数据库查询任务所属的项目ID
-		sqlDB, ok := c.MustGet("db").(*sql.DB)
+		sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
 		if !ok {
 			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
 			return

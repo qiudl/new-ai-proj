@@ -113,10 +113,12 @@ export class DocumentService extends BaseClient {
       const response = await this.makeRequest('GET', `/mcp/task-document/${taskId}`);
 
       if (response.success) {
+        // 确保返回的数据是数组格式
+        const documents = Array.isArray(response.data) ? response.data : [response.data];
         return {
           success: true,
           task_id: taskId,
-          documents: response.data,
+          documents: documents,
           message: `📄 获取任务 ${taskId} 的文档成功`
         };
       } else {

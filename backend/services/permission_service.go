@@ -60,15 +60,16 @@ const (
 type ResourceType string
 
 const (
-	ResourceSystem   ResourceType = "system"
-	ResourceCompany  ResourceType = "company"
-	ResourceProject  ResourceType = "project"
-	ResourceTask     ResourceType = "task"
-	ResourceDocument ResourceType = "document"
-	ResourceUser     ResourceType = "user"
-	ResourceTimer    ResourceType = "timer"
-	ResourceReport   ResourceType = "report"
-	ResourceApiKey   ResourceType = "api_key"
+	ResourceSystem      ResourceType = "system"
+	ResourceCompany     ResourceType = "company"
+	ResourceProject     ResourceType = "project"
+	ResourceTask        ResourceType = "task"
+	ResourceDocument    ResourceType = "document"
+	ResourceUser        ResourceType = "user"
+	ResourceTimer       ResourceType = "timer"
+	ResourceReport      ResourceType = "report"
+	ResourceApiKey      ResourceType = "api_key"
+	ResourceRequirement ResourceType = "requirement"
 )
 
 // Permission actions enumeration
@@ -262,6 +263,28 @@ func (s *PermissionService) GetSystemPermissions() []PermissionDefinition {
 			Category: CategoryDocument, Resource: ResourceDocument, Action: ActionShare, Scope: ScopeProject, IsSystem: false,
 		},
 
+		// Requirement permissions
+		{
+			Code: "requirement.read", Name: "查看需求", Description: "查看需求信息",
+			Category: CategoryProject, Resource: ResourceRequirement, Action: ActionRead, Scope: ScopeCompany, IsSystem: false,
+		},
+		{
+			Code: "requirement.create", Name: "创建需求", Description: "创建新需求",
+			Category: CategoryProject, Resource: ResourceRequirement, Action: ActionCreate, Scope: ScopeCompany, IsSystem: false,
+		},
+		{
+			Code: "requirement.update", Name: "编辑需求", Description: "编辑需求信息",
+			Category: CategoryProject, Resource: ResourceRequirement, Action: ActionUpdate, Scope: ScopeCompany, IsSystem: false,
+		},
+		{
+			Code: "requirement.delete", Name: "删除需求", Description: "删除需求",
+			Category: CategoryProject, Resource: ResourceRequirement, Action: ActionDelete, Scope: ScopeCompany, IsSystem: false,
+		},
+		{
+			Code: "requirement.manage", Name: "管理需求", Description: "完整的需求管理权限",
+			Category: CategoryProject, Resource: ResourceRequirement, Action: ActionManage, Scope: ScopeCompany, IsSystem: false,
+		},
+
 		// Timer permissions
 		{
 			Code: "timer.read", Name: "查看计时", Description: "查看计时记录",
@@ -337,12 +360,14 @@ func (s *PermissionService) GetRoleTemplates() map[RoleType][]string {
 			"project.update", "project.delete", "task.read", "task.create", "task.update",
 			"task.assign", "document.read", "document.create", "document.update",
 			"report.read", "report.generate", "finance.read", "apikey.read",
+			"requirement.read", "requirement.create", "requirement.update", "requirement.delete", "requirement.manage",
 		},
 		RoleTypeProjectManager: {
 			"project.read", "project.update", "task.read", "task.create",
 			"task.update", "task.delete", "task.assign", "document.read",
 			"document.create", "document.update", "timer.read", "timer.update",
 			"report.read", "report.generate", "finance.read",
+			"requirement.read", "requirement.create", "requirement.update", "requirement.manage",
 		},
 		RoleTypeDeveloper: {
 			"project.read", "task.read", "task.update", "task.execute",

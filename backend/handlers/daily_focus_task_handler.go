@@ -1223,6 +1223,7 @@ func (h *DailyFocusTaskHandler) GetTaskSuggestions(c *gin.Context) {
 	// 解析查询参数
 	var query models.TaskSuggestionQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
+		h.logger.Printf("ERROR: Failed to bind query params for user %d: %v", userClaims.UserID, err)
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Success: false,
 			Error: &models.APIError{
@@ -1235,6 +1236,7 @@ func (h *DailyFocusTaskHandler) GetTaskSuggestions(c *gin.Context) {
 
 	// 验证参数
 	if err := h.validate.Struct(query); err != nil {
+		h.logger.Printf("ERROR: Validation failed for user %d: %v", userClaims.UserID, err)
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Success: false,
 			Error: &models.APIError{
@@ -1249,6 +1251,7 @@ func (h *DailyFocusTaskHandler) GetTaskSuggestions(c *gin.Context) {
 	focusDate := time.Now().Format("2006-01-02")
 	if query.Date != nil && *query.Date != "" {
 		if _, err := time.Parse("2006-01-02", *query.Date); err != nil {
+			h.logger.Printf("ERROR: Invalid date format for user %d: %s", userClaims.UserID, *query.Date)
 			c.JSON(http.StatusBadRequest, models.ErrorResponse{
 				Success: false,
 				Error: &models.APIError{
@@ -1267,21 +1270,24 @@ func (h *DailyFocusTaskHandler) GetTaskSuggestions(c *gin.Context) {
 		limit = *query.Limit
 	}
 
+	h.logger.Printf("INFO: Getting task suggestions for user %d, date: %s, limit: %d", userClaims.UserID, focusDate, limit)
+
 	ctx := context.Background()
 
 	// 获取推荐任务
 	suggestions, err := h.getTaskSuggestionsWithDetails(ctx, userClaims.UserID, focusDate, limit)
 	if err != nil {
-		h.logger.Printf("Failed to get task suggestions: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Success: false,
-			Error: &models.APIError{
-				Code:    "DATABASE_ERROR",
-				Message: "获取推荐任务失败",
-			},
-		})
+		h.logger.Printf("ERROR: Failed to get task suggestions for user %d: %v", userClaims.UserID, err)
+
+		// 返回空推荐列表而不是错误，提升用户体验
+		response := models.TaskSuggestionsResponse{
+			Suggestions: []models.TaskSuggestion{},
+		}
+		c.JSON(http.StatusOK, models.NewSuccessResponse(response, "暂无推荐任务"))
 		return
 	}
+
+	h.logger.Printf("INFO: Successfully got %d task suggestions for user %d", len(suggestions), userClaims.UserID)
 
 	response := models.TaskSuggestionsResponse{
 		Suggestions: suggestions,
@@ -1476,10 +1482,12 @@ func (h *DailyFocusTaskHandler) AcceptSuggestions(c *gin.Context) {
 
 // 获取带任务详情的智能推荐
 func (h *DailyFocusTaskHandler) getTaskSuggestionsWithDetails(ctx context.Context, userID int, focusDate string, limit int) ([]models.TaskSuggestion, error) {
+	h.logger.Printf("DEBUG: getTaskSuggestionsWithDetails called for userID=%d, focusDate=%s, limit=%d", userID, focusDate, limit)
+
 	// 第一步：获取用户的历史完成情况分析
 	userStats, err := h.getUserCompletionStats(ctx, userID)
 	if err != nil {
-		h.logger.Printf("Failed to get user completion stats: %v", err)
+		h.logger.Printf("WARNING: Failed to get user completion stats: %v, using defaults", err)
 		// 使用默认值
 		userStats = map[string]float64{
 			"completion_rate": 0.7,
@@ -1489,6 +1497,7 @@ func (h *DailyFocusTaskHandler) getTaskSuggestionsWithDetails(ctx context.Contex
 	}
 
 	// 第二步：获取候选任务的详细信息和初始评分
+	// 注意：添加了 (t.assignee_id = $1 OR t.assignee_id IS NULL) 条件来过滤任务
 	querySQL := `
 		SELECT DISTINCT
 			t.id as task_id,
@@ -1509,22 +1518,23 @@ func (h *DailyFocusTaskHandler) getTaskSuggestionsWithDetails(ctx context.Contex
 			-- 计算子任务数量
 			(SELECT COUNT(*) FROM tasks sub WHERE sub.parent_id = t.id AND sub.deleted_at IS NULL) as subtask_count,
 			-- 检查是否有最近的工作记录
-			(SELECT COUNT(*) FROM task_time_logs ttl 
-			 WHERE ttl.task_id = t.id AND ttl.user_id = $1 
+			(SELECT COUNT(*) FROM task_time_logs ttl
+			 WHERE ttl.task_id = t.id AND ttl.user_id = $1
 			 AND ttl.start_time >= $2::date - INTERVAL '7 days') as recent_work_count,
 			-- 检查是否被频繁延期
-			(SELECT COUNT(*) FROM daily_focus_tasks dft_carried 
-			 WHERE dft_carried.task_id = t.id AND dft_carried.user_id = $1 
+			(SELECT COUNT(*) FROM daily_focus_tasks dft_carried
+			 WHERE dft_carried.task_id = t.id AND dft_carried.user_id = $1
 			 AND dft_carried.carried_from_date IS NOT NULL) as carry_over_count
 		FROM tasks t
 		JOIN projects p ON t.project_id = p.id
 		WHERE t.status NOT IN ('completed', 'cancelled', 'archived')
 		  AND t.deleted_at IS NULL
 		  AND p.deleted_at IS NULL
+		  AND (t.assignee_id = $1 OR t.assignee_id IS NULL)
 		  AND NOT EXISTS (
-			  SELECT 1 FROM daily_focus_tasks dft 
-			  WHERE dft.task_id = t.id 
-				AND dft.user_id = $1 
+			  SELECT 1 FROM daily_focus_tasks dft
+			  WHERE dft.task_id = t.id
+				AND dft.user_id = $1
 				AND dft.focus_date = $2::date
 				AND dft.status = 'active'
 		  )
@@ -1532,13 +1542,16 @@ func (h *DailyFocusTaskHandler) getTaskSuggestionsWithDetails(ctx context.Contex
 		LIMIT $3 * 2  -- 获取更多候选任务用于评分
 	`
 
+	h.logger.Printf("DEBUG: Executing suggestion query for userID=%d", userID)
 	rows, err := h.db.Query(querySQL, userID, focusDate, limit)
 	if err != nil {
-		return nil, err
+		h.logger.Printf("ERROR: Failed to execute suggestion query: %v", err)
+		return nil, fmt.Errorf("查询候选任务失败: %w", err)
 	}
 	defer rows.Close()
 
 	var candidates []candidateTask
+	candidateCount := 0
 	for rows.Next() {
 		var candidate candidateTask
 		err := rows.Scan(
@@ -1550,12 +1563,20 @@ func (h *DailyFocusTaskHandler) getTaskSuggestionsWithDetails(ctx context.Contex
 			&candidate.SubtaskCount, &candidate.RecentWorkCount, &candidate.CarryOverCount,
 		)
 		if err != nil {
-			h.logger.Printf("Failed to scan candidate task: %v", err)
+			h.logger.Printf("ERROR: Failed to scan candidate task: %v", err)
 			continue
 		}
 		candidates = append(candidates, candidate)
+		candidateCount++
 	}
 	rows.Close()
+
+	h.logger.Printf("DEBUG: Found %d candidate tasks for suggestions", candidateCount)
+
+	if candidateCount == 0 {
+		h.logger.Printf("INFO: No candidate tasks found for user %d", userID)
+		return []models.TaskSuggestion{}, nil
+	}
 
 	// 第三步：使用智能算法评分每个候选任务
 	var allSuggestions []models.TaskSuggestion
