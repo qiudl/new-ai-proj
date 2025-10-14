@@ -172,10 +172,45 @@ const TaskEditPage: React.FC = () => {
       // 返回任务详情页
       navigate(`/projects/${projectId}/tasks/${taskId}`);
     } catch (error) {
+      console.error('Task save error:', error);
+
+      // 表单验证错误
       if (error && typeof error === 'object' && 'errorFields' in error) {
         message.error('请检查表单填写');
+        return;
+      }
+
+      // 处理不同类型的错误
+      if (error instanceof Error) {
+        const errorMessage = error.message || '';
+
+        // 数据验证错误
+        if (errorMessage.includes('数据验证失败')) {
+          message.error(`数据验证失败: ${errorMessage.replace('数据验证失败:', '').trim()}`);
+        }
+        // 任务已归档
+        else if (errorMessage.includes('归档')) {
+          message.error('任务已归档，无法修改。请先恢复任务。');
+        }
+        // 权限错误
+        else if (errorMessage.includes('权限') || errorMessage.includes('Unauthorized')) {
+          message.error('没有权限修改此任务');
+        }
+        // 网络错误
+        else if (errorMessage.includes('Network') || errorMessage.includes('timeout')) {
+          message.error('网络连接失败，请检查网络后重试');
+        }
+        // 其他已知错误
+        else if (errorMessage) {
+          message.error(`保存失败: ${errorMessage}`);
+        }
+        // 未知错误
+        else {
+          message.error('保存失败，请稍后重试');
+        }
       } else {
-        message.error('保存失败');
+        // 非Error对象的错误
+        message.error('保存失败，请稍后重试');
       }
     } finally {
       setSaving(false);

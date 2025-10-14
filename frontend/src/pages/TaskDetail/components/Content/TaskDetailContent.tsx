@@ -30,7 +30,8 @@ import {
   PauseCircleOutlined,
   PlayCircleOutlined,
   StopOutlined,
-  InboxOutlined
+  InboxOutlined,
+  CommentOutlined
 } from '@ant-design/icons';
 import { TaskDetailDescendantsTreeV2, TaskDetailDescendantsTreeRef } from '../../../../components/TaskDetailDescendantsTreeV2';
 import { UnifiedTaskRefresh, RefreshContext } from '../../../../components/UnifiedTaskRefresh';
@@ -49,6 +50,7 @@ import SubtaskPreviewModal, { SubtaskPreview } from '../../../../components/Task
 import AIGeneratingModal from '../../../../components/TaskDetail/AIGeneratingModal';
 import type { AIModel } from '../../../../config/aiModels';
 import { aiTaskService, buildGenerateRequest } from '../../../../services/aiTaskService';
+import { TaskComments } from '../../../../components/TaskComment';
 
 const { Text } = Typography;
 
@@ -428,6 +430,24 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             >
               <TaskAnalysisPanel task={task} subtasks={relations.subtasks} />
             </Suspense>
+          </div>
+        )
+      },
+      {
+        key: 'comments',
+        label: (
+          <Space>
+            <CommentOutlined />
+            <span>评论</span>
+          </Space>
+        ),
+        children: (
+          <div>
+            <TaskComments
+              taskId={task.id}
+              showStats={true}
+              defaultPageSize={20}
+            />
           </div>
         )
       }

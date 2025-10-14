@@ -45,10 +45,9 @@ const TaskDetailPageContent: React.FC = () => {
       if (!task || !parsedProjectId) return;
 
       try {
-        actions.openModal('taskModal');
         await TaskService.updateTask(parsedProjectId, task.id, taskData);
         message.success('任务更新成功');
-        actions.closeModal('taskModal');
+        actions.closeModal('edit');
 
         // 如果任务状态变更为completed或cancelled，主动刷新计时器
         if (taskData.status === 'completed' || taskData.status === 'cancelled') {
@@ -73,7 +72,7 @@ const TaskDetailPageContent: React.FC = () => {
     actions.setUI({
       modals: {
         ...ui.modals,
-        taskModal: {
+        edit: {
           visible: true,
           data: { mode: 'createSubtask' }
         }
@@ -95,7 +94,7 @@ const TaskDetailPageContent: React.FC = () => {
   // Handle task modal submit
   const handleTaskModalSubmit = useCallback(
     async (taskData: Partial<TaskRequest>) => {
-      const mode = ui.modals.taskModal?.data?.mode || 'edit';
+      const mode = ui.modals.edit?.data?.mode || 'edit';
 
       if (mode === 'edit') {
         await handleUpdateTask(taskData);
@@ -107,7 +106,7 @@ const TaskDetailPageContent: React.FC = () => {
             parent_id: task.id
           });
           message.success('子任务创建成功');
-          actions.closeModal('taskModal');
+          actions.closeModal('edit');
           await actions.refreshTask();
         } catch (error) {
           message.error('子任务创建失败');
@@ -120,34 +119,34 @@ const TaskDetailPageContent: React.FC = () => {
             parent_id: task.parent_id
           });
           message.success('兄弟任务创建成功');
-          actions.closeModal('taskModal');
+          actions.closeModal('edit');
           await actions.refreshTask();
         } catch (error) {
           message.error('兄弟任务创建失败');
         }
       }
     },
-    [ui.modals.taskModal, task, parsedProjectId, actions, handleUpdateTask]
+    [ui.modals.edit, task, parsedProjectId, actions, handleUpdateTask]
   );
 
   // Handle archive success
   const handleArchiveSuccess = useCallback(() => {
-    actions.closeModal('archiveModal');
+    actions.closeModal('archive');
     message.success('任务已归档');
     navigate(`/projects/${parsedProjectId}/tasks`);
   }, [actions, navigate, parsedProjectId]);
 
   // Handle bulk subtask success
   const handleBulkSubTaskSuccess = useCallback(() => {
-    actions.closeModal('bulkSubTaskModal');
+    actions.closeModal('bulkImport');
     message.success('批量创建子任务成功');
     actions.refreshTask();
   }, [actions]);
 
   // Handle edit details (navigate to edit page)
   const handleEditDetails = useCallback(() => {
-    const mode = ui.modals.taskModal?.data?.mode || 'edit';
-    actions.closeModal('taskModal');
+    const mode = ui.modals.edit?.data?.mode || 'edit';
+    actions.closeModal('edit');
 
     if (mode === 'edit') {
       navigate(`/projects/${parsedProjectId}/tasks/${parsedTaskId}/edit`);
@@ -158,7 +157,7 @@ const TaskDetailPageContent: React.FC = () => {
         `/projects/${parsedProjectId}/bulk-import?parentTaskId=${task.parent_id || ''}`
       );
     }
-  }, [ui.modals.taskModal, task, parsedProjectId, parsedTaskId, navigate, actions]);
+  }, [ui.modals.edit, task, parsedProjectId, parsedTaskId, navigate, actions]);
 
   // Handle document changes
   const handleDocsChange = useCallback(() => {

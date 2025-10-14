@@ -201,6 +201,29 @@ export function validateTaskRequest(taskData: unknown): ValidationResult {
     }
   }
 
+  // 验证priority（可选字段）
+  const validPriorities = ['low', 'medium', 'high'];
+  if (cleaned.priority !== undefined && cleaned.priority !== null && cleaned.priority !== '') {
+    if (typeof cleaned.priority !== 'string' || !validPriorities.includes(cleaned.priority)) {
+      return {
+        isValid: false,
+        error: `Priority must be one of: ${validPriorities.join(', ')}`
+      };
+    }
+  }
+
+  // 验证estimated_hours（可选字段）
+  if (cleaned.estimated_hours !== undefined && cleaned.estimated_hours !== null) {
+    const hours = Number(cleaned.estimated_hours);
+    if (isNaN(hours) || hours < 0) {
+      return {
+        isValid: false,
+        error: 'Estimated hours must be a non-negative number'
+      };
+    }
+    cleaned.estimated_hours = hours;
+  }
+
   // 验证和清理CustomFields
   if (cleaned.custom_fields !== undefined) {
     const customFieldsResult = validateAndCleanCustomFields(cleaned.custom_fields);

@@ -50,15 +50,16 @@
  * ```
  */
 
-// 类型定义
+// 类型定义（先导出类型）
 export { ErrorType, BusinessErrorCode } from './types';
 export type { AppError, ErrorHandlerConfig } from './types';
 
 // 错误识别器
 export { ErrorIdentifier } from './identifier';
 
-// 错误处理器
+// 错误处理器（确保完整导出）
 export { ErrorHandler } from './handler';
 
 // 默认导出错误处理器（最常用）
+import { ErrorHandler } from './handler';
 export default ErrorHandler;
