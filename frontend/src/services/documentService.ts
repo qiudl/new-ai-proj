@@ -350,8 +350,8 @@ export class DocumentService {
       };
       
       // 缓存结果 (2分钟)
-      apiCache.set(cacheKey, result, 2 * 60 * 1000);
-      
+      apiCache.set(cacheKey, result, { ttl: 2 * 60 * 1000 });
+
       return result;
     } catch (error) {
       console.error('获取任务文档列表失败:', error);

@@ -61,6 +61,7 @@ import { documentService, UnifiedDocument } from '../services/documentService';
 import { taskDocumentService } from '../services/taskDocumentService';
 import { TaskService } from '../services/taskService';
 import api from '../services/api';
+import { apiCache } from '../utils/apiCacheManager';
 
 // 导入快捷键Hook
 import { useKeyboardShortcuts, createDocumentShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -369,13 +370,29 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
 
   // 防止重复加载的引用
   const loadingRef = useRef(false);
-  
+
   // 文档缓存 - 简单的Map缓存
   const documentCache = useRef(new Map<string, DocumentItem[]>());
   const CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存
-  
+
+  // 跟踪上一次的taskId，用于检测任务切换
+  const previousTaskIdRef = useRef<number | null>(null);
+
   // 加载文档列表 - 高度优化版本，支持渐进式加载
   const loadDocuments = useCallback(async (force = false) => {
+    // 检测任务切换或首次加载，如果taskId变化了，强制刷新
+    const isFirstLoad = previousTaskIdRef.current === null;
+    const taskChanged = previousTaskIdRef.current !== taskId;
+
+    if (isFirstLoad || taskChanged) {
+      console.log('🔄 [RELOAD] 强制刷新缓存', {
+        reason: isFirstLoad ? '首次加载' : '任务切换',
+        previous: previousTaskIdRef.current,
+        current: taskId
+      });
+      force = true;
+    }
+    previousTaskIdRef.current = taskId;
     console.log(`🔍 [LOAD-DOCS] Starting loadDocuments - projectId: ${projectId}, taskId: ${taskId}, force: ${force}, loading: ${loadingRef.current}`);
 
     // 防止重复加载
@@ -401,8 +418,54 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
     // 开始性能监控
     const loadStartTime = performance.now();
     
-    // 避免清空文档状态导致重新渲染
+    // 强制重新加载时，清除所有缓存
     if (force) {
+      console.log('🗑️ [FORCE-RELOAD] 清除所有缓存');
+
+      // 清除组件级缓存
+      const componentCacheKey = `${projectId}:${taskId}:${includeDescendants}`;
+      documentCache.current.delete(componentCacheKey);
+
+      // 清除API内存缓存
+      const cacheKeys = apiCache.keys();
+      cacheKeys.forEach((key: string) => {
+        if (
+          key.includes(`task_document_${projectId}_${taskId}`) ||
+          key.includes(`task_documents_${projectId}_${taskId}`)
+        ) {
+          console.log('  🗑️ 删除内存缓存:', key);
+          apiCache.delete(key);
+        }
+      });
+
+      // 直接清除localStorage中的持久化缓存
+      try {
+        const persistentKeys = localStorage.getItem('apiCache:persistent');
+        if (persistentKeys) {
+          const keys = JSON.parse(persistentKeys) as string[];
+          const keysToRemove: string[] = [];
+
+          keys.forEach((key: string) => {
+            if (
+              key.includes(`task_document_${projectId}_${taskId}`) ||
+              key.includes(`task_documents_${projectId}_${taskId}`)
+            ) {
+              console.log('  🗑️ 删除localStorage缓存:', key);
+              localStorage.removeItem(`apiCache:${key}`);
+              keysToRemove.push(key);
+            }
+          });
+
+          // 更新persistent keys列表
+          if (keysToRemove.length > 0) {
+            const updatedKeys = keys.filter(k => !keysToRemove.includes(k));
+            localStorage.setItem('apiCache:persistent', JSON.stringify(updatedKeys));
+          }
+        }
+      } catch (error) {
+        console.warn('清除localStorage缓存失败:', error);
+      }
+
       setDocuments([]);
       setSelectedDocument(null);
     }
@@ -417,20 +480,41 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
         ]);
       };
 
+      // 如果强制刷新，直接调用API绕过缓存；否则使用documentService
       const [documentsResult, uploadedResult] = await Promise.allSettled([
-        fetchWithTimeout(documentService.getTaskDocuments(projectId, taskId)),
+        force
+          ? fetchWithTimeout(api.get(`/projects/${projectId}/tasks/${taskId}/documents`, {
+              params: {
+                page: 1,
+                page_size: 20,
+                include_main: true,
+                _t: Date.now() // 时间戳参数强制绕过所有缓存
+              }
+            }))
+          : fetchWithTimeout(documentService.getTaskDocuments(projectId, taskId)),
         fetchWithTimeout(taskDocumentService.getTaskDocuments(projectId, taskId))
       ]);
       
       let docs: DocumentItem[] = [];
-      
+
       // 处理文档服务的响应
       if (documentsResult.status === 'fulfilled') {
-        docs = documentsResult.value.documents.map((doc: UnifiedDocument) => ({ 
-          ...doc, 
-          selected: false, 
-          sourceTaskId: taskId 
+        const result = documentsResult.value;
+        // 处理API直接返回和documentService返回两种格式
+        const documents = result.documents || result.data?.documents || result;
+        const docsArray = Array.isArray(documents) ? documents : [];
+
+        docs = docsArray.map((doc: UnifiedDocument) => ({
+          ...doc,
+          selected: false,
+          sourceTaskId: taskId
         }));
+
+        console.log('📄 [LOAD-DOCS] 获取到文档', {
+          count: docs.length,
+          force,
+          versions: docs.map(d => ({ id: d.id, version: d.version }))
+        });
       } else {
         console.warn('获取任务文档失败:', documentsResult.reason);
       }
@@ -550,11 +634,27 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
         return docs;
       });
       
-      // 如果没有选中文档且有文档列表，选中第一个
-      if (docs.length > 0 && !selectedDocument) {
+      // 同步更新selectedDocument（如果当前有选中的文档）
+      if (selectedDocument) {
+        // 从新加载的文档中找到对应ID的文档
+        const updatedDoc = docs.find(doc => doc.id === selectedDocument.id);
+        if (updatedDoc) {
+          console.log('🔄 [SYNC] 同步更新selectedDocument', {
+            oldVersion: selectedDocument.version,
+            newVersion: updatedDoc.version,
+            documentId: updatedDoc.id
+          });
+          setSelectedDocument(updatedDoc);
+        } else {
+          // 如果选中的文档不在新列表中（可能被删除），清除选择
+          console.log('⚠️ [SYNC] 选中的文档已不存在，清除选择');
+          setSelectedDocument(null);
+        }
+      } else if (docs.length > 0) {
+        // 如果没有选中文档且有文档列表，选中第一个
         setSelectedDocument(docs[0]);
       }
-      
+
       // 通知父组件数据变化
       onDocumentChange?.(docs);
       
@@ -1515,7 +1615,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                 projectId={projectId}
                 taskDocument={selectedDocument}
                 onSave={(content) => {
-                  loadDocuments();
+                  loadDocuments(true); // 强制从API重新加载最新数据
                   if (onSaveDocument) {
                     onSaveDocument();
                   }

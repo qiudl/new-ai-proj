@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import TaskMarkdownEditor from './TaskMarkdownEditor';
 import api from '../services/api';
 import { documentService } from '../services/documentService';
+import { apiCache } from '../utils/apiCacheManager';
 import '../styles/TaskDocumentEditor.css';
 // html2pdf.js and mermaid.js are loaded globally via CDN in index.html
 declare global {
@@ -69,36 +70,66 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // 加载文档内容
-  const loadDocument = useCallback(async () => {
-    if (!taskDocument) {
-      setContent('');
-      setOriginalContent('');
-      setTitle('');
-      setOriginalTitle('');
-      return;
-    }
-
+  const loadDocument = useCallback(async (forceReload: boolean = false) => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      // 使用传入的document数据，而不是从API加载
-      const documentContent = taskDocument.content || '';
-      const documentTitle = taskDocument.title || '';
-      setContent(documentContent);
-      setOriginalContent(documentContent);
-      setTitle(documentTitle);
-      setOriginalTitle(documentTitle);
-      
+      // 【修复】始终从API加载最新数据，不使用prop（避免缓存问题）
+      console.log('📥 [加载文档] 强制从API加载最新文档...', {
+        projectId,
+        taskId,
+        propVersion: taskDocument?.version,
+        documentId: taskDocument?.id
+      });
+
+      // 直接调用API，添加时间戳绕过所有缓存
+      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`, {
+        params: {
+          include_main: true,
+          page: 1,
+          page_size: 10,
+          _t: Date.now() // 时间戳强制绕过缓存
+        }
+      });
+
+      // 处理响应数据
+      const documents = response.documents || response.data?.documents || response;
+      const docsArray = Array.isArray(documents) ? documents : [];
+
+      // 查找主文档（relationship_type='main'）
+      const mainDoc = docsArray.find((doc: any) =>
+        doc.relationship_type === 'main'
+      );
+
+      if (mainDoc) {
+        setContent(mainDoc.content || '');
+        setOriginalContent(mainDoc.content || '');
+        setTitle(mainDoc.title || '');
+        setOriginalTitle(mainDoc.title || '');
+        console.log('✅ [加载文档] 加载成功（直接从API）', {
+          documentId: mainDoc.id,
+          version: mainDoc.version,
+          contentLength: (mainDoc.content || '').length
+        });
+      } else {
+        // 文档不存在，显示空内容
+        setContent('');
+        setOriginalContent('');
+        setTitle('');
+        setOriginalTitle('');
+        console.log('📄 [加载文档] 文档不存在，显示空内容');
+      }
+
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : '加载文档失败';
       setError(errorMsg);
-      console.error('Error loading document:', err);
-      
+      console.error('❌ [加载文档] 加载失败:', err);
+
     } finally {
       setLoading(false);
     }
-  }, [document]);
+  }, [projectId, taskId]); // 移除taskDocument依赖，始终从API加载
 
   // 保存文档
   const saveDocument = useCallback(async () => {
@@ -129,13 +160,38 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
         type: taskDocument.type as 'markdown' | 'txt' | 'pdf'
       });
 
-      console.log('✅ [保存文档] 保存成功');
+      console.log('✅ [保存文档] 保存成功，清除所有相关缓存并重新获取最新数据...');
 
-      setOriginalContent(content);
-      setOriginalTitle(title);
+      // 清除该文档的缓存
+      apiCache.delete(`document_${taskDocument.id}`);
+
+      // 清除所有任务文档相关缓存（遍历所有缓存键）
+      const cacheKeys = apiCache.keys();
+      cacheKeys.forEach((key: string) => {
+        // 清除包含 task_document 或 task_documents 的所有缓存键
+        if (
+          key.includes(`task_document_${projectId}_${taskId}`) ||
+          key.includes(`task_documents_${projectId}_${taskId}`)
+        ) {
+          console.log('🗑️ [清除缓存]', key);
+          apiCache.delete(key);
+        }
+      });
+
+      // 直接通过文档ID重新获取文档（此时已无缓存，会从服务器获取）
+      const updatedDocument = await documentService.getDocument(taskDocument.id);
+
+      // 更新本地状态为最新的服务器数据
+      setContent(updatedDocument.content || '');
+      setOriginalContent(updatedDocument.content || '');
+      setTitle(updatedDocument.title || '');
+      setOriginalTitle(updatedDocument.title || '');
       setHasChanges(false);
-      message.success('文档保存成功');
 
+      console.log('✅ [保存文档] 最新版本号:', updatedDocument.version);
+      message.success(`文档保存成功 (版本 ${updatedDocument.version})`);
+
+      // 通知父组件文档已更新，让父组件重新加载数据
       if (onSave) {
         onSave(content);
       }
