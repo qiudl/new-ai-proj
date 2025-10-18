@@ -129,8 +129,9 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	)
 
 	// 文档管理处理器 (新版本，基于数据库)
-	allHandlers.DocumentHandler = handlers.NewDocumentHandler(f.db)
-	allHandlers.HybridDocumentHandler = handlers.NewHybridDocumentHandler(f.db)
+	// Note: Factory passes nil cache service - cache not available in factory-created handlers
+	allHandlers.DocumentHandler = handlers.NewDocumentHandler(f.db, nil)
+	allHandlers.HybridDocumentHandler = handlers.NewHybridDocumentHandler(f.db, nil)
 	// allHandlers.HybridDocumentFolderHandler = handlers.NewHybridDocumentFolderHandler(f.db) // Temporarily disabled
 	// allHandlers.SimpleDocumentHandler = handlers.NewSimpleDocumentHandler() // 暂时注释掉，handler缺失
 

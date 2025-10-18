@@ -4,6 +4,7 @@ import { SaveOutlined, FullscreenOutlined, FullscreenExitOutlined, FilePdfOutlin
 import { createPortal } from 'react-dom';
 import TaskMarkdownEditor from './TaskMarkdownEditor';
 import api from '../services/api';
+import { documentService } from '../services/documentService';
 import '../styles/TaskDocumentEditor.css';
 // html2pdf.js and mermaid.js are loaded globally via CDN in index.html
 declare global {
@@ -113,20 +114,28 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
 
     setSaving(true);
     setError(null);
-    
+
     try {
-      const requestData = { 
+      console.log('🔄 [保存文档] 开始保存...', {
+        documentId: taskDocument.id,
+        title: title.trim() || taskDocument.title,
+        contentLength: content.length
+      });
+
+      // 使用documentService.updateDocument方法，确保正确的API调用
+      await documentService.updateDocument(taskDocument.id, {
         content,
         title: title.trim() || taskDocument.title,
-        type: taskDocument.type
-      };
-      await api.put(`/documents/${taskDocument.id}`, requestData);
-      
+        type: taskDocument.type as 'markdown' | 'txt' | 'pdf'
+      });
+
+      console.log('✅ [保存文档] 保存成功');
+
       setOriginalContent(content);
       setOriginalTitle(title);
       setHasChanges(false);
       message.success('文档保存成功');
-      
+
       if (onSave) {
         onSave(content);
       }
@@ -134,11 +143,11 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       const errorMsg = err.response?.data?.error || err.message || '保存文档失败';
       setError(errorMsg);
       message.error(errorMsg);
-      console.error('Error saving document:', err);
+      console.error('❌ [保存文档] 保存失败:', err);
     } finally {
       setSaving(false);
     }
-  }, [content, title, document, onSave, hasChanges]);
+  }, [content, title, taskDocument, onSave, hasChanges]);
 
   // 检查内容是否有变化
   useEffect(() => {

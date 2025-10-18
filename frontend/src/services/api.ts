@@ -29,6 +29,28 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  transformResponse: [
+    (data) => {
+      // 如果数据是字符串，尝试清理并解析JSON
+      if (typeof data === 'string') {
+        try {
+          // 查找JSON结束位置（最后一个}或]）
+          const jsonEnd = Math.max(data.lastIndexOf('}'), data.lastIndexOf(']'));
+          if (jsonEnd !== -1) {
+            // 截取有效的JSON部分
+            const cleanData = data.substring(0, jsonEnd + 1);
+            return JSON.parse(cleanData);
+          }
+          // 如果找不到JSON结束符，尝试直接解析
+          return JSON.parse(data);
+        } catch (e) {
+          console.error('JSON parse error:', e);
+          return data;
+        }
+      }
+      return data;
+    }
+  ],
 });
 
 // Request interceptor
@@ -55,9 +77,10 @@ api.interceptors.response.use(
   (response) => {
     // 统一解包后端标准响应 { success, message, data, timestamp }
     const body = response.data;
-    
-    // 特殊处理：某些API直接返回数据而不是包装格式
+
     const url = response.config?.url || '';
+
+    // 特殊处理：某些API直接返回数据而不是包装格式
     const method = response.config?.method?.toLowerCase() || '';
     const isUserListAPI = (url.includes('/admin/users') || url.includes('/admin/company-users')) && 
                           !url.includes('/stats') && 
@@ -87,7 +110,14 @@ api.interceptors.response.use(
       console.log('API interceptor - Timeline API detected, returning wrapped response');
       return body;
     }
-    
+
+    // Impersonation API needs standard unwrapping
+    const isImpersonationAPI = url.includes('/admin/impersonate/status');
+    if (isImpersonationAPI && body && typeof body === 'object' && 'success' in body && 'data' in body) {
+      console.log('API interceptor - Impersonation API detected, unwrapping data:', body.data);
+      return body.data;  // Unwrap to {is_impersonating: false, ...}
+    }
+
     if (body && typeof body === 'object' && 'success' in body && 'data' in body) {
       return body.data;
     }

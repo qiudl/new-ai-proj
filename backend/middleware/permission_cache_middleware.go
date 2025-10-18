@@ -176,6 +176,26 @@ func (m *PermissionCacheMiddleware) RequireCachedPermission(permissionCode strin
 			}
 		}
 
+
+		// Check for superadmin override first (for system users without company_user_id)
+		reqCtx := map[string]interface{}{}
+		if v, ok := c.Get("username"); ok {
+			reqCtx["username"] = v
+		}
+		if v, ok := c.Get("user_id"); ok {
+			reqCtx["user_id"] = v
+		}
+		if v, ok := c.Get("user_role"); ok {
+			reqCtx["user_role"] = v
+		}
+
+		// Check if user is superadmin
+		if ok, why := isSuperAdminFromRequestContext(reqCtx); ok {
+			log.Printf("[PERMISSION_CACHE] Superadmin bypass for permission %s (%s)", permissionCode, why)
+			c.Next()
+			return
+		}
+
 		// Get company user ID from context (should be set by authentication middleware)
 		companyUserIDInterface, exists := c.Get("company_user_id")
 		if !exists {
@@ -277,6 +297,25 @@ func (m *PermissionCacheMiddleware) BatchCheckCachedPermissions(ctx context.Cont
 func (m *PermissionCacheMiddleware) RequireCachedAnyPermission(permissionCodes ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
+
+		// Check for superadmin override first (for system users without company_user_id)
+		reqCtx := map[string]interface{}{}
+		if v, ok := c.Get("username"); ok {
+			reqCtx["username"] = v
+		}
+		if v, ok := c.Get("user_id"); ok {
+			reqCtx["user_id"] = v
+		}
+		if v, ok := c.Get("user_role"); ok {
+			reqCtx["user_role"] = v
+		}
+
+		// Check if user is superadmin
+		if ok, why := isSuperAdminFromRequestContext(reqCtx); ok {
+			log.Printf("[PERMISSION_CACHE] Superadmin bypass for batch permissions (%s)", why)
+			c.Next()
+			return
+		}
 
 		// Get company user ID from context
 		companyUserIDInterface, exists := c.Get("company_user_id")

@@ -217,7 +217,7 @@ const TodayTasksDetailPage: React.FC = () => {
         </Row>
 
         {/* 页脚信息 */}
-        <Card bordered={false} size="small" style={{ marginTop: '24px', textAlign: 'center' }}>
+        <Card variant="borderless" size="small" style={{ marginTop: '24px', textAlign: 'center' }}>
           <Text type="secondary" style={{ fontSize: '12px' }}>
             数据更新时间: {new Date().toLocaleString('zh-CN')} |
             自动刷新周期: 5分钟 |

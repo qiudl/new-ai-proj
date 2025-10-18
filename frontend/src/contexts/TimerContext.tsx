@@ -1122,24 +1122,16 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
   }, [initBroadcastChannel, enableRealtimeSimulation]);
 
   // 🆕 监听刷新间隔变化并重新调度
+  // 移除 refreshTimer 依赖避免无限循环
   useEffect(() => {
     if (!isInitialized) return;
-    
-    
-    // 如果当前有定时器在运行，清除并重新调度
-    if (refreshIntervalRef.current) {
-      clearTimeout(refreshIntervalRef.current);
-      
-      // 重新调度下一次刷新
-      refreshIntervalRef.current = setTimeout(() => {
-        if (isMountedRef.current) {
-          refreshTimer().finally(() => {
-            // 这里会通过refreshTimer的逻辑自动调度后续刷新
-          });
-        }
-      }, currentRefreshInterval);
+
+    // 注意：这里不需要主动调度，因为 startDynamicRefresh 已经在初始化时启动了
+    // 只在间隔变化时记录日志
+    if (TIMER_REFRESH_CONFIG.SSE_DEBUG) {
+      console.log(`Refresh interval changed to: ${currentRefreshInterval}ms`);
     }
-  }, [currentRefreshInterval, isInitialized, refreshTimer]);
+  }, [currentRefreshInterval, isInitialized]);
 
   // 单独处理本地计时器的启动和停止
   useEffect(() => {

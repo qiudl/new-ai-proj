@@ -298,11 +298,11 @@ func (h *PermissionHandler) CheckUserPermission(c *gin.Context) {
 		permCode = underscoreToDot(permCode)
 	}
 
-	// Admin override based on JWT role (accept admin or super_admin; case-insensitive)
+	// Admin override based on JWT role (accept admin, super_admin, superadmin; case-insensitive)
 	if roleVal, exists := c.Get("user_role"); exists {
 		if roleStr, ok := roleVal.(string); ok {
 			role := strings.ToLower(roleStr)
-			if role == "admin" || role == "super_admin" {
+			if role == "admin" || role == "super_admin" || role == "superadmin" {
 				c.JSON(http.StatusOK, gin.H{"result": models.PermissionResult{
 					HasPermission: true,
 					Reason:        "Admin override (user role)",
@@ -314,7 +314,7 @@ func (h *PermissionHandler) CheckUserPermission(c *gin.Context) {
 	} else if roleVal2, exists2 := c.Get("current_user_role"); exists2 {
 		if roleStr, ok := roleVal2.(string); ok {
 			role := strings.ToLower(roleStr)
-			if role == "admin" || role == "super_admin" {
+			if role == "admin" || role == "super_admin" || role == "superadmin" {
 				c.JSON(http.StatusOK, gin.H{"result": models.PermissionResult{
 					HasPermission: true,
 					Reason:        "Admin override (current_user_role)",
@@ -399,15 +399,15 @@ func (h *PermissionHandler) GetUserPermissions(c *gin.Context) {
 		return
 	}
 
-	// Handle system administrators (admin, super_admin, company_admin roles) differently
-	if user.Role == "admin" || user.Role == "super_admin" || user.Role == "company_admin" {
+	// Handle system administrators (admin, super_admin, superadmin, company_admin roles) differently
+	if user.Role == "admin" || user.Role == "super_admin" || user.Role == "superadmin" || user.Role == "company_admin" {
 		// For administrators, return a special permission summary with full access
 		var roleDescription string
 		var roleName string
 		var roleCode string
 
 		switch user.Role {
-		case "admin", "super_admin":
+		case "admin", "super_admin", "superadmin":
 			roleDescription = "系统管理员拥有所有权限"
 			roleName = "系统管理员"
 			roleCode = user.Role

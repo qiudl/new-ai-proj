@@ -29,7 +29,7 @@ import {
   UserOutlined
 } from '@ant-design/icons';
 import { permissionService } from '../services/permissionService';
-// import companyService from '../services/companyService'; // Removed - company service no longer exists
+import enterpriseUserService from '../services/enterpriseUserService';
 import { getPermissionName, getPermissionDescription } from '../utils/permissionMapping';
 
 const { Title } = Typography;
@@ -117,24 +117,20 @@ const PermissionManagementPage: React.FC = () => {
 
   const loadCompanyUsers = async () => {
     try {
-      // Get users from the first company for demo
-      const companiesResponse = await companyService.getCompanies();
-      if (companiesResponse.data && companiesResponse.data.length > 0) {
-        const firstCompany = companiesResponse.data[0];
-        const usersResponse = await companyService.getCompanyUsers(firstCompany.id);
-        // For now, set mock data to avoid API issues
-        setCompanyUsers([
-          { id: 1, name: '张三', email: 'zhangsan@company.com', status: 'active', roleName: '项目经理' },
-          { id: 2, name: '李四', email: 'lisi@company.com', status: 'active', roleName: '开发工程师' }
-        ]);
-      }
+      const response = await enterpriseUserService.getUsers(1, 100);
+      const users = response.data.map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        roleId: user.role_id,
+        roleName: user.role_name,
+        status: user.status
+      }));
+      setCompanyUsers(users);
     } catch (error) {
+      console.error('加载企业用户失败:', error);
       message.error('加载企业用户失败');
-      // Set mock data on error
-      setCompanyUsers([
-        { id: 1, name: '张三', email: 'zhangsan@company.com', status: 'active', roleName: '项目经理' },
-        { id: 2, name: '李四', email: 'lisi@company.com', status: 'active', roleName: '开发工程师' }
-      ]);
+      setCompanyUsers([]);
     }
   };
 

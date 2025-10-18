@@ -54,11 +54,11 @@ export type SSEStatusListener = (status: SSEConnectionStatus, error?: string) =>
 
 // SSE配置
 const SSE_CONFIG = {
-  ENDPOINT: '/api/v1/timer/sse-token', // Token-based SSE endpoint (no auth middleware)
+  ENDPOINT: '/timer/sse-token', // Token-based SSE endpoint (URLBuilder will add /api/v1 prefix)
   RECONNECT_INTERVAL: 3000,    // 重连间隔3秒
   MAX_RECONNECT_ATTEMPTS: 10,  // 最大重连次数
   HEARTBEAT_TIMEOUT: 45000,    // 心跳超时45秒
-  CONNECTION_TIMEOUT: 10000,   // 连接超时10秒
+  CONNECTION_TIMEOUT: 15000,   // 连接超时15秒（首次连接可能需要较长时间）
   FALLBACK_POLL_INTERVAL: 30000, // 降级轮询间隔30秒
 };
 
@@ -320,23 +320,6 @@ class SSETimerService {
   }
   
   /**
-   * 安排重连
-   */
-  private scheduleReconnect(): void {
-    if (this.reconnectTimer) return;
-    
-    this.reconnectAttempts++;
-    this.setConnectionStatus('reconnecting');
-    
-    console.log(`SSE Timer Service: Scheduling reconnection attempt ${this.reconnectAttempts}/${SSE_CONFIG.MAX_RECONNECT_ATTEMPTS}`);
-    
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.connect();
-    }, SSE_CONFIG.RECONNECT_INTERVAL);
-  }
-  
-  /**
    * 开始降级轮询
    */
   private startFallbackPolling(): void {
@@ -431,7 +414,6 @@ class SSETimerService {
     this.closeConnection();
     this.stopHeartbeatMonitor();
     this.stopFallbackPolling();
-    this.cancelReconnect();
     this.setConnectionStatus('disconnected');
   }
   
@@ -442,16 +424,6 @@ class SSETimerService {
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
-    }
-  }
-  
-  /**
-   * 取消重连
-   */
-  private cancelReconnect(): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
     }
   }
   
@@ -520,7 +492,7 @@ class SSETimerService {
    */
   public reconnect(): void {
     this.disconnect();
-    this.reconnectAttempts = 0;
+    this.reconnectionManager.reset();
     setTimeout(() => this.connect(), 1000);
   }
   
@@ -592,9 +564,8 @@ class SSETimerService {
    */
   public cleanup(): void {
     this.disconnect();
-    // 移除事件监听器
-    window.removeEventListener('online', this.connect);
-    window.removeEventListener('offline', this.handleConnectionError);
+    // 注意: window事件监听器在setupNetworkListeners中添加为匿名函数
+    // 无法在这里移除,但disconnect()已经清理了所有连接相关资源
   }
 }
 

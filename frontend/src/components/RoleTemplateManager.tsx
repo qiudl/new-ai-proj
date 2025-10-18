@@ -136,8 +136,17 @@ const RoleTemplateManager: React.FC<RoleTemplateManagerProps> = ({
   // 加载统计数据
   const loadStats = useCallback(async () => {
     try {
-      const statsData = await roleTemplateService.getTemplateStats();
-      setStats(statsData);
+      // TODO: 后端需要实现 /role-templates/stats 端点
+      // const statsData = await roleTemplateService.getTemplateStats();
+      // setStats(statsData);
+
+      // 临时使用模拟数据
+      setStats({
+        total_templates: 0,
+        system_templates: 0,
+        business_templates: 0,
+        custom_templates: 0
+      });
     } catch (error: any) {
       console.error('Failed to load template stats:', error);
     }

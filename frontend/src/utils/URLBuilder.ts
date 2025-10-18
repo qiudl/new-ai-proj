@@ -227,24 +227,47 @@ class URLBuilder {
    */
   public buildSSEUrl(endpoint: string, token?: string): URLBuildResult {
     const result = this.buildApiUrl(endpoint);
-    
+
     if (!result.isValid) {
       return result;
     }
-    
+
     try {
+      // 检查是否为相对路径模式
+      const isRelativeMode = this.config.baseUrl.startsWith('/');
+
+      if (isRelativeMode || result.url.startsWith('/')) {
+        // 相对路径模式：需要手动添加token参数
+        let finalUrl = result.url;
+        if (token) {
+          const separator = finalUrl.includes('?') ? '&' : '?';
+          finalUrl = `${finalUrl}${separator}token=${encodeURIComponent(token)}`;
+        }
+
+        // 相对路径需要转换为绝对URL（EventSource要求）
+        // 使用window.location构建完整URL
+        const baseUrl = `${window.location.protocol}//${window.location.host}`;
+        const absoluteUrl = `${baseUrl}${finalUrl}`;
+
+        return {
+          ...result,
+          url: absoluteUrl
+        };
+      }
+
+      // 绝对URL模式
       const url = new URL(result.url);
-      
+
       // 添加token参数（SSE不支持自定义headers）
       if (token) {
         url.searchParams.set('token', token);
       }
-      
+
       return {
         ...result,
         url: url.toString()
       };
-      
+
     } catch (error) {
       return {
         url: '',

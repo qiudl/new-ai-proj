@@ -156,14 +156,14 @@ func (h *AISubtaskHandler) BatchCreateSubtasks(c *gin.Context) {
 			Title:               subtask.Title,
 			Description:         &subtask.Description,
 			Status:              "todo",
-			Priority:            subtask.Priority,
 			ParentID:            &parentIDInt,
 			ProjectID:           parentTask.ProjectID,
-			EstimatedHours:      &subtask.EstimatedHours,
+			EstimatedMinutes:    int(subtask.EstimatedHours * 60), // 将小时转换为分钟
 			SortOrder:           i, // 保持顺序
 			TimeTrackingMode:    "manual",
 			TimeUnitPreference:  "auto",
 			WorkHoursPerDay:     8,
+			CustomFields:        make(models.CustomFields), // 初始化为空map，避免nil导致的JSON错误
 		}
 
 		// ✅ 使用事务中的Repository创建任务

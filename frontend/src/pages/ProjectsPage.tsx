@@ -101,15 +101,24 @@ const ProjectsPage: React.FC = () => {
       // response.data 就是项目数组
       const projectsData = response.data;
       
-      // Filter out invalid project objects and add project numbers
-      const validProjects = projectsData.filter(project => 
-        project && 
-        typeof project === 'object' && 
-        typeof project.id !== 'undefined'
-      ).map(project => ({
+      // ✅ Filter out invalid project objects and add project numbers
+      const validProjects = projectsData.filter(project => {
+        // 严格验证：项目必须有有效的ID（不能是undefined、null、NaN或0）
+        const isValid = project &&
+          typeof project === 'object' &&
+          typeof project.id !== 'undefined' &&
+          project.id !== null &&
+          !isNaN(project.id) &&
+          project.id > 0;
+
+        if (!isValid) {
+          console.warn('过滤掉无效项目:', project);
+        }
+        return isValid;
+      }).map(project => ({
         ...project,
         project_number: project.project_number || generateProjectNumber(project.id),
-        company_name: project.company_name || '未分配企业' // 如果没有企业信息，显示默认值
+        company_name: project.company_name || project.enterprise_name || '未分配企业' // ✅ 优先使用enterprise_name
       }));
       
       setProjects(validProjects);
@@ -132,6 +141,12 @@ const ProjectsPage: React.FC = () => {
   };
 
   const handleEditProject = (project: Project) => {
+    // ✅ 安全检查：确保project.id是有效数字
+    if (!project || typeof project.id === 'undefined' || project.id === null) {
+      console.error('Invalid project for editing:', project);
+      message.error('无效的项目ID，无法编辑');
+      return;
+    }
     navigate(`/projects/${project.id}/edit`);
   };
 

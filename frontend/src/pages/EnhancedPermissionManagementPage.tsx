@@ -71,7 +71,7 @@ const EnhancedPermissionManagementPage: React.FC = () => {
             <span>增强权限管理</span>
           </div>
         }
-        bordered={false}
+        variant="borderless"
         style={{ background: '#fff' }}
       >
         <Tabs

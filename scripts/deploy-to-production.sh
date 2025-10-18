@@ -9,7 +9,7 @@ set -e
 
 # 配置
 REMOTE_HOST="ubuntu@152.136.104.251"
-REMOTE_BASE="/home/ubuntu/apps/new-ai-proj"
+REMOTE_BASE="/opt/ai-project"
 LOCAL_DIR="/Users/johnqiu/coding/www/projects/new-ai-proj"
 
 # 颜色输出
@@ -98,6 +98,8 @@ sync_backend() {
     
     log_info "同步后端代码..."
     
+    ssh "$REMOTE_HOST" "mkdir -p $release_dir/backend"
+
     if [ "$DRY_RUN" = true ]; then
         log_warning "[模拟] 同步后端代码到: $release_dir/backend"
         return 0
@@ -127,6 +129,8 @@ sync_frontend() {
     
     log_info "同步前端代码..."
     
+    ssh "$REMOTE_HOST" "mkdir -p $release_dir/frontend"
+
     if [ "$DRY_RUN" = true ]; then
         log_warning "[模拟] 同步前端代码到: $release_dir/frontend"
         return 0
@@ -156,6 +160,8 @@ sync_other_files() {
         log_warning "[模拟] 同步其他文件"
         return 0
     fi
+
+    ssh "$REMOTE_HOST" "mkdir -p $release_dir/mcp-task-bridge"
     
     # 同步配置文件
     rsync -avz \
@@ -228,22 +234,23 @@ restart_backend() {
         return 0
     fi
     
-    ssh "$REMOTE_HOST" << 'EOF'
+    ssh "$REMOTE_HOST" bash -s << EOF
         # 停止旧的后端进程
-        pkill -f "/opt/ai-project/backend/backend" || true
+        pkill -f "$REMOTE_BASE/backend/backend" || true
         sleep 2
-        
-        # 启动新的后端服务
-        cd /opt/ai-project/backend
-        nohup ./backend > backend.log 2>&1 &
-        
+
+        # 启动新的后端服务（使用软链接指向最新版本）
+        cd $REMOTE_BASE/current/backend
+        nohup ./main > backend.log 2>&1 &
+
         sleep 3
-        
+
         # 检查服务状态
         if curl -s http://localhost:8080/health > /dev/null; then
             echo "✅ 后端服务启动成功"
         else
             echo "❌ 后端服务启动失败"
+            tail -20 backend.log
             exit 1
         fi
 EOF

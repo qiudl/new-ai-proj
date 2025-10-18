@@ -24,6 +24,17 @@ import { formatRelativeTime, formatExactTime, getTimeStyle, getUpdateTimestamp }
 import { formatTaskStatus } from '../utils/formatters';
 import { TASK_STATUS_OPTIONS } from '../utils/bulkSubTaskConfig';
 import dayjs from 'dayjs';
+// ✅ Performance optimization: Import memoized cell components
+import {
+  TaskStatusSelect,
+  TaskAssigneeSelect,
+  TaskDueDatePicker,
+  TaskPrioritySelect,
+  TaskTags,
+  TaskProjectLink,
+  TaskRowCheckbox,
+  TaskRowActions
+} from '../components/TaskRow/TaskRowMemoized';
 import '../styles/task-inline-edit.css';
 import '../styles/task-hierarchy.css';
 import '../styles/task-inline-edit-enhanced.css';
@@ -918,10 +929,10 @@ const TasksPage: React.FC = () => {
     }
   };
 
-  // Handle view task details
-  const handleViewTask = (task: Task) => {
+  // Handle view task details（✅ 使用useCallback优化）
+  const handleViewTask = useCallback((task: Task) => {
     navigate(`/projects/${task.project_id}/tasks/${task.id}`);
-  };
+  }, [navigate]);
 
   // Handle bulk create subtasks
   const handleBulkCreateSubTasks = (parentTask: Task) => {
@@ -943,8 +954,8 @@ const TasksPage: React.FC = () => {
     loadTasks(pagination.current, pagination.pageSize);
   };
 
-  // Handle status update - 内联编辑状态
-  const handleStatusUpdate = async (taskId: number, newStatus: string, task: Task) => {
+  // Handle status update - 内联编辑状态（✅ 使用useCallback优化）
+  const handleStatusUpdate = useCallback(async (taskId: number, newStatus: string, task: Task) => {
     // 添加加载状态提示（确保在失败时也能关闭）
     const hideLoading = message.loading('正在更新状态...', 0);
     try {
@@ -954,12 +965,17 @@ const TasksPage: React.FC = () => {
         return;
       }
 
-      await TaskService.updateTask(projectId, taskId, { 
+      await TaskService.updateTask(projectId, taskId, {
         status: newStatus as any
       });
       // analytics
       try { const { track } = await import('../utils/analytics'); track('task_update', { action: 'status_change', taskId, projectId, newStatus }); } catch {}
-      
+
+      // ✅ 乐观更新：立即更新本地状态，无需重新加载
+      setTasks(prev => prev.map(t =>
+        t.id === taskId ? { ...t, status: newStatus as TaskStatus } : t
+      ));
+
       // 🆕 如果任务状态变更为completed或cancelled，主动刷新计时器
       if (newStatus === 'completed' || newStatus === 'cancelled') {
         try {
@@ -969,11 +985,8 @@ const TasksPage: React.FC = () => {
           // 不影响主流程，只记录警告
         }
       }
-      
+
       message.success('状态更新成功');
-      
-      // 刷新任务列表
-      loadTasks(pagination.current, pagination.pageSize);
     } catch (error: any) {
       console.error('Status update error:', error);
       const status = error?.status ?? error?.statusCode;
@@ -984,13 +997,15 @@ const TasksPage: React.FC = () => {
       } else {
         message.error(error?.message || '状态更新失败');
       }
+      // 失败时重新加载确保数据一致性
+      loadTasks(pagination.current, pagination.pageSize);
     } finally {
       hideLoading();
     }
-  };
+  }, [effectiveProjectId, refreshTimer, loadTasks, pagination.current, pagination.pageSize]);
 
-  // Handle due date update - 内联编辑截止日期
-  const handleDueDateUpdate = async (taskId: number, newDueDate: string | null, task: Task) => {
+  // Handle due date update - 内联编辑截止日期（✅ 使用useCallback优化）
+  const handleDueDateUpdate = useCallback(async (taskId: number, newDueDate: string | null, task: Task) => {
     // 添加加载状态提示（确保在失败时也能关闭）
     const hideLoading = message.loading('正在更新截止日期...', 0);
     try {
@@ -1009,15 +1024,17 @@ const TasksPage: React.FC = () => {
       const updateData: Partial<TaskRequest> = {
         due_date: newDueDate || ""
       };
-      
+
       await TaskService.updateTask(projectId, taskId, updateData);
       // analytics
       try { const { track } = await import('../utils/analytics'); track('task_update', { action: 'due_date_change', taskId, projectId, newDueDate }); } catch {}
-      
+
+      // ✅ 乐观更新：立即更新本地状态
+      setTasks(prev => prev.map(t =>
+        t.id === taskId ? { ...t, due_date: newDueDate } : t
+      ));
+
       message.success('截止日期更新成功');
-      
-      // 刷新任务列表
-      loadTasks(pagination.current, pagination.pageSize);
     } catch (error: any) {
       console.error('Due date update error:', error);
       const status = error?.status ?? error?.statusCode;
@@ -1028,13 +1045,15 @@ const TasksPage: React.FC = () => {
       } else {
         message.error(error?.message || '截止日期更新失败');
       }
+      // 失败时重新加载
+      loadTasks(pagination.current, pagination.pageSize);
     } finally {
       hideLoading();
     }
-  };
+  }, [effectiveProjectId, loadTasks, pagination.current, pagination.pageSize]);
 
-  // Handle priority update - 内联编辑优先级
-  const handlePriorityUpdate = async (task: Task, newPriority: 'low' | 'medium' | 'high') => {
+  // Handle priority update - 内联编辑优先级（✅ 使用useCallback优化）
+  const handlePriorityUpdate = useCallback(async (task: Task, newPriority: 'low' | 'medium' | 'high') => {
     try {
       const projectId = effectiveProjectId || task.project_id;
       if (!projectId) {
@@ -1044,16 +1063,22 @@ const TasksPage: React.FC = () => {
       const hide = message.loading('正在更新优先级...', 0);
       await TaskService.updateTask(projectId, task.id, { priority: newPriority });
       hide();
+
+      // ✅ 乐观更新：立即更新本地状态
+      setTasks(prev => prev.map(t =>
+        t.id === task.id ? { ...t, priority: newPriority, custom_fields: { ...t.custom_fields, priority: newPriority } } : t
+      ));
+
       message.success('优先级更新成功');
-      loadTasks(pagination.current, pagination.pageSize);
     } catch (error: any) {
       console.error('Priority update error:', error);
       message.error(error?.message || '优先级更新失败');
+      loadTasks(pagination.current, pagination.pageSize);
     }
-  };
+  }, [effectiveProjectId, loadTasks, pagination.current, pagination.pageSize]);
 
-  // Handle assignee update - 内联编辑负责人
-  const handleAssigneeUpdate = async (task: Task, assigneeId: number | null) => {
+  // Handle assignee update - 内联编辑负责人（✅ 使用useCallback优化）
+  const handleAssigneeUpdate = useCallback(async (task: Task, assigneeId: number | null) => {
     try {
       const projectId = effectiveProjectId || task.project_id;
       if (!projectId) {
@@ -1063,13 +1088,19 @@ const TasksPage: React.FC = () => {
       const hide = message.loading('正在更新负责人...', 0);
       await TaskService.updateTask(projectId, task.id, { assignee_id: assigneeId });
       hide();
+
+      // ✅ 乐观更新：立即更新本地状态
+      setTasks(prev => prev.map(t =>
+        t.id === task.id ? { ...t, assignee_id: assigneeId } : t
+      ));
+
       message.success('负责人更新成功');
-      loadTasks(pagination.current, pagination.pageSize);
     } catch (error: any) {
       console.error('Assignee update error:', error);
       message.error(error?.message || '负责人更新失败');
+      loadTasks(pagination.current, pagination.pageSize);
     }
-  };
+  }, [effectiveProjectId, loadTasks, pagination.current, pagination.pageSize]);
 
   // Handle title inline editing
   const handleTitleEdit = (task: Task) => {
@@ -1133,7 +1164,7 @@ const TasksPage: React.FC = () => {
 
 
   // 批量选择处理函数
-  const handleSelectTask = (taskId: number, checked: boolean) => {
+  const handleSelectTask = useCallback((taskId: number, checked: boolean) => {
     setSelectedTaskIds(prev => {
       if (checked) {
         return [...prev, taskId];
@@ -1141,68 +1172,7 @@ const TasksPage: React.FC = () => {
         return prev.filter(id => id !== taskId);
       }
     });
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      const validTasks = Array.isArray(stableDataSource) ? stableDataSource : [];
-      const allTaskIds = validTasks.map(task => task.id);
-      setSelectedTaskIds(allTaskIds);
-    } else {
-      setSelectedTaskIds([]);
-    }
-  };
-
-  const handleBulkDelete = () => {
-    if (selectedTaskIds.length === 0) {
-      message.warning('请先选择要删除的任务');
-      return;
-    }
-
-    const hasChildren = selectedTaskIds.some(taskId => {
-      const task = stableDataSource.find(t => t.id === taskId);
-      return task && (task.custom_fields?.children_count || 0) > 0;
-    });
-
-    const deleteMessage = hasChildren 
-      ? `确定要删除选中的 ${selectedTaskIds.length} 个任务吗？\n\n⚠️ 删除包含子任务的任务将同时删除其所有子任务，此操作不可撤销。`
-      : `确定要删除选中的 ${selectedTaskIds.length} 个任务吗？此操作不可撤销。`;
-
-    Modal.confirm({
-      title: '批量删除确认',
-      content: deleteMessage,
-      okText: '删除',
-      okType: 'danger',
-      cancelText: '取消',
-      wrapClassName: 'critical-modal',
-      onOk: async () => {
-        setBulkDeleteLoading(true);
-        try {
-          const projectId = effectiveProjectId;
-          if (!projectId) {
-            message.error('无法删除任务：缺少项目信息');
-            return;
-          }
-
-          const result = await TaskService.bulkDeleteTasks(projectId, selectedTaskIds);
-          message.success(result.message);
-          
-          // 清空选择
-          setSelectedTaskIds([]);
-          
-          // 刷新任务列表
-          setSubTasks(new Map());
-          setExpandedTasks(new Set());
-          loadTasks(pagination.current, pagination.pageSize);
-        } catch (error: Error | unknown) {
-          message.error((error as any).message || '批量删除失败');
-        } finally {
-          setBulkDeleteLoading(false);
-        }
-      },
-    });
-  };
-
+  }, []);
 
   // Build expanded data source - 只显示根任务，子任务在列内展开
   const buildExpandedDataSource = useCallback(() => {
@@ -1286,6 +1256,68 @@ const TasksPage: React.FC = () => {
     }
   }, [buildExpandedDataSource, tasks]);
 
+  // 全选/取消全选处理
+  const handleSelectAll = useCallback((checked: boolean) => {
+    if (checked) {
+      const validTasks = Array.isArray(stableDataSource) ? stableDataSource : [];
+      const allTaskIds = validTasks.map(task => task.id);
+      setSelectedTaskIds(allTaskIds);
+    } else {
+      setSelectedTaskIds([]);
+    }
+  }, [stableDataSource]);
+
+  // 批量删除处理
+  const handleBulkDelete = () => {
+    if (selectedTaskIds.length === 0) {
+      message.warning('请先选择要删除的任务');
+      return;
+    }
+
+    const hasChildren = selectedTaskIds.some(taskId => {
+      const task = stableDataSource.find(t => t.id === taskId);
+      return task && (task.custom_fields?.children_count || 0) > 0;
+    });
+
+    const deleteMessage = hasChildren
+      ? `确定要删除选中的 ${selectedTaskIds.length} 个任务吗？\n\n⚠️ 删除包含子任务的任务将同时删除其所有子任务，此操作不可撤销。`
+      : `确定要删除选中的 ${selectedTaskIds.length} 个任务吗？此操作不可撤销。`;
+
+    Modal.confirm({
+      title: '批量删除确认',
+      content: deleteMessage,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      wrapClassName: 'critical-modal',
+      onOk: async () => {
+        setBulkDeleteLoading(true);
+        try {
+          const projectId = effectiveProjectId;
+          if (!projectId) {
+            message.error('无法删除任务：缺少项目信息');
+            return;
+          }
+
+          const result = await TaskService.bulkDeleteTasks(projectId, selectedTaskIds);
+          message.success(result.message);
+
+          // 清空选择
+          setSelectedTaskIds([]);
+
+          // 刷新任务列表
+          setSubTasks(new Map());
+          setExpandedTasks(new Set());
+          loadTasks(pagination.current, pagination.pageSize);
+        } catch (error: Error | unknown) {
+          message.error((error as any).message || '批量删除失败');
+        } finally {
+          setBulkDeleteLoading(false);
+        }
+      },
+    });
+  };
+
   // 当项目变化时，加载列配置
   useEffect(() => {
     const storageKey = `task-columns-${effectiveProjectId || 'global'}`;
@@ -1355,7 +1387,7 @@ const TasksPage: React.FC = () => {
       switch (config.key) {
         case 'selection':
           return {
-            title: createResizableTitle(config, 
+            title: createResizableTitle(config,
               <Checkbox
                 indeterminate={selectedTaskIds.length > 0 && selectedTaskIds.length < stableDataSource.length}
                 onChange={(e) => handleSelectAll(e.target.checked)}
@@ -1366,9 +1398,11 @@ const TasksPage: React.FC = () => {
             key: 'selection',
             width: config.width,
             render: (_: unknown, record: Task) => (
-              <Checkbox
+              // ✅ 使用memo化的组件
+              <TaskRowCheckbox
+                taskId={record.id}
                 checked={selectedTaskIds.includes(record.id)}
-                onChange={(e) => handleSelectTask(record.id, e.target.checked)}
+                onChange={handleSelectTask}
               />
             ),
           };
@@ -1611,21 +1645,12 @@ const TasksPage: React.FC = () => {
             render: (projectName: string, record: Task) => {
               const displayName = projectName || record.custom_fields?.project_name || `项目${record.project_id}`;
               return (
-                <Button
-                  type="link"
-                  size="small"
-                  style={{ 
-                    padding: 0,
-                    height: 'auto',
-                    fontSize: '13px',
-                    color: '#1890ff'
-                  }}
-                  onClick={() => navigate(`/projects/${record.project_id}`)}
-                  title={`查看项目: ${displayName}`}
-                >
-                  <ProjectOutlined style={{ marginRight: 4, fontSize: '12px' }} />
-                  {displayName}
-                </Button>
+                // ✅ 使用memo化的组件
+                <TaskProjectLink
+                  projectId={record.project_id}
+                  projectName={displayName}
+                  onNavigate={(pid) => navigate(`/projects/${pid}`)}
+                />
               );
             },
           };
@@ -1638,30 +1663,15 @@ const TasksPage: React.FC = () => {
             width: config.width,
             sorter: true,
             sortOrder: tableSort.sortBy === 'status' ? (tableSort.sortOrder === 'asc' ? 'ascend' : 'descend') : null,
-            render: (status: TaskStatus, record: Task) => {
-              return (
-                <Select
-                  value={status}
-                  onChange={(newStatus) => handleStatusUpdate(record.id, newStatus, record)}
-                  style={{ 
-                    width: '100%',
-                    borderRadius: '4px',
-                    backgroundColor: '#fafafa'
-                  }}
-                  variant="borderless"
-                  
-                  suffixIcon={null}
-                >
-                  {TASK_STATUS_OPTIONS.map(opt => (
-                    <Select.Option key={opt.value as string} value={opt.value as string}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontWeight: 500 }}>{opt.label}</span>
-                      </div>
-                    </Select.Option>
-                  ))}
-                </Select>
-              );
-            },
+            render: (status: TaskStatus, record: Task) => (
+              // ✅ 使用memo化的组件
+              <TaskStatusSelect
+                taskId={record.id}
+                status={status}
+                onStatusChange={handleStatusUpdate}
+                task={record}
+              />
+            ),
           };
           
         case 'assignee_name':
@@ -1674,17 +1684,13 @@ const TasksPage: React.FC = () => {
               const pid = record.project_id;
               const options = projectUsersCache.get(pid) || [];
               return (
-                <Select
-                  value={record.assignee_id ?? undefined}
-                  placeholder="未分配"
-                  allowClear
-                  
-                  variant="borderless"
-                  style={{ width: '100%' }}
+                // ✅ 使用memo化的组件
+                <TaskAssigneeSelect
+                  task={record}
+                  projectUsers={options}
                   loading={loadingProjectUsers.has(pid)}
-onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
-                  onChange={(val) => handleAssigneeUpdate(record, (val as number) ?? null)}
-                  options={options.map(u => ({ label: u.user_name, value: u.user_id }))}
+                  onAssigneeChange={handleAssigneeUpdate}
+                  onLoadUsers={loadProjectUsers}
                 />
               );
             },
@@ -1715,49 +1721,14 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             width: config.width,
             sorter: true,
             sortOrder: tableSort.sortBy === 'due_date' ? (tableSort.sortOrder === 'asc' ? 'ascend' : 'descend') : null,
-            render: (date: string, record: Task) => {
-              const currentDate = date ? dayjs(date) : null;
-              const now = dayjs();
-              const isOverdue = currentDate && currentDate.isBefore(now, 'day');
-              const isUpcoming = currentDate && currentDate.diff(now, 'day') <= 3 && currentDate.diff(now, 'day') >= 0;
-              
-              let bgColor = '#fafafa';
-              let textColor = '#8c8c8c';
-              let icon = '📅';
-              
-              if (isOverdue) {
-                bgColor = '#fff2f0';
-                textColor = '#ff4d4f';
-                icon = '⚠️';
-              } else if (isUpcoming) {
-                bgColor = '#fff7e6';
-                textColor = '#fa8c16';
-                icon = '⏰';
-              }
-              
-              return (
-                <DatePicker
-                  value={currentDate}
-                  onChange={(newDate) => {
-                    const dateString = newDate ? newDate.format('YYYY-MM-DD') : null;
-                    handleDueDateUpdate(record.id, dateString, record);
-                  }}
-                  style={{ 
-                    width: '100%',
-                    backgroundColor: bgColor,
-                    borderRadius: '4px',
-                    color: textColor,
-                    fontWeight: 500
-                  }}
-                  variant="borderless"
-                  
-                  placeholder="设置截止日期"
-                  format="YYYY-MM-DD"
-                  allowClear
-                  suffixIcon={<span style={{ fontSize: '12px' }}>{icon}</span>}
-                />
-              );
-            },
+            render: (date: string, record: Task) => (
+              // ✅ 使用memo化的组件
+              <TaskDueDatePicker
+                task={record}
+                date={date}
+                onDueDateChange={handleDueDateUpdate}
+              />
+            ),
           };
           
         case 'created_at':
@@ -1794,17 +1765,11 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             render: (_: string, record: Task) => {
               const current = (record as any).priority || (record.custom_fields?.priority as 'low' | 'medium' | 'high') || 'medium';
               return (
-                <Select
-                  value={current}
-                  
-                  variant="borderless"
-                  style={{ width: '100%' }}
-                  onChange={(val) => handlePriorityUpdate(record, val as 'low' | 'medium' | 'high')}
-                  options={[
-                    { label: '高', value: 'high' },
-                    { label: '中', value: 'medium' },
-                    { label: '低', value: 'low' },
-                  ]}
+                // ✅ 使用memo化的组件
+                <TaskPrioritySelect
+                  task={record}
+                  priority={current}
+                  onPriorityChange={handlePriorityUpdate}
                 />
               );
             },
@@ -1817,41 +1782,9 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             width: config.width,
             render: (_: unknown, record: Task) => {
               const tags = record.custom_fields?.tags || [];
-              
               return (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
-                  {Array.isArray(tags) && tags.length > 0 ? (
-                    <>
-                      {tags.slice(0, 2).map((tag: string) => (
-                        <Tag 
-                          key={tag} 
-                          style={{ 
-                            marginBottom: 2, 
-                            fontSize: '11px',
-                            padding: '0 6px',
-                            lineHeight: '18px',
-                            borderRadius: '9px'
-                          }}
-                          color="blue"
-                        >
-                          {tag}
-                        </Tag>
-                      ))}
-                      {tags.length > 2 && (
-                        <Tag style={{ 
-                          fontSize: '11px',
-                          padding: '0 6px',
-                          lineHeight: '18px',
-                          borderRadius: '9px'
-                        }}>
-                          +{tags.length - 2}
-                        </Tag>
-                      )}
-                    </>
-                  ) : (
-                    <span style={{ color: '#8c8c8c', fontSize: '12px' }}>无标签</span>
-                  )}
-                </div>
+                // ✅ 使用memo化的组件
+                <TaskTags tags={tags} />
               );
             },
           };
@@ -1863,15 +1796,11 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             width: config.width,
             fixed: 'right',
             render: (_: unknown, record: Task & { isSubTask?: boolean; depth?: number }) => (
-              <Space >
-                <Button
-                  type="text"
-                  
-                  icon={<EyeOutlined />}
-                  onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}`)}
-                  title="查看详情"
-                />
-              </Space>
+              // ✅ 使用memo化的组件
+              <TaskRowActions
+                task={record}
+                onView={handleViewTask}
+              />
             ),
           };
           
@@ -1879,7 +1808,25 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
           return null;
       }
     }).filter(Boolean) as unknown[];
-  }, [columnConfigs, selectedTaskIds, stableDataSource, effectiveProjectId, expandedTasks, loadingChildren, subTasks, tableSort]);
+  }, [
+    // ✅ 优化后的依赖列表 - 减少不必要的依赖
+    columnConfigs,
+    selectedTaskIds,
+    stableDataSource,
+    tableSort,
+    handleStatusUpdate,      // ✅ 现在是稳定的引用
+    handleAssigneeUpdate,    // ✅ 现在是稳定的引用
+    handleDueDateUpdate,     // ✅ 现在是稳定的引用
+    handlePriorityUpdate,    // ✅ 现在是稳定的引用
+    handleSelectTask,        // ✅ 现在是稳定的引用
+    handleSelectAll,         // ✅ 现在是稳定的引用
+    handleViewTask,          // ✅ 现在是稳定的引用
+    loadProjectUsers,        // ✅ 现在是稳定的引用
+    projectUsersCache,
+    loadingProjectUsers,
+    navigate,
+    // ❌ 移除: effectiveProjectId, expandedTasks, loadingChildren, subTasks (在handler中处理)
+  ]);
 
   // 保留原有的静态columns定义作为备用（当前使用generateColumns）
   const columns = [

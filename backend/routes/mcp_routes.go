@@ -106,6 +106,14 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	// 模板文档生成路由
 	mcp.POST("/generate-document-from-template", templateHandler.GenerateDocumentFromTemplate)
 
+	// Task and Timer combined operations
+	mcp.POST("/start-task-with-timer", startTaskWithTimer(app))
+	mcp.POST("/switch-to-task", switchToTask(app))
+
+	// 子任务管理路由
+	mcp.POST("/create-subtask", createSubtask(app))
+	mcp.POST("/create-sibling-task", createSiblingTask(app))
+
 	// MCP Worktree工具路由 (Phase 5)
 	RegisterMCPWorktreeRoutes(mcp, app)
 }
@@ -800,6 +808,224 @@ func createBatchDocuments(h *handlers.DocumentHandler) gin.HandlerFunc {
 	}
 }
 
+// startTaskWithTimer MCP专用：启动任务并开始计时
+func startTaskWithTimer(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			TaskIDOrTitle    interface{} `json:"taskIdOrTitle"` // Can be int or string
+			TimerDescription string      `json:"timerDescription,omitempty"`
+			ProjectID        int         `json:"projectId,omitempty"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid request body", err))
+			return
+		}
+
+		// Default project ID
+		if req.ProjectID == 0 {
+			req.ProjectID = 1
+		}
+
+		// Determine task ID
+		var taskID int
+		switch v := req.TaskIDOrTitle.(type) {
+		case float64:
+			taskID = int(v)
+		case int:
+			taskID = v
+		case string:
+			// Find task by title (fuzzy match)
+			sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
+			if !ok {
+				c.JSON(http.StatusInternalServerError, standardErrorResponse("Database error", nil))
+				return
+			}
+
+			err := sqlDB.QueryRow(`
+				SELECT id FROM tasks
+				WHERE project_id = $1
+				AND title ILIKE '%' || $2 || '%'
+				AND deleted_at IS NULL
+				ORDER BY
+					CASE WHEN status = 'in_progress' THEN 1
+						 WHEN status = 'todo' THEN 2
+						 ELSE 3 END,
+					updated_at DESC
+				LIMIT 1
+			`, req.ProjectID, v).Scan(&taskID)
+
+			if err == sql.ErrNoRows {
+				c.JSON(http.StatusNotFound, standardErrorResponse(fmt.Sprintf("Task not found with title: %s", v), nil))
+				return
+			}
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to find task", err))
+				return
+			}
+		default:
+			c.JSON(http.StatusBadRequest, standardErrorResponse("taskIdOrTitle must be a number or string", nil))
+			return
+		}
+
+		// Start the task (update status to in_progress)
+		sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database error", nil))
+			return
+		}
+
+		_, err := sqlDB.Exec(`
+			UPDATE tasks
+			SET status = 'in_progress', updated_at = NOW()
+			WHERE id = $1 AND project_id = $2 AND deleted_at IS NULL
+		`, taskID, req.ProjectID)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to start task", err))
+			return
+		}
+
+		// Start timer
+		timerDescription := req.TimerDescription
+		if timerDescription == "" {
+			// Get task title for description
+			var taskTitle string
+			sqlDB.QueryRow("SELECT title FROM tasks WHERE id = $1", taskID).Scan(&taskTitle)
+			timerDescription = fmt.Sprintf("Working on: %s", taskTitle)
+		}
+
+		// Call timer start endpoint
+		timerReq := gin.H{
+			"task_id": taskID,
+			"title":   timerDescription,
+		}
+
+		jsonBody, _ := json.Marshal(timerReq)
+		c.Request.Body = io.NopCloser(strings.NewReader(string(jsonBody)))
+		c.Request.ContentLength = int64(len(jsonBody))
+
+		// Create response recorder
+		w := &responseRecorder{ResponseWriter: c.Writer, body: &bytes.Buffer{}}
+		c.Writer = w
+
+		// Call timer handler
+		app.GetUnifiedTimerHandler().StartTimer(c)
+
+		// Parse timer response
+		var timerResp map[string]interface{}
+		json.Unmarshal(w.body.Bytes(), &timerResp)
+
+		// Return combined response
+		c.Writer = gin.ResponseWriter(c.Writer.(*responseRecorder).ResponseWriter)
+		c.JSON(http.StatusOK, standardSuccessResponse("Task started and timer began", gin.H{
+			"task_id":      taskID,
+			"project_id":   req.ProjectID,
+			"timer_status": timerResp,
+		}))
+	}
+}
+
+// switchToTask MCP专用：智能切换任务
+func switchToTask(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			NewTaskTitle string `json:"newTaskTitle"`
+			ProjectID    int    `json:"projectId,omitempty"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid request body", err))
+			return
+		}
+
+		// Default project ID
+		if req.ProjectID == 0 {
+			req.ProjectID = 1
+		}
+
+		// Get user ID (for potential future use)
+		_, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, standardErrorResponse("User not authenticated", nil))
+			return
+		}
+
+		// Stop current timer if any
+		ctx := c.Request.Context()
+		app.GetUnifiedTimerHandler().StopTimer(c)
+
+		// Find new task by title (智能匹配)
+		sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database error", nil))
+			return
+		}
+
+		var newTaskID int
+		var newTaskTitle string
+		err := sqlDB.QueryRowContext(ctx, `
+			SELECT id, title FROM tasks
+			WHERE project_id = $1
+			AND title ILIKE '%' || $2 || '%'
+			AND deleted_at IS NULL
+			ORDER BY
+				CASE WHEN status = 'in_progress' THEN 1
+					 WHEN status = 'todo' THEN 2
+					 ELSE 3 END,
+				updated_at DESC
+			LIMIT 1
+		`, req.ProjectID, req.NewTaskTitle).Scan(&newTaskID, &newTaskTitle)
+
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse("Task not found", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to find task", err))
+			return
+		}
+
+		// Start new task
+		_, err = sqlDB.ExecContext(ctx, `
+			UPDATE tasks
+			SET status = 'in_progress', updated_at = NOW()
+			WHERE id = $1 AND project_id = $2
+		`, newTaskID, req.ProjectID)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to start new task", err))
+			return
+		}
+
+		// Start new timer
+		timerReq := gin.H{
+			"task_id": newTaskID,
+			"title":   fmt.Sprintf("Switched to: %s", newTaskTitle),
+		}
+
+		jsonBody, _ := json.Marshal(timerReq)
+		c.Request.Body = io.NopCloser(strings.NewReader(string(jsonBody)))
+		c.Request.ContentLength = int64(len(jsonBody))
+
+		w := &responseRecorder{ResponseWriter: c.Writer, body: &bytes.Buffer{}}
+		c.Writer = w
+
+		app.GetUnifiedTimerHandler().StartTimer(c)
+
+		var timerResp map[string]interface{}
+		json.Unmarshal(w.body.Bytes(), &timerResp)
+
+		c.Writer = gin.ResponseWriter(c.Writer.(*responseRecorder).ResponseWriter)
+		c.JSON(http.StatusOK, standardSuccessResponse("Successfully switched to new task", gin.H{
+			"task_id":      newTaskID,
+			"task_title":   newTaskTitle,
+			"project_id":   req.ProjectID,
+			"timer_status": timerResp,
+		}))
+	}
+}
+
 // createTaskDocs MCP专用：批量为任务创建技术文档
 func createTaskDocs(h *handlers.DocumentHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -871,5 +1097,196 @@ func createTaskDocs(h *handlers.DocumentHandler) gin.HandlerFunc {
 			},
 			"message": fmt.Sprintf("📝 批量创建 %d 个任务文档，跳过 %d 个", len(createdDocs), len(skippedTasks)),
 		})
+	}
+}
+
+// createSubtask MCP专用：创建子任务（简化接口）
+func createSubtask(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			ParentID int    `json:"parentId"`
+			Title    string `json:"title"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid request body", err))
+			return
+		}
+
+		// 验证必填字段
+		if err := validateRequest(map[string]interface{}{
+			"parentId": req.ParentID,
+			"title":    req.Title,
+		}); err != nil {
+			c.JSON(http.StatusBadRequest, standardErrorResponse("Validation failed", err))
+			return
+		}
+
+		// 转换为BatchCreateSubtasksRequest格式
+		batchReq := map[string]interface{}{
+			"parent_id": req.ParentID,
+			"subtasks": []map[string]interface{}{
+				{
+					"title":           req.Title,
+					"description":     "",
+					"estimated_hours": 0,
+					"priority":        "medium",
+				},
+			},
+		}
+
+		// 编码请求体
+		jsonBody, _ := json.Marshal(batchReq)
+		c.Request.Body = io.NopCloser(strings.NewReader(string(jsonBody)))
+		c.Request.ContentLength = int64(len(jsonBody))
+
+		// 创建响应记录器
+		w := &responseRecorder{ResponseWriter: c.Writer, body: &bytes.Buffer{}}
+		c.Writer = w
+
+		// 调用批量创建子任务处理器
+		app.GetAISubtaskHandler().BatchCreateSubtasks(c)
+
+		// 解析响应
+		var batchResp map[string]interface{}
+		if err := json.Unmarshal(w.body.Bytes(), &batchResp); err != nil {
+			c.Writer = gin.ResponseWriter(c.Writer.(*responseRecorder).ResponseWriter)
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to create subtask", err))
+			return
+		}
+
+		// 提取第一个创建的子任务
+		c.Writer = gin.ResponseWriter(c.Writer.(*responseRecorder).ResponseWriter)
+
+		if success, ok := batchResp["success"].(bool); ok && success {
+			if tasks, ok := batchResp["tasks"].([]interface{}); ok && len(tasks) > 0 {
+				c.JSON(http.StatusOK, standardSuccessResponse("Subtask created successfully", tasks[0]))
+				return
+			}
+		}
+
+		// 如果创建失败，返回原始响应
+		c.JSON(w.ResponseWriter.Status(), batchResp)
+	}
+}
+
+// createSiblingTask MCP专用：创建兄弟任务
+func createSiblingTask(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			SiblingID   int    `json:"siblingId"`
+			Title       string `json:"title"`
+			Description string `json:"description,omitempty"`
+			Priority    string `json:"priority,omitempty"`
+			Status      string `json:"status,omitempty"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid request body", err))
+			return
+		}
+
+		// 验证必填字段
+		if err := validateRequest(map[string]interface{}{
+			"siblingId": req.SiblingID,
+			"title":     req.Title,
+		}); err != nil {
+			c.JSON(http.StatusBadRequest, standardErrorResponse("Validation failed", err))
+			return
+		}
+
+		// 查询兄弟任务的父任务ID和项目ID
+		sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database error", nil))
+			return
+		}
+
+		var parentID sql.NullInt64
+		var projectID int
+		err := sqlDB.QueryRow(`
+			SELECT parent_id, project_id FROM tasks
+			WHERE id = $1 AND deleted_at IS NULL
+		`, req.SiblingID).Scan(&parentID, &projectID)
+
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse("Sibling task not found", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to query sibling task", err))
+			return
+		}
+
+		// 如果兄弟任务有父任务，使用批量创建子任务接口
+		if parentID.Valid {
+			batchReq := map[string]interface{}{
+				"parent_id": int(parentID.Int64),
+				"subtasks": []map[string]interface{}{
+					{
+						"title":           req.Title,
+						"description":     req.Description,
+						"estimated_hours": 0,
+						"priority":        req.Priority,
+					},
+				},
+			}
+
+			jsonBody, _ := json.Marshal(batchReq)
+			c.Request.Body = io.NopCloser(strings.NewReader(string(jsonBody)))
+			c.Request.ContentLength = int64(len(jsonBody))
+
+			w := &responseRecorder{ResponseWriter: c.Writer, body: &bytes.Buffer{}}
+			c.Writer = w
+
+			app.GetAISubtaskHandler().BatchCreateSubtasks(c)
+
+			var batchResp map[string]interface{}
+			if err := json.Unmarshal(w.body.Bytes(), &batchResp); err == nil {
+				c.Writer = gin.ResponseWriter(c.Writer.(*responseRecorder).ResponseWriter)
+				if success, ok := batchResp["success"].(bool); ok && success {
+					if tasks, ok := batchResp["tasks"].([]interface{}); ok && len(tasks) > 0 {
+						c.JSON(http.StatusOK, standardSuccessResponse("Sibling task created successfully", tasks[0]))
+						return
+					}
+				}
+			}
+
+			c.Writer = gin.ResponseWriter(c.Writer.(*responseRecorder).ResponseWriter)
+			c.JSON(w.ResponseWriter.Status(), batchResp)
+			return
+		}
+
+		// 如果兄弟任务没有父任务，创建同级任务（直接插入数据库）
+		// 设置默认值
+		priority := req.Priority
+		if priority == "" {
+			priority = "medium"
+		}
+		status := req.Status
+		if status == "" {
+			status = "todo"
+		}
+
+		var newTaskID int
+		err = sqlDB.QueryRow(`
+			INSERT INTO tasks (
+				project_id, title, description, status, priority,
+				time_tracking_mode, time_unit_preference, work_hours_per_day,
+				created_at, updated_at
+			) VALUES ($1, $2, $3, $4, $5, 'manual', 'auto', 8, NOW(), NOW())
+			RETURNING id
+		`, projectID, req.Title, req.Description, status, priority).Scan(&newTaskID)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to create sibling task", err))
+			return
+		}
+
+		c.JSON(http.StatusOK, standardSuccessResponse("Sibling task created successfully", gin.H{
+			"id":     newTaskID,
+			"title":  req.Title,
+			"status": status,
+		}))
 	}
 }

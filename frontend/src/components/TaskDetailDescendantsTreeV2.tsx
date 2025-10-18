@@ -24,7 +24,7 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import '../styles/TaskDescendantsTree.css';
 import LoadingIndicator from './LoadingIndicator';
-import AnimatedContainer, { UpdateAnimation } from './AnimatedContainer';
+import { UpdateAnimation } from './AnimatedContainer';
 import { useRefreshConfig } from '../contexts/RefreshConfigContext';
 import { UnifiedTaskNode } from '../types/UnifiedTaskNode';
 import { useTaskHierarchy } from '../hooks/useTaskHierarchy';
@@ -364,11 +364,15 @@ export const TaskDetailDescendantsTreeV2 = forwardRef<TaskDetailDescendantsTreeR
 
         {/* 子节点 */}
         {isNodeExpanded && children && (
-          <AnimatedContainer type="fade" visible={true}>
-            <div style={{ marginLeft: 20 }}>
-              {children.map(child => renderNode(child, depth + 1))}
-            </div>
-          </AnimatedContainer>
+          <div
+            className="task-children-container"
+            style={{
+              marginLeft: 20,
+              animation: 'fadeIn 0.2s ease-in-out'
+            }}
+          >
+            {children.map(child => renderNode(child, depth + 1))}
+          </div>
         )}
       </div>
     );
@@ -434,6 +438,25 @@ export const TaskDetailDescendantsTreeV2 = forwardRef<TaskDetailDescendantsTreeR
 
   return (
     <div className="task-detail-descendants-tree-v2" style={{ padding: '16px' }}>
+      <style>
+        {`
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+              transform: translateY(-10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          .task-children-container {
+            will-change: opacity, transform;
+          }
+        `}
+      </style>
+
       {/* 工具栏 - 只在有子任务时显示 */}
       {hasSubtasks && (
         <div style={{ 

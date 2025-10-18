@@ -47,8 +47,6 @@ import PermissionWrapper from '../components/PermissionWrapper';
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
 const { Option } = Select;
-const { TabPane } = Tabs;
-const { Panel } = Collapse;
 
 interface Permission {
   id: number;
@@ -102,9 +100,19 @@ const PermissionOverviewPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await permissionService.getPermissions();
-      
+
+      // 处理响应数据：可能是数组或包含data/permissions字段的对象
+      let permissionsArray: any[] = [];
+      if (Array.isArray(response)) {
+        permissionsArray = response;
+      } else if (response && typeof response === 'object' && 'permissions' in response) {
+        permissionsArray = Array.isArray((response as any).permissions) ? (response as any).permissions : [];
+      } else if (response && typeof response === 'object' && 'data' in response) {
+        permissionsArray = Array.isArray(response.data) ? response.data : [];
+      }
+
       // 转换数据格式，确保包含必要字段
-      const permissionsData = response.map((perm: any) => ({
+      const permissionsData = permissionsArray.map((perm: any) => ({
         id: perm.id,
         permission_code: perm.permission_code || perm.permissionCode,
         permission_name: perm.permission_name || getPermissionName(perm.permission_code || perm.permissionCode),
@@ -116,7 +124,7 @@ const PermissionOverviewPage: React.FC = () => {
         created_at: perm.created_at,
         updated_at: perm.updated_at
       }));
-      
+
       setPermissions(permissionsData);
     } catch (error) {
       console.error('Failed to load permissions:', error);
@@ -454,16 +462,19 @@ const PermissionOverviewPage: React.FC = () => {
       
       <Row gutter={16}>
         <Col xs={24} md={12}>
-          <Card  title="权限分类说明">
-            <Collapse  ghost>
-              {Object.entries(PERMISSION_CATEGORIES).map(([key, name]) => (
-                <Panel key={key} header={`${name} (${key})`}>
+          <Card title="权限分类说明">
+            <Collapse
+              ghost
+              items={Object.entries(PERMISSION_CATEGORIES).map(([key, name]) => ({
+                key: key,
+                label: `${name} (${key})`,
+                children: (
                   <Text type="secondary">
                     {name}相关的所有权限，包括创建、查看、编辑、删除等操作权限。
                   </Text>
-                </Panel>
-              ))}
-            </Collapse>
+                ),
+              }))}
+            />
           </Card>
         </Col>
         <Col xs={24} md={12}>
@@ -515,134 +526,143 @@ const PermissionOverviewPage: React.FC = () => {
       </div>
 
       {/* 主要内容区域 */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} size="large">
-        <TabPane
-          tab={
-            <span>
-              <InfoCircleOutlined />
-              权限概览
-            </span>
-          }
-          key="overview"
-        >
-          <StatsCards />
-          <PermissionExplanation />
-        </TabPane>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        size="large"
+        items={[
+          {
+            key: 'overview',
+            label: (
+              <span>
+                <InfoCircleOutlined />
+                权限概览
+              </span>
+            ),
+            children: (
+              <>
+                <StatsCards />
+                <PermissionExplanation />
+              </>
+            ),
+          },
+          {
+            key: 'permissions',
+            label: (
+              <span>
+                <SafetyOutlined />
+                权限列表
+                <Badge count={filteredPermissions.length} showZero style={{ marginLeft: 8 }} />
+              </span>
+            ),
+            children: (
+              <>
+                <FilterSection />
 
-        <TabPane
-          tab={
-            <span>
-              <SafetyOutlined />
-              权限列表
-              <Badge count={filteredPermissions.length} showZero style={{ marginLeft: 8 }} />
-            </span>
-          }
-          key="permissions"
-        >
-          <FilterSection />
-          
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '50px' }}>
-              <Spin size="large" tip="加载权限数据..." />
-            </div>
-          ) : filteredPermissions.length === 0 ? (
-            <Empty 
-              description="没有找到匹配的权限"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
-          ) : groupBy === 'none' ? (
-            <Card>
-              <Table
-                columns={columns}
-                dataSource={filteredPermissions}
-                rowKey="id"
-                pagination={{
-                  showSizeChanger: true,
-                  showQuickJumper: true,
-                  showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-                }}
-                scroll={{ x: 800 }}
-              />
-            </Card>
-          ) : (
-            <Collapse defaultActiveKey={Object.keys(groupedPermissions)}>
-              {Object.entries(groupedPermissions).map(([groupName, groupPermissions]) => (
-                <Panel
-                  key={groupName}
-                  header={
-                    <Space>
-                      <Text strong>{groupName}</Text>
-                      <Badge count={groupPermissions.length} showZero />
-                    </Space>
-                  }
-                >
-                  <Table
-                    columns={columns}
-                    dataSource={groupPermissions}
-                    rowKey="id"
-                    pagination={false}
-                    
-                    scroll={{ x: 800 }}
+                {loading ? (
+                  <div style={{ textAlign: 'center', padding: '50px' }}>
+                    <Spin size="large" tip="加载权限数据..." />
+                  </div>
+                ) : filteredPermissions.length === 0 ? (
+                  <Empty
+                    description="没有找到匹配的权限"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
                   />
-                </Panel>
-              ))}
-            </Collapse>
-          )}
-        </TabPane>
-
-        <TabPane
-          tab={
-            <span>
-              <TeamOutlined />
-              快速操作
-            </span>
-          }
-          key="actions"
-        >
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={8}>
-              <Card
-                title="角色管理"
-                actions={[
-                  <PermissionWrapper permission={PERMISSION_PERMISSIONS.ROLE_READ} key="view">
-                    <Button type="primary" onClick={() => navigate('/admin/roles')}>
-                      查看角色
-                    </Button>
-                  </PermissionWrapper>
-                ]}
-              >
-                <p>管理系统角色，配置角色权限，分配用户角色。</p>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card
-                title="角色模板"
-                actions={[
-                  <Button type="primary" onClick={() => navigate('/admin/role-templates')} key="templates">
-                    查看模板
-                  </Button>
-                ]}
-              >
-                <p>使用预设的角色模板快速创建标准角色。</p>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card
-                title="用户管理"
-                actions={[
-                  <PermissionWrapper permission="user_read" key="users">
-                    <Button type="primary" onClick={() => navigate('/user-management')}>
-                      管理用户
-                    </Button>
-                  </PermissionWrapper>
-                ]}
-              >
-                <p>管理系统用户，分配用户权限和角色。</p>
-              </Card>
-            </Col>
-          </Row>
-        </TabPane>
-      </Tabs>
+                ) : groupBy === 'none' ? (
+                  <Card>
+                    <Table
+                      columns={columns}
+                      dataSource={filteredPermissions}
+                      rowKey="id"
+                      pagination={{
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                        showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+                      }}
+                      scroll={{ x: 800 }}
+                    />
+                  </Card>
+                ) : (
+                  <Collapse
+                    defaultActiveKey={Object.keys(groupedPermissions)}
+                    items={Object.entries(groupedPermissions).map(([groupName, groupPermissions]) => ({
+                      key: groupName,
+                      label: (
+                        <Space>
+                          <Text strong>{groupName}</Text>
+                          <Badge count={groupPermissions.length} showZero />
+                        </Space>
+                      ),
+                      children: (
+                        <Table
+                          columns={columns}
+                          dataSource={groupPermissions}
+                          rowKey="id"
+                          pagination={false}
+                          scroll={{ x: 800 }}
+                        />
+                      ),
+                    }))}
+                  />
+                )}
+              </>
+            ),
+          },
+          {
+            key: 'actions',
+            label: (
+              <span>
+                <TeamOutlined />
+                快速操作
+              </span>
+            ),
+            children: (
+              <Row gutter={[16, 16]}>
+                <Col xs={24} md={8}>
+                  <Card
+                    title="角色管理"
+                    actions={[
+                      <PermissionWrapper permission={PERMISSION_PERMISSIONS.ROLE_READ} key="view">
+                        <Button type="primary" onClick={() => navigate('/admin/roles')}>
+                          查看角色
+                        </Button>
+                      </PermissionWrapper>
+                    ]}
+                  >
+                    <p>管理系统角色，配置角色权限，分配用户角色。</p>
+                  </Card>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Card
+                    title="角色模板"
+                    actions={[
+                      <Button type="primary" onClick={() => navigate('/admin/role-templates')} key="templates">
+                        查看模板
+                      </Button>
+                    ]}
+                  >
+                    <p>使用预设的角色模板快速创建标准角色。</p>
+                  </Card>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Card
+                    title="用户管理"
+                    actions={[
+                      <PermissionWrapper permission="user_read" key="users">
+                        <Button type="primary" onClick={() => navigate('/user-management')}>
+                          管理用户
+                        </Button>
+                      </PermissionWrapper>
+                    ]}
+                  >
+                    <p>管理系统用户，分配用户权限和角色。</p>
+                  </Card>
+                </Col>
+              </Row>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 };

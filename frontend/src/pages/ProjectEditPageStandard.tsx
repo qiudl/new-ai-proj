@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Card,
@@ -58,6 +58,27 @@ const { TextArea } = Input;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
+// ✅ 临时类型定义：CompanyUser (向后兼容旧的公司用户系统)
+interface CompanyUser {
+  id: number;
+  customerId: number;
+  name: string;
+  email?: string;
+  phone?: string;
+  position?: string;
+  department?: string;
+  role?: string;
+  roleText?: string;
+  isPrimaryContact?: boolean;
+  canMakeDecisions?: boolean;
+  accessLevel?: number;
+  accessLevelText?: string;
+  status?: string;
+  statusText?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 interface ProjectCompanyUser {
   key: string;
   companyId: number;
@@ -70,6 +91,106 @@ interface ProjectCompanyUser {
   avatar?: string;
 }
 
+// ✅ Phase 2优化：提取模拟数据为常量，避免每次渲染都创建新对象
+const MOCK_COMPANIES: Company[] = [
+  {
+    id: 1,
+    companyName: '北京科技有限公司',
+    companyCode: 'BJKJ001',
+    companyType: 'limited_company',
+    companyTypeText: '有限责任公司',
+    industry: '信息技术',
+    address: '北京市朝阳区望京街10号',
+    mainPhone: '010-12345678',
+    mainEmail: 'contact@bjtech.com',
+    status: 'active',
+    statusText: '活跃客户',
+    priority: 'high',
+    priorityText: '高优先级',
+    createdBy: 1,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z'
+  },
+  {
+    id: 2,
+    companyName: '上海创新科技',
+    companyCode: 'SHCX002',
+    companyType: 'limited_company',
+    companyTypeText: '有限责任公司',
+    industry: '人工智能',
+    address: '上海市浦东新区世纪大道80号',
+    mainPhone: '021-87654321',
+    mainEmail: 'info@shtech.com',
+    status: 'active',
+    statusText: '活跃客户',
+    priority: 'medium',
+    priorityText: '中优先级',
+    createdBy: 1,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z'
+  },
+  {
+    id: 3,
+    companyName: '深圳智能制造',
+    companyCode: 'SZZN003',
+    companyType: 'limited_company',
+    companyTypeText: '有限责任公司',
+    industry: '智能制造',
+    address: '深圳市南山区科技园南区',
+    mainPhone: '0755-98765432',
+    mainEmail: 'service@sztech.com',
+    status: 'active',
+    statusText: '活跃客户',
+    priority: 'medium',
+    priorityText: '中优先级',
+    createdBy: 1,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z'
+  }
+];
+
+// ✅ Phase 2优化：提取模拟用户数据工厂函数，避免每次调用loadCompanyUsers都创建新对象
+const createMockCompanyUsers = (companyId: number, company?: Company): CompanyUser[] => [
+  {
+    id: companyId * 100 + 1,
+    customerId: companyId,
+    name: `${company?.companyName || '客户'}负责人`,
+    email: `manager@company${companyId}.com`,
+    phone: '138****1234',
+    position: '项目经理',
+    department: '技术部',
+    role: 'primary_contact',
+    roleText: '主要联系人',
+    isPrimaryContact: true,
+    canMakeDecisions: true,
+    accessLevel: 5,
+    accessLevelText: '高级权限',
+    status: 'active',
+    statusText: '在职',
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z'
+  },
+  {
+    id: companyId * 100 + 2,
+    customerId: companyId,
+    name: `${company?.companyName || '客户'}技术专员`,
+    email: `tech@company${companyId}.com`,
+    phone: '139****5678',
+    position: '技术专员',
+    department: '技术部',
+    role: 'technical_contact',
+    roleText: '技术联系人',
+    isPrimaryContact: false,
+    canMakeDecisions: false,
+    accessLevel: 3,
+    accessLevelText: '中级权限',
+    status: 'active',
+    statusText: '在职',
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z'
+  }
+];
+
 const ProjectEditPageNew: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -79,91 +200,50 @@ const ProjectEditPageNew: React.FC = () => {
   // 企业上下文 - 用于数据隔离
   const { currentEnterprise } = useEnterprise();
   
-  const [loading, setLoading] = useState(false);
+  // ✅ 优化：合并loading相关状态，减少重渲染
+  const [loadingStates, setLoadingStates] = useState({
+    page: false,
+    company: false,
+    enterprise: false,
+    user: false
+  });
   const [submitting, setSubmitting] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [isEditing, setIsEditing] = useState(true);
-  
+
   // 客户相关状态（向后兼容）
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanies, setSelectedCompanies] = useState<number[]>([]);
-  const [companyLoading, setCompanyLoading] = useState(false);
-  
+
   // 企业相关状态（新架构）
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [selectedEnterprise, setSelectedEnterprise] = useState<number | null>(null);
-  const [enterpriseLoading, setEnterpriseLoading] = useState(false);
-  
+
   // 用户相关状态
   const [companyUsers, setCompanyUsers] = useState<{ [companyId: number]: CompanyUser[] }>({});
   const [enterpriseUsers, setEnterpriseUsers] = useState<EnterpriseUser[]>([]);
   const [availableUsers, setAvailableUsers] = useState<ProjectCompanyUser[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userRoles, setUserRoles] = useState<{ [userKey: string]: string }>({});
-  const [userLoading, setUserLoading] = useState(false);
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [selectedCompanyForUser, setSelectedCompanyForUser] = useState<number | null>(null);
-  const [showRoleModal, setShowRoleModal] = useState(false);
-  const [currentUserForRole, setCurrentUserForRole] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (projectId && projectId !== 'create') {
-      setIsEditing(true);
-      loadProject();
-    } else {
-      setIsEditing(false);
-      form.setFieldsValue({
-        status: 'planning',
-        priority: 'medium',
-        progress: 0
-      });
-      
-      // 检查URL参数中的enterpriseId，优先使用新架构
-      const enterpriseIdParam = searchParams.get('enterpriseId');
-      if (enterpriseIdParam) {
-        const enterpriseId = parseInt(enterpriseIdParam);
-        if (!isNaN(enterpriseId)) {
-          setSelectedEnterprise(enterpriseId);
-        }
-      } else {
-        // 兼容旧的companyId参数
-        const companyIdParam = searchParams.get('companyId');
-        if (companyIdParam) {
-          const companyId = parseInt(companyIdParam);
-          if (!isNaN(companyId)) {
-            setSelectedCompanies([companyId]);
-          }
-        }
-      }
-    }
-    loadCompanies();
-    loadEnterprises();
-  }, [projectId, form, searchParams]);
+  // ✅ 优化：合并modal相关状态
+  const [modalStates, setModalStates] = useState({
+    showAddUserModal: false,
+    selectedCompanyForUser: null as number | null,
+    showRoleModal: false,
+    currentUserForRole: null as string | null
+  });
 
-  useEffect(() => {
-    if (selectedEnterprise) {
-      loadEnterpriseUsers();
-    } else if (selectedCompanies && selectedCompanies.length > 0) {
-      loadCompanyUsers();
-    } else {
-      // 安全地重置用户相关状态，确保始终是数组类型
-      setAvailableUsers([]);
-      setSelectedUsers([]);
-      setCompanyUsers({});
-      setEnterpriseUsers([]);
-      setUserRoles({});
-    }
-  }, [selectedCompanies, selectedEnterprise]);
-
-  const loadProject = async () => {
+  // ✅ 优化：使用useCallback包装loadProject，稳定函数引用
+  const loadProject = useCallback(async () => {
     if (!projectId || projectId === 'create') return;
 
     try {
-      setLoading(true);
+      setLoadingStates(prev => ({ ...prev, page: true }));
       const projectData = await projectService.getProject(Number(projectId));
-      
+
       setProject(projectData);
-      
+
       // 设置表单值
       form.setFieldsValue({
         project_number: projectData.project_number || `P${(100 + projectData.id).toString()}`,
@@ -200,97 +280,42 @@ const ProjectEditPageNew: React.FC = () => {
       message.error('获取项目详情失败');
       navigate('/projects');
     } finally {
-      setLoading(false);
+      setLoadingStates(prev => ({ ...prev, page: false }));
     }
-  };
+  }, [projectId, form, navigate]);
 
-  const loadCompanies = async () => {
+  // ✅ 优化：使用useCallback包装loadCompanies
+  const loadCompanies = useCallback(async () => {
     try {
-      setCompanyLoading(true);
-      
+      setLoadingStates(prev => ({ ...prev, company: true }));
+
       // 企业系统已不再支持选择其他公司客户
       // 在企业模式下，项目只能关联当前企业
       console.log('企业模式下不再加载外部客户列表，项目只关联当前企业');
-      
+
       // 使用空数组作为公司列表，因为在企业模式下不需要选择外部公司
       setCompanies([]);
-      
+
       // 如果需要兼容旧的公司模拟数据（仅用于非企业环境）
       const isEnterpriseMode = selectedEnterprise || enterprises.length > 0;
       if (!isEnterpriseMode) {
-        // 使用模拟数据（仅在非企业模式下）
-        const mockCompanies: Company[] = [
-          {
-            id: 1,
-            companyName: '北京科技有限公司',
-            companyCode: 'BJKJ001',
-            companyType: 'limited_company',
-            companyTypeText: '有限责任公司',
-            industry: '信息技术',
-            address: '北京市朝阳区望京街10号',
-            mainPhone: '010-12345678',
-            mainEmail: 'contact@bjtech.com',
-            status: 'active',
-            statusText: '活跃客户',
-            priority: 'high',
-            priorityText: '高优先级',
-            createdBy: 1,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z'
-          },
-          {
-            id: 2,
-            companyName: '上海创新科技',
-            companyCode: 'SHCX002',
-            companyType: 'limited_company',
-            companyTypeText: '有限责任公司',
-            industry: '人工智能',
-            address: '上海市浦东新区世纪大道80号',
-            mainPhone: '021-87654321',
-            mainEmail: 'info@shtech.com',
-            status: 'active',
-            statusText: '活跃客户',
-            priority: 'medium',
-            priorityText: '中优先级',
-            createdBy: 1,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z'
-          },
-          {
-            id: 3,
-            companyName: '深圳智能制造',
-            companyCode: 'SZZN003',
-            companyType: 'limited_company',
-            companyTypeText: '有限责任公司',
-            industry: '智能制造',
-            address: '深圳市南山区科技园南区',
-            mainPhone: '0755-98765432',
-            mainEmail: 'service@sztech.com',
-            status: 'active',
-            statusText: '活跃客户',
-            priority: 'medium',
-            priorityText: '中优先级',
-            createdBy: 1,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z'
-          }
-        ];
-        
-        setCompanies(mockCompanies);
+        // ✅ Phase 2优化：使用提取的常量，避免每次调用都创建新对象
+        setCompanies(MOCK_COMPANIES);
         message.info('使用模拟数据显示客户列表');
       }
     } catch (error) {
       console.error('加载客户列表失败:', error);
       message.error('加载客户列表失败');
     } finally {
-      setCompanyLoading(false);
+      setLoadingStates(prev => ({ ...prev, company: false }));
     }
-  };
+  }, [selectedEnterprise, enterprises.length]);
 
-  const loadEnterprises = async () => {
+  // ✅ 优化：使用useCallback包装loadEnterprises
+  const loadEnterprises = useCallback(async () => {
     try {
-      setEnterpriseLoading(true);
-      
+      setLoadingStates(prev => ({ ...prev, enterprise: true }));
+
       // 在企业模式下，只显示当前企业，不允许选择其他企业
       if (currentEnterprise) {
         console.log('企业模式：只加载当前企业', currentEnterprise.name);
@@ -305,11 +330,12 @@ const ProjectEditPageNew: React.FC = () => {
       console.error('加载企业列表失败:', error);
       message.error('加载企业列表失败');
     } finally {
-      setEnterpriseLoading(false);
+      setLoadingStates(prev => ({ ...prev, enterprise: false }));
     }
-  };
+  }, [currentEnterprise]);
 
-  const loadEnterpriseUsers = async () => {
+  // ✅ 优化：使用useCallback包装loadEnterpriseUsers
+  const loadEnterpriseUsers = useCallback(async () => {
     if (!selectedEnterprise) {
       setEnterpriseUsers([]);
       setAvailableUsers([]);
@@ -317,10 +343,10 @@ const ProjectEditPageNew: React.FC = () => {
     }
 
     try {
-      setUserLoading(true);
+      setLoadingStates(prev => ({ ...prev, user: true }));
       const response = await enterpriseService.getEnterpriseUsers(selectedEnterprise, 1, 100);
       setEnterpriseUsers(response.data);
-      
+
       // 转换为可用用户格式
       const projectUsers: ProjectCompanyUser[] = response.data.map(user => ({
         key: `${user.id}_${selectedEnterprise}`,
@@ -333,7 +359,7 @@ const ProjectEditPageNew: React.FC = () => {
         department: user.department_name,
         avatar: undefined
       }));
-      
+
       setAvailableUsers(projectUsers);
     } catch (error) {
       console.error('加载企业用户失败:', error);
@@ -341,11 +367,12 @@ const ProjectEditPageNew: React.FC = () => {
       setEnterpriseUsers([]);
       setAvailableUsers([]);
     } finally {
-      setUserLoading(false);
+      setLoadingStates(prev => ({ ...prev, user: false }));
     }
-  };
+  }, [selectedEnterprise, enterprises]);
 
-  const loadCompanyUsers = async () => {
+  // ✅ 优化：使用useCallback包装loadCompanyUsers
+  const loadCompanyUsers = useCallback(async () => {
     if (selectedCompanies.length === 0) {
       // 确保清理时设置为空数组而不是undefined
       setAvailableUsers([]);
@@ -356,92 +383,33 @@ const ProjectEditPageNew: React.FC = () => {
     }
 
     try {
-      setUserLoading(true);
-      
+      setLoadingStates(prev => ({ ...prev, user: true }));
+
+      // ✅ 由于 companyService 已废弃，直接使用模拟数据
       try {
-        const userPromises = selectedCompanies.map(companyId =>
-          companyService.getCompanyUsers(companyId).then(users => ({
-            companyId,
-            users
-          }))
-        );
+        // 注释掉旧的 companyService 调用
+        // const userPromises = selectedCompanies.map(companyId =>
+        //   companyService.getCompanyUsers(companyId).then(users => ({
+        //     companyId,
+        //     users
+        //   }))
+        // );
+        // const results = await Promise.all(userPromises);
 
-        const results = await Promise.all(userPromises);
-        const newCompanyUsers: { [companyId: number]: CompanyUser[] } = {};
-        const newAvailableUsers: ProjectCompanyUser[] = [];
-
-        results.forEach(({ companyId, users }) => {
-          newCompanyUsers[companyId] = users;
-          const company = Array.isArray(companies) 
-            ? companies.find(c => c.id === companyId)
-            : null;
-          
-          users.forEach(user => {
-            newAvailableUsers.push({
-              key: `${user.id}_${companyId}`,
-              companyId,
-              companyName: company?.companyName || '未知客户',
-              userId: user.id,
-              userName: user.name || '未知用户',
-              userEmail: user.email,
-              position: user.position,
-              department: user.department,
-              avatar: undefined // CompanyUser不包含avatar字段
-            });
-          });
-        });
-
-        setCompanyUsers(newCompanyUsers);
-        setAvailableUsers(newAvailableUsers);
+        // 直接抛出错误以使用模拟数据
+        throw new Error('companyService is deprecated, using mock data');
       } catch (apiError) {
-        console.warn('使用API加载用户失败，使用模拟数据:', apiError);
-        
-        // 使用模拟数据
+        console.warn('使用模拟数据（companyService 已废弃）:', apiError);
+
+        // ✅ Phase 2优化：使用提取的工厂函数，避免每次都创建新对象
         const mockUsers = selectedCompanies.map(companyId => {
-          const company = Array.isArray(companies) 
+          const company = Array.isArray(companies)
             ? companies.find(c => c.id === companyId)
             : null;
-          const users: CompanyUser[] = [
-            {
-              id: companyId * 100 + 1,
-              customerId: companyId,
-              name: `${company?.companyName || '客户'}负责人`,
-              email: `manager@company${companyId}.com`,
-              phone: '138****1234',
-              position: '项目经理',
-              department: '技术部',
-              role: 'primary_contact',
-              roleText: '主要联系人',
-              isPrimaryContact: true,
-              canMakeDecisions: true,
-              accessLevel: 5,
-              accessLevelText: '高级权限',
-              status: 'active',
-              statusText: '在职',
-              createdAt: '2024-01-01T00:00:00Z',
-              updatedAt: '2024-01-01T00:00:00Z'
-            },
-            {
-              id: companyId * 100 + 2,
-              customerId: companyId,
-              name: `${company?.companyName || '客户'}技术专员`,
-              email: `tech@company${companyId}.com`,
-              phone: '139****5678',
-              position: '技术专员',
-              department: '技术部',
-              role: 'technical_contact',
-              roleText: '技术联系人',
-              isPrimaryContact: false,
-              canMakeDecisions: false,
-              accessLevel: 3,
-              accessLevelText: '中级权限',
-              status: 'active',
-              statusText: '在职',
-              createdAt: '2024-01-01T00:00:00Z',
-              updatedAt: '2024-01-01T00:00:00Z'
-            }
-          ];
-          return { companyId, users };
+          return {
+            companyId,
+            users: createMockCompanyUsers(companyId, company || undefined)
+          };
         });
         
         const newCompanyUsers: { [companyId: number]: CompanyUser[] } = {};
@@ -481,28 +449,28 @@ const ProjectEditPageNew: React.FC = () => {
       setUserRoles({});
       message.error('加载客户用户失败');
     } finally {
-      setUserLoading(false);
+      setLoadingStates(prev => ({ ...prev, user: false }));
     }
-  };
+  }, [selectedCompanies, companies]);
 
-  // 处理添加企业用户成功
-  const handleAddUserSuccess = (newUser: CompanyUser) => {
-    if (!selectedCompanyForUser) return;
-    
+  // ✅ 优化：使用useCallback包装handleAddUserSuccess
+  const handleAddUserSuccess = useCallback((newUser: CompanyUser) => {
+    if (!modalStates.selectedCompanyForUser) return;
+
     // 更新company users状态
     setCompanyUsers(prev => ({
       ...prev,
-      [selectedCompanyForUser]: [...(prev[selectedCompanyForUser] || []), newUser]
+      [modalStates.selectedCompanyForUser!]: [...(prev[modalStates.selectedCompanyForUser!] || []), newUser]
     }));
 
     // 更新available users
-    const company = Array.isArray(companies) 
-      ? companies.find(c => c.id === selectedCompanyForUser)
+    const company = Array.isArray(companies)
+      ? companies.find(c => c.id === modalStates.selectedCompanyForUser)
       : null;
     if (company) {
       const newProjectUser: ProjectCompanyUser = {
-        key: `${newUser.id}_${selectedCompanyForUser}`,
-        companyId: selectedCompanyForUser,
+        key: `${newUser.id}_${modalStates.selectedCompanyForUser}`,
+        companyId: modalStates.selectedCompanyForUser!,
         companyName: company.companyName,
         userId: newUser.id,
         userName: newUser.name,
@@ -511,20 +479,22 @@ const ProjectEditPageNew: React.FC = () => {
         userEmail: newUser.email,
         avatar: undefined
       };
-      
+
       setAvailableUsers(prev => [...prev, newProjectUser]);
     }
 
-    setShowAddUserModal(false);
-    setSelectedCompanyForUser(null);
+    setModalStates(prev => ({ ...prev, showAddUserModal: false, selectedCompanyForUser: null }));
     message.success('企业用户添加成功，已添加到可选用户列表');
-  };
+  }, [modalStates.selectedCompanyForUser, companies]);
 
-  // 打开添加用户模态框
-  const handleAddUserForCompany = (companyId: number) => {
-    setSelectedCompanyForUser(companyId);
-    setShowAddUserModal(true);
-  };
+  // ✅ 优化：使用useCallback包装handleAddUserForCompany
+  const handleAddUserForCompany = useCallback((companyId: number) => {
+    setModalStates(prev => ({
+      ...prev,
+      selectedCompanyForUser: companyId,
+      showAddUserModal: true
+    }));
+  }, []);
 
   // 项目角色选项
   const getProjectRoleOptions = () => [
@@ -535,13 +505,12 @@ const ProjectEditPageNew: React.FC = () => {
     { value: 'customer', label: '客户代表', color: 'orange' }
   ];
 
-  // 设置用户角色
-  const handleSetUserRole = (userKey: string, role: string) => {
+  // ✅ 优化：使用useCallback包装handleSetUserRole
+  const handleSetUserRole = useCallback((userKey: string, role: string) => {
     setUserRoles(prev => ({ ...prev, [userKey]: role }));
-    setShowRoleModal(false);
-    setCurrentUserForRole(null);
+    setModalStates(prev => ({ ...prev, showRoleModal: false, currentUserForRole: null }));
     message.success('用户角色设置成功');
-  };
+  }, []);
 
   // 获取用户角色显示
   const getUserRoleDisplay = (userKey: string) => {
@@ -553,12 +522,13 @@ const ProjectEditPageNew: React.FC = () => {
     return roleInfo || { value: 'customer', label: '客户代表', color: 'orange' };
   };
 
-  const handleSubmit = async (values: any) => {
+  // ✅ 优化：使用useCallback包装handleSubmit
+  const handleSubmit = useCallback(async (values: any) => {
     try {
       setSubmitting(true);
-      
+
       // 安全地处理 selectedUsers 数组
-      const processedUserIds = Array.isArray(selectedUsers) 
+      const processedUserIds = Array.isArray(selectedUsers)
         ? selectedUsers
             .filter(key => key && typeof key === 'string')
             .map(key => {
@@ -592,7 +562,7 @@ const ProjectEditPageNew: React.FC = () => {
         await projectService.createProject(projectData);
         message.success('项目创建成功');
       }
-      
+
       navigate('/projects');
     } catch (error) {
       console.error('保存项目失败:', error);
@@ -600,15 +570,16 @@ const ProjectEditPageNew: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [selectedUsers, selectedEnterprise, selectedCompanies, isEditing, projectId, navigate]);
 
-  const handleCancel = () => {
+  // ✅ 优化：使用useCallback包装handleCancel
+  const handleCancel = useCallback(() => {
     if (isEditing) {
       navigate(`/projects/${projectId}`);
     } else {
       navigate('/projects');
     }
-  };
+  }, [isEditing, projectId, navigate]);
 
   const getStatusOptions = () => [
     { label: '规划中', value: 'planning', color: 'blue' },
@@ -624,25 +595,25 @@ const ProjectEditPageNew: React.FC = () => {
     { label: '低', value: 'low', color: 'green' }
   ];
 
-  // Transfer组件的渲染函数
-  const renderUserItem = (item: ProjectCompanyUser) => {
+  // ✅ 优化：使用useCallback包装renderUserItem
+  const renderUserItem = useCallback((item: ProjectCompanyUser) => {
     // 添加更严格的安全检查
     if (!item || typeof item !== 'object') {
       console.warn('Invalid user item:', item);
       return { label: '无效用户', value: `invalid-${Math.random()}` };
     }
-    
+
     if (!item.key || typeof item.key !== 'string') {
       console.warn('User item missing valid key:', item);
-      return { 
-        label: `${item.userName || '未知用户'} (无效Key)`, 
-        value: `invalid-${item.userId || Math.random()}` 
+      return {
+        label: `${item.userName || '未知用户'} (无效Key)`,
+        value: `invalid-${item.userId || Math.random()}`
       };
     }
-    
+
     const roleInfo = getUserRoleDisplay(item.key);
     const isSelected = Array.isArray(selectedUsers) && selectedUsers.includes(item.key);
-    
+
     return {
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -654,13 +625,16 @@ const ProjectEditPageNew: React.FC = () => {
             </div>
             {isSelected && (
               <div style={{ marginTop: '4px' }}>
-                <Tag 
-                  color={roleInfo.color} 
+                <Tag
+                  color={roleInfo.color}
                   style={{ cursor: 'pointer' }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setCurrentUserForRole(item.key);
-                    setShowRoleModal(true);
+                    setModalStates(prev => ({
+                      ...prev,
+                      currentUserForRole: item.key,
+                      showRoleModal: true
+                    }));
                   }}
                 >
                   {roleInfo.label}
@@ -671,12 +645,15 @@ const ProjectEditPageNew: React.FC = () => {
           {isSelected && (
             <Button
               type="text"
-              
+
               icon={<EditOutlined />}
               onClick={(e) => {
                 e.stopPropagation();
-                setCurrentUserForRole(item.key);
-                setShowRoleModal(true);
+                setModalStates(prev => ({
+                  ...prev,
+                  currentUserForRole: item.key,
+                  showRoleModal: true
+                }));
               }}
               style={{ opacity: 0.7 }}
             />
@@ -685,16 +662,100 @@ const ProjectEditPageNew: React.FC = () => {
       ),
       value: item.key,
     };
-  };
+  }, [selectedUsers, userRoles]);
 
-  if (loading) {
+  // ✅ Phase 2优化：使用useMemo缓存Transfer组件的dataSource，避免每次渲染都重新计算
+  const transferDataSource = useMemo(() => {
+    // 安全地处理 availableUsers，确保它是数组且每个元素有效
+    if (!Array.isArray(availableUsers)) {
+      console.warn('availableUsers is not an array:', availableUsers);
+      return [];
+    }
+
+    return availableUsers
+      .filter(user => user && typeof user === 'object' && user.key)
+      .map((user, index) => {
+        try {
+          const renderResult = renderUserItem(user);
+          if (!renderResult || !renderResult.value) {
+            console.warn('Invalid render result for user:', user);
+            return null;
+          }
+          return {
+            ...renderResult,
+            key: user.key || `user-${index}`,
+          };
+        } catch (error) {
+          console.error('Error rendering user item:', error, user);
+          return {
+            key: `error-${index}`,
+            value: `error-${index}`,
+            label: `渲染错误: ${user?.userName || '未知用户'}`
+          };
+        }
+      })
+      .filter(item => item !== null);
+  }, [availableUsers, renderUserItem]);
+
+  // ✅ 优化：修复useEffect依赖，添加缺失的函数依赖
+  useEffect(() => {
+    if (projectId && projectId !== 'create') {
+      setIsEditing(true);
+      loadProject();
+    } else {
+      setIsEditing(false);
+      form.setFieldsValue({
+        status: 'planning',
+        priority: 'medium',
+        progress: 0
+      });
+
+      // 检查URL参数中的enterpriseId，优先使用新架构
+      const enterpriseIdParam = searchParams.get('enterpriseId');
+      if (enterpriseIdParam) {
+        const enterpriseId = parseInt(enterpriseIdParam);
+        if (!isNaN(enterpriseId)) {
+          setSelectedEnterprise(enterpriseId);
+        }
+      } else {
+        // 兼容旧的companyId参数
+        const companyIdParam = searchParams.get('companyId');
+        if (companyIdParam) {
+          const companyId = parseInt(companyIdParam);
+          if (!isNaN(companyId)) {
+            setSelectedCompanies([companyId]);
+          }
+        }
+      }
+    }
+    loadCompanies();
+    loadEnterprises();
+  }, [projectId, form, searchParams, loadProject, loadCompanies, loadEnterprises]);
+
+  // ✅ 优化：修复useEffect依赖，添加缺失的函数依赖
+  useEffect(() => {
+    if (selectedEnterprise) {
+      loadEnterpriseUsers();
+    } else if (selectedCompanies && selectedCompanies.length > 0) {
+      loadCompanyUsers();
+    } else {
+      // 安全地重置用户相关状态，确保始终是数组类型
+      setAvailableUsers([]);
+      setSelectedUsers([]);
+      setCompanyUsers({});
+      setEnterpriseUsers([]);
+      setUserRoles({});
+    }
+  }, [selectedCompanies, selectedEnterprise, loadEnterpriseUsers, loadCompanyUsers]);
+
+  if (loadingStates.page) {
     return (
-      <div style={{ 
-        display: 'flex', 
+      <div style={{
+        display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '60vh' 
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '60vh'
       }}>
         <Spin size="large" />
         <div style={{ marginTop: '16px', color: '#666' }}>加载项目信息中...</div>
@@ -951,7 +1012,7 @@ const ProjectEditPageNew: React.FC = () => {
                   }
                   value={selectedEnterprise}
                   onChange={setSelectedEnterprise}
-                  loading={enterpriseLoading}
+                  loading={loadingStates.enterprise}
                   disabled={!!currentEnterprise} // 在企业模式下禁用选择器
                   showSearch
                   allowClear
@@ -1015,7 +1076,7 @@ const ProjectEditPageNew: React.FC = () => {
                         
                         icon={<ReloadOutlined />}
                         onClick={loadCompanies}
-                        loading={companyLoading}
+                        loading={loadingStates.company}
                       >
                         刷新
                       </Button>
@@ -1056,7 +1117,7 @@ const ProjectEditPageNew: React.FC = () => {
                     placeholder={selectedEnterprise ? "已选择企业，客户选择已禁用" : "请选择关联的客户，支持搜索客户名称"}
                     value={selectedCompanies}
                     onChange={setSelectedCompanies}
-                    loading={companyLoading}
+                    loading={loadingStates.company}
                     disabled={!!selectedEnterprise}
                     showSearch
                     filterOption={(input, option) =>
@@ -1219,39 +1280,9 @@ const ProjectEditPageNew: React.FC = () => {
                     />
                   ) : (
                     <div style={{ position: 'relative' }}>
-                      <Spin spinning={userLoading} tip="加载用户中...">
+                      <Spin spinning={loadingStates.user} tip="加载用户中...">
                         <Transfer
-                          dataSource={(() => {
-                            // 安全地处理 availableUsers，确保它是数组且每个元素有效
-                            if (!Array.isArray(availableUsers)) {
-                              console.warn('availableUsers is not an array:', availableUsers);
-                              return [];
-                            }
-                            
-                            return availableUsers
-                              .filter(user => user && typeof user === 'object' && user.key)
-                              .map((user, index) => {
-                                try {
-                                  const renderResult = renderUserItem(user);
-                                  if (!renderResult || !renderResult.value) {
-                                    console.warn('Invalid render result for user:', user);
-                                    return null;
-                                  }
-                                  return {
-                                    ...renderResult,
-                                    key: user.key || `user-${index}`,
-                                  };
-                                } catch (error) {
-                                  console.error('Error rendering user item:', error, user);
-                                  return {
-                                    key: `error-${index}`,
-                                    value: `error-${index}`,
-                                    label: `渲染错误: ${user?.userName || '未知用户'}`
-                                  };
-                                }
-                              })
-                              .filter(item => item !== null);
-                          })()}
+                          dataSource={transferDataSource}
                           targetKeys={Array.isArray(selectedUsers) ? selectedUsers : []}
                           onChange={(targetKeys) => {
                             if (Array.isArray(targetKeys)) {
@@ -1312,40 +1343,47 @@ const ProjectEditPageNew: React.FC = () => {
         )}
       </Form>
 
-      {/* 添加企业用户Modal */}
-      {selectedCompanyForUser && (
+      {/* 添加企业用户Modal - 已废弃 */}
+      {/* AddCompanyUserModal component no longer exists - functionality moved to enterprise system */}
+      {/* {modalStates.selectedCompanyForUser && (
         <AddCompanyUserModal
-          visible={showAddUserModal}
-          companyId={selectedCompanyForUser}
-          companyName={(Array.isArray(companies) 
-            ? companies.find(c => c.id === selectedCompanyForUser)?.companyName 
+          visible={modalStates.showAddUserModal}
+          companyId={modalStates.selectedCompanyForUser}
+          companyName={(Array.isArray(companies)
+            ? companies.find(c => c.id === modalStates.selectedCompanyForUser)?.companyName
             : null) || ''}
           onCancel={() => {
-            setShowAddUserModal(false);
-            setSelectedCompanyForUser(null);
+            setModalStates(prev => ({
+              ...prev,
+              showAddUserModal: false,
+              selectedCompanyForUser: null
+            }));
           }}
           onSuccess={handleAddUserSuccess}
         />
-      )}
+      )} */}
 
       {/* 用户角色设置Modal */}
       <Modal
         title="设置项目角色"
-        open={showRoleModal}
+        open={modalStates.showRoleModal}
         onCancel={() => {
-          setShowRoleModal(false);
-          setCurrentUserForRole(null);
+          setModalStates(prev => ({
+            ...prev,
+            showRoleModal: false,
+            currentUserForRole: null
+          }));
         }}
         footer={null}
         width={400}
       >
-        {currentUserForRole && (
+        {modalStates.currentUserForRole && (
           <div>
             <div style={{ marginBottom: '16px' }}>
               {(() => {
                 // 安全检查：确保 availableUsers 是数组
-                const user = Array.isArray(availableUsers) 
-                  ? availableUsers.find(u => u.key === currentUserForRole)
+                const user = Array.isArray(availableUsers)
+                  ? availableUsers.find(u => u.key === modalStates.currentUserForRole)
                   : null;
                 return user ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1381,13 +1419,13 @@ const ProjectEditPageNew: React.FC = () => {
                   key={roleOption.value}
                   
                   hoverable
-                  style={{ 
+                  style={{
                     cursor: 'pointer',
-                    border: userRoles[currentUserForRole] === roleOption.value 
+                    border: userRoles[modalStates.currentUserForRole!] === roleOption.value
                       ? `2px solid ${roleOption.color === 'red' ? '#ff4d4f' : roleOption.color === 'blue' ? '#1890ff' : roleOption.color === 'purple' ? '#722ed1' : roleOption.color === 'green' ? '#52c41a' : '#faad14'}`
                       : '1px solid #d9d9d9'
                   }}
-                  onClick={() => handleSetUserRole(currentUserForRole, roleOption.value)}
+                  onClick={() => handleSetUserRole(modalStates.currentUserForRole!, roleOption.value)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Tag color={roleOption.color}>{roleOption.label}</Tag>

@@ -123,18 +123,24 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
 	var req struct {
-		Name        string                 `json:"name" binding:"required,min=1,max=255"`
-		Description string                 `json:"description"`
-		Icon        *string                `json:"icon"`
-		Color       *string                `json:"color"`
-		Status      string                 `json:"status"`
-		Priority    string                 `json:"priority"`
-		Tags        []string               `json:"tags"`
-		Metadata    map[string]interface{} `json:"metadata"`
-		StartDate   *string                `json:"start_date"`
-		EndDate     *string                `json:"end_date"`
-		Budget      *float64               `json:"budget"`
-		Currency    string                 `json:"currency"`
+		Name         string                 `json:"name" binding:"required,min=1,max=255"`
+		Description  string                 `json:"description"`
+		ProjectNumber *string               `json:"project_number"`
+		CompanyID    *int                   `json:"company_id"`
+		CompanyIDs   []int                  `json:"company_ids"`
+		EnterpriseID *int                   `json:"enterprise_id"`  // ✅ 添加企业ID字段
+		UserIDs      []int                  `json:"user_ids"`
+		Icon         *string                `json:"icon"`
+		Color        *string                `json:"color"`
+		Status       string                 `json:"status"`
+		Priority     string                 `json:"priority"`
+		Progress     int                    `json:"progress"`
+		Tags         []string               `json:"tags"`
+		Metadata     map[string]interface{} `json:"metadata"`
+		StartDate    *string                `json:"start_date"`
+		EndDate      *string                `json:"end_date"`
+		Budget       *float64               `json:"budget"`
+		Currency     string                 `json:"currency"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -156,15 +162,23 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	}
 
 	project := &models.Project{
-		Name:        req.Name,
-		Description: req.Description,
-		OwnerID:     userID,
-		Status:      req.Status,
-		Priority:    req.Priority,
-		StartDate:   startDate,
-		EndDate:     endDate,
-		Budget:      req.Budget,
-		Progress:    0,
+		Name:          req.Name,
+		Description:   req.Description,
+		ProjectNumber: req.ProjectNumber,
+		OwnerID:       userID,
+		CompanyID:     req.CompanyID,
+		EnterpriseID:  req.EnterpriseID,  // ✅ 保存企业ID
+		Status:        req.Status,
+		Priority:      req.Priority,
+		StartDate:     startDate,
+		EndDate:       endDate,
+		Budget:        req.Budget,
+		Progress:      req.Progress,
+	}
+
+	// ✅ 如果没有提供enterprise_id，但提供了company_ids，使用第一个作为company_id（向后兼容）
+	if req.EnterpriseID == nil && len(req.CompanyIDs) > 0 {
+		project.CompanyID = &req.CompanyIDs[0]
 	}
 
 	createdProject, err := h.db.Projects().Create(c.Request.Context(), project)
@@ -215,6 +229,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 		Description   string                 `json:"description"`
 		CompanyID     *int                   `json:"company_id"`
 		CompanyIDs    []int                  `json:"company_ids"`
+		EnterpriseID  *int                   `json:"enterprise_id"`  // ✅ 添加企业ID字段
 		UserIDs       []int                  `json:"user_ids"`
 		Icon          *string                `json:"icon"`
 		Color         *string                `json:"color"`
@@ -253,7 +268,13 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	project.Name = req.Name
 	project.Description = req.Description
 
-	// Update company_id if provided
+	// ✅ 优先处理企业ID（新架构）
+	if req.EnterpriseID != nil {
+		project.EnterpriseID = req.EnterpriseID
+		log.Printf("Updating project %d with enterprise_id: %d", projectID, *req.EnterpriseID)
+	}
+
+	// Update company_id if provided（向后兼容）
 	if req.CompanyID != nil {
 		project.CompanyID = req.CompanyID
 	} else if len(req.CompanyIDs) > 0 {

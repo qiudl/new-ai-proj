@@ -80,7 +80,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
     setLoading(true);
     try {
       const response = await fetch(
-        `/api/v1/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions`,
+        `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -111,7 +111,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
   const handleDownloadVersion = async (version: DocumentVersion) => {
     try {
       const response = await fetch(
-        `/api/v1/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${version.id}/download`,
+        `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${version.id}/download`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -144,7 +144,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
   const handleRestoreVersion = async (version: DocumentVersion) => {
     try {
       const response = await fetch(
-        `/api/v1/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${version.id}/restore`,
+        `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${version.id}/restore`,
         {
           method: 'POST',
           headers: {
@@ -175,7 +175,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
   const handleDeleteVersion = async (version: DocumentVersion) => {
     try {
       const response = await fetch(
-        `/api/v1/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${version.id}`,
+        `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${version.id}`,
         {
           method: 'DELETE',
           headers: {

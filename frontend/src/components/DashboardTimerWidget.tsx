@@ -402,10 +402,27 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
 
     if (!hasActive) return null;
 
+    // 去重：对于同一个任务的多个计时器，只保留最新的一个
+    const deduplicatedTimers = activeTimers.reduce((acc, timer) => {
+      const key = `${timer.target_type}_${timer.target_id || 'null'}`;
+      const existing = acc.get(key);
+
+      // 如果没有现有记录，或当前记录更新
+      if (!existing || new Date(timer.start_time).getTime() > new Date(existing.start_time).getTime()) {
+        acc.set(key, timer);
+      }
+
+      return acc;
+    }, new Map());
+
+    const uniqueTimers = Array.from(deduplicatedTimers.values()).sort((a, b) =>
+      new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
+    );
+
     return (
       <div style={{ marginTop: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <Text strong style={{ fontSize: 13 }}>⏱️ 活动计时（{activeTimers.length}）</Text>
+          <Text strong style={{ fontSize: 13 }}>⏱️ 活动计时（{uniqueTimers.length}）</Text>
           <Space >
             <Button  onClick={pauseAll}>全部暂停</Button>
             <Button  type="primary" onClick={resumeAll}>全部继续</Button>
@@ -414,7 +431,7 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
           </Space>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {activeTimers.map((t) => {
+          {uniqueTimers.map((t) => {
             const startText = formatStart(t);
             const elapsedText = calcElapsed(t);
             const projectId = (t as any).project_id;

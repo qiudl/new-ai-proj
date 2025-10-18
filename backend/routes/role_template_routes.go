@@ -30,6 +30,11 @@ func RegisterRoleTemplateRoutes(authorized *gin.RouterGroup, app ApplicationInte
 	templateGroup.GET("/:id/permissions", handler.GetTemplatePermissions)    // Get template permissions
 	templateGroup.GET("/defaults", handler.GetDefaultTemplates)              // Get default system templates
 
+	// TODO: 需要实现统计端点
+	// templateGroup.GET("/stats", handler.GetTemplateStats)                   // Get template statistics
+	// 前端 RoleTemplatesPage.tsx 当前使用模拟数据 (total=0, system=0, business=0, custom=0)
+	// 需要实现返回: { total_templates, system_templates, business_templates, custom_templates }
+
 	// Admin-only routes (if admin middleware is available)
 	// adminGroup := templateGroup.Group("/admin")
 	// adminGroup.Use(AdminMiddleware()) // Uncomment when admin middleware is available

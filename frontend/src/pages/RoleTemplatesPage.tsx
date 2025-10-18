@@ -29,8 +29,17 @@ const RoleTemplatesPage: React.FC = () => {
   // 加载统计数据
   const loadStats = async () => {
     try {
-      const statsData = await roleTemplateService.getTemplateStats();
-      setStats(statsData);
+      // TODO: 后端需要实现 /role-templates/stats 端点
+      // const statsData = await roleTemplateService.getTemplateStats();
+      // setStats(statsData);
+
+      // 临时使用模拟数据
+      setStats({
+        total_templates: 0,
+        system_templates: 0,
+        business_templates: 0,
+        custom_templates: 0
+      });
     } catch (error: any) {
       console.error('Failed to load template stats:', error);
     }
@@ -80,7 +89,7 @@ const RoleTemplatesPage: React.FC = () => {
       />
 
       {/* 页面标题和统计 */}
-      <Card 
+      <Card
         title={
           <div>
             <TeamOutlined style={{ marginRight: 8 }} />
@@ -89,22 +98,22 @@ const RoleTemplatesPage: React.FC = () => {
         }
         extra={
           <Space>
-            <Button 
-              icon={<ExportOutlined />} 
+            <Button
+              icon={<ExportOutlined />}
               onClick={handleBatchExport}
               loading={exportLoading}
             >
               批量导出
             </Button>
-            <Button 
-              icon={<ImportOutlined />} 
+            <Button
+              icon={<ImportOutlined />}
               onClick={() => setImportModalVisible(true)}
             >
               导入模板
             </Button>
           </Space>
         }
-        bordered={false}
+        variant="borderless"
         style={{ marginBottom: 16 }}
       >
         <p style={{ marginBottom: 16, color: '#666' }}>

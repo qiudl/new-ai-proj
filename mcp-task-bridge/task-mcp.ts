@@ -398,29 +398,37 @@ export class TaskMCPServer {
         return this.timerService.getActiveTimers();
     }
 
-    // 批量操作：启动任务并开始计时
-    async startTaskWithTimer(taskId: number, timerDescription?: string) {
+    // 批量操作：启动任务并开始计时（使用统一后端端点）
+    async startTaskWithTimer(taskIdOrTitle: number | string, timerDescription?: string, projectId: number = 1) {
         try {
-            // 1. 启动任务
-            const startResult = await this.startTask(taskId);
-            if (!startResult.success) {
-                return startResult;
-            }
+            // 直接使用BaseClient的公共makeRequest方法调用MCP后端端点
+            const response = await (this.taskService as any).makeRequest(
+                'POST',
+                '/mcp/start-task-with-timer',
+                {
+                    taskIdOrTitle: taskIdOrTitle,
+                    timerDescription: timerDescription,
+                    projectId: projectId
+                }
+            );
 
-            // 2. 开始计时
-            const timerResult = await this.startTimer(taskId, timerDescription);
-            if (!timerResult.success) {
-                return timerResult;
+            if (response && response.success) {
+                const taskId = response.data?.task_id || (typeof taskIdOrTitle === 'number' ? taskIdOrTitle : null);
+                return {
+                    success: true,
+                    task_id: taskId,
+                    project_id: response.data?.project_id || projectId,
+                    timer_status: response.data?.timer_status,
+                    message: `🚀 任务已启动并开始计时${typeof taskIdOrTitle === 'string' ? ` (匹配: "${taskIdOrTitle}")` : ` (#${taskIdOrTitle})`}`
+                };
+            } else {
+                return response || {
+                    success: false,
+                    error: '后端返回空响应'
+                };
             }
-
-            return {
-                success: true,
-                task_id: taskId,
-                task_result: startResult,
-                timer_result: timerResult,
-                message: `🚀 任务 ${taskId} 已启动并开始计时`
-            };
         } catch (error: any) {
+            console.error('[startTaskWithTimer] Error:', error);
             return {
                 success: false,
                 error: `启动任务和计时失败: ${error.message || error}`

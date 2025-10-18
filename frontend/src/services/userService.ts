@@ -5,21 +5,15 @@ import { APIResponse } from '../types/task';
 export const userService = {
   // Get current user profile
   getProfile: async (): Promise<APIResponse<User>> => {
-    const response: any = await api.get('/users/profile');
-    
-    // Handle wrapped APIResponse
-    if (response && typeof response === 'object' && 'success' in response) {
-      if (!response.success) {
-        throw new Error(response.message || (response as any).error?.message || 'Failed to fetch user profile');
-      }
-      return response as APIResponse<User>;
+    // Note: api.ts interceptor already unwraps the response from { success, data } to just data
+    const user = await api.get('/users/profile') as User;
+
+    // Validate the user object
+    if (!user || typeof user !== 'object' || !('id' in user) || !('user_type' in user)) {
+      throw new Error('Failed to fetch user profile: Invalid user data');
     }
 
-    // Axios-unwrapped: response is the actual User object
-    const user = response as User;
-    if (!user || typeof user !== 'object' || !('id' in user)) {
-      throw new Error('Failed to fetch user profile');
-    }
+    // Wrap it back into APIResponse format for consistency
     return {
       success: true,
       data: user,
@@ -30,20 +24,14 @@ export const userService = {
 
   // Update user profile
   updateProfile: async (data: UserProfileUpdateRequest): Promise<APIResponse<User>> => {
-    const response: any = await api.put('/users/profile', data);
-    
-    if (response && typeof response === 'object' && 'success' in response) {
-      if (!response.success) {
-        throw new Error(response.message || (response as any).error?.message || 'Failed to update user profile');
-      }
-      return response as APIResponse<User>;
+    // Note: api.ts interceptor already unwraps the response
+    const user = await api.put('/users/profile', data) as User;
+
+    // Validate the user object
+    if (!user || typeof user !== 'object' || !('id' in user)) {
+      throw new Error('Failed to update user profile: Invalid user data');
     }
 
-    // Unwrapped case
-    const user = response as User;
-    if (!user || typeof user !== 'object' || !('id' in user)) {
-      throw new Error('Failed to update user profile');
-    }
     return {
       success: true,
       data: user,
@@ -54,16 +42,10 @@ export const userService = {
 
   // Change password
   changePassword: async (data: PasswordChangeRequest): Promise<APIResponse<null>> => {
-    const response: any = await api.put('/users/password', data);
-    
-    if (response && typeof response === 'object' && 'success' in response) {
-      if (!response.success) {
-        throw new Error(response.message || (response as any).error?.message || 'Failed to change password');
-      }
-      return response as APIResponse<null>;
-    }
+    // Note: api.ts interceptor already unwraps the response
+    // For password change, the backend typically returns null or an empty object
+    await api.put('/users/password', data);
 
-    // Unwrapped case: treat as success with no data
     return {
       success: true,
       data: null,

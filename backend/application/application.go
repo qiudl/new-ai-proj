@@ -38,9 +38,10 @@ type Application struct {
 	// wsHub          *ws.Hub
 	// wsHandler      *handlers.WebSocketHandler
 	// progressPusher *services.ProgressPusher
-	redisClient        *redis.Client
-	aiCacheService     *cache.AICacheService
-	aiRateLimiter      *security.RedisRateLimiter
+	redisClient         *redis.Client
+	aiCacheService      *cache.AICacheService
+	docCacheService     *cache.DocumentCacheService
+	aiRateLimiter       *security.RedisRateLimiter
 	// Legacy individual handlers for compatibility
 	authHandler              *handlers.AuthHandler              // Auth handler instance
 	serviceAccountHandler    *handlers.ServiceAccountHandler    // Service account handler instance
@@ -133,9 +134,6 @@ func NewApplication() (*Application, error) {
 	// Initialize Task Hierarchy Handler
 	taskHierarchyHandler := handlers.NewTaskHierarchyHandler(db, logger, validate)
 
-	// Initialize Document Handler
-	documentHandler := handlers.NewDocumentHandler(db)
-
 	// Initialize Report Handler
 	reportHandler := handlers.NewReportHandler(db)
 	
@@ -191,6 +189,25 @@ func NewApplication() (*Application, error) {
 		logger.Println("⚠️  AI Cache Service disabled (Redis not available)")
 	}
 
+	// Initialize Document Cache Service (requires Redis)
+	var docCacheService *cache.DocumentCacheService
+	if redisClient != nil {
+		docCacheService = cache.NewDocumentCacheService(&cache.DocumentCacheConfig{
+			RedisClient: redisClient,
+			DefaultTTL:  30 * time.Minute, // Documents don't change frequently, 30 min cache
+			EnableCache: true,
+		})
+		logger.Println("✅ Document Cache Service initialized with Redis (TTL: 30min)")
+	} else {
+		// Create a disabled cache service if Redis is not available
+		docCacheService = cache.NewDocumentCacheService(&cache.DocumentCacheConfig{
+			RedisClient: nil,
+			DefaultTTL:  0,
+			EnableCache: false,
+		})
+		logger.Println("⚠️  Document Cache Service disabled (Redis not available)")
+	}
+
 	// Initialize AI Rate Limiter (requires Redis)
 	var aiRateLimiter *security.RedisRateLimiter
 	if redisClient != nil {
@@ -203,6 +220,9 @@ func NewApplication() (*Application, error) {
 
 	// Initialize Task Handler (after cache service is ready for intelligent cache invalidation)
 	taskHandler := handlers.NewTaskHandler(db, aiCacheService, logger, validate)
+
+	// Initialize Document Handler (after cache service is ready)
+	documentHandler := handlers.NewDocumentHandler(db, docCacheService)
 
 	// Initialize Worktree Service and Handler
 	worktreeBaseDir := "/var/ai-proj-worktrees" // Default location
@@ -268,14 +288,15 @@ func NewApplication() (*Application, error) {
 		// wsHub:          wsHub,
 		// wsHandler:      wsHandler,
 		// progressPusher: progressPusher,
-		redisClient:    redisClient,
-		aiCacheService: aiCacheService,
-		aiRateLimiter:  aiRateLimiter,
+		redisClient:     redisClient,
+		aiCacheService:  aiCacheService,
+		docCacheService: docCacheService,
+		aiRateLimiter:   aiRateLimiter,
 		// Legacy individual handlers for compatibility
-		authHandler:              authHandler,
-		serviceAccountHandler:    serviceAccountHandler,
-		documentHandler:          documentHandler,
-		routerDocumentHandler:    routerDocumentHandler,
+		authHandler:           authHandler,
+		serviceAccountHandler: serviceAccountHandler,
+		documentHandler:       documentHandler,
+		routerDocumentHandler: routerDocumentHandler,
 		userProfileHandler:    userProfileHandler,
 		companyHandler:        companyHandler,
 		enterpriseHandler:     enterpriseHandler,

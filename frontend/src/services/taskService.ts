@@ -482,22 +482,28 @@ const mergedRaw = { ...(params || {}) } as any;
     try {
       const response: any = await api.get(`/projects/${projectId}/tasks/${taskId}`);
 
-      // If using wrapped APIResponse shape
-      if (response && typeof response === 'object' && 'success' in response) {
+      // Handle wrapped APIResponse { success, message, data }
+      // Note: api.ts transformResponse has already parsed JSON strings
+      if (response && typeof response === 'object' && response.success !== undefined) {
         if (!response.success) {
-          throw new Error(response.error?.message || 'Failed to fetch task');
+          throw new Error(response.message || response.error?.message || 'Failed to fetch task');
         }
-        return (response.data as Task);
+        const task = response.data;
+        if (!task || typeof task !== 'object' || !task.id || !task.title) {
+          console.error('TaskService.getTask: Invalid task data in wrapped response', task);
+          throw new Error('Failed to fetch task: Invalid task data');
+        }
+        return task as Task;
       }
 
-      // If axios interceptor already unwrapped to data or { data: Task }
-      const data = response && response.data ? response.data : response;
-      if (!data || typeof data !== 'object' || Array.isArray(data)) {
-        console.warn('TaskService.getTask: unexpected response shape', response);
-        throw new Error('Failed to fetch task');
+      // Handle unwrapped response (api.ts interceptor may have unwrapped it)
+      const task = response;
+      if (!task || typeof task !== 'object' || !task.id || !task.title) {
+        console.error('TaskService.getTask: Invalid task data in unwrapped response', response);
+        throw new Error('Failed to fetch task: Invalid task data');
       }
 
-      return data as Task;
+      return task as Task;
     } catch (error) {
       console.error('TaskService.getTask error:', error);
       throw error;

@@ -24,6 +24,9 @@ func SetupRouter(app ApplicationInterface) *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware(app.GetConfig()))
 
+	// Gzip压缩中间件 - 应该在CORS之后，其他业务逻辑之前
+	router.Use(middleware.Gzip())
+
 	// 安全中间件
 	router.Use(middleware.SecurityHeadersMiddleware())
 	router.Use(middleware.HTTPSEnforcer())

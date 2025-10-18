@@ -20,25 +20,32 @@ class ImpersonationService {
   async getStatus(): Promise<ImpersonationStatus> {
     try {
       const response = await api.get<any>(`${this.baseUrl}/status`);
-      
-      
-      // API拦截器已经处理了标准响应格式，直接返回了data部分
-      // response就是原始data内容
+
+      // 兼容两种响应格式:
+      // 1. API拦截器已解包: {is_impersonating: false}
+      // 2. 标准格式: {success: true, data: {is_impersonating: false}}
+
+      // 如果是已解包的格式
       if (response && typeof response.is_impersonating !== 'undefined') {
         return response;
-      } else {
-        throw new Error('无效的响应格式');
       }
+
+      // 如果是标准响应格式(未被拦截器解包)
+      if (response && response.data && typeof response.data.is_impersonating !== 'undefined') {
+        return response.data;
+      }
+
+      throw new Error('无效的响应格式');
     } catch (error: any) {
       console.error('❌ 获取模拟状态失败:', error);
-      
+
       // 处理404或其他错误，返回默认状态
       if (error.response?.status === 404) {
         return {
           is_impersonating: false
         };
       }
-      
+
       throw error;
     }
   }
