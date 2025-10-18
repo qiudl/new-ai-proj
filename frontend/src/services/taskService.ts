@@ -482,9 +482,13 @@ const mergedRaw = { ...(params || {}) } as any;
     try {
       const response: any = await api.get(`/projects/${projectId}/tasks/${taskId}`);
 
+      console.log('[TaskService.getTask] Raw response:', response);
+      console.log('[TaskService.getTask] Response has success field:', 'success' in response);
+
       // Handle wrapped APIResponse { success, message, data }
       // Note: api.ts transformResponse has already parsed JSON strings
-      if (response && typeof response === 'object' && response.success !== undefined) {
+      if (response && typeof response === 'object' && 'success' in response) {
+        console.log('[TaskService.getTask] Processing wrapped response, success:', response.success);
         if (!response.success) {
           throw new Error(response.message || response.error?.message || 'Failed to fetch task');
         }
@@ -493,14 +497,29 @@ const mergedRaw = { ...(params || {}) } as any;
           console.error('TaskService.getTask: Invalid task data in wrapped response', task);
           throw new Error('Failed to fetch task: Invalid task data');
         }
+        console.log('[TaskService.getTask] Returning task from wrapped response:', task.id, task.title);
+
+        // Clean up priority field if it's an empty string
+        if (task.priority === '') {
+          task.priority = undefined;
+        }
+
         return task as Task;
       }
 
       // Handle unwrapped response (api.ts interceptor may have unwrapped it)
+      console.log('[TaskService.getTask] Processing unwrapped response');
       const task = response;
       if (!task || typeof task !== 'object' || !task.id || !task.title) {
         console.error('TaskService.getTask: Invalid task data in unwrapped response', response);
         throw new Error('Failed to fetch task: Invalid task data');
+      }
+
+      console.log('[TaskService.getTask] Returning task from unwrapped response:', task.id, task.title);
+
+      // Clean up priority field if it's an empty string
+      if (task.priority === '') {
+        task.priority = undefined;
       }
 
       return task as Task;

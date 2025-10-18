@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"ai-project-backend/cache"
 	"ai-project-backend/database"
 )
 
@@ -9,6 +8,6 @@ import (
 type DocumentHandler = HybridDocumentHandler
 
 // NewDocumentHandler creates a new document handler (alias for NewHybridDocumentHandler)
-func NewDocumentHandler(db database.DB, cacheService *cache.DocumentCacheService) *DocumentHandler {
-	return NewHybridDocumentHandler(db, cacheService)
+func NewDocumentHandler(db database.DB) *DocumentHandler {
+	return NewHybridDocumentHandler(db)
 }
