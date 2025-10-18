@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"ai-project-backend/database"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -50,7 +51,10 @@ func parseCSV(key string) []string {
 }
 
 func isSuperAdminCtx(c *gin.Context) bool {
-	if !featureEnabled("FEATURE_SUPERADMIN_ENABLE") {
+	enabled := featureEnabled("FEATURE_SUPERADMIN_ENABLE")
+	log.Printf("[SUPERADMIN] Feature enabled: %v", enabled)
+
+	if !enabled {
 		return false
 	}
 	username := ""
@@ -72,6 +76,9 @@ func isSuperAdminCtx(c *gin.Context) bool {
 			}
 		}
 	}
+
+	log.Printf("[SUPERADMIN] Checking user: username=%s, uid=%d", username, uid)
+
 	usernames := map[string]struct{}{}
 	ids := map[int]struct{}{}
 	for _, u := range parseCSV("SUPER_ADMIN_USERNAMES") {
@@ -91,19 +98,26 @@ func isSuperAdminCtx(c *gin.Context) bool {
 			ids[id] = struct{}{}
 		}
 	}
+
+	log.Printf("[SUPERADMIN] Configured usernames: %v, ids: %v", usernames, ids)
+
 	if len(usernames) == 0 && len(ids) == 0 && username == "admin" {
+		log.Printf("[SUPERADMIN] Default admin bypass: true")
 		return true
 	}
 	if username != "" {
 		if _, ok := usernames[username]; ok {
+			log.Printf("[SUPERADMIN] Username match: %s = true", username)
 			return true
 		}
 	}
 	if uid != 0 {
 		if _, ok := ids[uid]; ok {
+			log.Printf("[SUPERADMIN] UID match: %d = true", uid)
 			return true
 		}
 	}
+	log.Printf("[SUPERADMIN] No match found: false")
 	return false
 }
 

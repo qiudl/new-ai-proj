@@ -87,7 +87,7 @@ type PermissionContext struct {
 
 // Permission check result
 type PermissionResult struct {
-	HasPermission bool   `json:"has_permission"`
+	HasPermission bool   `json:"hasPermission"`
 	Reason        string `json:"reason"`
 	Source        string `json:"source"` // role, custom, project
 }

@@ -117,8 +117,17 @@ export const permissionService = {
   async checkUserPermission(request: PermissionCheckRequest): Promise<{ result: PermissionResult }> {
     const response: any = await api.post('/permissions/check', request);
 
-    // Backend returns { result: { has_permission, reason, source } }
-    // Need to normalize has_permission -> hasPermission
+    // New format: Backend directly returns { hasPermission, reason, source }
+    if (response && typeof response.hasPermission === 'boolean') {
+      const normalizedResult: PermissionResult = {
+        hasPermission: response.hasPermission,
+        reason: response.reason || '',
+        grantedBy: response.grantedBy || response.granted_by || []
+      };
+      return { result: normalizedResult };
+    }
+
+    // Old format (backward compatibility): { result: { has_permission, reason, source } }
     if (response && response.result) {
       const backendResult = response.result;
       const normalizedResult: PermissionResult = {

@@ -303,11 +303,11 @@ func (h *PermissionHandler) CheckUserPermission(c *gin.Context) {
 		if roleStr, ok := roleVal.(string); ok {
 			role := strings.ToLower(roleStr)
 			if role == "admin" || role == "super_admin" || role == "superadmin" {
-				c.JSON(http.StatusOK, gin.H{"result": models.PermissionResult{
+				c.JSON(http.StatusOK, models.PermissionResult{
 					HasPermission: true,
 					Reason:        "Admin override (user role)",
 					Source:        "admin_override",
-				}})
+				})
 				return
 			}
 		}
@@ -315,11 +315,11 @@ func (h *PermissionHandler) CheckUserPermission(c *gin.Context) {
 		if roleStr, ok := roleVal2.(string); ok {
 			role := strings.ToLower(roleStr)
 			if role == "admin" || role == "super_admin" || role == "superadmin" {
-				c.JSON(http.StatusOK, gin.H{"result": models.PermissionResult{
+				c.JSON(http.StatusOK, models.PermissionResult{
 					HasPermission: true,
 					Reason:        "Admin override (current_user_role)",
 					Source:        "admin_override",
-				}})
+				})
 				return
 			}
 		}
@@ -333,17 +333,17 @@ func (h *PermissionHandler) CheckUserPermission(c *gin.Context) {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permission"})
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{"result": result})
+			c.JSON(http.StatusOK, result)
 			return
 		}
 	}
 
 	// Fallback: no company_user_id in context; deny with informative reason
-	c.JSON(http.StatusOK, gin.H{"result": models.PermissionResult{
+	c.JSON(http.StatusOK, models.PermissionResult{
 		HasPermission: false,
 		Reason:        "Permission system not initialized for this user (no company_user_id in context)",
 		Source:        "fallback",
-	}})
+	})
 }
 
 // containsDot checks if a string contains a dot
