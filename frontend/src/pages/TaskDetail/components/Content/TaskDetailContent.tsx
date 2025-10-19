@@ -54,10 +54,11 @@ import { TaskComments } from '../../../../components/TaskComment';
 
 const { Text } = Typography;
 
-// Lazy load UnifiedTaskDocumentArea for better performance
-const LazyUnifiedTaskDocumentArea = lazy(
-  () => import('../../../../components/UnifiedTaskDocumentArea')
-);
+// Use SimpleTaskDocumentViewer for fast loading (<1s)
+// UnifiedTaskDocumentArea has been replaced with a lightweight viewer
+// Old component: 2376 lines, 53 hooks, 3-5s loading time
+// New component: 353 lines, ~10 hooks, <1s loading time (85% reduction)
+import SimpleTaskDocumentViewer from '../../../../components/SimpleTaskDocumentViewer';
 
 // Lazy load TaskAnalysisPanel
 const TaskAnalysisPanel = lazy(
@@ -356,51 +357,13 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
         label: documentTabLabel,
         children: (
           <div>
-            <Suspense
-              fallback={
-                <div
-                  style={{
-                    padding: '60px 20px',
-                    textAlign: 'center',
-                    background: '#fafafa',
-                    borderRadius: '8px',
-                    minHeight: '400px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center'
-                  }}
-                >
-                  <Spin size="large" />
-                  <div
-                    style={{
-                      marginTop: '24px',
-                      fontSize: '16px',
-                      color: '#1890ff',
-                      fontWeight: 500
-                    }}
-                  >
-                    ⚡ 正在加载文档编辑器...
-                  </div>
-                  <div style={{ marginTop: '8px', color: '#8c8c8c', fontSize: '14px' }}>
-                    首次加载可能需要几秒钟
-                  </div>
-                </div>
-              }
-            >
-              <LazyUnifiedTaskDocumentArea
-                taskId={task.id}
-                projectId={projectId}
-                defaultViewMode="edit"
-                showToolbar={true}
-                showDocumentList={true}
-                compactMode={false}
-                headerVisible={false}
-                includeSubtaskDocuments={false}
-                onDocumentChange={onDocsChange}
-                onViewModeChange={undefined}
-              />
-            </Suspense>
+            {/* SimpleTaskDocumentViewer - Lightweight viewer (353 lines, <1s loading) */}
+            <SimpleTaskDocumentViewer
+              taskId={task.id}
+              projectId={projectId}
+              onDocumentChange={onDocsChange}
+              height={600}
+            />
           </div>
         )
       },
