@@ -1104,8 +1104,9 @@ func createTaskDocs(h *handlers.DocumentHandler) gin.HandlerFunc {
 func createSubtask(app ApplicationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
-			ParentID int    `json:"parentId"`
-			Title    string `json:"title"`
+			ParentID     int   `json:"parentId"`
+			Title        string `json:"title"`
+			SkipTemplate *bool  `json:"skipTemplate"` // Skip auto-template generation
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -1133,6 +1134,11 @@ func createSubtask(app ApplicationInterface) gin.HandlerFunc {
 					"priority":        "medium",
 				},
 			},
+		}
+
+		// Add skip_template if provided
+		if req.SkipTemplate != nil {
+			batchReq["skip_template"] = *req.SkipTemplate
 		}
 
 		// 编码请求体
@@ -1174,11 +1180,12 @@ func createSubtask(app ApplicationInterface) gin.HandlerFunc {
 func createSiblingTask(app ApplicationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
-			SiblingID   int    `json:"siblingId"`
-			Title       string `json:"title"`
-			Description string `json:"description,omitempty"`
-			Priority    string `json:"priority,omitempty"`
-			Status      string `json:"status,omitempty"`
+			SiblingID    int    `json:"siblingId"`
+			Title        string `json:"title"`
+			Description  string `json:"description,omitempty"`
+			Priority     string `json:"priority,omitempty"`
+			Status       string `json:"status,omitempty"`
+			SkipTemplate *bool  `json:"skipTemplate"` // Skip auto-template generation
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -1230,6 +1237,11 @@ func createSiblingTask(app ApplicationInterface) gin.HandlerFunc {
 						"priority":        req.Priority,
 					},
 				},
+			}
+
+			// Add skip_template if provided
+			if req.SkipTemplate != nil {
+				batchReq["skip_template"] = *req.SkipTemplate
 			}
 
 			jsonBody, _ := json.Marshal(batchReq)

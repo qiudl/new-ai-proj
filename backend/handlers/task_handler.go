@@ -289,6 +289,8 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		TimeUnitPreference *string  `json:"time_unit_preference"`
 		WorkHoursPerDay    *float64 `json:"work_hours_per_day"`
 		TimeTrackingMode   *string  `json:"time_tracking_mode"`
+		// Skip auto-template generation
+		SkipTemplate       *bool    `json:"skip_template"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -485,25 +487,31 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	// Lifecycle trigger: Auto-create Task Description document upon task creation
-	// Using a background goroutine with proper error handling and timeout
-	go func() {
-		// Create a new context with timeout for the async operation
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		
-		// Add structured logging with timestamp
-		start := time.Now()
-		log.Printf("[AsyncTask][CreateTask][Start] Creating auto-doc for task_id=%d, user_id=%d", 
-			createdTask.ID, userID)
-		
-		if err := h.autoCreateTaskDescription(ctx, createdTask, userID); err != nil {
-			log.Printf("[AsyncTask][CreateTask][Error] Failed to create task description: task_id=%d, user_id=%d, duration=%v, error=%v",
-				createdTask.ID, userID, time.Since(start), err)
-		} else {
-			log.Printf("[AsyncTask][CreateTask][Success] Auto-doc created: task_id=%d, duration=%v",
-				createdTask.ID, time.Since(start))
-		}
-	}()
+	// Skip if skip_template is true
+	skipTemplate := req.SkipTemplate != nil && *req.SkipTemplate
+	if !skipTemplate {
+		// Using a background goroutine with proper error handling and timeout
+		go func() {
+			// Create a new context with timeout for the async operation
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			// Add structured logging with timestamp
+			start := time.Now()
+			log.Printf("[AsyncTask][CreateTask][Start] Creating auto-doc for task_id=%d, user_id=%d",
+				createdTask.ID, userID)
+
+			if err := h.autoCreateTaskDescription(ctx, createdTask, userID); err != nil {
+				log.Printf("[AsyncTask][CreateTask][Error] Failed to create task description: task_id=%d, user_id=%d, duration=%v, error=%v",
+					createdTask.ID, userID, time.Since(start), err)
+			} else {
+				log.Printf("[AsyncTask][CreateTask][Success] Auto-doc created: task_id=%d, duration=%v",
+					createdTask.ID, time.Since(start))
+			}
+		}()
+	} else {
+		log.Printf("[CreateTask] Skipped auto-doc generation for task_id=%d (skip_template=true)", createdTask.ID)
+	}
 
 	c.JSON(http.StatusCreated, models.NewSuccessResponse(createdTask.ToResponse(), "任务创建成功"))
 }
@@ -814,6 +822,8 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		TimeUnitPreference *string  `json:"time_unit_preference"`
 		WorkHoursPerDay    *float64 `json:"work_hours_per_day"`
 		TimeTrackingMode   *string  `json:"time_tracking_mode"`
+		// Skip auto-template generation
+		SkipTemplate       *bool    `json:"skip_template"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -1021,7 +1031,9 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	}
 
 	// Lifecycle trigger: When status transitions to in_progress, auto-create Task Document if not exists
-	if originalStatus != "in_progress" && updatedTask.Status == "in_progress" {
+	// Skip if skip_template is true
+	skipTemplate := req.SkipTemplate != nil && *req.SkipTemplate
+	if originalStatus != "in_progress" && updatedTask.Status == "in_progress" && !skipTemplate {
 		uid := c.GetInt("user_id")
 		go func() {
 			ctx := c.Request.Context()
@@ -1029,6 +1041,8 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 				log.Printf("[AutoDoc] failed to create task main doc for task %d: %v", updatedTask.ID, err)
 			}
 		}()
+	} else if skipTemplate {
+		log.Printf("[UpdateTask] Skipped auto-doc generation for task_id=%d (skip_template=true)", updatedTask.ID)
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask.ToResponse(), "任务更新成功"))

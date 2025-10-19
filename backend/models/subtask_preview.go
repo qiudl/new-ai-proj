@@ -41,8 +41,9 @@ type AIGenerateStats struct {
 
 // BatchCreateSubtasksRequest 批量创建子任务请求
 type BatchCreateSubtasksRequest struct {
-	ParentID int64 `json:"parent_id" binding:"required"`
-	Subtasks []struct {
+	ParentID     int64 `json:"parent_id" binding:"required"`
+	SkipTemplate *bool `json:"skip_template"` // Skip auto-template generation
+	Subtasks     []struct {
 		Title          string   `json:"title" binding:"required"`
 		Description    string   `json:"description"`
 		EstimatedHours float64  `json:"estimated_hours"`
