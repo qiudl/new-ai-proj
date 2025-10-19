@@ -26,7 +26,8 @@ import {
   Tag,
   Tooltip,
   message,
-  Modal
+  Modal,
+  Divider
 } from 'antd';
 import {
   FileTextOutlined,
@@ -100,12 +101,9 @@ const SimpleTaskDocumentViewer: React.FC<SimpleTaskDocumentViewerProps> = ({
 
       const result = response.data;
 
-      // 合并所有文档源
-      const allDocuments = [
-        ...(result.documents || []),
-        ...(result.work_notes || []),
-        ...(result.uploaded_files || [])
-      ];
+      // API已经合并了所有文档（documents + work_notes + uploaded_files）
+      // 注意：当没有文档时，API可能返回 documents: null
+      const allDocuments = Array.isArray(result?.documents) ? result.documents : [];
 
       // 转换为DocumentItem格式
       const docs: DocumentItem[] = allDocuments.map((doc: any) => ({
@@ -163,11 +161,9 @@ const SimpleTaskDocumentViewer: React.FC<SimpleTaskDocumentViewerProps> = ({
         });
 
         const result = response.data;
-        const allDocs = [
-          ...(result.documents || []),
-          ...(result.work_notes || []),
-          ...(result.uploaded_files || [])
-        ];
+        // API已经合并了所有文档
+        // 注意：当没有文档时，API可能返回 documents: null
+        const allDocs = Array.isArray(result?.documents) ? result.documents : [];
 
         const fullDoc = allDocs.find((d: any) => d.id === doc.id);
         if (fullDoc) {
