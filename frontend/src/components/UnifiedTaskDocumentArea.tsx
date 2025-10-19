@@ -62,6 +62,7 @@ import { taskDocumentService } from '../services/taskDocumentService';
 import { TaskService } from '../services/taskService';
 import api from '../services/api';
 import { apiCache } from '../utils/apiCacheManager';
+import { documentCacheService } from '../services/documentCacheService';
 
 // 导入快捷键Hook
 import { useKeyboardShortcuts, createDocumentShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -327,6 +328,9 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   const [documentSortOrder, setDocumentSortOrder] = useState<'asc' | 'desc'>('desc');
   const [aiDocDialogVisible, setAiDocDialogVisible] = useState(false); // AI文档创建对话框
 
+  // ⚡ Performance: 延迟渲染重量级组件
+  const [isHeavyComponentsReady, setIsHeavyComponentsReady] = useState(false);
+
   // 编辑内容和标题状态
   const [editContent, setEditContent] = useState('');
   const [editTitle, setEditTitle] = useState('');
@@ -401,11 +405,10 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
       return;
     }
 
-    // 检查缓存
-    const cacheKey = `${projectId}:${taskId}:${includeDescendants}`;
-    const cached = documentCache.current.get(cacheKey);
+    // P2优化：使用多层缓存服务（L1内存 + L2 IndexedDB）
+    const cached = await documentCacheService.get(projectId, taskId, includeDescendants);
     if (cached && !force) {
-      console.log(`💾 [LOAD-DOCS] Using cached documents (${cached.length} items)`);
+      console.log(`💾 [LOAD-DOCS] Using multi-layer cache (${cached.length} items)`);
       setDocuments(cached);
       onDocumentChange?.(cached);
       return;
@@ -418,53 +421,24 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
     // 开始性能监控
     const loadStartTime = performance.now();
     
-    // 强制重新加载时，清除所有缓存
+    // P2优化：强制重新加载时，清除多层缓存
     if (force) {
-      console.log('🗑️ [FORCE-RELOAD] 清除所有缓存');
+      console.log('🗑️ [FORCE-RELOAD] 清除多层缓存');
 
-      // 清除组件级缓存
-      const componentCacheKey = `${projectId}:${taskId}:${includeDescendants}`;
-      documentCache.current.delete(componentCacheKey);
+      // 清除新的缓存服务（L1 + L2）
+      await documentCacheService.clear(projectId, taskId);
 
-      // 清除API内存缓存
+      // 清除旧的API内存缓存（兼容性）
       const cacheKeys = apiCache.keys();
       cacheKeys.forEach((key: string) => {
         if (
           key.includes(`task_document_${projectId}_${taskId}`) ||
           key.includes(`task_documents_${projectId}_${taskId}`)
         ) {
-          console.log('  🗑️ 删除内存缓存:', key);
+          console.log('  🗑️ 删除API缓存:', key);
           apiCache.delete(key);
         }
       });
-
-      // 直接清除localStorage中的持久化缓存
-      try {
-        const persistentKeys = localStorage.getItem('apiCache:persistent');
-        if (persistentKeys) {
-          const keys = JSON.parse(persistentKeys) as string[];
-          const keysToRemove: string[] = [];
-
-          keys.forEach((key: string) => {
-            if (
-              key.includes(`task_document_${projectId}_${taskId}`) ||
-              key.includes(`task_documents_${projectId}_${taskId}`)
-            ) {
-              console.log('  🗑️ 删除localStorage缓存:', key);
-              localStorage.removeItem(`apiCache:${key}`);
-              keysToRemove.push(key);
-            }
-          });
-
-          // 更新persistent keys列表
-          if (keysToRemove.length > 0) {
-            const updatedKeys = keys.filter(k => !keysToRemove.includes(k));
-            localStorage.setItem('apiCache:persistent', JSON.stringify(updatedKeys));
-          }
-        }
-      } catch (error) {
-        console.warn('清除localStorage缓存失败:', error);
-      }
 
       setDocuments([]);
       setSelectedDocument(null);
@@ -480,78 +454,130 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
         ]);
       };
 
-      // 如果强制刷新，直接调用API绕过缓存；否则使用documentService
-      const [documentsResult, uploadedResult] = await Promise.allSettled([
-        force
-          ? fetchWithTimeout(api.get(`/projects/${projectId}/tasks/${taskId}/documents`, {
-              params: {
-                page: 1,
-                page_size: 20,
-                include_main: true,
-                _t: Date.now() // 时间戳参数强制绕过所有缓存
-              }
-            }))
-          : fetchWithTimeout(documentService.getTaskDocuments(projectId, taskId)),
-        fetchWithTimeout(taskDocumentService.getTaskDocuments(projectId, taskId))
-      ]);
-      
+      // P1优化：使用新的合并API端点，减少API请求数量
+      // 一次性获取所有文档（数据库文档 + 工作笔记 + 上传文件）
       let docs: DocumentItem[] = [];
 
-      // 处理文档服务的响应
-      if (documentsResult.status === 'fulfilled') {
-        const result = documentsResult.value;
-        // 处理API直接返回和documentService返回两种格式
-        const documents = result.documents || result.data?.documents || result;
-        const docsArray = Array.isArray(documents) ? documents : [];
+      try {
+        const apiCallStartTime = performance.now();
 
-        docs = docsArray.map((doc: UnifiedDocument) => ({
-          ...doc,
-          selected: false,
-          sourceTaskId: taskId
-        }));
+        // 调用新的合并API端点
+        const response = await fetchWithTimeout(
+          api.get(`/projects/${projectId}/tasks/${taskId}/documents/all`, {
+            params: {
+              include_content: false, // 列表模式不加载content，提升性能
+              _t: force ? Date.now() : undefined // 强制刷新时添加时间戳参数
+            }
+          })
+        );
 
-        console.log('📄 [LOAD-DOCS] 获取到文档', {
-          count: docs.length,
-          force,
-          versions: docs.map(d => ({ id: d.id, version: d.version }))
+        const apiCallDuration = performance.now() - apiCallStartTime;
+        console.log(`⚡ [LOAD-DOCS] API调用耗时: ${apiCallDuration.toFixed(2)}ms`);
+
+        // 处理新API的响应格式
+        const result = response.data;
+        const documents = result.documents || [];
+        const statistics = result.statistics || { total: 0 };
+        const cacheHit = result.cache_hit || false;
+
+        console.log('📄 [LOAD-DOCS] 获取到合并文档', {
+          total: statistics.total,
+          byType: statistics.by_type,
+          bySource: statistics.by_source,
+          cacheHit,
+          force
         });
-      } else {
-        console.warn('获取任务文档失败:', documentsResult.reason);
-      }
-      
-      // 处理上传文档服务的响应
-      if (uploadedResult.status === 'fulfilled') {
-        const uploadedDocs: DocumentItem[] = uploadedResult.value.documents.map((doc: any) => ({
-          id: doc.id,
-          title: doc.original_name || doc.file_name,
-          content: '', // 上传的文件内容需要单独获取
-          description: `上传的文件 (${Math.round(doc.file_size / 1024)}KB)`,
-          type: doc.mime_type?.startsWith('image/') ? 'image' as const : 
-                doc.mime_type === 'application/pdf' ? 'pdf' as const : 
-                doc.mime_type === 'text/markdown' ? 'markdown' as const : 'file' as const,
-          mime_type: doc.mime_type,
-          file_size: doc.file_size,
-          version: 1,
-          status: 'published' as const,
-          visibility: 'team' as const,
-          is_template: false,
-          project_id: projectId,
-          task_id: taskId,
-          owner_id: 0,
-          created_by: 0,
-          created_at: doc.uploaded_at,
-          updated_at: doc.uploaded_at,
-          tags: ['uploaded'],
-          selected: false,
-          sourceTaskId: taskId,
-          file_path: doc.file_path, // 保存文件路径用于下载/查看
-          can_edit: true, // 添加权限字段
-          can_delete: true,
-          can_share: true
-        }));
-        docs = [...docs, ...uploadedDocs];
-      } else {
-        console.warn('获取上传文档失败:', uploadedResult.reason);
+
+        // 转换为DocumentItem格式
+        docs = documents.map((doc: any) => {
+          // 判断文档来源并设置相应属性
+          const isUploaded = doc.source_type === 'uploaded_file';
+          const isWorkNote = doc.source_type === 'work_note';
+
+          return {
+            id: doc.id,
+            title: doc.title,
+            content: doc.content || '', // content可能为null（如果include_content=false）
+            description: doc.description || '',
+            type: doc.type,
+            mime_type: doc.mime_type,
+            file_size: doc.file_size,
+            version: doc.version || 1,
+            status: doc.status || 'published',
+            visibility: doc.visibility || 'team',
+            is_template: doc.is_template || false,
+            project_id: doc.project_id || projectId,
+            task_id: doc.task_id || taskId,
+            owner_id: doc.owner_id || 0,
+            created_by: doc.created_by || 0,
+            created_at: doc.created_at,
+            updated_at: doc.updated_at,
+            tags: doc.tags || (isUploaded ? ['uploaded'] : isWorkNote ? ['work_note'] : []),
+            selected: false,
+            sourceTaskId: taskId,
+            file_path: doc.file_path, // 上传文件的路径
+            can_edit: doc.can_edit !== false,
+            can_delete: doc.can_delete !== false,
+            can_share: doc.can_share !== false,
+            source_type: doc.source_type // 保留来源类型标记
+          };
+        });
+
+      } catch (error: any) {
+        console.error('❌ [LOAD-DOCS] 获取文档失败:', error);
+        // 如果新API失败，回退到旧的双API调用方式
+        console.log('🔄 [LOAD-DOCS] 回退到旧的API调用方式');
+
+        const [documentsResult, uploadedResult] = await Promise.allSettled([
+          fetchWithTimeout(documentService.getTaskDocuments(projectId, taskId)),
+          fetchWithTimeout(taskDocumentService.getTaskDocuments(projectId, taskId))
+        ]);
+
+        // 处理文档服务的响应
+        if (documentsResult.status === 'fulfilled') {
+          const result = documentsResult.value;
+          const documents = result.documents || result.data?.documents || result;
+          const docsArray = Array.isArray(documents) ? documents : [];
+
+          docs = docsArray.map((doc: UnifiedDocument) => ({
+            ...doc,
+            selected: false,
+            sourceTaskId: taskId
+          }));
+        }
+
+        // 处理上传文档服务的响应
+        if (uploadedResult.status === 'fulfilled') {
+          const uploadedDocs: DocumentItem[] = uploadedResult.value.documents.map((doc: any) => ({
+            id: doc.id,
+            title: doc.original_name || doc.file_name,
+            content: '',
+            description: `上传的文件 (${Math.round(doc.file_size / 1024)}KB)`,
+            type: doc.mime_type?.startsWith('image/') ? 'image' as const :
+                  doc.mime_type === 'application/pdf' ? 'pdf' as const :
+                  doc.mime_type === 'text/markdown' ? 'markdown' as const : 'file' as const,
+            mime_type: doc.mime_type,
+            file_size: doc.file_size,
+            version: 1,
+            status: 'published' as const,
+            visibility: 'team' as const,
+            is_template: false,
+            project_id: projectId,
+            task_id: taskId,
+            owner_id: 0,
+            created_by: 0,
+            created_at: doc.uploaded_at,
+            updated_at: doc.uploaded_at,
+            tags: ['uploaded'],
+            selected: false,
+            sourceTaskId: taskId,
+            file_path: doc.file_path,
+            can_edit: true,
+            can_delete: true,
+            can_share: true
+          }));
+          docs = [...docs, ...uploadedDocs];
+        }
       }
 
       // 禁用自动递归加载以提升性能 - 改为手动触发
@@ -623,14 +649,11 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
           return prevDocs; // 避免不必要的重渲染
         }
         
-        // 缓存文档数据
-        const cacheKey = `${projectId}:${taskId}:${includeDescendants}`;
-        documentCache.current.set(cacheKey, docs);
-        // 设置缓存过期
-        setTimeout(() => {
-          documentCache.current.delete(cacheKey);
-        }, CACHE_TTL);
-        
+        // P2优化：保存到多层缓存服务（异步，不阻塞渲染）
+        documentCacheService.set(projectId, taskId, docs, includeDescendants).catch(error => {
+          console.error('❌ [CACHE] 保存缓存失败:', error);
+        });
+
         return docs;
       });
       
@@ -880,6 +903,17 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         clearTimeout(debounceTimerRef.current);
       }
     };
+  }, []);
+
+  // ⚡ Performance: 延迟初始化重量级组件（编辑器、工具等）
+  // 先快速渲染轻量级视图，100ms后再渲染完整功能
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsHeavyComponentsReady(true);
+      console.log('✅ [Performance] Heavy components initialized');
+    }, 100); // 延迟100ms初始化编辑器等重量级组件
+
+    return () => clearTimeout(timer);
   }, []);
 
   // 初始加载 - 使用防抖
@@ -1608,20 +1642,30 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
       case 'edit':
         return selectedDocument ? (
           <ErrorBoundary>
-            <Suspense fallback={<Spin size="large" style={{ display: 'block', margin: '40px auto' }} />}>
-              <TaskDocumentEditor
-                key={selectedDocument.id}
-                taskId={taskId}
-                projectId={projectId}
-                taskDocument={selectedDocument}
-                onSave={(content) => {
-                  loadDocuments(true); // 强制从API重新加载最新数据
-                  if (onSaveDocument) {
-                    onSaveDocument();
-                  }
-                }}
-              />
-            </Suspense>
+            {/* ⚡ Performance: 延迟渲染重量级编辑器 */}
+            {!isHeavyComponentsReady ? (
+              <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+                <Spin size="large" />
+                <div style={{ marginTop: '16px', color: '#1890ff' }}>
+                  ⚡ 正在初始化编辑器...
+                </div>
+              </div>
+            ) : (
+              <Suspense fallback={<Spin size="large" style={{ display: 'block', margin: '40px auto' }} />}>
+                <TaskDocumentEditor
+                  key={selectedDocument.id}
+                  taskId={taskId}
+                  projectId={projectId}
+                  taskDocument={selectedDocument}
+                  onSave={(content) => {
+                    loadDocuments(true); // 强制从API重新加载最新数据
+                    if (onSaveDocument) {
+                      onSaveDocument();
+                    }
+                  }}
+                />
+              </Suspense>
+            )}
           </ErrorBoundary>
         ) : (
           <Empty
