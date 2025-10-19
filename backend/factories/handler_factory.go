@@ -128,9 +128,14 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 		f.validate,
 	)
 
+	// 任务文档处理器 - 基础路径配置
+	docsBasePath := "./docs" // 可以通过配置文件配置
+
 	// 文档管理处理器 (新版本，基于数据库)
-	allHandlers.DocumentHandler = handlers.NewDocumentHandler(f.db)
-	allHandlers.HybridDocumentHandler = handlers.NewHybridDocumentHandler(f.db)
+	// Note: Factory mode does not use Redis cache - cache layer not available in factory mode
+	// For production with Redis caching, use application.go initialization
+	allHandlers.DocumentHandler = handlers.NewDocumentHandler(f.db, docsBasePath) // No Redis in factory mode
+	allHandlers.HybridDocumentHandler = handlers.NewHybridDocumentHandler(f.db, docsBasePath) // No Redis in factory mode
 	// allHandlers.HybridDocumentFolderHandler = handlers.NewHybridDocumentFolderHandler(f.db) // Temporarily disabled
 	// allHandlers.SimpleDocumentHandler = handlers.NewSimpleDocumentHandler() // 暂时注释掉，handler缺失
 
@@ -143,9 +148,6 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// allHandlers.WorkNoteFolderHandler = handlers.NewWorkNoteFolderHandler(workNoteFolderService, jwtManager) // 暂时注释
 
 	allHandlers.TimerHandler = handlers.NewTimerHandler(f.db)
-
-	// 任务文档处理器
-	docsBasePath := "./docs" // 可以通过配置文件配置
 
 	// 统一文档处理器 (新架构)
 	documentConfig, err := config.LoadDocumentConfig("")

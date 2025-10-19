@@ -1,11 +1,16 @@
 package handlers
 
 import (
+	"context"
+	"crypto/md5"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,17 +20,19 @@ import (
 	"ai-project-backend/services"
 	"ai-project-backend/utils"
 	"github.com/gin-gonic/gin"
-	"github.com/lib/pq"
+	"github.com/go-redis/redis/v8"
 )
 
 // HybridDocumentHandler 混合文档处理器，直接使用SQL查询
 type HybridDocumentHandler struct {
 	db              database.DB
 	relationService *services.WorkNoteTaskRelationService
+	docsBasePath    string
+	redisClient     *redis.Client
 }
 
 // NewHybridDocumentHandler 创建新的混合文档处理器
-func NewHybridDocumentHandler(db database.DB) *HybridDocumentHandler {
+func NewHybridDocumentHandler(db database.DB, docsBasePath string, redisClient ...*redis.Client) *HybridDocumentHandler {
 	// 获取SQL连接用于关联服务
 	sqlDB, ok := db.GetDB().(*sql.DB)
 	if !ok {
@@ -37,9 +44,17 @@ func NewHybridDocumentHandler(db database.DB) *HybridDocumentHandler {
 		relationService = services.NewWorkNoteTaskRelationService(sqlDB)
 	}
 
+	// Redis client is optional
+	var rc *redis.Client
+	if len(redisClient) > 0 {
+		rc = redisClient[0]
+	}
+
 	return &HybridDocumentHandler{
 		db:              db,
 		relationService: relationService,
+		docsBasePath:    docsBasePath,
+		redisClient:     rc,
 	}
 }
 
@@ -941,7 +956,8 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 	})
 }
 
-// GetTaskDocuments 获取任务相关的文档列表 - 更新触发重编译
+// GetTaskDocuments 获取任务相关的文档列表 - 性能优化版本
+// 优化点：使用单次数据库查询同时获取文档和工作笔记，减少查询次数
 func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 	// 获取路径参数
 	projectIDStr := c.Param("id")
@@ -967,18 +983,47 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 
 	sqlDB := h.db.GetDB().(*sql.DB)
 
-	// 查询任务关联的文档
+	// 优化：使用单次查询同时获取文档和工作笔记
+	// 使用UNION ALL合并两个查询，减少数据库往返次数
 	query := `
-		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
-		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
-		       d.owner_id, d.visibility, d.version, d.is_template,
-		       d.created_by, d.created_at, d.updated_at,
-		       u.username as owner_name, td.relationship_type
+		-- 查询任务关联的文档
+		SELECT
+			d.id, d.project_id, d.title, d.content, d.type, d.status,
+			d.file_url, d.file_size, d.mime_type, d.description, d.tags,
+			d.owner_id, d.visibility, d.version, d.is_template,
+			d.created_by, d.created_at, d.updated_at,
+			u.username as owner_name,
+			td.relationship_type,
+			td.sort_order,
+			'document' as source_type
 		FROM documents d
 		INNER JOIN task_documents td ON d.id = td.document_id
 		LEFT JOIN users u ON d.owner_id = u.id
-		WHERE td.task_id = $1 AND d.project_id = $2 AND d.deleted_at IS NULL AND td.deleted_at IS NULL
-		ORDER BY td.sort_order, td.created_at`
+		WHERE td.task_id = $1
+			AND d.project_id = $2
+			AND d.deleted_at IS NULL
+			AND td.deleted_at IS NULL
+
+		UNION ALL
+
+		-- 查询任务关联的工作笔记
+		SELECT
+			d.id, d.project_id, d.title, d.content, d.type, d.status,
+			d.file_url, d.file_size, d.mime_type, d.description, d.tags,
+			d.owner_id, d.visibility, d.version, d.is_template,
+			d.created_by, d.created_at, d.updated_at,
+			u.username as owner_name,
+			wntr.relation_type as relationship_type,
+			0 as sort_order,
+			'work_note' as source_type
+		FROM documents d
+		INNER JOIN work_note_task_relations wntr ON d.id = wntr.work_note_id
+		LEFT JOIN users u ON d.created_by = u.id
+		WHERE wntr.task_id = $1
+			AND d.deleted_at IS NULL
+			AND wntr.deleted_at IS NULL
+
+		ORDER BY source_type, sort_order, created_at`
 
 	rows, err := sqlDB.Query(query, taskID, projectID)
 	if err != nil {
@@ -992,19 +1037,22 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 	defer rows.Close()
 
 	documents := []map[string]interface{}{}
+	workNotes := []map[string]interface{}{}
 
 	for rows.Next() {
 		var doc models.Document
 		var ownerName sql.NullString
 		var relationshipType sql.NullString
-		var tagsJSON sql.NullString // 使用 sql.NullString 来处理可能的 NULL 值
+		var tagsJSON sql.NullString
+		var sortOrder int
+		var sourceType string
 
 		err := rows.Scan(
 			&doc.ID, &doc.ProjectID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
 			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tagsJSON,
 			&doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
 			&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt,
-			&ownerName, &relationshipType,
+			&ownerName, &relationshipType, &sortOrder, &sourceType,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -1020,10 +1068,10 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 		if tagsJSON.Valid && tagsJSON.String != "" {
 			err := json.Unmarshal([]byte(tagsJSON.String), &tags)
 			if err != nil {
-				tags = []string{} // 如果解析失败，使用空数组
+				tags = []string{}
 			}
 		} else {
-			tags = []string{} // 如果为 NULL 或空，使用空数组
+			tags = []string{}
 		}
 
 		docData := map[string]interface{}{
@@ -1051,10 +1099,19 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 			docData["owner_name"] = ownerName.String
 		}
 		if relationshipType.Valid {
-			docData["relationship_type"] = relationshipType.String
+			if sourceType == "document" {
+				docData["relationship_type"] = relationshipType.String
+			} else {
+				docData["relation_type"] = relationshipType.String
+			}
 		}
 
-		documents = append(documents, docData)
+		// 根据source_type分类存储
+		if sourceType == "document" {
+			documents = append(documents, docData)
+		} else {
+			workNotes = append(workNotes, docData)
+		}
 	}
 
 	if err := rows.Err(); err != nil {
@@ -1064,85 +1121,6 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 			"error":   err.Error(),
 		})
 		return
-	}
-
-	// 查询任务关联的工作笔记
-	var workNotes []map[string]interface{}
-	if h.relationService != nil {
-		relations, err := h.relationService.GetWorkNotesByTask(c.Request.Context(), taskID)
-		if err == nil && len(relations) > 0 {
-			// 获取工作笔记详细信息
-			workNoteQuery := `
-				SELECT d.id, d.title, d.content, d.type, d.status, d.tags,
-				       d.created_by, d.created_at, d.updated_at,
-				       u.username as owner_name
-				FROM documents d
-				LEFT JOIN users u ON d.created_by = u.id
-				WHERE d.id = ANY($1) AND d.deleted_at IS NULL
-				ORDER BY d.updated_at DESC`
-
-			// 提取工作笔记ID
-			workNoteIDs := make([]int, len(relations))
-			relationMap := make(map[int]string) // 工作笔记ID -> 关联类型
-			for i, relation := range relations {
-				workNoteIDs[i] = relation.WorkNoteID
-				relationMap[relation.WorkNoteID] = relation.RelationType
-			}
-
-			// 使用 pq.Array 来传递数组参数
-			workNoteRows, err := sqlDB.Query(workNoteQuery, pq.Array(workNoteIDs))
-			if err == nil {
-				defer workNoteRows.Close()
-
-				for workNoteRows.Next() {
-					var workNote struct {
-						ID        int            `json:"id"`
-						Title     string         `json:"title"`
-						Content   string         `json:"content"`
-						Type      string         `json:"type"`
-						Status    string         `json:"status"`
-						Tags      sql.NullString `json:"-"`
-						CreatedBy int            `json:"created_by"`
-						CreatedAt time.Time      `json:"created_at"`
-						UpdatedAt time.Time      `json:"updated_at"`
-						OwnerName sql.NullString `json:"-"`
-					}
-
-					err := workNoteRows.Scan(
-						&workNote.ID, &workNote.Title, &workNote.Content,
-						&workNote.Type, &workNote.Status, &workNote.Tags,
-						&workNote.CreatedBy, &workNote.CreatedAt, &workNote.UpdatedAt,
-						&workNote.OwnerName,
-					)
-					if err == nil {
-						// 处理 tags
-						var tags []string
-						if workNote.Tags.Valid && workNote.Tags.String != "" {
-							json.Unmarshal([]byte(workNote.Tags.String), &tags)
-						}
-
-						workNoteData := map[string]interface{}{
-							"id":            workNote.ID,
-							"title":         workNote.Title,
-							"content":       workNote.Content,
-							"type":          workNote.Type,
-							"status":        workNote.Status,
-							"tags":          tags,
-							"created_by":    workNote.CreatedBy,
-							"created_at":    workNote.CreatedAt,
-							"updated_at":    workNote.UpdatedAt,
-							"relation_type": relationMap[workNote.ID],
-						}
-
-						if workNote.OwnerName.Valid {
-							workNoteData["owner_name"] = workNote.OwnerName.String
-						}
-
-						workNotes = append(workNotes, workNoteData)
-					}
-				}
-			}
-		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -1216,6 +1194,291 @@ func (h *HybridDocumentHandler) HasTaskDocument(c *gin.Context) {
 			return "📄 任务暂无关联文档"
 		}(),
 	})
+}
+
+// GetAllTaskDocuments 获取任务的所有文档（合并API - P1优化）
+// 将数据库文档、工作笔记和上传文件合并到一个请求中
+// 支持 include_content 参数来按需加载内容字段
+func (h *HybridDocumentHandler) GetAllTaskDocuments(c *gin.Context) {
+	projectIDStr := c.Param("id")
+	taskIDStr := c.Param("taskId")
+
+	// 解析参数
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid project ID",
+		})
+		return
+	}
+
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid task ID",
+		})
+		return
+	}
+
+	// 检查是否包含content字段（默认不包含以优化性能）
+	includeContent := c.DefaultQuery("include_content", "false") == "true"
+
+	// 生成缓存键（5分钟缓存）
+	cacheKey := h.generateDocumentCacheKey(taskID, projectID, includeContent)
+	ctx := context.Background()
+
+	// 尝试从缓存获取
+	if h.redisClient != nil {
+		cachedData, err := h.redisClient.Get(ctx, cacheKey).Result()
+		if err == nil && cachedData != "" {
+			// 缓存命中，直接返回
+			var cachedResponse gin.H
+			if err := json.Unmarshal([]byte(cachedData), &cachedResponse); err == nil {
+				// 添加缓存命中标记
+				cachedResponse["cache_hit"] = true
+				c.JSON(http.StatusOK, cachedResponse)
+				return
+			}
+		}
+	}
+
+	sqlDB := h.db.GetDB().(*sql.DB)
+
+	// 构建查询 - 根据include_content参数决定是否查询content字段
+	contentField := "NULL as content"
+	if includeContent {
+		contentField = "d.content"
+	}
+
+	query := fmt.Sprintf(`
+		-- Query task documents
+		SELECT d.id, d.project_id, d.title, %s, d.type, d.status,
+		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
+		       d.owner_id, d.visibility, d.version, d.is_template,
+		       d.created_by, d.created_at, d.updated_at,
+		       u.username as owner_name, td.relationship_type,
+		       td.sort_order, 'document' as source_type
+		FROM documents d
+		INNER JOIN task_documents td ON d.id = td.document_id
+		LEFT JOIN users u ON d.owner_id = u.id
+		WHERE td.task_id = $1 AND d.project_id = $2 AND d.deleted_at IS NULL AND td.deleted_at IS NULL
+
+		UNION ALL
+
+		-- Query work notes
+		SELECT d.id, d.project_id, d.title, %s, d.type, d.status,
+		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
+		       d.owner_id, d.visibility, d.version, d.is_template,
+		       d.created_by, d.created_at, d.updated_at,
+		       u.username as owner_name, wntr.relation_type as relationship_type,
+		       0 as sort_order, 'work_note' as source_type
+		FROM documents d
+		INNER JOIN work_note_task_relations wntr ON d.id = wntr.work_note_id
+		LEFT JOIN users u ON d.created_by = u.id
+		WHERE wntr.task_id = $1 AND d.deleted_at IS NULL AND wntr.deleted_at IS NULL
+
+		ORDER BY source_type, sort_order, created_at`, contentField, contentField)
+
+	rows, err := sqlDB.Query(query, taskID, projectID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to retrieve documents from database",
+			"error":   err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+
+	// 分别存储文档和工作笔记
+	var documents []map[string]interface{}
+	var workNotes []map[string]interface{}
+
+	for rows.Next() {
+		var (
+			id, projectIDVal, ownerID, createdBy                                              int
+			title, docType, status, mimeType, visibility, ownerName, relationshipType, source string
+			content, fileURL, description                                                     sql.NullString
+			tags                                                                              string
+			fileSize, version, sortOrder                                                      sql.NullInt64
+			isTemplate                                                                        bool
+			createdAt, updatedAt                                                              time.Time
+		)
+
+		err := rows.Scan(
+			&id, &projectIDVal, &title, &content, &docType, &status,
+			&fileURL, &fileSize, &mimeType, &description, &tags,
+			&ownerID, &visibility, &version, &isTemplate,
+			&createdBy, &createdAt, &updatedAt,
+			&ownerName, &relationshipType, &sortOrder, &source,
+		)
+		if err != nil {
+			continue
+		}
+
+		doc := map[string]interface{}{
+			"id":                id,
+			"project_id":        projectIDVal,
+			"title":             title,
+			"type":              docType,
+			"status":            status,
+			"mime_type":         mimeType,
+			"visibility":        visibility,
+			"owner_id":          ownerID,
+			"owner_name":        ownerName,
+			"created_by":        createdBy,
+			"is_template":       isTemplate,
+			"relationship_type": relationshipType,
+			"created_at":        createdAt,
+			"updated_at":        updatedAt,
+		}
+
+		// 添加可选字段
+		if content.Valid {
+			doc["content"] = content.String
+		}
+		if fileURL.Valid {
+			doc["file_url"] = fileURL.String
+		}
+		if fileSize.Valid {
+			doc["file_size"] = fileSize.Int64
+		}
+		if description.Valid {
+			doc["description"] = description.String
+		}
+		if version.Valid {
+			doc["version"] = version.Int64
+		}
+		if tags != "" {
+			doc["tags"] = tags
+		}
+
+		// 根据source_type分类存储
+		if source == "work_note" {
+			workNotes = append(workNotes, doc)
+		} else {
+			doc["sort_order"] = sortOrder.Int64
+			documents = append(documents, doc)
+		}
+	}
+
+	// 获取上传文件列表
+	uploadedFiles, err := h.getTaskUploadedFiles(projectIDStr, taskIDStr)
+	if err != nil {
+		// 上传文件获取失败不影响整体响应，只记录日志
+		fmt.Printf("Warning: Failed to get uploaded files for task %s: %v\n", taskIDStr, err)
+		uploadedFiles = []map[string]interface{}{}
+	}
+
+	// 统一响应格式
+	response := gin.H{
+		"success": true,
+		"data": gin.H{
+			"documents":      documents,
+			"work_notes":     workNotes,
+			"uploaded_files": uploadedFiles,
+			"total":          len(documents) + len(workNotes) + len(uploadedFiles),
+			"counts": gin.H{
+				"documents":      len(documents),
+				"work_notes":     len(workNotes),
+				"uploaded_files": len(uploadedFiles),
+			},
+		},
+		"cache": gin.H{
+			"include_content": includeContent,
+			"cache_hit":       false,
+		},
+	}
+
+	// 写入缓存（5分钟TTL）
+	if h.redisClient != nil {
+		responseJSON, err := json.Marshal(response)
+		if err == nil {
+			_ = h.redisClient.Set(ctx, cacheKey, responseJSON, 5*time.Minute).Err()
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// getTaskUploadedFiles 获取任务的上传文件列表（从文件系统）
+func (h *HybridDocumentHandler) getTaskUploadedFiles(projectID, taskID string) ([]map[string]interface{}, error) {
+	uploadDir := filepath.Join(h.docsBasePath, "uploads", "projects", fmt.Sprintf("project-%s", projectID), fmt.Sprintf("task-%s", taskID))
+
+	var files []map[string]interface{}
+
+	// 检查目录是否存在
+	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+		return files, nil // 返回空列表
+	}
+
+	// 读取目录中的文件
+	entries, err := os.ReadDir(uploadDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read upload directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		filePath := filepath.Join(uploadDir, entry.Name())
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		file := map[string]interface{}{
+			"file_name":     entry.Name(),
+			"original_name": entry.Name(), // 简化版本
+			"file_size":     info.Size(),
+			"mime_type":     h.getMimeTypeForFile(entry.Name()),
+			"upload_type":   "manual",
+			"uploaded_at":   info.ModTime(),
+			"file_path":     filePath,
+		}
+
+		files = append(files, file)
+	}
+
+	return files, nil
+}
+
+// getMimeTypeForFile 根据文件扩展名获取MIME类型
+func (h *HybridDocumentHandler) getMimeTypeForFile(fileName string) string {
+	ext := strings.ToLower(filepath.Ext(fileName))
+	switch ext {
+	case ".md":
+		return "text/markdown"
+	case ".pdf":
+		return "application/pdf"
+	case ".txt":
+		return "text/plain"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".svg":
+		return "image/svg+xml"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+// generateDocumentCacheKey 生成文档缓存键
+func (h *HybridDocumentHandler) generateDocumentCacheKey(taskID, projectID int, includeContent bool) string {
+	// 使用MD5创建短哈希
+	hash := md5.New()
+	data := fmt.Sprintf("%d:%d:%t", taskID, projectID, includeContent)
+	hash.Write([]byte(data))
+	hashStr := hex.EncodeToString(hash.Sum(nil))[:12]
+
+	return fmt.Sprintf("doc:all:%d:%d:%s", projectID, taskID, hashStr)
 }
 
 // GetTaskDocumentsWithoutProject 获取任务文档列表(不需要project_id参数,用于移动端API)

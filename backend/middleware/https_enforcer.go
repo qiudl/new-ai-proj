@@ -74,7 +74,14 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 		c.Header("X-XSS-Protection", "1; mode=block")
 
 		// CSP策略
-		c.Header("Content-Security-Policy", "default-src 'self'")
+		// 允许从unpkg.com加载脚本（用于html2pdf.js和mermaid）
+		csp := "default-src 'self'; " +
+			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; " +
+			"style-src 'self' 'unsafe-inline'; " +
+			"img-src 'self' data: https:; " +
+			"font-src 'self' data:; " +
+			"connect-src 'self'"
+		c.Header("Content-Security-Policy", csp)
 
 		// 引用策略
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")

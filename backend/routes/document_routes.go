@@ -126,7 +126,11 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 			})
 			taskDocuments := tasks.Group("/:taskId/documents")
 			{
-				// 获取任务的所有文档
+				// 获取任务的所有文档（合并API - P1优化）
+				// 支持 ?include_content=true 参数
+				taskDocuments.GET("/all", app.GetDocumentHandler().GetAllTaskDocuments)
+
+				// 获取任务的数据库文档（不包含上传文件）
 				taskDocuments.GET("", app.GetDocumentHandler().GetTaskDocuments)
 				// 检查是否存在文档
 				taskDocuments.GET("/has", app.GetDocumentHandler().HasTaskDocument)

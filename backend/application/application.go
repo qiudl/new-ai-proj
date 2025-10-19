@@ -201,8 +201,9 @@ func NewApplication() (*Application, error) {
 	// Initialize Task Handler (after cache service is ready for intelligent cache invalidation)
 	taskHandler := handlers.NewTaskHandler(db, aiCacheService, logger, validate)
 
-	// Initialize Document Handler
-	documentHandler := handlers.NewDocumentHandler(db)
+	// Initialize Document Handler (with Redis cache support for P1 optimization)
+	docsBasePath := "./docs" // 可以通过配置文件配置
+	documentHandler := handlers.NewDocumentHandler(db, docsBasePath, redisClient)
 
 	// Initialize Worktree Service and Handler
 	worktreeBaseDir := "/var/ai-proj-worktrees" // Default location
