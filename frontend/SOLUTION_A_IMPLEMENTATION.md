@@ -310,5 +310,34 @@ npm run build
 
 ---
 
+## 🔧 后续修复记录
+
+### 修复1: API响应格式问题 (2025-10-19)
+
+**问题**:
+- TypeError: Cannot read properties of undefined (reading 'documents')
+- API在没有文档时返回 `documents: null` 而不是 `[]`
+
+**修复** (commit 5145bf8):
+```typescript
+// 修复前
+const allDocuments = [
+  ...(result.documents || []),
+  ...(result.work_notes || []),
+  ...(result.uploaded_files || [])
+];
+
+// 修复后
+const allDocuments = Array.isArray(result?.documents) ? result.documents : [];
+```
+
+**测试结果**: ✅ 通过
+- 空文档列表正常显示
+- 缓存系统正常工作
+- 首次加载 ~2秒
+- 无TypeError错误
+
+---
+
 *实施时间: 2025-10-19*
-*版本: v1.0 - Simple Viewer*
+*版本: v1.1 - Simple Viewer (已修复)*
