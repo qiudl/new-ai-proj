@@ -224,6 +224,16 @@ export const useTaskHierarchy = (options: UseTaskHierarchyOptions): UseTaskHiera
   const isInitializedRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // 防止依赖循环的 ref
+  const childrenByParentRef = useRef<Map<number, UnifiedTaskNode[]>>(new Map());
+  const attemptedLoadsRef = useRef<Set<number>>(new Set());
+  const isInitializingRef = useRef(false);
+
+  // 同步 childrenByParent 到 ref（防止依赖循环）
+  useEffect(() => {
+    childrenByParentRef.current = childrenByParent;
+  }, [childrenByParent]);
+
   // 自动注册依赖关系 (仅在增强缓存模式下)
   useEffect(() => {
     if (useEnhancedCache && rootTaskId) {
@@ -283,21 +293,30 @@ export const useTaskHierarchy = (options: UseTaskHierarchyOptions): UseTaskHiera
   // 加载子任务
   const loadChildren = useCallback(async (parentId: number): Promise<void> => {
     const startTime = Date.now();
-    
+
+    // 防止无限重试：检查是否已经尝试过加载（无论成功或失败）
+    if (attemptedLoadsRef.current.has(parentId)) {
+      console.log(`[useTaskHierarchy] Skip duplicate load attempt for parent ${parentId}`);
+      return;
+    }
+
+    // 标记为已尝试（在实际加载前标记，防止并发调用）
+    attemptedLoadsRef.current.add(parentId);
+
     // 检查缓存
     if (enableCache) {
       let cachedData: UnifiedTaskNode[] | null = null;
       let cacheHit = false;
-      
+
       if (useEnhancedCache) {
         const cacheKey = CacheKeyBuilder.taskChildren(projectId, parentId);
         cachedData = await enhancedCacheManager.getTaskChildren(projectId, parentId);
         cacheHit = cachedData !== null;
-        
+
         // 发出缓存事件
         const duration = Date.now() - startTime;
         cacheEventSystem.emitGet(cacheKey, cacheHit, duration, undefined, 'useTaskHierarchy');
-        
+
         if (onCacheEvent) {
           onCacheEvent({
             type: cacheHit ? 'hit' : 'miss',
@@ -311,7 +330,7 @@ export const useTaskHierarchy = (options: UseTaskHierarchyOptions): UseTaskHiera
         cachedData = cacheRef.current.get(parentId);
         cacheHit = cachedData !== null;
       }
-      
+
       if (cachedData) {
         updateChildrenData(prev => {
           const next = new Map(prev);
@@ -322,8 +341,8 @@ export const useTaskHierarchy = (options: UseTaskHierarchyOptions): UseTaskHiera
       }
     }
 
-    // 检查是否已经有数据且不是懒加载
-    if (!enableLazyLoad && childrenByParent.has(parentId)) {
+    // 检查是否已经有数据且不是懒加载（使用 ref 而不是状态，避免依赖循环）
+    if (!enableLazyLoad && childrenByParentRef.current.has(parentId)) {
       return;
     }
 
@@ -379,19 +398,31 @@ export const useTaskHierarchy = (options: UseTaskHierarchyOptions): UseTaskHiera
       setNodeLoading(parentId, false);
     }
   }, [
-    enableCache, 
-    enableLazyLoad, 
-    childrenByParent, 
-    fetchData, 
-    sortNodes, 
-    updateChildrenData, 
-    handleError
+    enableCache,
+    enableLazyLoad,
+    // 移除 childrenByParent 依赖，使用 childrenByParentRef 避免依赖循环
+    fetchData,
+    sortNodes,
+    updateChildrenData,
+    handleError,
+    projectId,
+    pageSize,
+    cacheTimeout,
+    useEnhancedCache,
+    onCacheEvent
   ]);
 
   // 初始化数据加载
   const initializeData = useCallback(async () => {
     if (!rootTaskId || isInitializedRef.current) return;
 
+    // 防止并发初始化
+    if (isInitializingRef.current) {
+      console.log('[useTaskHierarchy] Initialization already in progress, skipping...');
+      return;
+    }
+
+    isInitializingRef.current = true;
     setInitialLoading(true);
     setInitialError(null);
 
@@ -404,6 +435,7 @@ export const useTaskHierarchy = (options: UseTaskHierarchyOptions): UseTaskHiera
       handleError(error as Error, 'initializeData');
     } finally {
       setInitialLoading(false);
+      isInitializingRef.current = false;
     }
   }, [rootTaskId, loadChildren, handleError]);
 
@@ -448,7 +480,7 @@ export const useTaskHierarchy = (options: UseTaskHierarchyOptions): UseTaskHiera
     if (!rootTaskId) return;
 
     setIsLoading(true);
-    
+
     // 取消之前的请求
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -460,14 +492,21 @@ export const useTaskHierarchy = (options: UseTaskHierarchyOptions): UseTaskHiera
       if (enableCache) {
         cacheRef.current.clear();
       }
-      
+
       // 清除当前数据
       setChildrenByParent(new Map());
       setErrorById({});
-      
+
+      // 清除加载尝试记录，允许重新尝试（修复死循环问题的关键）
+      attemptedLoadsRef.current.clear();
+      isInitializedRef.current = false;
+      isInitializingRef.current = false;
+
+      console.log('[useTaskHierarchy] Refresh triggered, cleared all state and attempt records');
+
       // 重新加载根节点数据
       await loadChildren(rootTaskId);
-      
+
       message.success('数据刷新成功');
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
