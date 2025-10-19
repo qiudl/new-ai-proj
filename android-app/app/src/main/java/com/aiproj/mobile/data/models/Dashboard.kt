@@ -13,7 +13,7 @@ data class DashboardStats(
     val todayTasksTotal: Int = 0,
 
     @SerializedName("today_work_time")
-    val todayWorkTime: Long = 0, // 分钟
+    val todayWorkTime: Int = 0, // 分钟
 
     @SerializedName("active_projects")
     val activeProjects: Int = 0,

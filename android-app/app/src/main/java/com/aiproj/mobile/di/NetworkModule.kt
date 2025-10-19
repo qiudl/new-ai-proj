@@ -20,6 +20,7 @@ import com.aiproj.mobile.data.api.SuggestionApi
 import com.aiproj.mobile.data.api.TaskApi
 import com.aiproj.mobile.data.api.TimeLogApi
 import com.aiproj.mobile.data.api.TimerApi
+import com.aiproj.mobile.data.api.ResponseSanitizingInterceptor
 import com.aiproj.mobile.data.network.ConnectivityObserver
 import com.aiproj.mobile.data.network.ConnectivityObserverImpl
 import com.google.gson.Gson
@@ -32,13 +33,11 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import okhttp3.CertificatePinner
 import okhttp3.ConnectionSpec
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.TlsVersion
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -51,21 +50,7 @@ import javax.inject.Singleton
 object NetworkModule {
 
     /**
-     * 提供 Kotlin Serialization Json
-     */
-    @Provides
-    @Singleton
-    fun provideJson(): Json {
-        return Json {
-            ignoreUnknownKeys = true // 忽略 JSON 中存在但数据类中没有的字段
-            isLenient = true
-            coerceInputValues = true // 将 null 强制转换为默认值
-            encodeDefaults = true
-        }
-    }
-
-    /**
-     * 提供 Gson
+     * 提供 Gson (用于 Retrofit 网络请求)
      */
     @Provides
     @Singleton
@@ -75,6 +60,20 @@ object NetworkModule {
             // Gson会将null赋值给有默认值的字段，这是已知问题
             // 最好的解决方案是在数据类中使用可空类型或在Repository层做null检查
             .create()
+    }
+
+    /**
+     * 提供 Kotlinx Serialization Json (仅用于本地缓存序列化)
+     * 注意：不要用于 Retrofit，避免双 converter 问题
+     */
+    @Provides
+    @Singleton
+    fun provideJson(): Json {
+        return Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            encodeDefaults = true
+        }
     }
 
     /**
@@ -95,6 +94,8 @@ object NetworkModule {
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .addInterceptor(authInterceptor)
+            // 统计页等接口偶发返回 JSON 前后缀杂质，添加清理拦截器避免 Gson 报 "JSON document was not fully consumed"
+            .addInterceptor(ResponseSanitizingInterceptor())
 
         // Debug 模式下添加日志拦截器
         if (BuildConfig.DEBUG) {
@@ -132,16 +133,13 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(
         okHttpClient: OkHttpClient,
-        gson: Gson,
-        json: Json
+        gson: Gson
     ): Retrofit {
         return Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
             .client(okHttpClient)
-            // Use Gson as primary converter for models with @SerializedName
+            // Use Gson for all JSON serialization/deserialization
             .addConverterFactory(GsonConverterFactory.create(gson))
-            // Keep Kotlinx Serialization as fallback for @Serializable models
-            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
     }
 

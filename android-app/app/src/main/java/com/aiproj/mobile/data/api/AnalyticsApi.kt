@@ -34,6 +34,7 @@ interface AnalyticsApi {
     /**
      * 获取周统计数据
      * GET /api/v1/dashboard/weekly-stats?start_date=2025-10-01&end_date=2025-10-07
+     * 注意：此API直接返回数据对象，没有{success, data, error}包装层
      */
     @GET("dashboard/weekly-stats")
     suspend fun getWeeklyStats(
@@ -128,7 +129,7 @@ data class DashboardStatsData(
 )
 
 /**
- * 周统计响应
+ * 周统计数据（直接返回，无包装层）
  */
 data class WeeklyStatsResponse(
     val date_range: DateRange,

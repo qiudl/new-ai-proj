@@ -138,7 +138,7 @@ fun DashboardScreen(
                         TimerDashboardCard(
                             currentTimer = currentTimer,
                             elapsedSeconds = elapsedSeconds,
-                            todayTotalMinutes = uiState.stats?.todayWorkTime ?: 0L,
+                            todayTotalMinutes = uiState.stats?.todayWorkTime?.toLong() ?: 0L,
                             todayTaskCount = uiState.stats?.todayTasksCompleted ?: 0,
                             onTimerClick = onNavigateToTimer,
                             onPauseClick = { timerViewModel.pauseTimer() },
@@ -272,7 +272,7 @@ fun DashboardScreen(
 fun StatsSection(
     todayTasksCompleted: Int,
     todayTasksTotal: Int,
-    todayWorkTime: Long,
+    todayWorkTime: Int,
     activeProjects: Int,
     pendingTasks: Int,
     onTodayTasksClick: () -> Unit = {},
@@ -307,7 +307,7 @@ fun StatsSection(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.AccessTime,
                 title = "工作时长",
-                value = formatWorkTime(todayWorkTime),
+                value = formatWorkTime(todayWorkTime.toLong()),
                 color = MaterialTheme.colorScheme.secondary,
                 onClick = onTodayWorkTimeClick
             )

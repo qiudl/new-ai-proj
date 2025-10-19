@@ -346,7 +346,7 @@ class DetailRepository @Inject constructor(
             // 8. 组合成TodayWorkTimeDetail
             val todayWorkTimeDetail = TodayWorkTimeDetail(
                 date = date,
-                totalMinutes = stats.todayWorkTime.toInt(),
+                totalMinutes = stats.todayWorkTime,
                 completedTasks = stats.todayTasksCompleted,
                 totalTasks = stats.todayTasksTotal,
                 taskTimeDetails = taskTimeDetails,
@@ -426,7 +426,7 @@ class DetailRepository @Inject constructor(
                 val yesterdayStats = yesterdayStatsResponse.body()?.data
 
                 if (todayStats != null && yesterdayStats != null) {
-                    val workTimeChange = todayStats.todayWorkTime.toInt() - yesterdayStats.todayWorkTime.toInt()
+                    val workTimeChange = todayStats.todayWorkTime - yesterdayStats.todayWorkTime
                     val workTimePercent = if (yesterdayStats.todayWorkTime > 0) {
                         (workTimeChange.toFloat() / yesterdayStats.todayWorkTime.toFloat()) * 100f
                     } else {

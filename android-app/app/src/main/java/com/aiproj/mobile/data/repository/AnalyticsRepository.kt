@@ -67,6 +67,7 @@ class AnalyticsRepository @Inject constructor(
 
     /**
      * 获取周统计数据（完整的分析数据）
+     * 注意：此API直接返回数据对象，无{success, data, error}包装层
      * @param startDate 开始日期（YYYY-MM-DD）
      * @param endDate 结束日期（YYYY-MM-DD）
      * @param projectId 项目ID（可选）
