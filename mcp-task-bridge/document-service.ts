@@ -36,38 +36,69 @@ export class DocumentService extends BaseClient {
   // @requiresPermission('create_document')
   async createAndAttachTaskDocument(taskId: number, content: string, projectId: number = 1, title?: string): Promise<ApiResponse> {
     try {
-      const payload: any = {
-        taskId: taskId,
-        content: content
-      };
-      
-      if (projectId && projectId !== 1) {
-        payload.projectId = projectId;
-      }
-      
-      if (title) {
-        payload.title = title;
-      }
+      // 先检查任务是否已有文档
+      const checkResult = await this.makeRequest('GET', `/mcp/task-document/${taskId}`);
 
-      const response = await this.makeRequest('POST', '/mcp/create-and-attach', payload);
+      if (checkResult.success && checkResult.data) {
+        // 任务已有文档，执行更新操作
+        console.log(`[MCP] 任务 ${taskId} 已有文档，执行更新操作`);
+        const updates: any = { content };
+        if (title) {
+          updates.title = title;
+        }
 
-      if (response.success) {
-        return {
-          success: true,
-          task_id: taskId,
-          project_id: projectId,
-          title: title,
-          document_id: response.data?.document_id,
-          content_length: content.length,
-          message: `✅ 任务文档已创建并关联到任务 ${taskId}${title ? ` (标题: ${title})` : ''}`
-        };
+        const updateResponse = await this.makeRequest('PUT', `/mcp/task-document/${taskId}`, updates);
+
+        if (updateResponse.success) {
+          return {
+            success: true,
+            task_id: taskId,
+            project_id: projectId,
+            title: title,
+            document_id: updateResponse.data?.id,
+            content_length: content.length,
+            version: updateResponse.data?.version,
+            message: `✅ 任务文档已更新 ${taskId}${title ? ` (标题: ${title})` : ''} - 版本: ${updateResponse.data?.version}`
+          };
+        } else {
+          return updateResponse;
+        }
       } else {
-        return response;
+        // 任务没有文档，执行创建操作
+        console.log(`[MCP] 任务 ${taskId} 没有文档，执行创建操作`);
+        const payload: any = {
+          taskId: taskId,
+          content: content
+        };
+
+        if (projectId && projectId !== 1) {
+          payload.projectId = projectId;
+        }
+
+        if (title) {
+          payload.title = title;
+        }
+
+        const response = await this.makeRequest('POST', '/mcp/create-and-attach', payload);
+
+        if (response.success) {
+          return {
+            success: true,
+            task_id: taskId,
+            project_id: projectId,
+            title: title,
+            document_id: response.data?.document_id,
+            content_length: content.length,
+            message: `✅ 任务文档已创建并关联到任务 ${taskId}${title ? ` (标题: ${title})` : ''}`
+          };
+        } else {
+          return response;
+        }
       }
     } catch (error: any) {
       return {
         success: false,
-        error: `创建并关联任务文档失败: ${error.message || error}`
+        error: `创建/更新任务文档失败: ${error.message || error}`
       };
     }
   }
