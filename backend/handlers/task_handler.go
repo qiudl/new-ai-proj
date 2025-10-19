@@ -1959,6 +1959,46 @@ func (h *TaskHandler) UpdateTaskStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务状态更新成功"))
 }
 
+// CompleteTask handles POST /api/v1/tasks/:id/complete
+func (h *TaskHandler) CompleteTask(c *gin.Context) {
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("BAD_REQUEST", "Invalid task ID", ""))
+		return
+	}
+
+	// 首先获取现有任务
+	existingTask, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse("TASK_NOT_FOUND", "Task not found", ""))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("DB_ERROR", "Database error", err.Error()))
+		}
+		return
+	}
+
+	// 更新状态为completed
+	existingTask.Status = "completed"
+	updatedTask, err := h.db.Tasks().Update(c.Request.Context(), existingTask)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("UPDATE_FAILED", "Failed to complete task", err.Error()))
+		return
+	}
+
+	// 智能缓存失效：任务状态更新后自动清理相关AI缓存
+	if h.aiCacheService != nil {
+		go func() {
+			ctx := context.Background()
+			if err := h.aiCacheService.InvalidateAllTaskCache(ctx, updatedTask.ID); err != nil {
+				log.Printf("[CACHE_INVALIDATION] Failed to invalidate cache for task %d: %v", updatedTask.ID, err)
+			}
+		}()
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务完成成功"))
+}
+
 // MoveTaskById handles POST /api/v1/tasks/:id/move
 func (h *TaskHandler) MoveTaskById(c *gin.Context) {
 	taskID, err := strconv.Atoi(c.Param("id"))

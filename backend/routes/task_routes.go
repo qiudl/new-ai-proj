@@ -36,6 +36,9 @@ func RegisterTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 		// 任务状态切换
 		tasks.PATCH("/:id/status", app.UpdateTaskStatusHandler())
 
+		// 完成任务
+		tasks.POST("/:id/complete", app.CompleteTaskHandler())
+
 		// 任务移动和重排序
 		tasks.POST("/:id/move", app.MoveTaskByIdHandler())
 		tasks.POST("/:id/reorder", app.ReorderTaskByIdHandler())

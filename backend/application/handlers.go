@@ -616,6 +616,13 @@ func (app *Application) UpdateTaskStatusHandler() gin.HandlerFunc {
 	return app.taskHandler.UpdateTaskStatus
 }
 
+func (app *Application) CompleteTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.CompleteTask
+	}
+	return app.taskHandler.CompleteTask
+}
+
 func (app *Application) MoveTaskByIdHandler() gin.HandlerFunc {
 	if app.handlers != nil && app.handlers.TaskHandler != nil {
 		return app.handlers.TaskHandler.MoveTask

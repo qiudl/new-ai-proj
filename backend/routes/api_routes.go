@@ -48,7 +48,7 @@ func registerGlobalTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 	authorized.GET("/tasks/today", app.GetTodayTasksHandler())
 	authorized.GET("/tasks/today/stats", app.GetTodayTasksStatsHandler())
 	authorized.POST("/tasks/today/bulk", app.BulkOperationTodayTasksHandler())
-	authorized.POST("/tasks/:id/complete", app.MarkTodayTaskCompletedHandler())
+	// Note: POST /tasks/:id/complete is now in task_routes.go using CompleteTaskHandler
 	authorized.POST("/tasks/:id/postpone", app.PostponeTodayTaskHandler())
 	authorized.POST("/tasks/validate-parent", app.ValidateParentHandler())
 	// Task progress endpoint (留作后续)

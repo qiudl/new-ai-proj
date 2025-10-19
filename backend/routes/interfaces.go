@@ -85,6 +85,7 @@ type ApplicationInterface interface {
 	UpdateTaskByIdHandler() gin.HandlerFunc
 	DeleteTaskByIdHandler() gin.HandlerFunc
 	UpdateTaskStatusHandler() gin.HandlerFunc
+	CompleteTaskHandler() gin.HandlerFunc
 	MoveTaskByIdHandler() gin.HandlerFunc
 	ReorderTaskByIdHandler() gin.HandlerFunc
 	ArchiveTaskHandler() gin.HandlerFunc
