@@ -94,6 +94,14 @@ Thumbs.db
 *.bak
 *.backup
 *.orig
+*.env.*backup
+*.env.docker-backup
+
+# Archive files
+*.zip
+*.tar.gz
+*.tar
+*.rar
 
 # Debug files
 debug_files/
