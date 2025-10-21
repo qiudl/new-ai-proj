@@ -172,6 +172,7 @@ class ImpersonationService {
 
   /**
    * 验证模拟权限
+   * Note: api interceptor auto-unwraps response, returns data directly
    */
   async checkPermissions(): Promise<{
     canStartImpersonation: boolean;
@@ -180,23 +181,18 @@ class ImpersonationService {
     restrictedActions: string[];
   }> {
     try {
-      
-      const response = await api.get<ApiResponse<any>>(`${this.baseUrl}/permissions`);
-      
-      if (response.success && response.data) {
-        return response.data;
-      } else {
-        // 如果API不存在，返回默认权限
-        return {
-          canStartImpersonation: false,
-          canExitImpersonation: false,
-          canViewHistory: false,
-          restrictedActions: []
-        };
-      }
+      // Note: api interceptor auto-unwraps response, returns data directly
+      const permissions: {
+        canStartImpersonation: boolean;
+        canExitImpersonation: boolean;
+        canViewHistory: boolean;
+        restrictedActions: string[];
+      } = await api.get(`${this.baseUrl}/permissions`);
+
+      return permissions;
     } catch (error: any) {
       console.error('❌ 检查模拟权限失败:', error);
-      
+
       // 权限检查失败时，返回最保守的权限
       if (error.response?.status === 404 || error.response?.status === 403) {
         return {
@@ -206,31 +202,28 @@ class ImpersonationService {
           restrictedActions: ['*']
         };
       }
-      
+
       throw this.handleError(error, '检查模拟权限失败');
     }
   }
 
   /**
    * 获取活跃的模拟会话列表（系统管理员功能）
+   * Note: api interceptor auto-unwraps response, returns data directly
    */
   async getActiveSessions(): Promise<ImpersonationHistoryItem[]> {
     try {
-      
-      const response = await api.get<ApiResponse<ImpersonationHistoryItem[]>>(`${this.baseUrl}/active-sessions`);
-      
-      if (response.success && response.data) {
-        return response.data;
-      } else {
-        return [];
-      }
+      // Note: api interceptor auto-unwraps response, returns data directly
+      const sessions: ImpersonationHistoryItem[] = await api.get(`${this.baseUrl}/active-sessions`);
+
+      return sessions || [];
     } catch (error: any) {
       console.error('❌ 获取活跃会话失败:', error);
-      
+
       if (error.response?.status === 404) {
         return [];
       }
-      
+
       throw this.handleError(error, '获取活跃会话失败');
     }
   }
