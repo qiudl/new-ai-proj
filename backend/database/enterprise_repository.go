@@ -239,6 +239,109 @@ func (r *PostgresEnterpriseRepository) List(ctx context.Context, limit, offset i
 	return enterprises, total, nil
 }
 
+// ListWithStats retrieves a paginated list of enterprises with user and department counts
+// Performance optimization: Uses JOINs to fetch all statistics in a single query, avoiding N+1 problem
+func (r *PostgresEnterpriseRepository) ListWithStats(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Enterprise, []int, []int, int, error) {
+	whereClause, args := r.buildWhereClause(filters)
+
+	// Optimized query with LEFT JOINs to get statistics in a single query
+	query := fmt.Sprintf(`
+		WITH enterprise_base AS (
+			SELECT id, name, code, description, industry_type, business_type,
+			       registration_number, tax_id, legal_representative,
+			       contact_email, contact_phone, address, city, province, postal_code,
+			       website, status, created_by, updated_by, created_at, updated_at, deleted_at
+			FROM enterprises
+			WHERE deleted_at IS NULL%s
+			ORDER BY created_at DESC
+			LIMIT $%d OFFSET $%d
+		),
+		total_count AS (
+			SELECT COUNT(*) as count
+			FROM enterprises
+			WHERE deleted_at IS NULL%s
+		)
+		SELECT
+			e.*,
+			COALESCE(user_counts.count, 0) as user_count,
+			COALESCE(dept_counts.count, 0) as department_count,
+			(SELECT count FROM total_count) as total
+		FROM enterprise_base e
+		LEFT JOIN (
+			SELECT enterprise_id, COUNT(*) as count
+			FROM enterprise_users
+			WHERE deleted_at IS NULL
+			GROUP BY enterprise_id
+		) user_counts ON e.id = user_counts.enterprise_id
+		LEFT JOIN (
+			SELECT enterprise_id, COUNT(*) as count
+			FROM enterprise_departments
+			WHERE deleted_at IS NULL
+			GROUP BY enterprise_id
+		) dept_counts ON e.id = dept_counts.enterprise_id
+		ORDER BY e.created_at DESC`, whereClause, len(args)+1, len(args)+2, whereClause)
+
+	args = append(args, limit, offset)
+	exec := r.getExecer()
+
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, nil, nil, 0, fmt.Errorf("failed to list enterprises with stats: %w", err)
+	}
+	defer rows.Close()
+
+	var enterprises []*models.Enterprise
+	var userCounts []int
+	var deptCounts []int
+	var total int
+
+	for rows.Next() {
+		enterprise := &models.Enterprise{}
+		var userCount, deptCount int
+
+		err := rows.Scan(
+			&enterprise.ID,
+			&enterprise.Name,
+			&enterprise.Code,
+			&enterprise.Description,
+			&enterprise.IndustryType,
+			&enterprise.BusinessType,
+			&enterprise.RegistrationNumber,
+			&enterprise.TaxID,
+			&enterprise.LegalRepresentative,
+			&enterprise.ContactEmail,
+			&enterprise.ContactPhone,
+			&enterprise.Address,
+			&enterprise.City,
+			&enterprise.Province,
+			&enterprise.PostalCode,
+			&enterprise.Website,
+			&enterprise.Status,
+			&enterprise.CreatedBy,
+			&enterprise.UpdatedBy,
+			&enterprise.CreatedAt,
+			&enterprise.UpdatedAt,
+			&enterprise.DeletedAt,
+			&userCount,
+			&deptCount,
+			&total,
+		)
+		if err != nil {
+			return nil, nil, nil, 0, fmt.Errorf("failed to scan enterprise with stats: %w", err)
+		}
+
+		enterprises = append(enterprises, enterprise)
+		userCounts = append(userCounts, userCount)
+		deptCounts = append(deptCounts, deptCount)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, nil, nil, 0, fmt.Errorf("row iteration failed: %w", err)
+	}
+
+	return enterprises, userCounts, deptCounts, total, nil
+}
+
 // Update updates an enterprise
 func (r *PostgresEnterpriseRepository) Update(ctx context.Context, enterprise *models.Enterprise) (*models.Enterprise, error) {
 	query := `

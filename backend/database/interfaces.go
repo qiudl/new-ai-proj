@@ -240,6 +240,7 @@ type EnterpriseRepository interface {
 	GetByID(ctx context.Context, id int) (*models.Enterprise, error)
 	GetByCode(ctx context.Context, code string) (*models.Enterprise, error)
 	List(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Enterprise, int, error)
+	ListWithStats(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Enterprise, []int, []int, int, error)
 	Update(ctx context.Context, enterprise *models.Enterprise) (*models.Enterprise, error)
 	Delete(ctx context.Context, id int) error
 	GetStats(ctx context.Context) (*models.EnterpriseStats, error)
@@ -278,6 +279,7 @@ type PermissionRepository interface {
 	GetPermissions(ctx context.Context) ([]*models.Permission, error)
 	GetPermissionsByModule(ctx context.Context, module string) ([]*models.Permission, error)
 	GetRolePermissions(ctx context.Context, roleID int) ([]*models.Permission, error)
+	GetRolesWithPermissions(ctx context.Context, companyID *int) ([]*models.CompanyRole, map[int][]*models.Permission, error)
 	SetRolePermissions(ctx context.Context, roleID int, permissionIDs []int) error
 
 	// User permission management

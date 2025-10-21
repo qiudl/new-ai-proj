@@ -32,8 +32,8 @@ func (h *RoleManagementHandler) GetRoles(c *gin.Context) {
 	includeInactive := c.Query("include_inactive") == "true"
 	moduleFilter := c.Query("module")
 
-	// 获取角色列表
-	roles, err := h.permissionRepo.GetRoles(ctx, nil)
+	// 使用优化的批量方法获取角色和权限 (解决N+1问题)
+	roles, rolePermissionsMap, err := h.permissionRepo.GetRolesWithPermissions(ctx, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -43,7 +43,7 @@ func (h *RoleManagementHandler) GetRoles(c *gin.Context) {
 		return
 	}
 
-	// 为每个角色获取权限信息和用户统计
+	// 构建响应
 	var roleResponses []models.CompanyRoleResponse
 	for _, role := range roles {
 		// 跳过非活跃角色（如果不包括）
@@ -53,9 +53,8 @@ func (h *RoleManagementHandler) GetRoles(c *gin.Context) {
 
 		roleResponse := role.ToResponse()
 
-		// 获取角色权限
-		permissions, err := h.permissionRepo.GetRolePermissions(ctx, role.ID)
-		if err == nil {
+		// 从map中获取该角色的权限（已经批量加载）
+		if permissions, ok := rolePermissionsMap[role.ID]; ok {
 			for _, perm := range permissions {
 				// 应用模块过滤
 				if moduleFilter != "" && perm.Module != moduleFilter {

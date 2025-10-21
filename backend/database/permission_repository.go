@@ -293,6 +293,76 @@ func (r *PostgresPermissionRepository) GetRolePermissions(ctx context.Context, r
 	return permissions, nil
 }
 
+// GetRolesWithPermissions retrieves all roles with their permissions in a single optimized query
+// This method solves the N+1 query problem when loading multiple roles with permissions
+func (r *PostgresPermissionRepository) GetRolesWithPermissions(ctx context.Context, companyID *int) ([]*models.CompanyRole, map[int][]*models.Permission, error) {
+	// First, get all roles
+	roles, err := r.GetRoles(ctx, companyID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get roles: %w", err)
+	}
+
+	if len(roles) == 0 {
+		return roles, make(map[int][]*models.Permission), nil
+	}
+
+	// Extract role IDs
+	roleIDs := make([]int, len(roles))
+	for i, role := range roles {
+		roleIDs[i] = role.ID
+	}
+
+	// Build the batch query to get all permissions for all roles in one go
+	// Use a JOIN with IN clause to fetch all role-permission relationships at once
+	query := `
+		SELECT rp.role_id, p.id, p.permission_code, p.permission_name,
+		       p.permission_description, p.module, p.resource, p.action,
+		       p.is_active, p.created_at
+		FROM permissions p
+		JOIN role_permissions rp ON p.id = rp.permission_id
+		WHERE rp.role_id = ANY($1) AND rp.is_granted = true AND p.is_active = true
+		ORDER BY rp.role_id, p.module, p.resource, p.action`
+
+	exec := r.getExecer()
+	rows, err := exec.QueryContext(ctx, query, roleIDs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to batch get role permissions: %w", err)
+	}
+	defer rows.Close()
+
+	// Build a map of roleID -> permissions
+	rolePermissionsMap := make(map[int][]*models.Permission)
+
+	// Initialize empty slices for all roles
+	for _, roleID := range roleIDs {
+		rolePermissionsMap[roleID] = make([]*models.Permission, 0)
+	}
+
+	// Populate the map
+	for rows.Next() {
+		var roleID int
+		permission := &models.Permission{}
+
+		err := rows.Scan(
+			&roleID,
+			&permission.ID, &permission.PermissionCode, &permission.PermissionName,
+			&permission.PermissionDescription, &permission.Module, &permission.Resource,
+			&permission.Action, &permission.IsActive, &permission.CreatedAt,
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to scan permission: %w", err)
+		}
+
+		rolePermissionsMap[roleID] = append(rolePermissionsMap[roleID], permission)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("error iterating permission rows: %w", err)
+	}
+
+	return roles, rolePermissionsMap, nil
+}
+
 // SetRolePermissions sets permissions for a role
 func (r *PostgresPermissionRepository) SetRolePermissions(ctx context.Context, roleID int, permissionIDs []int) error {
 	exec := r.getExecer()

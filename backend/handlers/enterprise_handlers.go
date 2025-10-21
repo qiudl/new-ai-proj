@@ -81,8 +81,8 @@ func (h *EnterpriseHandler) GetEnterprises(c *gin.Context) {
 		filterMap["search"] = *filters.Search
 	}
 
-	// Get enterprises from database
-	enterprises, total, err := h.db.Enterprises().List(c.Request.Context(), pagination.PageSize, offset, filterMap)
+	// Get enterprises from database with statistics (optimized query - avoids N+1 problem)
+	enterprises, userCounts, deptCounts, total, err := h.db.Enterprises().ListWithStats(c.Request.Context(), pagination.PageSize, offset, filterMap)
 	if err != nil {
 		h.logger.Printf("Error getting enterprises: %v", err)
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve enterprises", nil)
@@ -94,18 +94,8 @@ func (h *EnterpriseHandler) GetEnterprises(c *gin.Context) {
 	enterpriseResponses := make([]models.EnterpriseResponse, len(enterprises))
 	for i, enterprise := range enterprises {
 		response := enterprise.ToResponse()
-		
-		// Get user and department counts for each enterprise
-		userCount, departmentCount, err := h.db.Enterprises().GetEnterpriseStatistics(c.Request.Context(), enterprise.ID)
-		if err != nil {
-			h.logger.Printf("Warning: Failed to get statistics for enterprise %d: %v", enterprise.ID, err)
-			// Continue with zero counts instead of failing the entire request
-			userCount = 0
-			departmentCount = 0
-		}
-		
-		response.UserCount = userCount
-		response.DepartmentCount = departmentCount
+		response.UserCount = userCounts[i]
+		response.DepartmentCount = deptCounts[i]
 		enterpriseResponses[i] = response
 	}
 

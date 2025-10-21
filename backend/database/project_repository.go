@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 )
 
 // PostgresProjectRepository implements ProjectRepository using PostgreSQL
@@ -342,8 +343,61 @@ func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context,
 		}
 	}
 
-	// Get projects with pagination and company join (including enterprise info, task count, member count)
-	query := fmt.Sprintf(`
+	// 🚀 PERFORMANCE OPTIMIZATION: Two-stage query approach
+	// Stage 1: Get paginated project IDs first (fast, uses index)
+	projectIDsQuery := fmt.Sprintf(`
+		SELECT p.id
+		FROM projects p
+		%s
+		%s
+		LIMIT $%d OFFSET $%d`, whereClause, orderBy, argIndex, argIndex+1)
+
+	args = append(args, pageSize, offset)
+
+	idRows, err := exec.QueryContext(ctx, projectIDsQuery, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get project IDs: %w", err)
+	}
+
+	projectIDs := make([]int, 0, pageSize)
+	for idRows.Next() {
+		var id int
+		if err := idRows.Scan(&id); err != nil {
+			idRows.Close()
+			return nil, 0, fmt.Errorf("failed to scan project ID: %w", err)
+		}
+		projectIDs = append(projectIDs, id)
+	}
+	idRows.Close()
+
+	if err := idRows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("project IDs rows error: %w", err)
+	}
+
+	// If no projects found, return empty result
+	if len(projectIDs) == 0 {
+		return []*models.ProjectWithCompany{}, total, nil
+	}
+
+	// Stage 2: Get full project details with stats ONLY for current page projects
+	// Build three separate IN clauses with different placeholder numbers
+	// Each IN clause needs unique parameter placeholders
+	placeholders1 := make([]string, len(projectIDs)) // For tasks.project_id
+	placeholders2 := make([]string, len(projectIDs)) // For project_users.project_id
+	placeholders3 := make([]string, len(projectIDs)) // For p.id
+
+	for i := range projectIDs {
+		placeholders1[i] = fmt.Sprintf("$%d", i+1)
+		placeholders2[i] = fmt.Sprintf("$%d", len(projectIDs)+i+1)
+		placeholders3[i] = fmt.Sprintf("$%d", 2*len(projectIDs)+i+1)
+	}
+
+	inClause1 := fmt.Sprintf("(%s)", strings.Join(placeholders1, ","))
+	inClause2 := fmt.Sprintf("(%s)", strings.Join(placeholders2, ","))
+	inClause3 := fmt.Sprintf("(%s)", strings.Join(placeholders3, ","))
+
+	// Get project details with optimized stats (only for current page)
+	detailsQuery := fmt.Sprintf(`
 		SELECT
 			p.id, p.project_number, p.name, p.description, p.owner_id, p.company_id, p.status, p.priority, p.progress, p.start_date, p.end_date, p.budget, p.created_at, p.updated_at, p.deleted_at,
 			COALESCE(e.name, c.company_name, '未分配企业') AS company_name,
@@ -355,27 +409,37 @@ func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context,
 		LEFT JOIN (
 			SELECT project_id, COUNT(*) AS task_count
 			FROM tasks
-			WHERE deleted_at IS NULL
+			WHERE deleted_at IS NULL AND project_id IN %s
 			GROUP BY project_id
 		) task_counts ON task_counts.project_id = p.id
 		LEFT JOIN (
 			SELECT project_id, COUNT(DISTINCT user_id) AS member_count
 			FROM project_users
+			WHERE project_id IN %s
 			GROUP BY project_id
 		) member_counts ON member_counts.project_id = p.id
-		%s
-		%s
-		LIMIT $%d OFFSET $%d`, whereClause, orderBy, argIndex, argIndex+1)
+		WHERE p.id IN %s`, inClause1, inClause2, inClause3)
 
-	args = append(args, pageSize, offset)
+	// Append project IDs three times for the three IN clauses
+	detailsArgs := make([]interface{}, 0, len(projectIDs)*3)
+	for _, id := range projectIDs {
+		detailsArgs = append(detailsArgs, id)
+	}
+	for _, id := range projectIDs {
+		detailsArgs = append(detailsArgs, id)
+	}
+	for _, id := range projectIDs {
+		detailsArgs = append(detailsArgs, id)
+	}
 
-	rows, err := exec.QueryContext(ctx, query, args...)
+	rows, err := exec.QueryContext(ctx, detailsQuery, detailsArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list projects with company info: %w", err)
 	}
 	defer rows.Close()
 
-	projects := make([]*models.ProjectWithCompany, 0)
+	// Create map to preserve original order
+	projectMap := make(map[int]*models.ProjectWithCompany)
 	for rows.Next() {
 		projectWithCompany := &models.ProjectWithCompany{}
 
@@ -393,11 +457,19 @@ func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context,
 			return nil, 0, fmt.Errorf("failed to scan project with company: %w", err)
 		}
 
-		projects = append(projects, projectWithCompany)
+		projectMap[projectWithCompany.ID] = projectWithCompany
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+
+	// Rebuild projects in original order
+	projects := make([]*models.ProjectWithCompany, 0, len(projectIDs))
+	for _, id := range projectIDs {
+		if project, exists := projectMap[id]; exists {
+			projects = append(projects, project)
+		}
 	}
 
 	return projects, total, nil

@@ -1496,9 +1496,53 @@ func (h *DailyFocusTaskHandler) getTaskSuggestionsWithDetails(ctx context.Contex
 		}
 	}
 
-	// 第二步：获取候选任务的详细信息和初始评分
+	// 第二步：获取候选任务的详细信息和初始评分 (优化版本 - 使用CTEs避免子查询)
 	// 注意：添加了 (t.assignee_id = $1 OR t.assignee_id IS NULL) 条件来过滤任务
 	querySQL := `
+		WITH
+		-- CTE 1: 预计算子任务数量
+		subtask_counts AS (
+			SELECT parent_id, COUNT(*) as count
+			FROM tasks
+			WHERE deleted_at IS NULL AND parent_id IS NOT NULL
+			GROUP BY parent_id
+		),
+		-- CTE 2: 预计算最近工作记录
+		recent_work AS (
+			SELECT task_id, COUNT(*) as count
+			FROM task_time_logs
+			WHERE user_id = $1
+			  AND start_time >= $2::date - INTERVAL '7 days'
+			GROUP BY task_id
+		),
+		-- CTE 3: 预计算延期次数
+		carry_overs AS (
+			SELECT task_id, COUNT(*) as count
+			FROM daily_focus_tasks
+			WHERE user_id = $1
+			  AND carried_from_date IS NOT NULL
+			GROUP BY task_id
+		),
+		-- CTE 4: 获取基础候选任务
+		candidate_tasks AS (
+			SELECT t.id
+			FROM tasks t
+			JOIN projects p ON t.project_id = p.id
+			WHERE t.status NOT IN ('completed', 'cancelled', 'archived')
+			  AND t.deleted_at IS NULL
+			  AND p.deleted_at IS NULL
+			  AND (t.assignee_id = $1 OR t.assignee_id IS NULL)
+			  AND NOT EXISTS (
+				  SELECT 1 FROM daily_focus_tasks dft
+				  WHERE dft.task_id = t.id
+					AND dft.user_id = $1
+					AND dft.focus_date = $2::date
+					AND dft.status = 'active'
+			  )
+			ORDER BY t.updated_at DESC, t.created_at DESC
+			LIMIT $3 * 2
+		)
+		-- 主查询：连接所有数据
 		SELECT DISTINCT
 			t.id as task_id,
 			t.project_id,
@@ -1515,31 +1559,16 @@ func (h *DailyFocusTaskHandler) getTaskSuggestionsWithDetails(ctx context.Contex
 			t.parent_id,
 			p.name as project_name,
 			p.updated_at as project_last_activity,
-			-- 计算子任务数量
-			(SELECT COUNT(*) FROM tasks sub WHERE sub.parent_id = t.id AND sub.deleted_at IS NULL) as subtask_count,
-			-- 检查是否有最近的工作记录
-			(SELECT COUNT(*) FROM task_time_logs ttl
-			 WHERE ttl.task_id = t.id AND ttl.user_id = $1
-			 AND ttl.start_time >= $2::date - INTERVAL '7 days') as recent_work_count,
-			-- 检查是否被频繁延期
-			(SELECT COUNT(*) FROM daily_focus_tasks dft_carried
-			 WHERE dft_carried.task_id = t.id AND dft_carried.user_id = $1
-			 AND dft_carried.carried_from_date IS NOT NULL) as carry_over_count
-		FROM tasks t
+			COALESCE(sc.count, 0) as subtask_count,
+			COALESCE(rw.count, 0) as recent_work_count,
+			COALESCE(co.count, 0) as carry_over_count
+		FROM candidate_tasks ct
+		JOIN tasks t ON t.id = ct.id
 		JOIN projects p ON t.project_id = p.id
-		WHERE t.status NOT IN ('completed', 'cancelled', 'archived')
-		  AND t.deleted_at IS NULL
-		  AND p.deleted_at IS NULL
-		  AND (t.assignee_id = $1 OR t.assignee_id IS NULL)
-		  AND NOT EXISTS (
-			  SELECT 1 FROM daily_focus_tasks dft
-			  WHERE dft.task_id = t.id
-				AND dft.user_id = $1
-				AND dft.focus_date = $2::date
-				AND dft.status = 'active'
-		  )
+		LEFT JOIN subtask_counts sc ON sc.parent_id = t.id
+		LEFT JOIN recent_work rw ON rw.task_id = t.id
+		LEFT JOIN carry_overs co ON co.task_id = t.id
 		ORDER BY t.updated_at DESC, t.created_at DESC
-		LIMIT $3 * 2  -- 获取更多候选任务用于评分
 	`
 
 	h.logger.Printf("DEBUG: Executing suggestion query for userID=%d", userID)
