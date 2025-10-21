@@ -373,6 +373,10 @@ export const taskDocumentService = {
   /**
    * 获取任务文档列表 - 使用新的数据库API端点（不需要projectId）
    */
+  /**
+   * 获取任务文档列表
+   * Note: api interceptor auto-unwraps response, returns {documents: [...], total_count: number} directly
+   */
   async getTaskDocuments(projectId: number, taskId: number): Promise<DocumentListResponse> {
     const cacheKey = `get_task_documents_${projectId}_${taskId}`;
 
@@ -387,49 +391,29 @@ export const taskDocumentService = {
       }
 
       // 使用不需要projectId的API端点获取任务文档列表（自动从tasks表查询projectId）
-      const response: any = await api.get(`/tasks/${taskId}/documents`);
+      // Note: api interceptor auto-unwraps response, returns data directly
+      const responseData: any = await api.get(`/tasks/${taskId}/documents`);
+      const documents = responseData.documents || [];
 
-      // 支持两种格式：
-      // 1) 包装格式 { success, data: { documents: [...] } }
-      // 2) axios解包后的直接数据 { documents: [...] }
-      const isWrapped = response && typeof response === 'object' && 'success' in response;
-      const payload = isWrapped ? response.data : (response && response.data ? response.data : response);
-      if (isWrapped ? response.success : !!payload) {
-        const responseData = payload?.data || payload || {};
-        const documents = responseData.documents || [];
-        
-        const result: DocumentListResponse = {
-          documents: documents.map((doc: any) => ({
-            id: doc.id,
-            file_name: doc.title || `document-${doc.id}.md`,
-            original_name: doc.title || `document-${doc.id}.md`,
-            file_size: doc.content ? doc.content.length : 0,
-            mime_type: doc.type === 'markdown' ? 'text/markdown' : doc.mime_type || 'text/markdown',
-            upload_type: 'api' as const,
-            uploaded_at: doc.updated_at || doc.created_at || new Date().toISOString(),
-            file_path: `/documents/${doc.id}`
-          })),
-          total: responseData.total_count || documents.length
-        };
-        
-        // 缓存结果 (2分钟TTL)
-        apiCache.set(cacheKey, result, 2 * 60 * 1000);
-        
-        performanceMonitor.endMeasure('get_task_documents');
-        return result;
-      } else {
-        // 返回空列表
-        const result: DocumentListResponse = {
-          documents: [],
-          total: 0
-        };
-        
-        // 缓存空结果 (30秒TTL)
-        apiCache.set(cacheKey, result, 30 * 1000);
-        
-        performanceMonitor.endMeasure('get_task_documents');
-        return result;
-      }
+      const result: DocumentListResponse = {
+        documents: documents.map((doc: any) => ({
+          id: doc.id,
+          file_name: doc.title || `document-${doc.id}.md`,
+          original_name: doc.title || `document-${doc.id}.md`,
+          file_size: doc.content ? doc.content.length : 0,
+          mime_type: doc.type === 'markdown' ? 'text/markdown' : doc.mime_type || 'text/markdown',
+          upload_type: 'api' as const,
+          uploaded_at: doc.updated_at || doc.created_at || new Date().toISOString(),
+          file_path: `/documents/${doc.id}`
+        })),
+        total: responseData.total_count || documents.length
+      };
+
+      // 缓存结果 (2分钟TTL)
+      apiCache.set(cacheKey, result, 2 * 60 * 1000);
+
+      performanceMonitor.endMeasure('get_task_documents');
+      return result;
     } catch (error: any) {
       performanceMonitor.endMeasure('get_task_documents');
       
