@@ -533,12 +533,12 @@ const mergedRaw = { ...(params || {}) } as any;
    */
   static async createTask(projectId: number, task: TaskRequest): Promise<Task> {
     const start = performance.now();
-    
+
     try {
       // Validate input
       ValidationHelper.validateRequired(task.title as any, '任务标题');
       ValidationHelper.validateLength(task.title, '任务标题', 2, 200);
-      
+
       if (task.description) {
         ValidationHelper.validateLength(task.description, '任务描述', 0, 1000);
       }
@@ -552,40 +552,57 @@ const mergedRaw = { ...(params || {}) } as any;
       // 清理数据格式
       const cleanedTask = sanitizeForAPI(validationResult.cleanedData || task);
 
-      const response: APIResponse<Task> = await api.post(
+      // 注意: api interceptor会自动解包响应，只返回data部分
+      // 所以response直接就是Task对象，不是APIResponse包装
+      const createdTask: Task = await api.post(
         `/projects/${projectId}/tasks`,
         cleanedTask
       );
-      
-      if (!response.success) {
-        let errorMessage = response.error?.message || 'Failed to create task';
-        
-        // Check for duplicate title error and provide user-friendly message
-        if (response.error?.code === 'CONFLICT' || errorMessage.includes('已存在') || errorMessage.includes('重复')) {
-          // Extract task ID from backend error message if available
-          const taskIdMatch = errorMessage.match(/任务ID:\s*(\d+)/);
-          const existingTaskId = taskIdMatch ? taskIdMatch[1] : '';
-          
-          errorMessage = `任务创建失败：标题 "${task.title}" 已存在于当前项目中${existingTaskId ? `（已存在任务ID: ${existingTaskId}）` : ''}。\n\n建议解决方案：\n1. 修改任务标题，使其更具体或添加编号\n2. 检查已存在的任务是否可以复用\n3. 如需要，可以将其作为已存在任务的子任务`;
-        }
-        
-        const error = new Error(errorMessage);
-        logApiError('Task creation failed', error, { 
-          projectId, 
-          taskTitle: task.title,
-          endpoint: `/projects/${projectId}/tasks`,
-          isDuplicate: errorMessage.includes('已存在')
-        });
-        throw error;
-      }
-      
+
+      // 记录成功
       const duration = performance.now() - start;
-      logTaskAction('create', response.data!.id, projectId);
-      logPerformance('createTask', duration, { projectId, taskId: response.data!.id });
-      
-      return response.data!;
+      logTaskAction('create', createdTask.id, projectId);
+      logPerformance('createTask', duration, { projectId, taskId: createdTask.id });
+
+      return createdTask;
     } catch (error) {
       const duration = performance.now() - start;
+
+      // 处理特定错误类型
+      if (error instanceof AppError) {
+        const errorMessage = error.message;
+
+        // 检查重复标题错误
+        if (errorMessage.includes('已存在') || errorMessage.includes('重复') || errorMessage.includes('DUPLICATE')) {
+          const taskIdMatch = errorMessage.match(/任务ID[：:]\s*(\d+)/);
+          const existingTaskId = taskIdMatch ? taskIdMatch[1] : '';
+
+          const friendlyError = new AppError(
+            `任务创建失败：标题 "${task.title}" 已存在于当前项目中${existingTaskId ? `（已存在任务ID: ${existingTaskId}）` : ''}。\n\n建议解决方案：\n1. 修改任务标题，使其更具体或添加编号\n2. 检查已存在的任务是否可以复用\n3. 如需要，可以将其作为已存在任务的子任务`,
+            'DUPLICATE_TITLE',
+            409
+          );
+
+          logApiError('Task creation failed', friendlyError, {
+            projectId,
+            taskTitle: task.title,
+            endpoint: `/projects/${projectId}/tasks`,
+            isDuplicate: true
+          });
+          logTaskAction('create', 'unknown', projectId, friendlyError);
+          logPerformance('createTask (failed)', duration, { projectId });
+          throw friendlyError;
+        }
+
+        // 其他错误直接抛出
+        logApiError('Task creation failed', error, {
+          projectId,
+          taskTitle: task.title,
+          endpoint: `/projects/${projectId}/tasks`,
+          isDuplicate: false
+        });
+      }
+
       logTaskAction('create', 'unknown', projectId, error);
       logPerformance('createTask (failed)', duration, { projectId });
       throw error;
@@ -674,20 +691,17 @@ const mergedRaw = { ...(params || {}) } as any;
    * Delete a task
    */
   static async deleteTask(projectId: number, taskId: number): Promise<void> {
-    const response: APIResponse = await api.delete(
-      `/projects/${projectId}/tasks/${taskId}`
-    );
-    
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to delete task');
-    }
+    // Note: api interceptor auto-unwraps response, returns null/undefined for DELETE
+    await api.delete(`/projects/${projectId}/tasks/${taskId}`);
+    // Success if no error thrown
   }
 
   /**
    * Bulk delete tasks
    */
   static async bulkDeleteTasks(projectId: number, taskIds: number[]): Promise<{ deleted_count: number; message: string }> {
-    const response: APIResponse<{ deleted_count: number; message: string }> = await api.delete(
+    // Note: api interceptor auto-unwraps response, returns data directly
+    const result: { deleted_count: number; message: string } = await api.delete(
       `/projects/${projectId}/tasks`,
       {
         data: {
@@ -695,12 +709,8 @@ const mergedRaw = { ...(params || {}) } as any;
         }
       }
     );
-    
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to bulk delete tasks');
-    }
-    
-    return response.data!;
+
+    return result;
   }
 
   /**
@@ -710,16 +720,13 @@ const mergedRaw = { ...(params || {}) } as any;
     projectId: number,
     bulkImport: BulkImportRequest
   ): Promise<BulkImportResponse> {
-    const response: APIResponse<BulkImportResponse> = await api.post(
+    // Note: api interceptor auto-unwraps response, returns data directly
+    const result: BulkImportResponse = await api.post(
       `/projects/${projectId}/tasks/bulk-import`,
       bulkImport
     );
-    
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to import tasks');
-    }
-    
-    return response.data!;
+
+    return result;
   }
 
   // Hierarchical task methods
@@ -911,22 +918,19 @@ const mergedRaw = { ...(params || {}) } as any;
 
   /**
    * Get update history for a task
+   * Note: api interceptor auto-unwraps response, returns PaginatedResponse<TaskUpdate> directly
    */
   static async getTaskUpdates(
     projectId: number,
     taskId: number,
     params?: PaginationParams
   ): Promise<PaginatedResponse<TaskUpdate>> {
-    const response: APIResponse<PaginatedResponse<TaskUpdate>> = await api.get(
+    const result: PaginatedResponse<TaskUpdate> = await api.get(
       `/projects/${projectId}/tasks/${taskId}/updates`,
       { params }
     );
-    
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch task updates');
-    }
-    
-    return response.data!;
+
+    return result;
   }
 
   /**
@@ -1203,6 +1207,10 @@ const mergedRaw = { ...(params || {}) } as any;
   /**
    * Get batch update preview for validation before executing the operation
    */
+  /**
+   * Get batch update preview
+   * Note: api interceptor auto-unwraps response, returns data directly
+   */
   static async getBatchUpdatePreview(
     projectId: number,
     taskIds: number[],
@@ -1231,7 +1239,8 @@ const mergedRaw = { ...(params || {}) } as any;
         parent_id: parentId !== undefined ? (parentId || undefined) : undefined
       };
 
-      const response: APIResponse<{
+      // Note: api interceptor auto-unwraps response, returns data directly
+      const result: {
         total_tasks: number;
         valid_tasks: number[];
         invalid_tasks: Array<{
@@ -1248,20 +1257,16 @@ const mergedRaw = { ...(params || {}) } as any;
           children_count: number;
           max_child_depth: number;
         };
-      }> = await api.post(
+      } = await api.post(
         `/projects/${projectId}/tasks/batch/preview`,
         requestData
       );
-      
-      if (!response || !response.success) {
-        throw new Error(response?.error?.message || 'Failed to get batch update preview');
-      }
-      
-      return response.data!;
+
+      return result;
     } catch (error) {
       logApiError('getBatchUpdatePreview', error);
       console.error('TaskService.getBatchUpdatePreview error:', error);
-      
+
       // Return error state instead of throwing to allow graceful degradation
       return {
         total_tasks: taskIds.length,
