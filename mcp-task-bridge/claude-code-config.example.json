@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "ai-proj": {
+      "type": "sse",
+      "url": "https://152.136.104.251/mcp/sse",
+      "headers": {
+        "X-API-Key": "mcpsk_prod_832138dbb8a001c681e1fb73d56a0d06"
+      },
+      "description": "AI项目管理系统MCP服务器（生产环境）"
+    },
+    "ai-proj-local": {
+      "type": "sse",
+      "url": "http://localhost:3100/sse",
+      "description": "AI项目管理系统MCP服务器（本地开发）"
+    },
+    "ai-proj-http": {
+      "type": "sse",
+      "url": "http://152.136.104.251/mcp/sse",
+      "headers": {
+        "X-API-Key": "mcpsk_prod_832138dbb8a001c681e1fb73d56a0d06"
+      },
+      "description": "AI项目管理系统MCP服务器（HTTP，用于测试）"
+    }
+  }
+}
