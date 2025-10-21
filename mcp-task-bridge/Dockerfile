@@ -3,8 +3,8 @@
 # Use standard node image instead of alpine for better compatibility with esbuild
 FROM node:20-alpine AS base
 
-# Create non-root user (Debian style for standard node image)
-RUN groupadd -g 1001 nodegroup && useradd -u 1001 -g nodegroup -m nodeuser
+# Create non-root user (Alpine style)
+RUN addgroup -g 1001 -S nodegroup && adduser -S nodeuser -u 1001 -G nodegroup
 
 WORKDIR /app
 
@@ -26,6 +26,6 @@ USER nodeuser
 
 ENV NODE_ENV=production
 
-# Use compiled JS instead of tsx
-CMD ["npm", "run", "start"]
+# Use SSE mode for production (instead of stdio mode)
+CMD ["node", "dist/index-sse.js"]
 

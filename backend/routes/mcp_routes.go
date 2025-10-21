@@ -67,7 +67,8 @@ func validateRequest(params map[string]interface{}) error {
 func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	// MCP专用路由组
 	mcp := router.Group("/mcp")
-	mcp.Use(middleware.AuthMiddleware(app.GetJWTManager())) // MCP请求也需要认证
+	// 支持服务账号API Key和JWT两种认证方式
+	mcp.Use(middleware.ServiceAccountOrJWTAuthMiddleware(app.GetDB(), middleware.AuthMiddleware(app.GetJWTManager())))
 
 	// 获取handlers
 	documentHandler := app.GetDocumentHandler()

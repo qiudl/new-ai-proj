@@ -38,6 +38,9 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Session管理: sessionId -> SSEServerTransport
+const sessions = new Map<string, SSEServerTransport>();
+
 // 检测API Base URL
 function detectApiBase(): string {
   const fromEnv = process.env.TASK_API_BASE || process.env.API_BASE_URL;
@@ -296,6 +299,22 @@ app.get('/sse', async (req, res) => {
   try {
     await server.connect(transport);
     console.log('[MCP-SSE] ✅ Server connected to transport');
+
+    // 从transport获取sessionId并存储
+    // SSEServerTransport会在endpoint URL中包含sessionId
+    // 提取sessionId的方式:从res对象的session或从transport的endpoint
+    const sessionIdMatch = transport.sessionId ||
+                          (res as any)._sseSessionId ||
+                          Math.random().toString(36).substring(7);
+
+    sessions.set(sessionIdMatch, transport);
+    console.log(`[MCP-SSE] 📝 Session ${sessionIdMatch} registered`);
+
+    // 清理断开的连接
+    res.on('close', () => {
+      sessions.delete(sessionIdMatch);
+      console.log(`[MCP-SSE] 🔌 Session ${sessionIdMatch} closed`);
+    });
   } catch (error) {
     console.error('[MCP-SSE] ❌ Failed to connect transport:', error);
   }
@@ -303,9 +322,34 @@ app.get('/sse', async (req, res) => {
 
 // Message endpoint
 app.post('/message', async (req, res) => {
-  console.log('[MCP-SSE] 📨 Received message');
-  // Transport handles the message
-  res.status(200).send();
+  const sessionId = req.query.sessionId as string;
+
+  console.log('[MCP-SSE] 📨 Received message for session:', sessionId);
+
+  if (!sessionId) {
+    console.error('[MCP-SSE] ❌ No sessionId provided');
+    res.status(400).json({ error: 'sessionId is required' });
+    return;
+  }
+
+  const transport = sessions.get(sessionId);
+
+  if (!transport) {
+    console.error('[MCP-SSE] ❌ Session not found:', sessionId);
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+
+  try {
+    // 调用transport的handlePostMessage方法处理消息
+    await transport.handlePostMessage(req, res, req.body);
+    console.log('[MCP-SSE] ✅ Message processed successfully');
+  } catch (error) {
+    console.error('[MCP-SSE] ❌ Error processing message:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
 });
 
 // Start server

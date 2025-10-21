@@ -11,6 +11,7 @@
     "allowSyntheticDefaultImports": true,
     "strict": false,
     "skipLibCheck": true,
+    "noEmitOnError": false,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "experimentalDecorators": true,
@@ -18,10 +19,12 @@
   },
   "include": [
     "index.ts",
+    "index-sse.ts",
     "hook.ts",
-    "http-adapter.ts", 
+    "http-adapter.ts",
     "task-mcp.ts",
     "daily-focus-service.ts",
+    "document-service.ts",
     "permission-manager.ts",
     "task-service.ts"
   ],
