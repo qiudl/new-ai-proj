@@ -733,14 +733,26 @@ const mergedRaw = { ...(params || {}) } as any;
 
   /**
    * Get complete task tree for a project
+   * @param projectId - Project ID
+   * @param sortBy - Sort field (created_at, title, status, etc.)
+   * @param sortOrder - Sort order (asc or desc)
    */
-  static async getTaskTree(projectId: number): Promise<HierarchicalTask[]> {
+  static async getTaskTree(
+    projectId: number,
+    sortBy?: string,
+    sortOrder?: string
+  ): Promise<HierarchicalTask[]> {
     // 兼容不同的响应格式：
     // 1) 标准包装 { success, data }
     // 2) axios 拦截器已解包，直接返回 data
     // 3) 某些情况下后端返回 { data: [...] }
     try {
-      const response: any = await api.get(`/projects/${projectId}/tasks/tree`);
+      // Build query parameters
+      const params: Record<string, string> = {};
+      if (sortBy) params.sort_by = sortBy;
+      if (sortOrder) params.sort_order = sortOrder;
+
+      const response: any = await api.get(`/projects/${projectId}/tasks/tree`, { params });
 
       // 如果是标准包装格式（包含 success 字段）
       if (response && typeof response === 'object' && 'success' in response) {

@@ -82,7 +82,7 @@ type TaskRepository interface {
 
 	// Hierarchical task operations
 	GetChildren(ctx context.Context, parentID int) ([]*models.Task, error)
-	GetTaskTree(ctx context.Context, projectID int) ([]*models.HierarchicalTask, error)
+	GetTaskTree(ctx context.Context, projectID int, sortBy, sortOrder string) ([]*models.HierarchicalTask, error)
 	GetRootTasks(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error)
 	// GetDescendants 按层级返回指定任务的后代节点（从子任务开始，level 从1起）
 	GetDescendants(ctx context.Context, rootTaskID int, depth, limit int) ([]*models.TaskDescendantNode, error)

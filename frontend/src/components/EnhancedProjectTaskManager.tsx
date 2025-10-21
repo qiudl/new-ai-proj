@@ -666,10 +666,19 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // 使用层级任务树API
-      const hierarchicalTasksFromAPI = await TaskService.getTaskTree(projectId);
-      
+
+      // Convert sortConfig to API parameters
+      let sortBy = 'created_at';
+      let sortOrder = 'desc';
+
+      if (sortConfig) {
+        sortBy = sortConfig.field;
+        sortOrder = sortConfig.order === 'ascend' ? 'asc' : 'desc';
+      }
+
+      // 使用层级任务树API with sorting
+      const hierarchicalTasksFromAPI = await TaskService.getTaskTree(projectId, sortBy, sortOrder);
+
       if (hierarchicalTasksFromAPI) {
         // 设置原始层级数据
         setHierarchicalTasks(hierarchicalTasksFromAPI);

@@ -279,8 +279,12 @@ func (h *TaskHierarchyHandler) GetTaskTree(c *gin.Context) {
 		return
 	}
 
-	// Get task tree from database
-	taskTree, err := h.db.Tasks().GetTaskTree(c.Request.Context(), projectID)
+	// Get sorting parameters from query string
+	sortBy := c.DefaultQuery("sort_by", "created_at")
+	sortOrder := c.DefaultQuery("sort_order", "desc")
+
+	// Get task tree from database with sorting
+	taskTree, err := h.db.Tasks().GetTaskTree(c.Request.Context(), projectID, sortBy, sortOrder)
 	if err != nil {
 		h.logger.Printf("Error getting task tree: %v", err)
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve task tree", nil)

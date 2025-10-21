@@ -117,7 +117,7 @@ func (m *MockTaskRepository) GetByStatus(ctx context.Context, status string, lim
 func (m *MockTaskRepository) GetChildren(ctx context.Context, parentID int) ([]*models.Task, error) {
 	return nil, nil
 }
-func (m *MockTaskRepository) GetTaskTree(ctx context.Context, projectID int) ([]*models.HierarchicalTask, error) {
+func (m *MockTaskRepository) GetTaskTree(ctx context.Context, projectID int, sortBy, sortOrder string) ([]*models.HierarchicalTask, error) {
 	return nil, nil
 }
 func (m *MockTaskRepository) GetRootTasks(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error) {

@@ -246,18 +246,52 @@ func (r *PostgresTaskRepository) GetRootTasks(ctx context.Context, projectID int
 
 // GetTaskTree gets the complete task tree for a project
 // Performance optimization: Uses optimized query with minimal fields and efficient indexing
-func (r *PostgresTaskRepository) GetTaskTree(ctx context.Context, projectID int) ([]*models.HierarchicalTask, error) {
+// Supports dynamic sorting via sortBy and sortOrder parameters
+func (r *PostgresTaskRepository) GetTaskTree(ctx context.Context, projectID int, sortBy, sortOrder string) ([]*models.HierarchicalTask, error) {
+	// Set default sorting
+	if sortBy == "" {
+		sortBy = "created_at"
+	}
+	if sortOrder == "" {
+		sortOrder = "desc"
+	}
+
+	// Map sortBy to actual database column (防止SQL注入)
+	sortColumn := "created_at"
+	switch sortBy {
+	case "id":
+		sortColumn = "id"
+	case "title":
+		sortColumn = "title"
+	case "status":
+		sortColumn = "status"
+	case "created_at":
+		sortColumn = "created_at"
+	case "updated_at":
+		sortColumn = "created_at" // fallback to created_at since we don't select updated_at
+	case "sort_order":
+		sortColumn = "sort_order"
+	default:
+		sortColumn = "created_at"
+	}
+
+	// Validate sort order (防止SQL注入)
+	sortDirection := "DESC"
+	if sortOrder == "asc" || sortOrder == "ASC" {
+		sortDirection = "ASC"
+	}
+
 	// Optimized query: Only select essential fields for tree building
 	// This reduces data transfer and parsing time significantly
-	query := `
+	query := fmt.Sprintf(`
 		SELECT id, project_id, title, status, assignee_id,
 		       parent_id, task_level, sort_order, created_at
 		FROM tasks
 		WHERE project_id = $1 AND deleted_at IS NULL
 		ORDER BY
 			parent_id NULLS FIRST,  -- Group by parent (NULL = roots first)
-			sort_order ASC,
-			id ASC`
+			%s %s,
+			id ASC`, sortColumn, sortDirection)
 
 	exec := r.getExecer()
 	rows, err := exec.QueryContext(ctx, query, projectID)
