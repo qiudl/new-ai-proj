@@ -257,11 +257,22 @@ try {
 - `userService.ts`: 无问题
 - `documentService.ts`: 无问题
 - `authService.ts`: 无问题
+- `dailyFocusTasksService.ts`: 无问题
+- `workNotesService.ts`: 无问题
 
-⚠️ **发现潜在问题:**
-- `impersonationService.ts`: 部分方法直接检查`response.success`可能不会按预期工作
-- `taskDocumentService.ts`: 有fallback逻辑但可以优化
-- 其他8个service文件有类似的模式,但大多有fallback逻辑
+✅ **已修复的服务文件:**
+- `impersonationService.ts`: 修复checkPermissions和getActiveSessions方法
+- `taskCommentService.ts`: 修复createComment、listComments、deleteComment、getCommentStats方法
+- `taskDocumentService.ts`: 简化getTaskDocuments方法
+
+✅ **其他service文件检查通过:**
+- `aiConfigDatabaseService.ts`: 无问题
+- `aiConfigTestService.ts`: 无问题
+- `aiTaskGeneratorService.ts`: 无问题
+- `enterpriseRoleService.ts`: 无问题
+- `enterpriseUserService.ts`: 无问题
+- `organizationService.ts`: 无问题
+- `positionService.ts`: 无问题
 
 ## 参考资源
 
