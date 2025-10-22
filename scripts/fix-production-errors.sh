@@ -50,45 +50,44 @@ log_info "备份旧的nginx配置..."
 ssh "$REMOTE_HOST" << 'EOF'
     cd /home/ubuntu/apps/new-ai-proj
 
-    # 备份宿主机nginx配置
-    if [ -f /etc/nginx/sites-available/ai-project.conf ]; then
-        sudo cp /etc/nginx/sites-available/ai-project.conf \
-                /etc/nginx/sites-available/ai-project.conf.bak.$(date +%Y%m%d_%H%M%S)
-        echo "已备份宿主机nginx配置"
+    # 备份nginx配置
+    if [ -f nginx/sites/ai-project.conf ]; then
+        cp nginx/sites/ai-project.conf \
+           nginx/sites/ai-project.conf.bak.$(date +%Y%m%d_%H%M%S)
+        echo "已备份nginx配置"
     fi
 EOF
 log_success "配置备份完成"
 
-# 步骤3: 更新宿主机nginx配置
-log_info "更新宿主机nginx配置..."
+# 步骤3: 测试nginx配置
+log_info "测试nginx配置..."
 ssh "$REMOTE_HOST" << 'EOF'
     cd /home/ubuntu/apps/new-ai-proj
 
-    # 复制新配置到nginx配置目录
-    sudo cp nginx/sites/ai-project.conf /etc/nginx/sites-available/ai-project.conf
-
-    # 测试nginx配置
+    # 使用Docker容器测试nginx配置
     echo "测试nginx配置..."
-    if sudo nginx -t; then
+    if docker exec ai_nginx nginx -t 2>&1; then
         echo "nginx配置测试通过"
     else
         echo "ERROR: nginx配置测试失败"
         exit 1
     fi
 EOF
-log_success "nginx配置更新完成"
+log_success "nginx配置测试通过"
 
 # 步骤4: 重新加载nginx
-log_info "重新加载nginx..."
+log_info "重新加载nginx容器..."
 ssh "$REMOTE_HOST" << 'EOF'
+    cd /home/ubuntu/apps/new-ai-proj
+
     # 重新加载nginx（不中断服务）
-    sudo nginx -s reload
+    docker exec ai_nginx nginx -s reload
 
     # 等待配置生效
     sleep 2
 
-    # 验证nginx进程
-    if sudo nginx -t >/dev/null 2>&1; then
+    # 验证nginx运行状态
+    if docker exec ai_nginx nginx -t >/dev/null 2>&1; then
         echo "nginx重新加载成功"
     else
         echo "ERROR: nginx重新加载失败"
