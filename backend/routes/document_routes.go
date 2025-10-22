@@ -94,9 +94,10 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 	authorized.GET("/documents/:id/versions/:version_number/download", versionHandler.DownloadVersion)
 	authorized.DELETE("/documents/:id/versions/:version_number", versionHandler.DeleteVersion)
 
-	// Legacy compatibility routes (使用现有的HybridDocumentHandler方法)
-	authorized.POST("/documents/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
-	authorized.POST("/documents/:id/toggle-template", app.GetHybridDocumentHandler().ToggleTemplate)
+	// 文档操作路由（已迁移到UnifiedDocumentHandler）
+	unifiedHandler := app.GetUnifiedDocumentHandler()
+	authorized.POST("/documents/:id/copy", unifiedHandler.CopyDocument)
+	authorized.POST("/documents/:id/toggle-template", unifiedHandler.ToggleTemplate)
 }
 
 // registerUnifiedTaskDocumentRoutes 注册统一任务文档路由（按项目/任务命名空间）
@@ -248,9 +249,9 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		workNotes.GET("/:id/related", func(c *gin.Context) {
 			c.JSON(200, gin.H{"success": true, "data": []interface{}{}})
 		})
-		// 兼容性：保留一些通用文档操作
-		workNotes.POST("/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
-		workNotes.POST("/:id/toggle-template", app.GetHybridDocumentHandler().ToggleTemplate)
+		// 兼容性：保留一些通用文档操作（已迁移到UnifiedDocumentHandler）
+		workNotes.POST("/:id/copy", app.GetUnifiedDocumentHandler().CopyDocument)
+		workNotes.POST("/:id/toggle-template", app.GetUnifiedDocumentHandler().ToggleTemplate)
 
 		// 工作笔记转任务文档功能 - 占位符实现
 		workNotes.POST("/:id/convert-to-task-document", func(c *gin.Context) {

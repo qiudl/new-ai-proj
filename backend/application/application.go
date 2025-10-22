@@ -491,16 +491,15 @@ func (app *Application) GetHybridDocumentFolderHandler() *handlers.HybridDocumen
 	return nil
 }
 
-// GetHybridDocumentHandler returns the hybrid document handler (for legacy compatibility)
-func (app *Application) GetHybridDocumentHandler() *handlers.HybridDocumentHandler {
-	// Return the same instance as DocumentHandler since DocumentHandler is an alias
-	return app.documentHandler
-}
+// @Deprecated: GetHybridDocumentHandler已删除 - 使用GetUnifiedDocumentHandler()代替
+// @Deprecated: GetSimpleDocumentHandler已删除 - 使用GetUnifiedDocumentHandler()代替
 
-// GetSimpleDocumentHandler returns a simple document handler (for backward compatibility)
-func (app *Application) GetSimpleDocumentHandler() *handlers.HybridDocumentHandler {
-	// Use the same DocumentHandler for simplicity
-	return app.documentHandler
+// GetUnifiedDocumentHandler returns the unified document handler
+func (app *Application) GetUnifiedDocumentHandler() *handlers.UnifiedDocumentHandler {
+	if app.handlers != nil {
+		return app.handlers.UnifiedDocumentHandler
+	}
+	return nil
 }
 
 // GetDocumentVersionHandler returns the document version handler

@@ -135,7 +135,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// Note: Factory mode does not use Redis cache - cache layer not available in factory mode
 	// For production with Redis caching, use application.go initialization
 	allHandlers.DocumentHandler = handlers.NewDocumentHandler(f.db, docsBasePath) // No Redis in factory mode
-	allHandlers.HybridDocumentHandler = handlers.NewHybridDocumentHandler(f.db, docsBasePath) // No Redis in factory mode
+	// allHandlers.HybridDocumentHandler = handlers.NewHybridDocumentHandler(f.db, docsBasePath) // @Deprecated: 已删除
 	// allHandlers.HybridDocumentFolderHandler = handlers.NewHybridDocumentFolderHandler(f.db) // Temporarily disabled
 	// allHandlers.SimpleDocumentHandler = handlers.NewSimpleDocumentHandler() // 暂时注释掉，handler缺失
 
@@ -162,7 +162,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 			BackupEnabled:     true,
 		}
 	}
-	unifiedDocumentService := services.NewUnifiedDocumentService(documentConfig)
+	unifiedDocumentService := services.NewUnifiedDocumentService(documentConfig, f.db)
 	allHandlers.UnifiedDocumentHandler = handlers.NewUnifiedDocumentHandler(unifiedDocumentService)
 
 	// 基于文件的任务文档处理器 (向后兼容)

@@ -130,8 +130,9 @@ type ApplicationInterface interface {
 	// 文档处理器
 	GetDocumentHandler() *handlers.DocumentHandler
 	GetRouterDocumentHandler() *handlers.RouterDocumentHandler // New router-based document handler
-	GetHybridDocumentHandler() *handlers.HybridDocumentHandler
-	GetSimpleDocumentHandler() *handlers.HybridDocumentHandler
+	// GetHybridDocumentHandler() *handlers.HybridDocumentHandler // @Deprecated: 已删除，使用GetUnifiedDocumentHandler()
+	// GetSimpleDocumentHandler() *handlers.HybridDocumentHandler // @Deprecated: 已删除，使用GetUnifiedDocumentHandler()
+	GetUnifiedDocumentHandler() *handlers.UnifiedDocumentHandler // 统一文档处理器
 	GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler // Document folder handler
 	GetDocumentVersionHandler() *handlers.DocumentVersionHandler              // Document version handler
 

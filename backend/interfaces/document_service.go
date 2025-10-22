@@ -39,6 +39,10 @@ type DocumentServiceInterface interface {
 	UnlockDocument(ctx context.Context, req *DocumentLockRequest) error
 	GetDocumentLockStatus(ctx context.Context, req *LockStatusRequest) (*LockStatusResponse, error)
 
+	// Phase 3: 迁移自HybridDocumentHandler的功能
+	CopyDocument(ctx context.Context, req *CopyDocumentRequest) (int, error)
+	ToggleTemplate(ctx context.Context, req *ToggleTemplateRequest) (bool, error)
+
 	// 健康检查
 	HealthCheck(ctx context.Context) error
 }
@@ -403,4 +407,20 @@ type ImportOptions struct {
 	CreateProjects    bool              `json:"create_projects,omitempty"`
 	CreateTasks       bool              `json:"create_tasks,omitempty"`
 	Mapping           map[string]string `json:"mapping,omitempty"`
+}
+
+// ============================================================================
+// Phase 3: 迁移自HybridDocumentHandler的请求结构
+// ============================================================================
+
+// CopyDocumentRequest 复制文档请求
+type CopyDocumentRequest struct {
+	DocumentID int `json:"document_id" validate:"required,min=1"`
+	UserID     int `json:"user_id" validate:"required,min=1"`
+}
+
+// ToggleTemplateRequest 切换模板状态请求
+type ToggleTemplateRequest struct {
+	DocumentID int `json:"document_id" validate:"required,min=1"`
+	UserID     int `json:"user_id" validate:"required,min=1"`
 }

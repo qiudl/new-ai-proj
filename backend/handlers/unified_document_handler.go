@@ -1314,3 +1314,113 @@ func (h *UnifiedDocumentHandler) GetDocumentLockStatus(c *gin.Context) {
 		"data":    response,
 	})
 }
+
+// ============================================================================
+// 从HybridDocumentHandler迁移的方法
+// TODO: 这些方法临时使用documentService接口实现，未来需要重构为统一的接口调用
+// ============================================================================
+
+// CopyDocument 复制文档
+// @Migrated from HybridDocumentHandler.CopyDocument
+// POST /api/v1/documents/:id/copy
+func (h *UnifiedDocumentHandler) CopyDocument(c *gin.Context) {
+	idStr := c.Param("id")
+	docID, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid document ID",
+			"code":    "INVALID_DOCUMENT_ID",
+		})
+		return
+	}
+
+	// 获取用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "User not authenticated",
+			"code":    "NOT_AUTHENTICATED",
+		})
+		return
+	}
+
+	// TODO: 通过documentService接口实现，目前使用临时方案
+	// 调用Service层的CopyDocument方法
+	req := &interfaces.CopyDocumentRequest{
+		DocumentID: docID,
+		UserID:     userID.(int),
+	}
+
+	newDocID, err := h.documentService.CopyDocument(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to copy document",
+			"code":    "COPY_FAILED",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Document copied successfully",
+		"data": gin.H{
+			"id": newDocID,
+		},
+	})
+}
+
+// ToggleTemplate 切换文档模板状态
+// @Migrated from HybridDocumentHandler.ToggleTemplate
+// POST /api/v1/documents/:id/toggle-template
+func (h *UnifiedDocumentHandler) ToggleTemplate(c *gin.Context) {
+	idStr := c.Param("id")
+	docID, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid document ID",
+			"code":    "INVALID_DOCUMENT_ID",
+		})
+		return
+	}
+
+	// 获取用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "User not authenticated",
+			"code":    "NOT_AUTHENTICATED",
+		})
+		return
+	}
+
+	// TODO: 通过documentService接口实现
+	req := &interfaces.ToggleTemplateRequest{
+		DocumentID: docID,
+		UserID:     userID.(int),
+	}
+
+	isTemplate, err := h.documentService.ToggleTemplate(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to toggle template status",
+			"code":    "TOGGLE_FAILED",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Template status toggled successfully",
+		"data": gin.H{
+			"is_template": isTemplate,
+		},
+	})
+}

@@ -16,6 +16,10 @@ import (
 )
 
 // TaskDocumentHandler 任务文档处理器
+// @Deprecated: 此Handler已被标记为废弃，建议使用UnifiedDocumentHandler
+// 迁移计划：Phase 3 - 任务文档代码精简 (Task #2714)
+// 当前状态：文件处理功能仍被project_routes引用
+// TODO: 将文件上传/下载功能迁移到UnifiedDocumentHandler后删除此文件
 type TaskDocumentHandler struct {
 	docsBasePath string
 }

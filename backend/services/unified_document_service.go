@@ -3,6 +3,7 @@ package services
 import (
 	"ai-project-backend/interfaces"
 	"context"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -18,6 +19,7 @@ type UnifiedDocumentService struct {
 	config    *interfaces.DocumentConfig
 	cache     *DocumentCache
 	templates *TemplateManager
+	db        interface{} // database.DB接口，支持数据库操作
 	mutex     sync.RWMutex
 }
 
@@ -43,13 +45,18 @@ type TemplateManager struct {
 }
 
 // NewUnifiedDocumentService 创建统一文档服务实例
-func NewUnifiedDocumentService(config *interfaces.DocumentConfig) *UnifiedDocumentService {
+func NewUnifiedDocumentService(config *interfaces.DocumentConfig, db ...interface{}) *UnifiedDocumentService {
 	service := &UnifiedDocumentService{
 		config: config,
 		templates: &TemplateManager{
 			templates: make(map[string]string),
 			basePath:  filepath.Join(config.BasePath, "templates"),
 		},
+	}
+
+	// 可选的数据库参数（用于CopyDocument和ToggleTemplate等功能）
+	if len(db) > 0 {
+		service.db = db[0]
 	}
 
 	// 初始化缓存
@@ -1291,4 +1298,128 @@ func (s *UnifiedDocumentService) extractTitle(content string) string {
 	}
 
 	return "无标题文档"
+}
+
+// ============================================================================
+// Phase 3: 迁移自HybridDocumentHandler的方法
+// TODO: 这些方法需要添加数据库访问权限后才能完整实现
+// ============================================================================
+
+// CopyDocument 复制文档
+// @Migrated from HybridDocumentHandler
+func (s *UnifiedDocumentService) CopyDocument(ctx context.Context, req *interfaces.CopyDocumentRequest) (int, error) {
+	if s.db == nil {
+		return 0, fmt.Errorf("database not available for CopyDocument operation")
+	}
+
+	// 类型断言获取database.DB接口
+	type DBGetter interface {
+		GetDB() interface{}
+	}
+
+	dbGetter, ok := s.db.(DBGetter)
+	if !ok {
+		return 0, fmt.Errorf("database does not implement GetDB interface")
+	}
+
+	sqlDB, ok := dbGetter.GetDB().(*sql.DB)
+	if !ok {
+		return 0, fmt.Errorf("failed to get *sql.DB instance")
+	}
+
+	// 获取原文档
+	getQuery := `
+		SELECT folder_id, title, content, type, description, visibility
+		FROM documents WHERE id = $1
+	`
+
+	var doc struct {
+		FolderID    *int
+		Title       string
+		Content     string
+		Type        string
+		Description *string
+		Visibility  string
+	}
+
+	err := sqlDB.QueryRowContext(ctx, getQuery, req.DocumentID).Scan(
+		&doc.FolderID, &doc.Title, &doc.Content, &doc.Type, &doc.Description,
+		&doc.Visibility,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, fmt.Errorf("document not found: %d", req.DocumentID)
+		}
+		return 0, fmt.Errorf("failed to get original document: %w", err)
+	}
+
+	// 创建副本
+	now := time.Now()
+	createQuery := `
+		INSERT INTO documents (
+			folder_id, title, content, type, status, description,
+			owner_id, visibility, version, is_template,
+			created_at, updated_at, created_by
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		RETURNING id
+	`
+
+	var newID int
+	err = sqlDB.QueryRowContext(
+		ctx,
+		createQuery,
+		doc.FolderID, doc.Title+" (副本)", doc.Content, doc.Type, "draft", doc.Description,
+		req.UserID, doc.Visibility, 1, false,
+		now, now, req.UserID,
+	).Scan(&newID)
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to copy document: %w", err)
+	}
+
+	return newID, nil
+}
+
+// ToggleTemplate 切换文档模板状态
+// @Migrated from HybridDocumentHandler
+func (s *UnifiedDocumentService) ToggleTemplate(ctx context.Context, req *interfaces.ToggleTemplateRequest) (bool, error) {
+	if s.db == nil {
+		return false, fmt.Errorf("database not available for ToggleTemplate operation")
+	}
+
+	// 类型断言获取database.DB接口
+	type DBGetter interface {
+		GetDB() interface{}
+	}
+
+	dbGetter, ok := s.db.(DBGetter)
+	if !ok {
+		return false, fmt.Errorf("database does not implement GetDB interface")
+	}
+
+	sqlDB, ok := dbGetter.GetDB().(*sql.DB)
+	if !ok {
+		return false, fmt.Errorf("failed to get *sql.DB instance")
+	}
+
+	// 切换模板状态
+	query := `
+		UPDATE documents
+		SET is_template = NOT is_template, updated_at = $1
+		WHERE id = $2
+		RETURNING is_template
+	`
+
+	var newTemplateStatus bool
+	err := sqlDB.QueryRowContext(ctx, query, time.Now(), req.DocumentID).Scan(&newTemplateStatus)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, fmt.Errorf("document not found: %d", req.DocumentID)
+		}
+		return false, fmt.Errorf("failed to toggle template status: %w", err)
+	}
+
+	return newTemplateStatus, nil
 }
