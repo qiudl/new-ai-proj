@@ -176,25 +176,23 @@ services:
       context: ./mcp-task-bridge
       dockerfile: Dockerfile.sse
     container_name: ai_mcp_server_prod
-    depends_on:
-      backend-prod:
-        condition: service_healthy
     environment:
-      # API基础地址（Docker内部访问）
-      API_BASE_URL: http://backend-prod:8080/api/v1
-      TASK_API_BASE: http://backend-prod:8080/api/v1
+      # API基础地址（访问主机上的后端服务）
+      API_BASE_URL: http://172.30.0.1:8080/api/v1
+      TASK_API_BASE: http://172.30.0.1:8080/api/v1
       # SSE服务端口配置
       MCP_PORT: 3000
       PORT: 3000
       NODE_ENV: production
+      APP_ENV: production
+      # API Key认证
+      API_KEY: ${MCP_API_KEY:-mcpsk_prod_fa6daea54c87dae43e37de30d7295d27}
       # MCP权限系统配置
       MCP_ENABLE_PERMISSIONS: "false"
       MCP_STRICT_PERMISSIONS: "false"
       MCP_DEBUG_PERMISSIONS: "false"
-      # 开发登录用户（自动刷新token）
-      DEV_LOGIN_USERNAME: admin
     ports:
-       - "127.0.0.1:3100:3000"  # 主机3100端口映射到容器3000端口（仅本地访问，通过nginx暴露）
+       - "0.0.0.0:3100:3000"  # 主机3100端口映射到容器3000端口（通过nginx代理访问）
     restart: always
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); })"]
