@@ -91,11 +91,16 @@ export abstract class BaseClient {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    
-    if (this.authToken) {
+
+    // 优先使用X-API-Key认证（服务账号）
+    const apiKey = process.env.API_KEY || process.env.MCP_API_KEY;
+    if (apiKey) {
+      headers['X-API-Key'] = apiKey;
+    } else if (this.authToken) {
+      // 回退到JWT Bearer token
       headers['Authorization'] = `Bearer ${this.authToken}`;
     }
-    
+
     return headers;
   }
 

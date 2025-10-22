@@ -219,40 +219,48 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
-  console.log(`[MCP-SSE] 🔧 Tool called: ${name}`, args);
+  // 类型断言为any以便访问属性
+  const params = args as any;
+
+  console.log(`[MCP-SSE] 🔧 Tool called: ${name}`, params);
 
   try {
     let result;
     switch (name) {
       case 'create_task':
-        result = await taskServer.createTask(args);
+        result = await taskServer.createTask(params.title, params.projectId || 1);
         break;
       case 'start_task':
-        result = await taskServer.startTask(args);
+        result = await taskServer.startTask(params.id);
         break;
       case 'complete_task':
-        result = await taskServer.completeTask(args);
+        result = await taskServer.completeTask(params.id);
         break;
       case 'pause_task':
-        result = await taskServer.pauseTask(args);
+        result = await taskServer.pauseTask(params.id);
         break;
       case 'list_tasks':
-        result = await taskServer.listTasks(args);
+        result = await taskServer.listTasks(params);
         break;
       case 'create_subtask':
-        result = await taskServer.createSubtask(args);
+        result = await taskServer.createSubTask(params.parentId, { title: params.title });
         break;
       case 'find_task':
-        result = await taskServer.findTask(args);
+        result = await taskServer.findTask(params);
         break;
       case 'delete_task':
-        result = await taskServer.deleteTask(args);
+        result = await taskServer.deleteTask(params.id, params.force || false);
         break;
       case 'update_task':
-        result = await taskServer.updateTask(args);
+        result = await taskServer.updateTask(params.id, params.updates);
         break;
       case 'create-and-attach':
-        result = await taskServer.createAndAttach(args);
+        result = await taskServer.createAndAttachTaskDocument(
+          params.taskId,
+          params.content,
+          params.projectId || 1,
+          params.title
+        );
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);
