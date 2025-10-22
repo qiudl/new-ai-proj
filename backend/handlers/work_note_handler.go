@@ -25,11 +25,11 @@ import (
 
 // WorkNoteHandler 工作笔记处理器
 type WorkNoteHandler struct {
-	workNoteService         services.WorkNoteServiceInterface
-	relationService         *services.WorkNoteTaskRelationService
-	jwtManager              *utils.JWTManager
-	documentRouter          *services.DocumentRouter
-	db                      database.DB // 添加数据库连接
+	workNoteService services.WorkNoteServiceInterface
+	relationService *services.WorkNoteTaskRelationService
+	jwtManager      *utils.JWTManager
+	documentRouter  *services.DocumentRouter
+	db              database.DB // 添加数据库连接
 }
 
 // NewWorkNoteHandler 创建工作笔记处理器
@@ -415,6 +415,228 @@ func (h *WorkNoteHandler) DeleteWorkNote(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// CopyWorkNote 复制工作笔记
+// @Summary 复制工作笔记
+// @Description 创建工作笔记的副本
+// @Tags work-notes
+// @Accept json
+// @Produce json
+// @Param id path int true "工作笔记ID"
+// @Success 201 {object} models.WorkNote
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /api/v1/work-notes/{id}/copy [post]
+func (h *WorkNoteHandler) CopyWorkNote(c *gin.Context) {
+	noteID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid note ID", "Note ID must be a valid integer"))
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
+		return
+	}
+
+	// 获取原始笔记
+	originalNote, err := h.workNoteService.GetWorkNote(c.Request.Context(), noteID, userID.(int))
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "Work note not found", err.Error()))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get work note", err.Error()))
+		return
+	}
+
+	// 创建副本请求
+	copyReq := models.CreateWorkNoteRequest{
+		Title:            originalNote.Title + " (副本)",
+		Content:          originalNote.Content,
+		WorkNoteType:     originalNote.WorkNoteType,
+		Priority:         originalNote.Priority,
+		Description:      originalNote.Description,
+		Tags:             originalNote.Tags,
+		Visibility:       originalNote.Visibility,
+		WorkNoteFolderID: originalNote.WorkNoteFolderID,
+		IsPinned:         false, // 副本默认不置顶
+		IsBookmarked:     false, // 副本默认不收藏
+		RelatedTasks:     originalNote.RelatedTasks,
+		RelatedNotes:     originalNote.RelatedNotes,
+	}
+
+	// 创建副本
+	copiedNote, err := h.workNoteService.CreateWorkNote(c.Request.Context(), copyReq, userID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to copy work note", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Work note copied successfully",
+		"data":    copiedNote,
+	})
+}
+
+// ToggleTemplate 切换模板状态
+// @Summary 切换工作笔记的模板状态
+// @Description 将工作笔记标记为模板或取消模板标记
+// @Tags work-notes
+// @Accept json
+// @Produce json
+// @Param id path int true "工作笔记ID"
+// @Success 200 {object} models.WorkNote
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /api/v1/work-notes/{id}/toggle-template [post]
+func (h *WorkNoteHandler) ToggleTemplate(c *gin.Context) {
+	noteID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid note ID", "Note ID must be a valid integer"))
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
+		return
+	}
+
+	// 获取当前笔记
+	currentNote, err := h.workNoteService.GetWorkNote(c.Request.Context(), noteID, userID.(int))
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "Work note not found", err.Error()))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get work note", err.Error()))
+		return
+	}
+
+	// 切换模板状态
+	newTemplateStatus := !currentNote.IsTemplate
+	updateReq := models.UpdateWorkNoteRequest{
+		IsTemplate: &newTemplateStatus,
+	}
+
+	// 如果设置为模板，同时更新类型
+	if newTemplateStatus {
+		templateType := models.WorkNoteTypeTemplate
+		updateReq.WorkNoteType = &templateType
+	}
+
+	updatedNote, err := h.workNoteService.UpdateWorkNote(c.Request.Context(), noteID, updateReq, userID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to toggle template status", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":     true,
+		"message":     fmt.Sprintf("Template status toggled to %v", newTemplateStatus),
+		"data":        updatedNote,
+		"is_template": newTemplateStatus,
+	})
+}
+
+// MoveNoteToFolder 移动笔记到文件夹
+// @Summary 移动工作笔记到指定文件夹
+// @Description 将工作笔记移动到指定的文件夹中
+// @Tags work-notes
+// @Accept json
+// @Produce json
+// @Param id path int true "工作笔记ID"
+// @Param request body object true "移动请求 {folder_id: int}"
+// @Success 200 {object} models.WorkNote
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /api/v1/work-notes/{id}/move-to-folder [post]
+func (h *WorkNoteHandler) MoveNoteToFolder(c *gin.Context) {
+	noteID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid note ID", "Note ID must be a valid integer"))
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
+		return
+	}
+
+	// 解析请求体
+	var req struct {
+		FolderID *int `json:"folder_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
+		return
+	}
+
+	// 更新文件夹
+	updateReq := models.UpdateWorkNoteRequest{
+		WorkNoteFolderID: req.FolderID,
+	}
+
+	updatedNote, err := h.workNoteService.UpdateWorkNote(c.Request.Context(), noteID, updateReq, userID.(int))
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "Work note not found", err.Error()))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to move work note", err.Error()))
+		return
+	}
+
+	folderMsg := "root"
+	if req.FolderID != nil {
+		folderMsg = fmt.Sprintf("folder %d", *req.FolderID)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Work note moved to %s successfully", folderMsg),
+		"data":    updatedNote,
+	})
+}
+
+// GetCategoryStats 获取分类统计
+// @Summary 获取工作笔记的分类统计信息
+// @Description 返回按类型、优先级、标签等维度的统计数据
+// @Tags work-notes
+// @Accept json
+// @Produce json
+// @Success 200 {object} models.CategoryStats
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /api/v1/work-notes/category-stats [get]
+func (h *WorkNoteHandler) GetCategoryStats(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
+		return
+	}
+
+	stats, err := h.workNoteService.GetCategoryStats(c.Request.Context(), userID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get category stats", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    stats,
+	})
 }
 
 // BatchUpdateWorkNotes 批量更新工作笔记
@@ -868,22 +1090,29 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 		}
 	}
 
-	// 同时在数据库中创建文档记录，以便任务详情页能够显示
+	// 使用事务确保数据一致性
 	sqlDB := h.db.GetDB().(*sql.DB)
+	tx, err := sqlDB.Begin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to start transaction", err.Error()))
+		return
+	}
+	defer tx.Rollback() // 如果没有提交，自动回滚
+
 	now := time.Now()
 
-	// 创建数据库记录
+	// 创建数据库记录（在事务中）
 	insertDocQuery := `
 		INSERT INTO documents (
 			project_id, title, content, type, status, description,
-			owner_id, visibility, version, is_template, 
+			owner_id, visibility, version, is_template,
 			created_at, updated_at, created_by
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id
 	`
 
 	var newDocID int
-	err = sqlDB.QueryRow(
+	err = tx.QueryRow(
 		insertDocQuery,
 		projectID, docReq.Title, content, "markdown", "published", "从工作笔记转换而来",
 		userID.(int), "team", 1, false,
@@ -895,20 +1124,18 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 		return
 	}
 
-	// 创建任务文档关联记录
+	// 创建任务文档关联记录（在事务中）
 	insertTaskDocQuery := `
 		INSERT INTO task_documents (task_id, document_id, relationship_type, created_by, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
-	_, err = sqlDB.Exec(
+	_, err = tx.Exec(
 		insertTaskDocQuery,
 		req.TargetTaskID, newDocID, "main", userID.(int), now, now,
 	)
 
 	if err != nil {
-		// 如果关联失败，删除刚创建的文档记录
-		sqlDB.Exec("DELETE FROM documents WHERE id = $1", newDocID)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to associate document with task", err.Error()))
 		return
 	}
@@ -965,6 +1192,12 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 	if !req.ConversionOptions.PreserveOriginal {
 		// TODO: 实现删除或归档逻辑
 		// 目前暂时跳过
+	}
+
+	// 提交事务
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to commit transaction", err.Error()))
+		return
 	}
 
 	// 7. 返回转换结果
@@ -1124,11 +1357,11 @@ func (h *WorkNoteHandler) AttachWorkNoteToTask(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success":     true,
-		"relation":    relation,
+		"success":      true,
+		"relation":     relation,
 		"work_note_id": workNoteID,
-		"task_id":     req.TaskID,
-		"message":     fmt.Sprintf("工作笔记 %d 已成功关联到任务 %d", workNoteID, req.TaskID),
+		"task_id":      req.TaskID,
+		"message":      fmt.Sprintf("工作笔记 %d 已成功关联到任务 %d", workNoteID, req.TaskID),
 	})
 }
 
@@ -1182,10 +1415,10 @@ func (h *WorkNoteHandler) DetachWorkNoteFromTask(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success":     true,
+		"success":      true,
 		"work_note_id": workNoteID,
-		"task_id":     taskID,
-		"message":     fmt.Sprintf("工作笔记 %d 与任务 %d 的关联已移除", workNoteID, taskID),
+		"task_id":      taskID,
+		"message":      fmt.Sprintf("工作笔记 %d 与任务 %d 的关联已移除", workNoteID, taskID),
 	})
 }
 
@@ -1219,11 +1452,11 @@ func (h *WorkNoteHandler) GetWorkNoteTaskRelations(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success":     true,
+		"success":      true,
 		"work_note_id": workNoteID,
-		"relations":   relations,
-		"total":       len(relations),
-		"message":     fmt.Sprintf("工作笔记 %d 关联了 %d 个任务", workNoteID, len(relations)),
+		"relations":    relations,
+		"total":        len(relations),
+		"message":      fmt.Sprintf("工作笔记 %d 关联了 %d 个任务", workNoteID, len(relations)),
 	})
 }
 

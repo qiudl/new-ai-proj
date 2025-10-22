@@ -27,6 +27,12 @@ func RegisterWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 
 		// 工作笔记统计
 		workNotes.GET("/stats", workNotesHandler.GetWorkNoteStats)
+		workNotes.GET("/category-stats", workNotesHandler.GetCategoryStats)
+
+		// 工作笔记操作
+		workNotes.POST("/:id/copy", workNotesHandler.CopyWorkNote)
+		workNotes.POST("/:id/toggle-template", workNotesHandler.ToggleTemplate)
+		workNotes.POST("/:id/move-to-folder", workNotesHandler.MoveNoteToFolder)
 
 		// 工作笔记转换功能
 		workNotes.POST("/:id/convert-preview", workNotesHandler.GetConversionPreview)

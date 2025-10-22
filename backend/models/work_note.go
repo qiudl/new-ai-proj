@@ -220,6 +220,7 @@ type UpdateWorkNoteRequest struct {
 	Visibility       *Visibility            `json:"visibility,omitempty"`
 	IsPinned         *bool                  `json:"is_pinned,omitempty"`
 	IsBookmarked     *bool                  `json:"is_bookmarked,omitempty"`
+	IsTemplate       *bool                  `json:"is_template,omitempty"`
 	RelatedTasks     []int                  `json:"related_tasks,omitempty"`
 	RelatedNotes     []int                  `json:"related_notes,omitempty"`
 	CustomFields     map[string]interface{} `json:"custom_fields,omitempty"`
@@ -308,10 +309,10 @@ type WorkNoteFolderFilter struct {
 
 // WorkNoteListResponse 工作笔记列表响应
 type WorkNoteListResponse struct {
-	Notes []WorkNote `json:"notes"`
-	Total int        `json:"total"`
-	Page  int        `json:"page"`
-	Limit int        `json:"limit"`
+	Documents []WorkNote `json:"documents"` // 改为documents以匹配前端期望
+	Total     int        `json:"total"`
+	Page      int        `json:"page"`
+	PageSize  int        `json:"page_size"` // 改为page_size以匹配前端期望
 }
 
 // WorkNoteSearchResult 工作笔记搜索结果
@@ -548,4 +549,34 @@ func (wn *WorkNote) CalculateReadTime() {
 
 	wn.ReadTime = &readTime
 	wn.WordCount = &wordCount
+}
+
+// CategoryStats 分类统计数据
+type CategoryStats struct {
+	Categories   map[string]CategoryInfo `json:"categories"`
+	Tags         map[string]int          `json:"tags"`
+	Associations CategoryAssociations    `json:"associations"`
+	TimeRanges   TimeRangeStats          `json:"timeRanges"`
+}
+
+// CategoryInfo 分类信息
+type CategoryInfo struct {
+	Count int    `json:"count"`
+	Icon  string `json:"icon"`
+	Color string `json:"color"`
+}
+
+// CategoryAssociations 关联统计
+type CategoryAssociations struct {
+	Associated   int `json:"associated"`   // 已关联的笔记数
+	Unassociated int `json:"unassociated"` // 未关联的笔记数
+	Convertible  int `json:"convertible"`  // 可转换的笔记数
+}
+
+// TimeRangeStats 时间范围统计
+type TimeRangeStats struct {
+	Today     int `json:"today"`
+	ThisWeek  int `json:"thisWeek"`
+	ThisMonth int `json:"thisMonth"`
+	Earlier   int `json:"earlier"`
 }

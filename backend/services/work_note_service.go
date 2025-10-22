@@ -24,6 +24,15 @@ func NewWorkNoteService(db *sql.DB, _ *DocumentService) *WorkNoteService {
 	return &WorkNoteService{db: db}
 }
 
+// 分页和查询限制常量
+const (
+	MaxPageSize        = 100 // 每页最大记录数
+	DefaultPageSize    = 20  // 默认每页记录数
+	MaxSearchResults   = 50  // 搜索结果最大数量
+	MaxRecentNotes     = 50  // 最近笔记最大数量
+	DefaultRecentNotes = 10  // 默认最近笔记数量
+)
+
 // =====================
 // 基础 CRUD
 // =====================
@@ -134,12 +143,12 @@ func (s *WorkNoteService) GetWorkNote(ctx context.Context, noteID, userID int) (
 	if err != nil {
 		return nil, err
 	}
-	// 权限：简单限制为 owner
-	if doc.OwnerID != userID {
-		return nil, fmt.Errorf("not found")
-	}
 	if !models.IsWorkNote(*doc) {
 		return nil, fmt.Errorf("not found")
+	}
+	// 权限检查：基于可见性的访问控制
+	if err := s.checkReadPermission(ctx, doc, userID); err != nil {
+		return nil, fmt.Errorf("not found") // 不暴露具体原因
 	}
 	wn := &models.WorkNote{}
 	if err := wn.FromDocument(*doc); err != nil {
@@ -155,11 +164,12 @@ func (s *WorkNoteService) UpdateWorkNote(ctx context.Context, noteID int, req mo
 	if err != nil {
 		return nil, err
 	}
-	if existing.OwnerID != userID {
-		return nil, fmt.Errorf("not found")
-	}
 	if !models.IsWorkNote(*existing) {
 		return nil, fmt.Errorf("not found")
+	}
+	// 权限检查：只有owner可以修改
+	if err := s.checkWritePermission(ctx, existing, userID); err != nil {
+		return nil, fmt.Errorf("not found") // 不暴露具体原因
 	}
 
 	// 构建更新请求
@@ -201,6 +211,9 @@ func (s *WorkNoteService) UpdateWorkNote(ctx context.Context, noteID int, req mo
 	if req.IsBookmarked != nil {
 		meta["is_bookmarked"] = *req.IsBookmarked
 	}
+	if req.IsTemplate != nil {
+		u.IsTemplate = req.IsTemplate
+	}
 	if req.RelatedTasks != nil {
 		meta["related_tasks"] = req.RelatedTasks
 	}
@@ -237,11 +250,156 @@ func (s *WorkNoteService) DeleteWorkNote(ctx context.Context, noteID, userID int
 	if err != nil {
 		return err
 	}
-	if doc.OwnerID != userID {
-		return fmt.Errorf("not found")
+	// 权限检查：只有owner可以删除
+	if err := s.checkWritePermission(ctx, doc, userID); err != nil {
+		return fmt.Errorf("not found") // 不暴露具体原因
 	}
 	_, err = s.db.ExecContext(ctx, `UPDATE documents SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL`, noteID)
 	return err
+}
+
+// =====================
+// 权限验证
+// =====================
+
+// checkReadPermission 检查用户是否有权限读取工作笔记
+func (s *WorkNoteService) checkReadPermission(ctx context.Context, doc *models.Document, userID int) error {
+	// Owner 总是有权限
+	if doc.OwnerID == userID {
+		return nil
+	}
+
+	// 根据可见性检查
+	switch doc.Visibility {
+	case models.VisibilityPrivate:
+		return fmt.Errorf("access denied: private note")
+
+	case models.VisibilityTeam:
+		// 检查是否在同一团队（公司）
+		inSameTeam, err := s.isInSameTeam(ctx, doc.OwnerID, userID)
+		if err != nil {
+			return fmt.Errorf("failed to check team membership: %w", err)
+		}
+		if !inSameTeam {
+			return fmt.Errorf("access denied: team note")
+		}
+		return nil
+
+	case models.VisibilityPublic:
+		// 公开笔记所有人都可以访问
+		return nil
+
+	default:
+		// 未知可见性级别，默认拒绝
+		return fmt.Errorf("access denied: unknown visibility level")
+	}
+}
+
+// checkWritePermission 检查用户是否有权限修改/删除工作笔记
+func (s *WorkNoteService) checkWritePermission(ctx context.Context, doc *models.Document, userID int) error {
+	// 只有owner可以修改/删除
+	if doc.OwnerID != userID {
+		return fmt.Errorf("access denied: only owner can modify")
+	}
+	return nil
+}
+
+// isInSameTeam 检查两个用户是否在同一团队（公司）
+func (s *WorkNoteService) isInSameTeam(ctx context.Context, userID1, userID2 int) (bool, error) {
+	query := `
+		SELECT
+			u1.company_id IS NOT NULL
+			AND u2.company_id IS NOT NULL
+			AND u1.company_id = u2.company_id AS same_team
+		FROM users u1
+		CROSS JOIN users u2
+		WHERE u1.id = $1 AND u2.id = $2
+	`
+
+	var sameTeam bool
+	err := s.db.QueryRowContext(ctx, query, userID1, userID2).Scan(&sameTeam)
+	if err != nil {
+		return false, err
+	}
+
+	return sameTeam, nil
+}
+
+// =====================
+// 通用查询方法
+// =====================
+
+// queryWorkNotes 通用的工作笔记查询方法，减少代码重复
+func (s *WorkNoteService) queryWorkNotes(
+	ctx context.Context,
+	userID int,
+	additionalWhere string,
+	orderBy string,
+	limit int,
+	args ...interface{},
+) ([]models.WorkNote, error) {
+	// 构建查询
+	query := `
+		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
+		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
+		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
+		       d.created_by, d.created_at, d.updated_at, d.deleted_at,
+		       d.archived, d.archived_at, d.archived_by, d.unarchived_at, d.unarchived_by
+		FROM documents d
+		WHERE d.deleted_at IS NULL AND d.owner_id = $1 AND d.metadata->>'work_note_type' IS NOT NULL`
+
+	// 添加额外的WHERE条件
+	if additionalWhere != "" {
+		query += " AND " + additionalWhere
+	}
+
+	// 添加排序
+	if orderBy != "" {
+		query += " ORDER BY " + orderBy
+	} else {
+		query += " ORDER BY d.updated_at DESC" // 默认排序
+	}
+
+	// 添加限制
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", len(args)+2)
+		args = append([]interface{}{userID}, append(args, limit)...)
+	} else {
+		args = append([]interface{}{userID}, args...)
+	}
+
+	// 执行查询
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// 扫描结果
+	var out []models.WorkNote
+	for rows.Next() {
+		var doc models.Document
+		var tags pq.StringArray
+		if err := rows.Scan(
+			&doc.ID, &doc.ProjectID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
+			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tags,
+			&doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
+			&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt, &doc.DeletedAt,
+			&doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy, &doc.UnarchivedAt, &doc.UnarchivedBy,
+		); err != nil {
+			continue
+		}
+		doc.Tags = []string(tags)
+		if !models.IsWorkNote(doc) {
+			continue
+		}
+		var wn models.WorkNote
+		if err := wn.FromDocument(doc); err != nil {
+			continue
+		}
+		out = append(out, wn)
+	}
+	return out, nil
 }
 
 // =====================
@@ -250,7 +408,26 @@ func (s *WorkNoteService) DeleteWorkNote(ctx context.Context, noteID, userID int
 
 func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkNoteFilter, userID int) (*models.WorkNoteListResponse, error) {
 	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: userID=%d, filter=%+v", userID, filter)
-	
+
+	// 验证和修正分页参数
+	page := filter.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = DefaultPageSize
+	}
+	if limit > MaxPageSize {
+		log.Printf("[WARN] ListWorkNotes: limit %d exceeds MaxPageSize %d, capping to max", limit, MaxPageSize)
+		limit = MaxPageSize
+	}
+
+	// 更新filter中的值（用于后续计算）
+	filter.Page = page
+	filter.Limit = limit
+
 	where := []string{"d.deleted_at IS NULL", "d.owner_id = $1", "(d.metadata->>'work_note_type') IS NOT NULL"}
 	args := []interface{}{userID}
 	arg := 2
@@ -306,7 +483,7 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 	// 计数
 	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM documents d WHERE %s", whereClause)
 	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: countSQL=%s, args=%+v", countSQL, args)
-	
+
 	var total int
 	if err := s.db.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
 		log.Printf("[ERROR] WorkNoteService.ListWorkNotes: count query failed: %v", err)
@@ -350,7 +527,7 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 	args = append(args, limit, offset)
 	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: selectSQL=%s", selectSQL)
 	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: final args=%+v, limit=%d, offset=%d", args, limit, offset)
-	
+
 	rows, err := s.db.QueryContext(ctx, selectSQL, args...)
 	if err != nil {
 		log.Printf("[ERROR] WorkNoteService.ListWorkNotes: select query failed: %v", err)
@@ -363,7 +540,7 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 	for rows.Next() {
 		rowCount++
 		log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: scanning row %d", rowCount)
-		
+
 		var doc models.Document
 		var tags pq.StringArray
 		var ownerName sql.NullString
@@ -378,20 +555,20 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 			log.Printf("[ERROR] WorkNoteService.ListWorkNotes: failed to scan row %d: %v", rowCount, err)
 			return nil, fmt.Errorf("failed to scan work note: %w", err)
 		}
-		
+
 		doc.Tags = []string(tags)
 		if ownerName.Valid {
 			doc.OwnerName = &ownerName.String
 		}
 		log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: scanned document ID=%d, title=%s, metadata=%+v", doc.ID, doc.Title, doc.Metadata)
-		
+
 		isWorkNote := models.IsWorkNote(doc)
 		log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: IsWorkNote(doc ID=%d) = %v", doc.ID, isWorkNote)
 		if !isWorkNote {
 			log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: skipping doc ID=%d (not a work note)", doc.ID)
 			continue
 		}
-		
+
 		var wn models.WorkNote
 		if err := wn.FromDocument(doc); err != nil {
 			log.Printf("[ERROR] WorkNoteService.ListWorkNotes: FromDocument failed for doc ID=%d: %v", doc.ID, err)
@@ -400,20 +577,25 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 		log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: successfully converted doc ID=%d to WorkNote", doc.ID)
 		notes = append(notes, wn)
 	}
-	
+
 	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: processed %d rows, returning %d work notes (total=%d)", rowCount, len(notes), total)
 
 	return &models.WorkNoteListResponse{
-		Notes: notes,
-		Total: total,
-		Page:  page,
-		Limit: limit,
+		Documents: notes, // 使用Documents而不是Notes
+		Total:     total,
+		Page:      page,
+		PageSize:  limit, // 使用PageSize而不是Limit
 	}, nil
 }
 
 func (s *WorkNoteService) SearchWorkNotes(ctx context.Context, query string, tags []string, userID int, limit int) ([]models.WorkNoteSearchResult, error) {
-	if limit <= 0 || limit > 50 {
-		limit = 10
+	// 验证和修正搜索限制参数
+	if limit <= 0 {
+		limit = DefaultPageSize
+	}
+	if limit > MaxSearchResults {
+		log.Printf("[WARN] SearchWorkNotes: limit %d exceeds MaxSearchResults %d, capping to max", limit, MaxSearchResults)
+		limit = MaxSearchResults
 	}
 	where := []string{
 		"d.deleted_at IS NULL",
@@ -554,130 +736,124 @@ func (s *WorkNoteService) GetWorkNoteStats(ctx context.Context, userID int) (*mo
 	return stats, nil
 }
 
+// GetCategoryStats 获取分类统计数据
+func (s *WorkNoteService) GetCategoryStats(ctx context.Context, userID int) (*models.CategoryStats, error) {
+	stats := &models.CategoryStats{
+		Categories:   make(map[string]models.CategoryInfo),
+		Tags:         make(map[string]int),
+		Associations: models.CategoryAssociations{},
+		TimeRanges:   models.TimeRangeStats{},
+	}
+
+	// 按工作笔记类型统计
+	typeRows, err := s.db.QueryContext(ctx, `
+		SELECT metadata->>'work_note_type' AS t, COUNT(*)
+		FROM documents
+		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL
+		GROUP BY t`, userID)
+
+	if err == nil {
+		defer typeRows.Close()
+		typeIcons := map[string]string{
+			"general":   "📝",
+			"meeting":   "🤝",
+			"idea":      "💡",
+			"log":       "📋",
+			"reference": "📚",
+			"template":  "📄",
+		}
+		typeColors := map[string]string{
+			"general":   "#1890ff",
+			"meeting":   "#52c41a",
+			"idea":      "#fa8c16",
+			"log":       "#722ed1",
+			"reference": "#13c2c2",
+			"template":  "#eb2f96",
+		}
+
+		for typeRows.Next() {
+			var t sql.NullString
+			var c int
+			if err := typeRows.Scan(&t, &c); err == nil && t.Valid {
+				stats.Categories[t.String] = models.CategoryInfo{
+					Count: c,
+					Icon:  typeIcons[t.String],
+					Color: typeColors[t.String],
+				}
+			}
+		}
+	}
+
+	// 统计标签
+	tagRows, err := s.db.QueryContext(ctx, `
+		SELECT unnest(tags) AS tag, COUNT(*)
+		FROM documents
+		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL
+		GROUP BY tag
+		ORDER BY COUNT(*) DESC
+		LIMIT 20`, userID)
+
+	if err == nil {
+		defer tagRows.Close()
+		for tagRows.Next() {
+			var tag string
+			var count int
+			if err := tagRows.Scan(&tag, &count); err == nil {
+				stats.Tags[tag] = count
+			}
+		}
+	}
+
+	// 统计关联情况
+	var associated, unassociated int
+	s.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(CASE WHEN jsonb_array_length(COALESCE(metadata->'related_tasks', '[]'::jsonb)) > 0 THEN 1 END) AS associated,
+			COUNT(CASE WHEN jsonb_array_length(COALESCE(metadata->'related_tasks', '[]'::jsonb)) = 0 THEN 1 END) AS unassociated
+		FROM documents
+		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL`, userID).Scan(&associated, &unassociated)
+
+	stats.Associations.Associated = associated
+	stats.Associations.Unassociated = unassociated
+	stats.Associations.Convertible = unassociated // 未关联的都可以转换
+
+	// 时间范围统计
+	now := time.Now()
+	today := now.Truncate(24 * time.Hour)
+	weekAgo := today.AddDate(0, 0, -7)
+	monthAgo := today.AddDate(0, -1, 0)
+
+	s.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(CASE WHEN created_at >= $2 THEN 1 END) AS today,
+			COUNT(CASE WHEN created_at >= $3 AND created_at < $2 THEN 1 END) AS this_week,
+			COUNT(CASE WHEN created_at >= $4 AND created_at < $3 THEN 1 END) AS this_month,
+			COUNT(CASE WHEN created_at < $4 THEN 1 END) AS earlier
+		FROM documents
+		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL`,
+		userID, today, weekAgo, monthAgo).Scan(&stats.TimeRanges.Today, &stats.TimeRanges.ThisWeek, &stats.TimeRanges.ThisMonth, &stats.TimeRanges.Earlier)
+
+	return stats, nil
+}
+
 func (s *WorkNoteService) GetRecentNotes(ctx context.Context, userID, limit int) ([]models.WorkNote, error) {
+	// 验证和修正限制参数
 	if limit <= 0 {
-		limit = 10
+		limit = DefaultRecentNotes
 	}
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
-		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
-		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
-		       d.created_by, d.created_at, d.updated_at, d.deleted_at,
-		       d.archived, d.archived_at, d.archived_by, d.unarchived_at, d.unarchived_by
-		FROM documents d
-		WHERE d.deleted_at IS NULL AND d.owner_id = $1 AND d.metadata->>'work_note_type' IS NOT NULL
-		ORDER BY d.updated_at DESC
-		LIMIT $2`, userID, limit)
-	if err != nil {
-		return nil, err
+	if limit > MaxRecentNotes {
+		log.Printf("[WARN] GetRecentNotes: limit %d exceeds MaxRecentNotes %d, capping to max", limit, MaxRecentNotes)
+		limit = MaxRecentNotes
 	}
-	defer rows.Close()
-	var out []models.WorkNote
-	for rows.Next() {
-		var doc models.Document
-		var tags pq.StringArray
-		if err := rows.Scan(
-			&doc.ID, &doc.ProjectID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
-			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tags,
-			&doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
-			&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt, &doc.DeletedAt,
-			&doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy, &doc.UnarchivedAt, &doc.UnarchivedBy,
-		); err != nil {
-			continue
-		}
-		doc.Tags = []string(tags)
-		if !models.IsWorkNote(doc) {
-			continue
-		}
-		var wn models.WorkNote
-		if err := wn.FromDocument(doc); err != nil {
-			continue
-		}
-		out = append(out, wn)
-	}
-	return out, nil
+	return s.queryWorkNotes(ctx, userID, "", "d.updated_at DESC", limit)
 }
 
 func (s *WorkNoteService) GetPinnedNotes(ctx context.Context, userID int) ([]models.WorkNote, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
-		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
-		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
-		       d.created_by, d.created_at, d.updated_at, d.deleted_at,
-		       d.archived, d.archived_at, d.archived_by, d.unarchived_at, d.unarchived_by
-		FROM documents d
-		WHERE d.deleted_at IS NULL AND d.owner_id = $1 AND d.metadata->>'work_note_type' IS NOT NULL
-		  AND (d.metadata->>'is_pinned')::boolean = true
-		ORDER BY d.updated_at DESC`, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []models.WorkNote
-	for rows.Next() {
-		var doc models.Document
-		var tags pq.StringArray
-		if err := rows.Scan(
-			&doc.ID, &doc.ProjectID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
-			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tags,
-			&doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
-			&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt, &doc.DeletedAt,
-			&doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy, &doc.UnarchivedAt, &doc.UnarchivedBy,
-		); err != nil {
-			continue
-		}
-		doc.Tags = []string(tags)
-		if !models.IsWorkNote(doc) {
-			continue
-		}
-		var wn models.WorkNote
-		if err := wn.FromDocument(doc); err != nil {
-			continue
-		}
-		out = append(out, wn)
-	}
-	return out, nil
+	return s.queryWorkNotes(ctx, userID, "(d.metadata->>'is_pinned')::boolean = true", "d.updated_at DESC", 0)
 }
 
 func (s *WorkNoteService) GetBookmarkedNotes(ctx context.Context, userID int) ([]models.WorkNote, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
-		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
-		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
-		       d.created_by, d.created_at, d.updated_at, d.deleted_at,
-		       d.archived, d.archived_at, d.archived_by, d.unarchived_at, d.unarchived_by
-		FROM documents d
-		WHERE d.deleted_at IS NULL AND d.owner_id = $1 AND d.metadata->>'work_note_type' IS NOT NULL
-		  AND (d.metadata->>'is_bookmarked')::boolean = true
-		ORDER BY d.updated_at DESC`, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []models.WorkNote
-	for rows.Next() {
-		var doc models.Document
-		var tags pq.StringArray
-		if err := rows.Scan(
-			&doc.ID, &doc.ProjectID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
-			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tags,
-			&doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
-			&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt, &doc.DeletedAt,
-			&doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy, &doc.UnarchivedAt, &doc.UnarchivedBy,
-		); err != nil {
-			continue
-		}
-		doc.Tags = []string(tags)
-		if !models.IsWorkNote(doc) {
-			continue
-		}
-		var wn models.WorkNote
-		if err := wn.FromDocument(doc); err != nil {
-			continue
-		}
-		out = append(out, wn)
-	}
-	return out, nil
+	return s.queryWorkNotes(ctx, userID, "(d.metadata->>'is_bookmarked')::boolean = true", "d.updated_at DESC", 0)
 }
 
 func (s *WorkNoteService) GetRelatedNotes(ctx context.Context, noteID, userID int) ([]models.WorkNote, error) {
