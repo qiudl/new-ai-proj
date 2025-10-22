@@ -328,16 +328,34 @@ export class UnifiedUserContextManager {
    * 刷新用户权限列表
    */
   async refreshUserPermissions(): Promise<string[]> {
-    if (!this.currentContext?.token) {
+    // 如果权限系统已禁用，直接返回
+    const permissionsEnabled = process.env.MCP_ENABLE_PERMISSIONS !== 'false';
+    if (!permissionsEnabled) {
+      if (this.enableDebugLog) {
+        console.log('[UNIFIED_CTX] 权限系统已禁用，跳过权限刷新');
+      }
       return [];
     }
-    
+
+    // 准备认证headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // 优先使用X-API-Key认证
+    const apiKey = process.env.API_KEY || process.env.MCP_API_KEY;
+    if (apiKey) {
+      headers['X-API-Key'] = apiKey;
+    } else if (this.currentContext?.token) {
+      headers['Authorization'] = `Bearer ${this.currentContext.token}`;
+    } else {
+      // 没有认证凭据，跳过权限刷新
+      return [];
+    }
+
     try {
       const response = await fetch(`${this.apiBase}/auth/user-permissions`, {
-        headers: {
-          'Authorization': `Bearer ${this.currentContext.token}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
       
       if (!response.ok) {
