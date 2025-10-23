@@ -261,19 +261,23 @@ const ProjectEditPageNew: React.FC = () => {
       // 设置选中的企业（优先使用新架构）
       if (projectData.enterprise_id) {
         setSelectedEnterprise(projectData.enterprise_id);
+        form.setFieldsValue({ enterprise_id: projectData.enterprise_id });
       } else if (projectData.companies) {
         // 兼容旧的多客户架构
         const companyIds = projectData.companies.map(pc => pc.company_id);
         setSelectedCompanies(companyIds);
+        form.setFieldsValue({ company_ids: companyIds });
       } else if (projectData.company_id) {
         // 兼容旧的单客户架构
         setSelectedCompanies([projectData.company_id]);
+        form.setFieldsValue({ company_ids: [projectData.company_id] });
       }
 
       // 设置选中的用户（如果项目详情包含用户信息）
       if ((projectData as any).users) {
         const userKeys = (projectData as any).users.map((pu: any) => `${pu.user_id}_${pu.project_id}`);
         setSelectedUsers(userKeys);
+        form.setFieldsValue({ user_keys: userKeys });
       }
     } catch (error) {
       console.error('获取项目详情失败:', error);
@@ -707,7 +711,10 @@ const ProjectEditPageNew: React.FC = () => {
       form.setFieldsValue({
         status: 'planning',
         priority: 'medium',
-        progress: 0
+        progress: 0,
+        enterprise_id: undefined,
+        company_ids: undefined,
+        user_keys: undefined
       });
 
       // 检查URL参数中的enterpriseId，优先使用新架构
@@ -716,6 +723,7 @@ const ProjectEditPageNew: React.FC = () => {
         const enterpriseId = parseInt(enterpriseIdParam);
         if (!isNaN(enterpriseId)) {
           setSelectedEnterprise(enterpriseId);
+          form.setFieldsValue({ enterprise_id: enterpriseId });
         }
       } else {
         // 兼容旧的companyId参数
@@ -724,6 +732,7 @@ const ProjectEditPageNew: React.FC = () => {
           const companyId = parseInt(companyIdParam);
           if (!isNaN(companyId)) {
             setSelectedCompanies([companyId]);
+            form.setFieldsValue({ company_ids: [companyId] });
           }
         }
       }
@@ -822,6 +831,17 @@ const ProjectEditPageNew: React.FC = () => {
         onFinish={handleSubmit}
         size="large"
       >
+        {/* 隐藏字段：用于同步状态管理的客户和用户选择 */}
+        <Form.Item name="enterprise_id" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="company_ids" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="user_keys" hidden>
+          <Input />
+        </Form.Item>
+
         <Row gutter={24}>
           {/* 左侧：基本信息和配置 */}
           <Col xs={24} lg={12}>
@@ -1006,12 +1026,17 @@ const ProjectEditPageNew: React.FC = () => {
                   </Col>
                 </Row>
                 <Select
-                  placeholder={currentEnterprise 
+                  placeholder={currentEnterprise
                     ? `已自动关联：${currentEnterprise.name}`
                     : "请选择企业，支持搜索企业名称"
                   }
                   value={selectedEnterprise}
-                  onChange={setSelectedEnterprise}
+                  onChange={(value) => {
+                    setSelectedEnterprise(value);
+                    form.setFieldsValue({ enterprise_id: value, company_ids: undefined });
+                    // 清空公司选择
+                    setSelectedCompanies([]);
+                  }}
                   loading={loadingStates.enterprise}
                   disabled={!!currentEnterprise} // 在企业模式下禁用选择器
                   showSearch
@@ -1116,7 +1141,10 @@ const ProjectEditPageNew: React.FC = () => {
                     mode="multiple"
                     placeholder={selectedEnterprise ? "已选择企业，客户选择已禁用" : "请选择关联的客户，支持搜索客户名称"}
                     value={selectedCompanies}
-                    onChange={setSelectedCompanies}
+                    onChange={(value) => {
+                      setSelectedCompanies(value);
+                      form.setFieldsValue({ company_ids: value });
+                    }}
                     loading={loadingStates.company}
                     disabled={!!selectedEnterprise}
                     showSearch
@@ -1286,7 +1314,9 @@ const ProjectEditPageNew: React.FC = () => {
                           targetKeys={Array.isArray(selectedUsers) ? selectedUsers : []}
                           onChange={(targetKeys) => {
                             if (Array.isArray(targetKeys)) {
-                              setSelectedUsers(targetKeys.filter(key => typeof key === 'string'));
+                              const filteredKeys = targetKeys.filter(key => typeof key === 'string');
+                              setSelectedUsers(filteredKeys);
+                              form.setFieldsValue({ user_keys: filteredKeys });
                             }
                           }}
                           render={item => item?.label || '未知项目'}
