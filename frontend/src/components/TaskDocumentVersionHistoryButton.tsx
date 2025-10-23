@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Badge, Tooltip } from 'antd';
 import { HistoryOutlined } from '@ant-design/icons';
-import { VersionHistoryModal } from './VersionHistory';
+import { VersionHistoryModal } from './VersionHistory/';
 import { DocumentItem } from './UnifiedTaskDocumentArea';
 import { realVersionHistoryService } from '../services/realVersionHistoryService';
 
