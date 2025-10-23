@@ -98,7 +98,32 @@ func (h *DocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 }
 
 func (h *DocumentHandler) GetTaskDocumentsWithoutProject(c *gin.Context) {
-	c.JSON(501, gin.H{"error": "Not implemented - use UnifiedDocumentHandler"})
+	// 短路由: /tasks/:id/documents
+	taskIDStr := c.Param("id")
+
+	// 解析taskID
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		c.JSON(400, gin.H{"success": false, "message": "Invalid task ID"})
+		return
+	}
+
+	// 获取document repository
+	docRepo := h.db.Documents()
+
+	// 获取任务文档
+	docs, err := docRepo.GetTaskDocuments(c.Request.Context(), taskID)
+	if err != nil {
+		c.JSON(500, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+
+	// 返回文档列表
+	c.JSON(200, gin.H{
+		"success": true,
+		"documents": docs,
+		"total": len(docs),
+	})
 }
 
 func (h *DocumentHandler) CreateTaskDocumentWithoutProject(c *gin.Context) {
