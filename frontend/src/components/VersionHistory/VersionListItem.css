@@ -1,0 +1,120 @@
+/**
+ * VersionListItem 样式
+ */
+
+.version-list-item {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.version-list-item:hover {
+  background-color: #f5f5f5;
+}
+
+.version-list-item.selected {
+  background-color: #e6f7ff;
+  border-left: 3px solid #1890ff;
+}
+
+.version-list-item.selected:hover {
+  background-color: #d6efff;
+}
+
+.version-item-content {
+  padding: 12px 16px;
+  width: 100%;
+  position: relative;
+}
+
+/* 选中标识 */
+.selected-indicator {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  color: #1890ff;
+  font-size: 16px;
+}
+
+/* 版本号 */
+.version-number {
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #262626;
+}
+
+.version-number strong {
+  font-weight: 600;
+}
+
+/* 变更统计标签 */
+.version-stats {
+  margin: 4px 0;
+  font-size: 11px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* 版本描述 */
+.version-description {
+  font-size: 12px;
+  color: #595959;
+  margin: 4px 0;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* 元信息 */
+.version-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta-item .anticon {
+  font-size: 12px;
+}
+
+.meta-text {
+  font-size: 12px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .version-item-content {
+    padding: 10px 12px;
+  }
+
+  .version-number {
+    font-size: 13px;
+  }
+
+  .version-description {
+    font-size: 11px;
+  }
+
+  .version-meta {
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .selected-indicator {
+    top: 10px;
+    right: 12px;
+    font-size: 14px;
+  }
+}
