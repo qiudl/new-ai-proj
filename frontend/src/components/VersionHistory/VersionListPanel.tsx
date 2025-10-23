@@ -3,7 +3,7 @@
  * 显示文档版本历史列表，包含变更统计
  */
 
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { List, Progress } from 'antd';
 import { VersionInfo } from '../../services/versionHistoryService';
 import { DiffCalculator, DiffStats } from '../../utils/DiffCalculator';
@@ -48,8 +48,25 @@ const VersionListPanel: React.FC<VersionListPanelProps> = ({
   const [calculatingProgress, setCalculatingProgress] = useState(0);
   const [isCalculating, setIsCalculating] = useState(false);
 
+  // 用于跟踪requestIdleCallback的handle，以便在cleanup时取消
+  const idleCallbackHandle = useRef<number | null>(null);
+  // 用于跟踪组件是否已挂载，防止卸载后setState
+  const isMounted = useRef(true);
+
   // 懒加载统计信息
   const shouldLazyLoad = versions.length > LAZY_LOAD_THRESHOLD;
+
+  // 组件卸载时清理
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      if (idleCallbackHandle.current !== null) {
+        cancelIdleCallback(idleCallbackHandle.current);
+        idleCallbackHandle.current = null;
+      }
+    };
+  }, []);
 
   // 批量计算diff统计（后台计算，使用requestIdleCallback）
   useEffect(() => {
@@ -62,7 +79,9 @@ const VersionListPanel: React.FC<VersionListPanelProps> = ({
     const newCache = new Map(statsCache);
     let calculated = 0;
 
-    setIsCalculating(true);
+    if (isMounted.current) {
+      setIsCalculating(true);
+    }
 
     // 使用 requestIdleCallback 在空闲时计算，不阻塞UI
     const calculateBatch = (deadline: IdleDeadline) => {
@@ -96,19 +115,35 @@ const VersionListPanel: React.FC<VersionListPanelProps> = ({
         }
 
         calculated++;
-        setCalculatingProgress(Math.round((calculated / versions.length) * 100));
+        if (isMounted.current) {
+          setCalculatingProgress(Math.round((calculated / versions.length) * 100));
+        }
       }
 
       if (calculated < versions.length) {
-        requestIdleCallback(calculateBatch);
+        // 继续计算，保存handle以便后续取消
+        idleCallbackHandle.current = requestIdleCallback(calculateBatch);
       } else {
-        setStatsCache(newCache);
-        setIsCalculating(false);
-        setCalculatingProgress(100);
+        // 计算完成，更新状态（仅在组件仍挂载时）
+        if (isMounted.current) {
+          setStatsCache(newCache);
+          setIsCalculating(false);
+          setCalculatingProgress(100);
+        }
+        idleCallbackHandle.current = null;
       }
     };
 
-    requestIdleCallback(calculateBatch);
+    // 启动计算
+    idleCallbackHandle.current = requestIdleCallback(calculateBatch);
+
+    // Cleanup: 取消所有pending的requestIdleCallback
+    return () => {
+      if (idleCallbackHandle.current !== null) {
+        cancelIdleCallback(idleCallbackHandle.current);
+        idleCallbackHandle.current = null;
+      }
+    };
   }, [versions, shouldLazyLoad, statsCache]);
 
   // 计算每个版本的变更统计（优化版：小列表直接计算，大列表使用缓存）
