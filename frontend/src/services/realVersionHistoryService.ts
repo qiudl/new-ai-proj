@@ -62,7 +62,7 @@ class RealVersionHistoryService {
 
     try {
       const response = await api.get(
-        `/tasks/${taskId}/documents/${documentId}/versions`,
+        `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions`,
         {
           params: {
             limit,
@@ -164,7 +164,7 @@ class RealVersionHistoryService {
   ): Promise<DiffResult[]> {
     try {
       const response = await api.get(
-        `/tasks/${taskId}/documents/${documentId}/versions/compare`,
+        `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/compare`,
         {
           params: {
             version1: version1Id,
@@ -276,7 +276,7 @@ class RealVersionHistoryService {
 
     try {
       const response = await api.post(
-        `/tasks/${taskId}/documents/${documentId}/versions/restore`,
+        `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/restore`,
         {
           version_id: versionId,
           restore_reason: reason,
@@ -344,7 +344,7 @@ class RealVersionHistoryService {
   ) {
     try {
       const response = await api.get(
-        `/tasks/${taskId}/documents/${documentId}/versions/stats`
+        `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/stats`
       );
 
       if (!response.data?.success) {
@@ -387,7 +387,7 @@ class RealVersionHistoryService {
   ): Promise<DocumentVersionApiResponse> {
     try {
       const response = await api.post(
-        `/tasks/${taskId}/documents/${documentId}/versions`,
+        `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions`,
         {
           content: data.content,
           change_summary: data.changeSummary,
@@ -419,7 +419,7 @@ class RealVersionHistoryService {
   ): Promise<DocumentVersionApiResponse> {
     try {
       const response = await api.get(
-        `/tasks/${taskId}/documents/${documentId}/versions/${versionId}`
+        `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${versionId}`
       );
 
       if (!response.data?.success) {
