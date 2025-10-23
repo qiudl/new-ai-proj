@@ -548,7 +548,9 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
 
         // 处理上传文档服务的响应
         if (uploadedResult.status === 'fulfilled') {
-          const uploadedDocs: DocumentItem[] = uploadedResult.value.documents.map((doc: any) => ({
+          // getTaskDocuments returns array directly
+          const uploadedArray = Array.isArray(uploadedResult.value) ? uploadedResult.value : [];
+          const uploadedDocs: DocumentItem[] = uploadedArray.map((doc: any) => ({
             id: doc.id,
             title: doc.original_name || doc.file_name,
             content: '',
@@ -626,8 +628,9 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
           const descendantDocArrays = await Promise.all(
             descendantIds.map(async (descTaskId) => {
               try {
-                const resp = await documentService.getTaskDocuments(projectId, descTaskId);
-                return resp.documents.map((d: Document) => ({ ...d, selected: false, sourceTaskId: descTaskId }));
+                // getTaskDocuments returns array directly
+                const documents = await documentService.getTaskDocuments(projectId, descTaskId);
+                return (documents || []).map((d: Document) => ({ ...d, selected: false, sourceTaskId: descTaskId }));
               } catch (e) {
                 return [] as DocumentItem[];
               }

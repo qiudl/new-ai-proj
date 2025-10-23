@@ -83,11 +83,11 @@ const DocumentInterface: React.FC<DocumentInterfaceProps> = ({
   const loadDocuments = async () => {
     setLoading(true);
     try {
-      let response;
-      
+      let documents: any[];
+
       if (taskId && projectId) {
-        // Load task-specific documents
-        response = await documentService.getTaskDocuments(projectId, taskId);
+        // Load task-specific documents (returns array directly)
+        documents = await documentService.getTaskDocuments(projectId, taskId);
       } else {
         // Load all documents with filters
         const filter = {
@@ -98,14 +98,16 @@ const DocumentInterface: React.FC<DocumentInterfaceProps> = ({
           project_id: projectId,
           task_id: taskId
         };
-        
-        response = await documentService.searchDocuments(filter);
+
+        const response = await documentService.searchDocuments(filter);
+        documents = response.documents || [];
       }
-      
-      setDocuments(response.documents);
+
+      setDocuments(documents || []);
     } catch (error) {
       console.error('加载文档失败:', error);
       message.error('加载文档失败');
+      setDocuments([]); // Set empty array on error
     } finally {
       setLoading(false);
     }

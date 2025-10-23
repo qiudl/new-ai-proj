@@ -165,16 +165,27 @@ const EnhancedDocumentInterface: React.FC<EnhancedDocumentInterfaceProps> = memo
     
     try {
       const queryFilters = { ...filterState, ...filters };
-      let response;
-      
+      let documents: any[];
+
       if (taskId && projectId) {
-        response = await documentService.getTaskDocuments(projectId, taskId, {
-          search: queryFilters.search || undefined,
-          status: queryFilters.status,
-          type: queryFilters.type
+        // getTaskDocuments returns array directly, doesn't accept filter params
+        const allDocs = await documentService.getTaskDocuments(projectId, taskId);
+
+        // Apply client-side filtering
+        documents = (allDocs || []).filter(doc => {
+          if (queryFilters.search && !doc.title?.toLowerCase().includes(queryFilters.search.toLowerCase())) {
+            return false;
+          }
+          if (queryFilters.status && queryFilters.status.length > 0 && !queryFilters.status.includes(doc.status)) {
+            return false;
+          }
+          if (queryFilters.type && queryFilters.type.length > 0 && !queryFilters.type.includes(doc.type)) {
+            return false;
+          }
+          return true;
         });
       } else {
-        response = await documentService.listDocuments({
+        const response = await documentService.listDocuments({
           search: queryFilters.search || undefined,
           status: queryFilters.status,
           type: queryFilters.type,
@@ -182,20 +193,21 @@ const EnhancedDocumentInterface: React.FC<EnhancedDocumentInterfaceProps> = memo
           project_id: queryFilters.project_id,
           task_id: queryFilters.task_id
         });
+        documents = response.documents || [];
       }
-      
+
       // 计算统计信息
       const statistics = {
-        total: response.documents.length,
-        byStatus: response.documents.reduce((acc, doc) => {
+        total: documents.length,
+        byStatus: documents.reduce((acc, doc) => {
           acc[doc.status] = (acc[doc.status] || 0) + 1;
           return acc;
         }, {} as Record<string, number>),
-        byType: response.documents.reduce((acc, doc) => {
+        byType: documents.reduce((acc, doc) => {
           acc[doc.type] = (acc[doc.type] || 0) + 1;
           return acc;
         }, {} as Record<string, number>),
-        recent: response.documents.filter(doc => {
+        recent: documents.filter(doc => {
           const updateTime = new Date(doc.updated_at);
           const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
           return updateTime > dayAgo;
@@ -204,15 +216,15 @@ const EnhancedDocumentInterface: React.FC<EnhancedDocumentInterfaceProps> = memo
       
       setDocumentState(prev => ({
         ...prev,
-        documents: response.documents,
+        documents,
         statistics,
         loading: false
       }));
-      
-      onDocumentChange?.(response.documents);
-      
+
+      onDocumentChange?.(documents);
+
       errorLogger.info('ui', 'EnhancedDocumentInterface: 文档加载成功', {
-        total: response.documents.length,
+        total: documents.length,
         taskId,
         projectId
       });
