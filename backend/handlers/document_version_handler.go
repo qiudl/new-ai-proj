@@ -36,7 +36,7 @@ func NewDocumentVersionHandler(versionService *services.DocumentVersionService) 
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/documents/{document_id}/versions [get]
 func (h *DocumentVersionHandler) GetVersionHistory(c *gin.Context) {
-	documentIDStr := c.Param("id")
+	documentIDStr := c.Param("documentId")
 	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -85,7 +85,8 @@ func (h *DocumentVersionHandler) GetVersionHistory(c *gin.Context) {
 	}
 
 	// Convert to response format
-	var versionPtrs []*models.DocumentVersion
+	// Initialize as empty slice to avoid null in JSON response when no versions exist
+	versionPtrs := make([]*models.DocumentVersion, 0, len(versions))
 	for _, v := range versions {
 		version := &models.DocumentVersion{
 			ID:            int(v.ID),
@@ -141,7 +142,7 @@ func (h *DocumentVersionHandler) GetVersionHistory(c *gin.Context) {
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/documents/{document_id}/versions/{version_number} [get]
 func (h *DocumentVersionHandler) GetVersion(c *gin.Context) {
-	documentIDStr := c.Param("id")
+	documentIDStr := c.Param("documentId")
 	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -222,7 +223,7 @@ func (h *DocumentVersionHandler) GetVersion(c *gin.Context) {
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/documents/{document_id}/versions [post]
 func (h *DocumentVersionHandler) CreateVersion(c *gin.Context) {
-	documentIDStr := c.Param("id")
+	documentIDStr := c.Param("documentId")
 	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -301,7 +302,7 @@ func (h *DocumentVersionHandler) CreateVersion(c *gin.Context) {
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/documents/{document_id}/versions/{version_number}/restore [post]
 func (h *DocumentVersionHandler) RestoreVersion(c *gin.Context) {
-	documentIDStr := c.Param("id")
+	documentIDStr := c.Param("documentId")
 	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -364,7 +365,7 @@ func (h *DocumentVersionHandler) RestoreVersion(c *gin.Context) {
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/documents/{document_id}/versions/compare [get]
 func (h *DocumentVersionHandler) CompareVersions(c *gin.Context) {
-	documentIDStr := c.Param("id")
+	documentIDStr := c.Param("documentId")
 	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -436,7 +437,7 @@ func (h *DocumentVersionHandler) CompareVersions(c *gin.Context) {
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/documents/{document_id}/versions/{version_number}/download [get]
 func (h *DocumentVersionHandler) DownloadVersion(c *gin.Context) {
-	documentIDStr := c.Param("id")
+	documentIDStr := c.Param("documentId")
 	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -513,7 +514,7 @@ func (h *DocumentVersionHandler) DownloadVersion(c *gin.Context) {
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/documents/{document_id}/versions/{version_number} [delete]
 func (h *DocumentVersionHandler) DeleteVersion(c *gin.Context) {
-	documentIDStr := c.Param("id")
+	documentIDStr := c.Param("documentId")
 	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
