@@ -70,7 +70,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadProps } from 'antd';
 import dayjs from '../utils/dayjs';
-import { Document } from '../types/document';
+import { Document, DocumentListItem } from '../types/document';
 import unifiedDocumentService from '../services/unifiedDocumentService';
 
 type PresetStatusColor = 'success' | 'processing' | 'default' | 'error' | 'warning';
@@ -562,9 +562,10 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   const loadDocuments = async () => {
     try {
       setLoading(true);
-      
-      const documents = await unifiedDocumentService.getDocuments(folderId);
-      setDocuments(documents);
+
+      const response = await unifiedDocumentService.listDocuments({ folder_id: folderId });
+      // Note: Backend may return full Document objects instead of DocumentListItem
+      setDocuments(response.documents as any as Document[]);
     } catch (error) {
       message.error('加载文档列表失败');
     } finally {

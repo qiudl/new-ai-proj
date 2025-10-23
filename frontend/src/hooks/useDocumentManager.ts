@@ -111,15 +111,17 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
       setState(prev => ({ ...prev, loading: true, error: null }));
 
       const params = getQueryParams();
-      
-      // 性能优化：使用更高效的API调用模式
-      const result = mode === 'advanced'
-        ? await unifiedDocumentService.getDocuments(folderId)
-        : await unifiedDocumentService.getAllDocuments(params as DocumentFilter);
 
-      // Handle different return types
-      const documents = Array.isArray(result) ? result : (result.documents || []);
-      const total = Array.isArray(result) ? result.length : (result.total || documents.length);
+      // 性能优化：使用更高效的API调用模式
+      const filter = mode === 'advanced'
+        ? { folder_id: folderId }
+        : (params as DocumentFilter);
+
+      const result = await unifiedDocumentService.listDocuments(filter);
+
+      // Handle response
+      const documents = result.documents || [];
+      const total = result.total || documents.length;
 
       setState(prev => ({
         ...prev,
