@@ -214,8 +214,7 @@ const AllFieldsTaskListPage: React.FC = () => {
   // 高级筛选器状态
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilter[]>([]);
   const [advancedFilterVisible, setAdvancedFilterVisible] = useState(false);
-  const [filterForm] = Form.useForm();
-  
+
   // 移除了WebSocket实时更新功能
   const [notificationSettings, setNotificationSettings] = useState({
     showCreateNotifications: true,

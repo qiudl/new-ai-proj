@@ -83,7 +83,6 @@ const MCPTestPage: React.FC = () => {
   const [customEndpoint, setCustomEndpoint] = useState('');
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedResult, setSelectedResult] = useState<TestResult | null>(null);
-  const [form] = Form.useForm();
 
   // 定义所有测试用例 - 基于MCP bridge index.ts中的完整工具列表
   const testCases: TestCase[] = [
