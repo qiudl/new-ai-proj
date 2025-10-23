@@ -54,11 +54,10 @@ import { TaskComments } from '../../../../components/TaskComment';
 
 const { Text } = Typography;
 
-// Use SimpleTaskDocumentViewer for fast loading (<1s)
-// UnifiedTaskDocumentArea has been replaced with a lightweight viewer
-// Old component: 2376 lines, 53 hooks, 3-5s loading time
-// New component: 353 lines, ~10 hooks, <1s loading time (85% reduction)
-import SimpleTaskDocumentViewer from '../../../../components/SimpleTaskDocumentViewer';
+// Use TaskDocumentWidget for document display
+// Removed SimpleTaskDocumentViewer (404 error on /documents/all endpoint)
+// Using TaskDocumentWidget which properly integrates with unifiedDocumentService
+import TaskDocumentWidget from '../../../../components/TaskDocumentWidget';
 
 // Lazy load TaskAnalysisPanel
 const TaskAnalysisPanel = lazy(
@@ -357,12 +356,12 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
         label: documentTabLabel,
         children: (
           <div>
-            {/* SimpleTaskDocumentViewer - Lightweight viewer (353 lines, <1s loading) */}
-            <SimpleTaskDocumentViewer
+            {/* TaskDocumentWidget - Integrated with unifiedDocumentService */}
+            <TaskDocumentWidget
               taskId={task.id}
               projectId={projectId}
-              onDocumentChange={onDocsChange}
-              height={600}
+              compact={false}
+              showTitle={false}
             />
           </div>
         )
