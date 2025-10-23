@@ -861,12 +861,14 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         // 批量上传文件到 TaskDocumentHandler
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
-          await taskDocumentService.uploadDocument(
+          await documentService.uploadTaskDocument(
             projectId,
             taskId,
             file,
-            (progress) => {
-              console.log(`文件 ${file.name} 上传进度:`, progress);
+            {
+              onProgress: (progress) => {
+                console.log(`文件 ${file.name} 上传进度:`, progress);
+              }
             }
           );
         }
@@ -989,14 +991,16 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
   const handleFileUpload = useCallback(async (file: File) => {
     setUploading(true);
     try {
-      // 使用 taskDocumentService.uploadDocument 连接到后端 TaskDocumentHandler
-      await taskDocumentService.uploadDocument(
+      // 使用 documentService.uploadTaskDocument 连接到后端 TaskDocumentHandler
+      await documentService.uploadTaskDocument(
         projectId,
         taskId,
         file,
-        (progress) => {
-          // 可以添加进度显示
-          console.log('Upload progress:', progress);
+        {
+          onProgress: (progress) => {
+            // 可以添加进度显示
+            console.log('Upload progress:', progress);
+          }
         }
       );
       message.success('文档上传成功');
@@ -1081,7 +1085,14 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     try {
       // 如果是上传的文件，使用文件路径下载
       if (doc.file_path && doc.tags?.includes('uploaded')) {
-        await taskDocumentService.downloadFile(doc.file_path, doc.title);
+        // 直接通过API下载文件
+        const downloadUrl = `/api/v1/files/download?path=${encodeURIComponent(doc.file_path)}`;
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = doc.title;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
         message.success('文档下载成功');
       } else {
         // 原有的文本文档下载逻辑
