@@ -162,3 +162,8 @@ func (a *DocumentRepositoryAdapter) GetGlobalDocumentCount(ctx context.Context) 
 	_, total, err := a.newRepo.List(ctx, &models.DocumentFilter{})
 	return total, err
 }
+
+// GetTaskDocuments 获取任务的所有文档
+func (a *DocumentRepositoryAdapter) GetTaskDocuments(ctx context.Context, taskID int) ([]*models.Document, error) {
+	return a.newRepo.GetTaskDocuments(ctx, taskID)
+}

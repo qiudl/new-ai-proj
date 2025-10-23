@@ -3,6 +3,8 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/services"
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 )
@@ -59,7 +61,32 @@ func (h *DocumentHandler) GetAllTaskDocuments(c *gin.Context) {
 }
 
 func (h *DocumentHandler) GetTaskDocuments(c *gin.Context) {
-	c.JSON(501, gin.H{"error": "Not implemented - use UnifiedDocumentHandler"})
+	// 获取参数
+	taskIDStr := c.Param("taskId")
+
+	// 解析taskID
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		c.JSON(400, gin.H{"success": false, "message": "Invalid task ID"})
+		return
+	}
+
+	// 获取document repository
+	docRepo := h.db.Documents()
+
+	// 获取任务文档
+	docs, err := docRepo.GetTaskDocuments(c.Request.Context(), taskID)
+	if err != nil {
+		c.JSON(500, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+
+	// 返回文档列表
+	c.JSON(200, gin.H{
+		"success": true,
+		"documents": docs,
+		"total": len(docs),
+	})
 }
 
 func (h *DocumentHandler) HasTaskDocument(c *gin.Context) {

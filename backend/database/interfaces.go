@@ -323,6 +323,9 @@ type DocumentRepository interface {
 	List(ctx context.Context, filter *models.DocumentFilter) ([]*models.Document, int, error)
 	Search(ctx context.Context, projectID int, searchTerm string, limit, offset int) ([]*models.Document, int, error)
 	GetGlobalDocumentCount(ctx context.Context) (int, error)
+
+	// Task document methods
+	GetTaskDocuments(ctx context.Context, taskID int) ([]*models.Document, error)
 }
 
 // DocumentFolderRepository defines the interface for document folder database operations
