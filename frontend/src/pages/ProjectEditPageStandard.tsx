@@ -1012,21 +1012,9 @@ const ProjectEditPageNew: React.FC = () => {
           {/* 右侧：客户关联和用户分配 */}
           <Col xs={24} lg={12}>
             {/* 客户关联 */}
-            <Card 
-              title="关联客户" 
-              extra={
-                <Space>
-                  <Button
-                    type="text"
-                    
-                    icon={<PlusOutlined />}
-                    onClick={() => navigate('/enterprises/create')}
-                  >
-                    新建客户
-                  </Button>
-                  <BankOutlined />
-                </Space>
-              } 
+            <Card
+              title="关联客户"
+              extra={<BankOutlined />}
               style={{ marginBottom: 24 }}
             >
               <div style={{ marginBottom: '16px' }}>
@@ -1086,56 +1074,50 @@ const ProjectEditPageNew: React.FC = () => {
                     <Option key={enterprise.id} value={enterprise.id}>
                       <Space>
                         <BankOutlined />
-                        <div>
-                          <div>{enterprise.name}</div>
-                          <Text type="secondary" style={{ fontSize: '12px' }}>
-                            {enterprise.code} | {enterprise.business_type_text}
-                          </Text>
-                        </div>
+                        {enterprise.name}
                       </Space>
                     </Option>
                   ))}
                 </Select>
 
-                {/* 客户选择器（向后兼容） */}
-                <Row justify="space-between" align="middle">
-                  <Col>
-                    <Text strong>选择关联客户（传统模式）</Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                      {selectedEnterprise ? '已选择企业，此选项已禁用' : '项目可以关联多个客户，至少选择一个'}
-                    </Text>
-                  </Col>
-                  <Col>
-                    <Space>
-                      <Button
-                        type="dashed"
-                        
-                        icon={<PlusOutlined />}
-                        onClick={() => navigate('/enterprises/create')}
-                      >
-                        新建客户
-                      </Button>
-                      <Button
-                        type="text"
-                        
-                        icon={<ReloadOutlined />}
-                        onClick={loadCompanies}
-                        loading={loadingStates.company}
-                      >
-                        刷新
-                      </Button>
-                    </Space>
-                  </Col>
-                </Row>
-              </div>
+                {/* 客户选择器（向后兼容） - 仅在传统模式下显示 */}
+                {!selectedEnterprise && !currentEnterprise && (
+                  <>
+                    <Row justify="space-between" align="middle">
+                      <Col>
+                        <Text strong>选择关联客户（传统模式）</Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          项目可以关联多个客户，至少选择一个
+                        </Text>
+                      </Col>
+                      <Col>
+                        <Space>
+                          <Button
+                            type="dashed"
+                            icon={<PlusOutlined />}
+                            onClick={() => navigate('/enterprises/create')}
+                          >
+                            新建客户
+                          </Button>
+                          <Button
+                            type="text"
+                            icon={<ReloadOutlined />}
+                            onClick={loadCompanies}
+                            loading={loadingStates.company}
+                          >
+                            刷新
+                          </Button>
+                        </Space>
+                      </Col>
+                    </Row>
 
-              <Form.Item
-                rules={[{ 
-                  required: !selectedEnterprise, 
-                  message: '请至少选择一个关联客户或企业' 
-                }]}
-              >
+                    <Form.Item
+                      rules={[{
+                        required: !selectedEnterprise,
+                        message: '请至少选择一个关联客户或企业'
+                      }]}
+                    >
                 {!companies || companies.length === 0 ? (
                   <Alert
                     message="暂无客户"
@@ -1204,27 +1186,30 @@ const ProjectEditPageNew: React.FC = () => {
                     ))}
                   </Select>
                 )}
-              </Form.Item>
+                    </Form.Item>
 
-              {selectedCompanies.length > 0 && (
-                <div style={{ marginTop: '12px' }}>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>
-                    已选择 {selectedCompanies.length} 个客户：
-                  </Text>
-                  <div style={{ marginTop: '8px' }}>
-                    {selectedCompanies.map(companyId => {
-                      const company = Array.isArray(companies) 
-                        ? companies.find(c => c.id === companyId)
-                        : null;
-                      return (
-                        <Tag key={companyId} color="blue" style={{ marginBottom: '4px' }}>
-                          {company?.companyName || `客户${companyId}`}
-                        </Tag>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                    {selectedCompanies.length > 0 && (
+                      <div style={{ marginTop: '12px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          已选择 {selectedCompanies.length} 个客户：
+                        </Text>
+                        <div style={{ marginTop: '8px' }}>
+                          {selectedCompanies.map(companyId => {
+                            const company = Array.isArray(companies)
+                              ? companies.find(c => c.id === companyId)
+                              : null;
+                            return (
+                              <Tag key={companyId} color="blue" style={{ marginBottom: '4px' }}>
+                                {company?.companyName || `客户${companyId}`}
+                              </Tag>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </Card>
 
             {/* 用户分配 */}
