@@ -380,7 +380,7 @@ export class TaskAPIOptimizer {
         if (options?.includeDocuments) {
           // 文档
           requests.push(async () => {
-            const { documentService } = await import('../services/documentService');
+            const { documentService } = await import('../services/unifiedDocumentService');
             return documentService.getTaskDocuments(projectId, taskId);
           });
         }
@@ -456,7 +456,7 @@ export class TaskAPIOptimizer {
     this.optimizer.preloadData(
       `task-documents:${projectId}:${taskId}`,
       async () => {
-        const { documentService } = await import('../services/documentService');
+        const { documentService } = await import('../services/unifiedDocumentService');
         return documentService.getTaskDocuments(projectId, taskId);
       },
       'low'
