@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, ReactNode } from 'react';
-import { documentService, UnifiedDocument, DocumentFilter } from '../services/documentService';
+import { documentService } from '../services/unifiedDocumentService';
+import { Document, DocumentFilter, DocumentListItem, CreateDocumentRequest, UpdateDocumentRequest } from '../types/document';
 import { errorLogger } from '../utils/ErrorLogger';
 
 // 状态接口定义
 interface DocumentState {
-  documents: UnifiedDocument[];
-  selectedDocument: UnifiedDocument | null;
+  documents: DocumentListItem[]; // 列表使用简化的DocumentListItem
+  selectedDocument: Document | null; // 详情使用完整的Document
   loading: boolean;
   error: string | null;
   filters: DocumentFilter;
@@ -15,7 +16,7 @@ interface DocumentState {
     byType: Record<string, number>;
     recent: number;
   };
-  cache: Map<string, { data: UnifiedDocument[]; timestamp: number }>;
+  cache: Map<string, { data: DocumentListItem[]; timestamp: number }>;
   lastUpdate: number;
 }
 
@@ -23,23 +24,23 @@ interface DocumentState {
 type DocumentAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'SET_DOCUMENTS'; payload: UnifiedDocument[] }
-  | { type: 'SET_SELECTED_DOCUMENT'; payload: UnifiedDocument | null }
-  | { type: 'UPDATE_DOCUMENT'; payload: UnifiedDocument }
+  | { type: 'SET_DOCUMENTS'; payload: DocumentListItem[] }
+  | { type: 'SET_SELECTED_DOCUMENT'; payload: Document | null }
+  | { type: 'UPDATE_DOCUMENT'; payload: DocumentListItem }
   | { type: 'DELETE_DOCUMENT'; payload: number }
   | { type: 'SET_FILTERS'; payload: Partial<DocumentFilter> }
   | { type: 'CLEAR_CACHE' }
-  | { type: 'SET_CACHE'; payload: { key: string; data: UnifiedDocument[] } };
+  | { type: 'SET_CACHE'; payload: { key: string; data: DocumentListItem[] } };
 
 // Context 接口定义
 interface DocumentContextType {
   state: DocumentState;
   actions: {
     loadDocuments: (filters?: Partial<DocumentFilter>, forceRefresh?: boolean) => Promise<void>;
-    createDocument: (document: Partial<UnifiedDocument>) => Promise<UnifiedDocument>;
-    updateDocument: (id: number, updates: Partial<UnifiedDocument>) => Promise<void>;
+    createDocument: (document: CreateDocumentRequest) => Promise<Document>;
+    updateDocument: (id: number, updates: UpdateDocumentRequest) => Promise<void>;
     deleteDocument: (id: number) => Promise<void>;
-    selectDocument: (document: UnifiedDocument | null) => void;
+    selectDocument: (document: Document | null) => void;
     setFilters: (filters: Partial<DocumentFilter>) => void;
     clearError: () => void;
     refreshStatistics: () => void;
@@ -216,7 +217,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({
   }, [state.filters, state.cache, generateCacheKey, isCacheValid]);
 
   // 创建文档
-  const createDocument = useCallback(async (documentData: Partial<UnifiedDocument>) => {
+  const createDocument = useCallback(async (documentData: CreateDocumentRequest) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
@@ -248,12 +249,12 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({
   }, [loadDocuments]);
 
   // 更新文档
-  const updateDocument = useCallback(async (id: number, updates: Partial<UnifiedDocument>) => {
+  const updateDocument = useCallback(async (id: number, updates: UpdateDocumentRequest) => {
     try {
-      const updatedDocument = await documentService.updateDocument(id, updates);
-      
-      dispatch({ type: 'UPDATE_DOCUMENT', payload: updatedDocument });
-      dispatch({ type: 'CLEAR_CACHE' }); // 清除缓存以确保数据一致性
+      await documentService.updateDocument(id, updates);
+
+      // 清除缓存并重新加载文档列表
+      dispatch({ type: 'CLEAR_CACHE' });
       
       errorLogger.info('document', 'DocumentContext: 文档更新成功', {
         documentId: id,
@@ -298,7 +299,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({
   }, []);
 
   // 选择文档
-  const selectDocument = useCallback((document: UnifiedDocument | null) => {
+  const selectDocument = useCallback((document: Document | null) => {
     dispatch({ type: 'SET_SELECTED_DOCUMENT', payload: document });
     
     errorLogger.debug('document', 'DocumentContext: 文档选择', {

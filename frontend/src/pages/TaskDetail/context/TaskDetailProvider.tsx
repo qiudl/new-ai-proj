@@ -7,7 +7,7 @@ import { message } from 'antd';
 import { TaskDetailContext, TaskDetailContextValue } from './TaskDetailContext';
 import { taskDetailReducer, TaskDetailState, TaskDetailAction } from './TaskDetailReducer';
 import { TaskService } from '../../../services/taskService';
-import { documentService } from '../../../services/documentService';
+import { documentService } from '../../../services/unifiedDocumentService';
 import type { TaskUpdate, TaskDocument } from '../types';
 
 export interface TaskDetailProviderProps {
