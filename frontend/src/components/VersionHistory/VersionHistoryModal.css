@@ -1,0 +1,115 @@
+/**
+ * VersionHistoryModal 样式
+ * 三栏布局设计
+ */
+
+/* Modal覆盖样式 */
+.version-history-modal .ant-modal-body {
+  padding: 0;
+  height: calc(100vh - 120px);
+  max-height: 800px;
+}
+
+.version-history-modal .ant-modal-header {
+  border-bottom: 2px solid #f0f0f0;
+  padding: 16px 24px;
+}
+
+.version-history-modal .ant-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* 容器布局 */
+.version-history-container {
+  display: flex;
+  height: 100%;
+  background: #fff;
+}
+
+/* 左侧版本列表区域 */
+.version-list-section {
+  width: 320px;
+  min-width: 280px;
+  max-width: 400px;
+  flex-shrink: 0;
+  border-right: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 右侧Diff视图区域 */
+.diff-view-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .version-list-section {
+    width: 280px;
+  }
+}
+
+@media (max-width: 992px) {
+  .version-history-container {
+    flex-direction: column;
+  }
+
+  .version-list-section {
+    width: 100%;
+    max-width: none;
+    height: 300px;
+    border-right: none;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .diff-view-section {
+    height: auto;
+    min-height: 400px;
+  }
+}
+
+/* Modal全屏模式（移动端） */
+@media (max-width: 768px) {
+  .version-history-modal {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .version-history-modal .ant-modal {
+    max-width: 100%;
+  }
+
+  .version-history-modal .ant-modal-content {
+    border-radius: 0;
+  }
+
+  .version-history-modal .ant-modal-body {
+    height: calc(100vh - 100px);
+    max-height: none;
+  }
+
+  .version-list-section {
+    height: 250px;
+  }
+
+  .diff-view-section {
+    min-height: calc(100vh - 350px);
+  }
+}
+
+/* 加载状态 */
+.version-history-container .ant-spin-container {
+  height: 100%;
+}
+
+/* 空状态 */
+.version-history-container .ant-empty {
+  margin: 60px auto;
+}
