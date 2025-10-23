@@ -70,7 +70,7 @@ export const TestHistoryDrawer: React.FC<TestHistoryDrawerProps> = ({
         width={720}
         open={visible}
         onClose={onClose}
-        destroyOnClose
+        destroyOnHidden
       >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <FilterBar
