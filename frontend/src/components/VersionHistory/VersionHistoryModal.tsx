@@ -10,6 +10,7 @@ import { VersionInfo } from '../../services/versionHistoryService';
 import { realVersionHistoryService } from '../../services/realVersionHistoryService';
 import VersionListPanel from './VersionListPanel';
 import DiffViewPanel from './DiffViewPanel';
+import ErrorBoundary from './ErrorBoundary';
 import './VersionHistoryModal.css';
 
 export interface VersionHistoryModalProps {
@@ -263,69 +264,75 @@ const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
       className="version-history-modal"
       destroyOnClose
     >
-      <div className="version-history-container">
-        {/* 左侧：版本列表 */}
-        <div className="version-list-section">
-          <VersionListPanel
-            versions={versions}
-            selectedVersionId={selectedVersionId}
-            onVersionSelect={handleVersionSelect}
-            loading={loading}
-          />
-        </div>
+      <ErrorBoundary>
+        <div className="version-history-container">
+          {/* 左侧：版本列表 */}
+          <div className="version-list-section">
+            <ErrorBoundary>
+              <VersionListPanel
+                versions={versions}
+                selectedVersionId={selectedVersionId}
+                onVersionSelect={handleVersionSelect}
+                loading={loading}
+              />
+            </ErrorBoundary>
+          </div>
 
-        {/* 右侧：Diff视图 */}
-        <div className="diff-view-section">
-          {/* 导航工具栏 */}
-          {versions.length > 0 && (
-            <div className="version-navigation-toolbar">
-              <Space>
-                <Tooltip title="上一个版本 (←)">
-                  <Button
-                    icon={<LeftOutlined />}
-                    onClick={handlePreviousVersion}
-                    disabled={!selectedVersionId || versions.findIndex(v => v.id === selectedVersionId) >= versions.length - 1}
-                  >
-                    上一版本
-                  </Button>
-                </Tooltip>
+          {/* 右侧：Diff视图 */}
+          <div className="diff-view-section">
+            {/* 导航工具栏 */}
+            {versions.length > 0 && (
+              <div className="version-navigation-toolbar">
+                <Space>
+                  <Tooltip title="上一个版本 (←)">
+                    <Button
+                      icon={<LeftOutlined />}
+                      onClick={handlePreviousVersion}
+                      disabled={!selectedVersionId || versions.findIndex(v => v.id === selectedVersionId) >= versions.length - 1}
+                    >
+                      上一版本
+                    </Button>
+                  </Tooltip>
 
-                <Tooltip title="下一个版本 (→)">
-                  <Button
-                    icon={<RightOutlined />}
-                    onClick={handleNextVersion}
-                    disabled={!selectedVersionId || versions.findIndex(v => v.id === selectedVersionId) <= 0}
-                  >
-                    下一版本
-                  </Button>
-                </Tooltip>
+                  <Tooltip title="下一个版本 (→)">
+                    <Button
+                      icon={<RightOutlined />}
+                      onClick={handleNextVersion}
+                      disabled={!selectedVersionId || versions.findIndex(v => v.id === selectedVersionId) <= 0}
+                    >
+                      下一版本
+                    </Button>
+                  </Tooltip>
 
-                <Tooltip title="交换对比版本 (Ctrl+S)">
-                  <Button
-                    icon={<SwapOutlined />}
-                    onClick={handleSwapVersions}
-                    disabled={!selectedVersionId || !compareVersionId}
-                  >
-                    交换对比
-                  </Button>
-                </Tooltip>
-              </Space>
+                  <Tooltip title="交换对比版本 (Ctrl+S)">
+                    <Button
+                      icon={<SwapOutlined />}
+                      onClick={handleSwapVersions}
+                      disabled={!selectedVersionId || !compareVersionId}
+                    >
+                      交换对比
+                    </Button>
+                  </Tooltip>
+                </Space>
 
-              <div className="keyboard-hints">
-                <span className="hint">快捷键: ← → 导航 | Ctrl+S 交换 | ESC 关闭</span>
+                <div className="keyboard-hints">
+                  <span className="hint">快捷键: ← → 导航 | Ctrl+S 交换 | ESC 关闭</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <DiffViewPanel
-            oldVersion={oldVersion}
-            newVersion={newVersion}
-            loading={loading}
-            onRollback={handleRollback}
-            onDownload={handleDownload}
-          />
+            <ErrorBoundary>
+              <DiffViewPanel
+                oldVersion={oldVersion}
+                newVersion={newVersion}
+                loading={loading}
+                onRollback={handleRollback}
+                onDownload={handleDownload}
+              />
+            </ErrorBoundary>
+          </div>
         </div>
-      </div>
+      </ErrorBoundary>
     </Modal>
   );
 };

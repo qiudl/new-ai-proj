@@ -4,21 +4,48 @@
 
 .version-list-item {
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  animation: fadeInItem 0.4s ease-out;
+}
+
+@keyframes fadeInItem {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .version-list-item:hover {
   background-color: #f5f5f5;
+  transform: translateX(2px);
 }
 
 .version-list-item.selected {
   background-color: #e6f7ff;
   border-left: 3px solid #1890ff;
+  animation: selectPulse 0.5s ease-out;
+}
+
+@keyframes selectPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(24, 144, 255, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(24, 144, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(24, 144, 255, 0);
+  }
 }
 
 .version-list-item.selected:hover {
   background-color: #d6efff;
+  transform: translateX(0);
 }
 
 .version-item-content {

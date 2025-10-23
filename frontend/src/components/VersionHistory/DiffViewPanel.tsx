@@ -1,16 +1,21 @@
 /**
  * DiffViewPanel - Diff视图面板组件
  * 显示两个版本之间的差异对比
+ * 性能优化：限制初始显示的diff行数，避免大文档卡顿
  */
 
-import React, { useMemo } from 'react';
-import { Empty, Spin, Button } from 'antd';
-import { DownloadOutlined, RollbackOutlined } from '@ant-design/icons';
+import React, { useMemo, useState } from 'react';
+import { Empty, Spin, Button, Alert } from 'antd';
+import { DownloadOutlined, RollbackOutlined, EyeOutlined } from '@ant-design/icons';
 import { VersionInfo } from '../../services/versionHistoryService';
 import { DiffCalculator, DiffLine as DiffLineType, DiffStats } from '../../utils/DiffCalculator';
 import DiffHeader from './DiffHeader';
 import DiffLine from './DiffLine';
 import './DiffViewPanel.css';
+
+// 常量配置
+const INITIAL_DIFF_LINES_LIMIT = 500; // 初始显示的最大diff行数
+const LARGE_DIFF_WARNING_THRESHOLD = 1000; // 触发警告的diff行数阈值
 
 export interface DiffViewPanelProps {
   /** 旧版本（基准版本） */
@@ -38,6 +43,7 @@ const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
   onDownload,
   className = ''
 }) => {
+  const [showAllLines, setShowAllLines] = useState(false);
   // 计算Diff结果和统计
   const { diffs, stats } = useMemo<{ diffs: DiffLineType[]; stats: DiffStats }>(() => {
     if (!oldVersion || !newVersion) {
@@ -80,6 +86,17 @@ const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
     }
   }, [oldVersion, newVersion]);
 
+  // 计算要显示的diff行
+  const displayedDiffs = useMemo(() => {
+    if (showAllLines || diffs.length <= INITIAL_DIFF_LINES_LIMIT) {
+      return diffs;
+    }
+    return diffs.slice(0, INITIAL_DIFF_LINES_LIMIT);
+  }, [diffs, showAllLines]);
+
+  const hasMoreLines = diffs.length > INITIAL_DIFF_LINES_LIMIT;
+  const isLargeDiff = diffs.length > LARGE_DIFF_WARNING_THRESHOLD;
+
   // 渲染Diff内容
   const renderDiffContent = () => {
     if (loading) {
@@ -114,8 +131,19 @@ const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
 
     return (
       <div className="diff-content">
+        {/* 大diff警告 */}
+        {isLargeDiff && !showAllLines && (
+          <Alert
+            message="大文档提醒"
+            description={`此文档包含 ${diffs.length} 行差异，为了性能考虑，当前仅显示前 ${INITIAL_DIFF_LINES_LIMIT} 行。`}
+            type="warning"
+            showIcon
+            style={{ margin: '12px 16px' }}
+          />
+        )}
+
         <div className="diff-lines">
-          {diffs.map((diff, index) => (
+          {displayedDiffs.map((diff, index) => (
             <DiffLine
               key={`${diff.lineNumber}-${index}`}
               diff={diff}
@@ -123,6 +151,23 @@ const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
             />
           ))}
         </div>
+
+        {/* 显示更多按钮 */}
+        {hasMoreLines && !showAllLines && (
+          <div className="show-more-container">
+            <Button
+              type="primary"
+              icon={<EyeOutlined />}
+              onClick={() => setShowAllLines(true)}
+              size="large"
+            >
+              显示全部 {diffs.length} 行差异
+            </Button>
+            <p style={{ marginTop: '8px', color: '#8c8c8c', fontSize: '12px' }}>
+              剩余 {diffs.length - INITIAL_DIFF_LINES_LIMIT} 行未显示
+            </p>
+          </div>
+        )}
       </div>
     );
   };

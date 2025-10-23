@@ -1,5 +1,6 @@
 /**
  * VersionListPanel 样式
+ * 性能优化版：支持虚拟滚动和进度指示
  */
 
 .version-list-panel {
@@ -8,6 +9,25 @@
   height: 100%;
   background: #fff;
   border-right: 1px solid #f0f0f0;
+}
+
+/* 计算进度指示器 */
+.calculating-progress {
+  padding: 8px 16px;
+  background: #f0f5ff;
+  border-bottom: 1px solid #d9d9d9;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .version-list-header {

@@ -70,6 +70,31 @@
   background: #8c8c8c;
 }
 
+/* 显示更多按钮容器 */
+.show-more-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background: #fafafa;
+  border-top: 1px solid #f0f0f0;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.show-more-container button {
+  min-width: 200px;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .diff-actions {
@@ -77,6 +102,14 @@
   }
 
   .diff-actions button {
+    width: 100%;
+  }
+
+  .show-more-container {
+    padding: 24px 12px;
+  }
+
+  .show-more-container button {
     width: 100%;
   }
 }
