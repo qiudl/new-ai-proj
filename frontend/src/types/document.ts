@@ -24,6 +24,7 @@ export type DocumentType = 'markdown' | 'html' | 'text' | 'json' | 'code' | 'pdf
 export type DocumentStatus = 'draft' | 'published' | 'archived';
 export type DocumentVisibility = 'private' | 'team' | 'public';
 
+// Phase 6: 统一文档类型 - 合并了UnifiedDocument, SimpleDocument, AdvancedTaskDocumentResponse
 export interface Document {
   id: number;
   folder_id?: number;
@@ -58,6 +59,8 @@ export interface Document {
   project_name?: string;
   customer_id?: number;
   customer_name?: string;
+  task_id?: number;  // Phase 6: 添加任务关联
+  task_title?: string;  // Phase 6: 添加任务标题
   // Categories
   category?: string;
   subcategory?: string;
@@ -65,6 +68,12 @@ export interface Document {
   shared_with?: string[];
   can_edit?: boolean;
   can_share?: boolean;
+  can_delete?: boolean;  // Phase 6: 添加删除权限
+  // Document state (for task documents)
+  document_id?: number;  // Phase 6: 文档ID（当Document是关联记录时）
+  document_exists?: boolean;  // Phase 6: 文档是否存在
+  relations?: DocumentRelation[];  // Phase 6: 文档关系列表
+  last_modified?: string;  // Phase 6: 最后修改时间
   // Rendering support
   createElement?: any;
 }
@@ -278,4 +287,150 @@ export interface CustomerOption {
   type?: string;
   industry?: string;
   description?: string;
+}
+
+// ==================== Phase 6: 统一API响应和回调类型 ====================
+
+/**
+ * 统一的文件上传进度回调
+ * Phase 6: 之前在documentService.ts, taskDocumentService.ts中重复定义
+ */
+export interface UploadProgressCallback {
+  (progress: number, loaded: number, total: number): void;
+}
+
+/**
+ * 统一的API响应格式
+ * Phase 6: 之前在taskDocumentService.ts和unifiedDocumentService.ts中重复定义
+ */
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  error?: string;
+  code?: string;
+}
+
+/**
+ * 任务文档响应（简单版本）
+ * Phase 6: 从taskDocumentService.ts迁移
+ */
+export interface TaskDocumentResponse {
+  content: string;
+  title?: string;
+  type?: string;
+  status?: string;
+}
+
+/**
+ * 已上传文档信息
+ * Phase 6: 从taskDocumentService.ts迁移
+ */
+export interface UploadedDocumentInfo {
+  id?: number;
+  file_name: string;
+  original_name: string;
+  file_size: number;
+  mime_type: string;
+  upload_type: 'manual' | 'api';
+  uploaded_at: string;
+  file_path?: string;
+  file_url?: string;
+}
+
+/**
+ * 增强型文档版本信息
+ * Phase 6: 从taskDocumentService.ts迁移并扩展DocumentVersion
+ */
+export interface DocumentVersionInfo {
+  id: number;
+  document_id: number;
+  version_number: number;
+  content: string;
+  content_hash: string;
+  created_at: string;
+  created_by: number;
+  creator_name: string;
+  change_summary?: string;
+  file_size: number;
+  change_type: 'create' | 'update' | 'delete' | 'restore';
+  metadata?: Record<string, any>;
+}
+
+/**
+ * 文档版本历史响应
+ * Phase 6: 从taskDocumentService.ts迁移
+ */
+export interface DocumentVersionHistoryResponse {
+  document_id: number;
+  current_version: number;
+  total_versions: number;
+  versions: DocumentVersionInfo[];
+  document_info: UploadedDocumentInfo;
+}
+
+/**
+ * 版本差异详情
+ * Phase 6: 从taskDocumentService.ts迁移
+ */
+export interface VersionDifference {
+  line_number: number;
+  type: 'added' | 'removed' | 'modified';
+  old_content?: string;
+  new_content?: string;
+}
+
+/**
+ * 文档版本比较结果
+ * Phase 6: 从taskDocumentService.ts迁移
+ */
+export interface DocumentVersionComparisonResult {
+  version1: DocumentVersionInfo;
+  version2: DocumentVersionInfo;
+  differences: {
+    total_changes: number;
+    added_lines: number;
+    removed_lines: number;
+    modified_lines: number;
+    details: VersionDifference[];
+  };
+  similarity_score: number;
+}
+
+/**
+ * 批量操作请求
+ * Phase 6: 从taskDocumentService.ts迁移
+ */
+export interface BatchOperationRequest {
+  operation: 'delete' | 'archive' | 'restore' | 'tag' | 'move';
+  document_ids: number[];
+  params?: Record<string, any>;
+}
+
+/**
+ * 批量操作响应
+ * Phase 6: 从taskDocumentService.ts迁移
+ */
+export interface BatchOperationResponse {
+  success: boolean;
+  total: number;
+  succeeded: number;
+  failed: number;
+  results: Array<{
+    document_id: number;
+    success: boolean;
+    error?: string;
+  }>;
+}
+
+/**
+ * 文件上传选项
+ * Phase 6: 统一文件上传配置
+ */
+export interface FileUploadOptions {
+  onProgress?: UploadProgressCallback;
+  timeout?: number;
+  maxRetries?: number;
+  chunkSize?: number;
+  enableChunking?: boolean;
 }
