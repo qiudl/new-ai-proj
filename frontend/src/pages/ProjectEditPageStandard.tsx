@@ -761,6 +761,11 @@ const ProjectEditPageNew: React.FC = () => {
     loadEnterprises();
   }, [projectId, form, searchParams, loadProject, loadCompanies, loadEnterprises]);
 
+  // 监听企业选择变化，重新加载客户列表
+  useEffect(() => {
+    loadCompanies();
+  }, [selectedEnterprise, loadCompanies]);
+
   // ✅ 优化：修复useEffect依赖，添加缺失的函数依赖
   useEffect(() => {
     if (selectedEnterprise) {
