@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Input } from 'antd';
+import { Button, Input, Space } from 'antd';
 import { EyeOutlined, EditOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -134,7 +134,7 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
         alignItems: 'center',
         flexWrap: 'wrap'
       }}>
-        <Button.Group >
+        <Space.Compact>
           <Button
             type={mode === 'edit' ? 'primary' : 'default'}
             icon={<EditOutlined />}
@@ -149,10 +149,10 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
           >
             预览
           </Button>
-        </Button.Group>
+        </Space.Compact>
         
         {mode === 'edit' && !disabled && (
-          <Button.Group >
+          <Space.Compact>
             <Button
               onClick={() => handleInsertMarkdown('**', '**')}
               title="粗体"
@@ -189,7 +189,7 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
             >
               📊
             </Button>
-          </Button.Group>
+          </Space.Compact>
         )}
       </div>
 

@@ -375,9 +375,9 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
             </>
           )}
           
-          <Button.Group size="small">
+          <Space.Compact size="small">
             <Tooltip title="预览模式">
-              <Button 
+              <Button
                 type={editMode === 'preview' ? 'primary' : 'default'}
                 icon={<EyeOutlined />}
                 onClick={() => setEditMode('preview')}
@@ -386,7 +386,7 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
               </Button>
             </Tooltip>
             <Tooltip title="编辑模式 (Ctrl+E)">
-              <Button 
+              <Button
                 type={editMode === 'edit' ? 'primary' : 'default'}
                 icon={<EditOutlined />}
                 onClick={() => setEditMode('edit')}
@@ -394,13 +394,13 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
                 编辑
               </Button>
             </Tooltip>
-          </Button.Group>
+          </Space.Compact>
           
           <Divider type="vertical" />
           
-          <Button.Group size="small">
+          <Space.Compact size="small">
             <Tooltip title="正常模式 (适合详细阅读)">
-              <Button 
+              <Button
                 type={viewMode === 'normal' ? 'primary' : 'default'}
                 icon={<CompressOutlined />}
                 onClick={() => setViewMode('normal')}
@@ -409,7 +409,7 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
               </Button>
             </Tooltip>
             <Tooltip title="紧凑模式 (提高信息密度)">
-              <Button 
+              <Button
                 type={viewMode === 'compact' ? 'primary' : 'default'}
                 icon={<ExpandOutlined />}
                 onClick={() => setViewMode('compact')}
@@ -417,7 +417,7 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
                 紧凑
               </Button>
             </Tooltip>
-          </Button.Group>
+          </Space.Compact>
           
           <Divider type="vertical" />
           

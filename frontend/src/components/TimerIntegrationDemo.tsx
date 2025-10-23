@@ -382,30 +382,30 @@ export const TimerIntegrationDemo: React.FC<TimerIntegrationDemoProps> = ({
             <Col>
               <Space>
                 <Text strong>布局模式：</Text>
-                <Button.Group>
-                  <Button 
+                <Space.Compact>
+                  <Button
                     type={layout === 'grid' ? 'primary' : 'default'}
-                    
+
                     onClick={() => setLayout('grid')}
                   >
                     网格
                   </Button>
-                  <Button 
+                  <Button
                     type={layout === 'sidebar' ? 'primary' : 'default'}
-                    
+
                     onClick={() => setLayout('sidebar')}
                   >
                     侧边栏
                   </Button>
-                  <Button 
+                  <Button
                     type={layout === 'fullscreen' ? 'primary' : 'default'}
-                    
+
                     onClick={() => setLayout('fullscreen')}
                     icon={<FullscreenOutlined />}
                   >
                     全屏
                   </Button>
-                </Button.Group>
+                </Space.Compact>
               </Space>
             </Col>
             <Col>

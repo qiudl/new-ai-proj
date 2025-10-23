@@ -1545,8 +1545,8 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         {listContent}
         {shouldShowPagination && (
           <div style={{ padding: '16px', textAlign: 'center', borderTop: '1px solid #f0f0f0' }}>
-            <Button.Group>
-              <Button 
+            <Space.Compact>
+              <Button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(p => p - 1)}
                 icon={<LeftOutlined />}
@@ -1556,14 +1556,14 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
               <Button disabled>
                 {currentPage} / {Math.ceil(filteredDocuments.length / ITEMS_PER_PAGE)}
               </Button>
-              <Button 
+              <Button
                 disabled={currentPage >= Math.ceil(filteredDocuments.length / ITEMS_PER_PAGE)}
                 onClick={() => setCurrentPage(p => p + 1)}
                 icon={<RightOutlined />}
               >
                 下一页
               </Button>
-            </Button.Group>
+            </Space.Compact>
             <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
               共 {filteredDocuments.length} 个文档
             </div>

@@ -4,7 +4,7 @@
  */
 
 import React, { forwardRef, useImperativeHandle } from 'react';
-import { Tag, Tooltip, Avatar, Dropdown, Button, Spin } from 'antd';
+import { Tag, Tooltip, Avatar, Dropdown, Button, Spin, Space } from 'antd';
 import { 
   PauseCircleOutlined, 
   PlayCircleOutlined, 
@@ -469,20 +469,20 @@ export const TaskDetailDescendantsTreeV2 = forwardRef<TaskDetailDescendantsTreeR
           borderRadius: '6px'
         }}>
           <div>
-            <Button.Group >
-              <Button 
+            <Space.Compact>
+              <Button
                 icon={<BranchesOutlined />}
                 onClick={expandAll}
               >
                 全部展开
               </Button>
-              <Button 
+              <Button
                 icon={<BranchesOutlined rotate={90} />}
                 onClick={collapseAll}
               >
                 全部收起
               </Button>
-            </Button.Group>
+            </Space.Compact>
           </div>
           
           <div>
