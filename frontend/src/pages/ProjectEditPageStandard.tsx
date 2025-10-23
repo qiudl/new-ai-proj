@@ -293,27 +293,26 @@ const ProjectEditPageNew: React.FC = () => {
     try {
       setLoadingStates(prev => ({ ...prev, company: true }));
 
-      // 企业系统已不再支持选择其他公司客户
-      // 在企业模式下，项目只能关联当前企业
-      console.log('企业模式下不再加载外部客户列表，项目只关联当前企业');
+      // 判断是否为企业模式：只有当前企业上下文存在或用户选择了企业时
+      const isEnterpriseMode = !!currentEnterprise || !!selectedEnterprise;
 
-      // 使用空数组作为公司列表，因为在企业模式下不需要选择外部公司
-      setCompanies([]);
-
-      // 如果需要兼容旧的公司模拟数据（仅用于非企业环境）
-      const isEnterpriseMode = selectedEnterprise || enterprises.length > 0;
-      if (!isEnterpriseMode) {
-        // ✅ Phase 2优化：使用提取的常量，避免每次调用都创建新对象
+      if (isEnterpriseMode) {
+        // 企业模式：项目只关联当前企业，不需要选择外部公司
+        console.log('🏢 [ProjectEdit] 企业模式下不加载客户列表，项目自动关联企业');
+        setCompanies([]);
+      } else {
+        // 传统模式：加载客户列表供选择
+        console.log('📋 [ProjectEdit] 传统模式，加载客户列表（模拟数据）');
         setCompanies(MOCK_COMPANIES);
         message.info('使用模拟数据显示客户列表');
       }
     } catch (error) {
-      console.error('加载客户列表失败:', error);
+      console.error('❌ [ProjectEdit] 加载客户列表失败:', error);
       message.error('加载客户列表失败');
     } finally {
       setLoadingStates(prev => ({ ...prev, company: false }));
     }
-  }, [selectedEnterprise, enterprises.length]);
+  }, [currentEnterprise, selectedEnterprise]);
 
   // ✅ 优化：使用useCallback包装loadEnterprises
   const loadEnterprises = useCallback(async () => {
