@@ -47,7 +47,9 @@ const EnhancedPermissionManagementPage: React.FC = () => {
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <Spin size="large" tip="加载权限管理数据..." />
+        <Spin size="large" tip="加载权限管理数据...">
+          <div style={{ minHeight: '100px' }} />
+        </Spin>
       </div>
     );
   }

@@ -413,7 +413,9 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
     if (loading) {
       return (
         <div style={{ textAlign: 'center', padding: '50px' }}>
-          <Spin size="large" tip="加载资源数据..." />
+          <Spin size="large" tip="加载资源数据...">
+            <div style={{ minHeight: '100px' }} />
+          </Spin>
         </div>
       );
     }

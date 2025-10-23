@@ -85,7 +85,9 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
 
         {loading && (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <Spin tip="加载AI配置中..." />
+            <Spin tip="加载AI配置中...">
+              <div style={{ minHeight: '100px' }} />
+            </Spin>
           </div>
         )}
 

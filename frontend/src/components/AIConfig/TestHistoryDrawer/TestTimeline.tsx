@@ -24,7 +24,9 @@ export const TestTimeline: React.FC<TestTimelineProps> = ({
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 0' }}>
-        <Spin size="large" tip="加载测试历史..." />
+        <Spin size="large" tip="加载测试历史...">
+          <div style={{ minHeight: '100px' }} />
+        </Spin>
       </div>
     );
   }

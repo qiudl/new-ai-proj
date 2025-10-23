@@ -284,13 +284,15 @@ const TaskDocumentVersionHistoryButton: React.FC<TaskDocumentVersionHistoryButto
           overflow: 'auto'
         }}>
           {loading ? (
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              height: '400px' 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '400px'
             }}>
-              <Spin size="large" tip="加载版本历史中..." />
+              <Spin size="large" tip="加载版本历史中...">
+                <div style={{ minHeight: '100px' }} />
+              </Spin>
             </div>
           ) : error ? (
             <div style={{ 

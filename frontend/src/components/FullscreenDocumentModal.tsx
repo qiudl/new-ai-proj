@@ -117,7 +117,9 @@ const FullscreenDocumentModal: React.FC<FullscreenDocumentModalProps> = ({
             alignItems: 'center',
             height: '100%'
           }}>
-            <Spin size="large" tip="加载文档中..." />
+            <Spin size="large" tip="加载文档中...">
+              <div style={{ minHeight: '100px' }} />
+            </Spin>
           </div>
         ) : (
           <UnifiedTaskDocumentArea

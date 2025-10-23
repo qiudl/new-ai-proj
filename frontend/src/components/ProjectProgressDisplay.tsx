@@ -28,7 +28,9 @@ export const ProjectProgressDisplay: React.FC<ProjectProgressDisplayProps> = ({
     return (
       <Card className={className}>
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Spin size="large" tip="加载项目进度..." />
+          <Spin size="large" tip="加载项目进度...">
+            <div style={{ minHeight: '100px' }} />
+          </Spin>
         </div>
       </Card>
     );

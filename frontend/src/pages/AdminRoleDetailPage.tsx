@@ -347,7 +347,9 @@ const AdminRoleDetailPage: React.FC = () => {
   if (loading) {
     return (
       <div style={{ padding: '50px', textAlign: 'center' }}>
-        <Spin size="large" tip="加载角色信息..." />
+        <Spin size="large" tip="加载角色信息...">
+          <div style={{ minHeight: '100px' }} />
+        </Spin>
       </div>
     );
   }

@@ -171,7 +171,9 @@ const WorkNotesTreeSidebar: React.FC<WorkNotesTreeSidebarProps> = ({
   if (loading) {
     return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
-        <Spin tip="加载筛选数据..." />
+        <Spin tip="加载筛选数据...">
+          <div style={{ minHeight: '80px' }} />
+        </Spin>
       </div>
     );
   }

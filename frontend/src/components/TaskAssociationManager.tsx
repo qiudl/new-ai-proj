@@ -289,7 +289,9 @@ const TaskAssociationManager: React.FC<TaskAssociationManagerProps> = ({
         >
           {loading ? (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <Spin tip="加载中..." />
+              <Spin tip="加载中...">
+                <div style={{ minHeight: '80px' }} />
+              </Spin>
             </div>
           ) : associatedTasks.length === 0 ? (
             <Empty description="暂无关联任务" />

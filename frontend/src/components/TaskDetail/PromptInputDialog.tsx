@@ -198,7 +198,9 @@ const PromptInputDialog: React.FC<PromptInputDialogProps> = ({
       {/* 智能推荐区域 */}
       {loadingRecommendations && (
         <div style={{ textAlign: 'center', padding: '20px 0', marginBottom: 16 }}>
-          <Spin tip="正在加载智能推荐..." />
+          <Spin tip="正在加载智能推荐...">
+            <div style={{ minHeight: '80px' }} />
+          </Spin>
         </div>
       )}
 

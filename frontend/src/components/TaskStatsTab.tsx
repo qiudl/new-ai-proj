@@ -71,13 +71,15 @@ const TaskStatsTab: React.FC<TaskStatsTabProps> = ({ dateRange, projectId = 1 })
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '400px' 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '400px'
       }}>
-        <Spin size="large" tip="正在加载任务统计..." />
+        <Spin size="large" tip="正在加载任务统计...">
+          <div style={{ minHeight: '100px' }} />
+        </Spin>
       </div>
     );
   }

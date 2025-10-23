@@ -336,7 +336,9 @@ const CreateAIDocDialog: React.FC<CreateAIDocDialogProps> = ({
         destroyOnClose
       >
         <div style={{ textAlign: 'center', padding: '50px 0' }}>
-          <Spin tip="加载任务信息..." />
+          <Spin tip="加载任务信息...">
+            <div style={{ minHeight: '100px' }} />
+          </Spin>
         </div>
       </Modal>
     );

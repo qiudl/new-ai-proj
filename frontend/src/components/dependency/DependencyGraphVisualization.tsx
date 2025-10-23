@@ -533,7 +533,9 @@ setSimulation(sim as unknown as d3.Simulation<DependencyGraphNode, undefined>);
     return (
       <Card title="依赖关系图">
         <div style={{ textAlign: 'center', padding: '50px' }}>
-          <Spin size="large" tip="加载依赖关系图..." />
+          <Spin size="large" tip="加载依赖关系图...">
+            <div style={{ minHeight: '100px' }} />
+          </Spin>
         </div>
       </Card>
     );

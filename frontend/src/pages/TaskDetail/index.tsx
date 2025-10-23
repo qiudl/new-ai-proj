@@ -29,10 +29,12 @@ const TaskDetail: React.FC = () => {
   }
 
   return (
-    <Suspense 
+    <Suspense
       fallback={
         <div className="task-detail-loading">
-          <Spin size="large" tip="Loading task details..." />
+          <Spin size="large" tip="Loading task details...">
+            <div style={{ minHeight: '100px' }} />
+          </Spin>
         </div>
       }
     >
