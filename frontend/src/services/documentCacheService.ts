@@ -347,6 +347,15 @@ export class DocumentCacheService {
   }
 
   /**
+   * 删除指定缓存键
+   */
+  async remove(key: string): Promise<void> {
+    this.memoryCache.delete(key);
+    await this.deleteFromIndexedDB(key);
+    console.log(`🗑️ [CACHE] 删除缓存: ${key}`);
+  }
+
+  /**
    * 预加载文档
    */
   async preload(projectId: number, taskId: number, fetcher: () => Promise<DocumentItem[]>): Promise<void> {
