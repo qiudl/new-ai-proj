@@ -97,9 +97,9 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       const documents = response.documents || response.data?.documents || response;
       const docsArray = Array.isArray(documents) ? documents : [];
 
-      // 查找主文档（relationship_type='main'）
+      // 查找主文档（metadata.relationship_type='main'）
       const mainDoc = docsArray.find((doc: any) =>
-        doc.relationship_type === 'main'
+        doc.metadata?.relationship_type === 'main' || doc.relationship_type === 'main'
       );
 
       if (mainDoc) {
