@@ -337,7 +337,7 @@ export const GrayReleasePanel: React.FC = () => {
               <div>
                 <strong>2. 优先级规则：</strong>
                 <div style={{ marginLeft: '16px', color: '#8c8c8c' }}>
-                  开发环境 > 黑名单（禁用） > 白名单（启用） > 灰度比例 > 总开关
+                  开发环境 {'>'} 黑名单（禁用） {'>'} 白名单（启用） {'>'} 灰度比例 {'>'} 总开关
                 </div>
               </div>
               <div>

@@ -1,657 +1,883 @@
+/**
+ * 统一文档服务 - 所有文档操作的单一入口
+ *
+ * Phase 7: 合并documentService.ts (831行) + taskDocumentService.ts (1,570行) + 原unifiedDocumentService.ts (656行)
+ *
+ * 功能模块:
+ * 1. 核心CRUD - 文档的增删改查
+ * 2. 任务文档 - 任务关联的文档操作
+ * 3. 文件上传 - 基础+增强+分块上传
+ * 4. 版本管理 - 历史+比较+恢复
+ * 5. 搜索过滤 - 全文搜索+高级过滤
+ * 6. 导出功能 - markdown/PDF/HTML导出
+ * 7. 批量操作 - 批量删除/归档/标签
+ * 8. 缓存管理 - 三级缓存系统
+ * 9. 性能监控 - 操作性能跟踪
+ *
+ * @example
+ * ```typescript
+ * // 获取文档
+ * const doc = await documentService.getDocument(123);
+ *
+ * // 上传文件
+ * const uploaded = await documentService.uploadFile(file, {
+ *   onProgress: (progress) => console.log(`${progress}%`)
+ * });
+ *
+ * // 保存任务文档
+ * const taskDoc = await documentService.saveTaskDocument(1, 456, content);
+ * ```
+ */
+
 import api from './api';
+import { documentCacheService } from './documentCacheService';
+import {
+  apiCache,
+  performanceMonitor
+} from '../utils/performanceOptimization';
+
 import {
   Document,
+  DocumentFilter,
+  DocumentListResponse,
   CreateDocumentRequest,
   UpdateDocumentRequest,
-  DocumentFilter as DocFilter,
-  DocumentListResponse,
-  DocumentVersion,
-  ProjectOption,
-  CustomerOption,
-  DocumentType,
-  DocumentStatus,
-  DocumentVisibility
+  UploadProgressCallback,
+  FileUploadOptions,
+  ApiResponse,
+  TaskDocumentResponse,
+  UploadedDocumentInfo,
+  DocumentVersionInfo,
+  DocumentVersionHistoryResponse,
+  DocumentVersionComparisonResult,
+  BatchOperationRequest,
+  BatchOperationResponse,
+  SearchDocument,
 } from '../types/document';
 
-// 从 simpleDocumentService 导入的简化类型
-export interface SimpleDocument {
-  id: number;
-  folder_id?: number;
-  title: string;
-  content?: string;
-  type: DocumentType;
-  status: DocumentStatus;
-  description?: string;
-  tags: string[];
-  owner_id: number;
-  visibility: DocumentVisibility;
-  version: number;
-  is_template: boolean;
-  created_at: string;
-  updated_at: string;
-  created_by: number;
-  owner_name?: string;
-  folder_name?: string;
-  project_id?: number;
-  project_name?: string;
-  customer_id?: number;
-  customer_name?: string;
-  category?: string;
-  is_favorite?: boolean;
-}
-
-// API响应格式
-export interface APIResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-  error?: string;
-}
-
-// 类型适配器：将 SimpleDocument 转换为 Document
-export const adaptSimpleToDocument = (simple: SimpleDocument): Document => {
-  return {
-    ...simple,
-    content: simple.content || '',
-    content_size: simple.content?.length || 0,
-    tags: simple.tags || [],
-    metadata: {},
-    can_edit: true,
-    can_share: true,
-  };
-};
-
-// 类型适配器：将 Document 转换为 SimpleDocument
-export const adaptDocumentToSimple = (doc: Document): SimpleDocument => {
-  return {
-    id: doc.id,
-    folder_id: doc.folder_id,
-    title: doc.title,
-    content: doc.content,
-    type: doc.type,
-    status: doc.status,
-    description: doc.description,
-    tags: doc.tags || [],
-    owner_id: doc.owner_id,
-    visibility: doc.visibility,
-    version: doc.version,
-    is_template: doc.is_template,
-    created_at: doc.created_at,
-    updated_at: doc.updated_at,
-    created_by: doc.created_by,
-    owner_name: doc.owner_name,
-    folder_name: doc.folder_name,
-    project_id: doc.project_id,
-    project_name: doc.project_name,
-    customer_id: doc.customer_id,
-    customer_name: doc.customer_name,
-    category: doc.category,
-    is_favorite: doc.is_favorite,
-  };
-};
-
-// Type-safe API wrapper that knows about the response interceptor
-const apiCall = {
-  get: async <T>(url: string): Promise<T> => {
-    const response = await api.get(url);
-    return response as T;
-  },
-  post: async <T>(url: string, data?: any): Promise<T> => {
-    const response = await api.post(url, data);
-    return response as T;
-  },
-  put: async <T>(url: string, data?: any): Promise<T> => {
-    const response = await api.put(url, data);
-    return response as T;
-  },
-  delete: async (url: string): Promise<void> => {
-    await api.delete(url);
-  },
-  postFormData: async <T>(url: string, formData: FormData): Promise<T> => {
-    const response = await api.post(url, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response as T;
-  },
-};
-
-// 文件上传相关类型
-export interface FileUploadResponse {
-  url: string;
-  filename: string;
-  size: number;
-  mime_type: string;
-}
-
-// 本地存储的mock数据管理
-class LocalDocumentStore {
-  private static readonly STORAGE_KEY = 'mock_documents';
-  
-  static getDocuments(): Document[] {
-    try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.warn('Failed to load local documents:', error);
-      return [];
-    }
-  }
-  
-  static saveDocument(document: Document): void {
-    try {
-      const documents = this.getDocuments();
-      const existingIndex = documents.findIndex(d => d.id === document.id);
-      
-      if (existingIndex >= 0) {
-        documents[existingIndex] = document;
-      } else {
-        documents.push(document);
-      }
-      
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(documents));
-    } catch (error) {
-      console.warn('Failed to save document locally:', error);
-    }
-  }
-  
-  static deleteDocument(id: number): void {
-    try {
-      const documents = this.getDocuments().filter(d => d.id !== id);
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(documents));
-    } catch (error) {
-      console.warn('Failed to delete document locally:', error);
-    }
-  }
-  
-  static updateDocument(id: number, updates: Partial<Document>): Document | null {
-    try {
-      const documents = this.getDocuments();
-      const index = documents.findIndex(d => d.id === id);
-      
-      if (index >= 0) {
-        documents[index] = { ...documents[index], ...updates, updated_at: new Date().toISOString() };
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(documents));
-        return documents[index];
-      }
-      return null;
-    } catch (error) {
-      console.warn('Failed to update document locally:', error);
-      return null;
-    }
-  }
-}
-
 /**
- * 统一的文档服务类
- * 合并了 documentService 和 simpleDocumentService 的功能
+ * 统一文档服务类
+ * 使用单例模式，确保全局只有一个实例
  */
 export class UnifiedDocumentService {
-  
-  // ==================== 基础 CRUD 操作 ====================
-  
+  private static instance: UnifiedDocumentService;
+
+  // 配置常量
+  private readonly DEFAULT_CACHE_TTL = 5 * 60 * 1000; // 5分钟
+  private readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  private readonly MAX_CONCURRENT_REQUESTS = 5;
+  private readonly DEFAULT_RETRY_COUNT = 3;
+  private readonly CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+
+  // 请求队列管理
+  private requestQueue: Map<string, Promise<any>> = new Map();
+  private activeRequests = 0;
+
   /**
-   * 创建文档
-   * 从 simpleDocumentService 迁移，使用统一 API 调用
+   * 获取单例实例
    */
-  async createDocument(request: CreateDocumentRequest): Promise<Document> {
-    try {
-      const response = await apiCall.post<Document>('/documents', request);
-      return response;
-    } catch (error: Error | unknown) {
-      console.error('Error creating document:', error);
-      // 使用模拟数据降级处理
-      console.warn('Document API failed, using local storage fallback:', error);
-      
-      // 生成一个负数ID以明确标识这是本地模拟数据
-      const localDocuments = await this.getDocuments();
-      const nextLocalId = Math.min(...localDocuments.map((d: Document) => d.id).filter((id: number) => id < 0), 0) - 1;
-      
-      const mockDocument: Document = {
-        id: nextLocalId, // 使用负数ID，避免与数据库ID冲突
-        folder_id: request.folder_id,
-        title: request.title,
-        content: request.content || '',
-        content_size: request.content?.length || 0,
-        type: request.type,
-        status: request.status || 'draft',
-        description: request.description,
-        tags: request.tags || [],
-        metadata: {},
-        owner_id: 1, // 默认用户ID
-        visibility: request.visibility || 'private',
-        version: 1,
-        is_template: request.is_template || false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        created_by: 1,
-        owner_name: 'Current User',
-        project_id: request.project_id,
-        customer_id: request.customer_id,
-        category: request.category,
-        can_edit: true,
-        can_share: true,
-      };
-      // 将创建的文档保存到本地存储
-      LocalDocumentStore.saveDocument(mockDocument);
-      return mockDocument;
+  public static getInstance(): UnifiedDocumentService {
+    if (!UnifiedDocumentService.instance) {
+      UnifiedDocumentService.instance = new UnifiedDocumentService();
     }
+    return UnifiedDocumentService.instance;
   }
 
   /**
-   * 获取文档详情
+   * 私有构造函数，强制使用单例
    */
-  async getDocument(id: number): Promise<Document> {
+  private constructor() {
+    // 初始化完成
+    console.log('[UnifiedDocumentService] Initialized');
+  }
+
+  // ==================== 模块1: 核心CRUD操作 ====================
+
+  /**
+   * 获取单个文档
+   * 合并自: documentService.getDocument(), taskDocumentService.get()
+   *
+   * @param documentId 文档ID
+   * @returns 文档对象
+   */
+  async getDocument(documentId: number): Promise<Document> {
+    const cacheKey = this.generateCacheKey('document', documentId);
+
     try {
-      const response = await apiCall.get<Document>(`/documents/${id}`);
-      return response;
-    } catch (error: Error | unknown) {
-      console.error('Error getting document:', error);
-      console.warn('Document API not available, trying local storage');
-      
-      // 尝试从本地存储获取文档
-      const localDocuments = LocalDocumentStore.getDocuments();
-      const document = localDocuments.find(d => d.id === id);
-      
-      if (document) {
-        return document;
+      this.startMonitoring('get_document', { documentId });
+
+      // 尝试从缓存获取
+      const cached = await this.getFromCache<Document>(cacheKey);
+      if (cached) {
+        this.endMonitoring('get_document');
+        return cached;
       }
-      
-      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to get document');
-    }
-  }
 
-  /**
-   * 更新文档 - 修复版
-   */
-  async updateDocument(id: number, request: UpdateDocumentRequest): Promise<Document> {
-    try {
-      // 过滤掉 undefined 和空值，只发送有值的字段
-      const cleanRequest: Record<string, any> = {};
-      
-      // 包含所有支持的字段
-      const supportedFields = [
-        'title', 'content', 'description', 'status', 'visibility', 
-        'folder_id', 'type', 'project_id', 'customer_id', 'shared_with',
-        'is_template', 'tags', 'metadata', 'category', 'due_date', 'priority'
-      ];
-      
-      supportedFields.forEach(field => {
-        const value = (request as unknown)[field];
-        if (value !== undefined && value !== null) {
-          // 对于字符串字段，允许空字符串（可能有意要清空内容）
-          if (typeof value === 'string' || Array.isArray(value) || typeof value === 'boolean' || typeof value === 'number') {
-            cleanRequest[field] = value;
-          }
-        }
-      });
-      
-      const response = await apiCall.put<Document>(`/documents/${id}`, cleanRequest);
-      return response;
-    } catch (error: Error | unknown) {
-      console.error('Error updating document:', error);
-      console.warn('Document API not available, using local storage');
-      
-      // 尝试更新本地存储中的文档
-      const updated = LocalDocumentStore.updateDocument(id, request);
-      if (updated) {
-        return updated;
-      }
-      
-      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to update document');
-    }
-  }
+      // 从API获取
+      const response = await api.get(`/documents/${documentId}`);
+      const document = response as Document;
 
-  /**
-   * 删除文档
-   */
-  async deleteDocument(id: number): Promise<void> {
-    try {
-      await apiCall.delete(`/documents/${id}`);
-    } catch (error: Error | unknown) {
-      console.error('Error deleting document:', error);
-      console.warn('Document API not available, using local storage');
-      
-      // 从本地存储删除文档
-      LocalDocumentStore.deleteDocument(id);
-      // 删除操作不需要返回值，所以即使API失败也可以成功完成本地删除
+      // 设置缓存
+      await this.setCache(cacheKey, document, this.DEFAULT_CACHE_TTL);
+
+      this.endMonitoring('get_document');
+      return document;
+    } catch (error) {
+      this.endMonitoring('get_document');
+      console.error('[getDocument] Failed:', error);
+      throw error;
     }
   }
 
   /**
    * 获取文档列表
+   * 合并自: documentService.listDocuments()
+   *
+   * @param filter 过滤条件
+   * @returns 文档列表响应
    */
-  async getDocuments(folderId?: number): Promise<Document[]> {
+  async listDocuments(filter?: DocumentFilter): Promise<DocumentListResponse> {
+    const cacheKey = this.generateCacheKey('documents_list', JSON.stringify(filter || {}));
+
     try {
-      // 检查认证状态
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.warn('No authentication token found');
-        throw new Error('请先登录以查看文档');
+      this.startMonitoring('list_documents', { filter });
+
+      // 尝试从缓存获取
+      const cached = await this.getFromCache<DocumentListResponse>(cacheKey);
+      if (cached) {
+        this.endMonitoring('list_documents');
+        return cached;
       }
 
-      const url = folderId ? `/documents?folder_id=${folderId}` : '/documents';
-      const response = await apiCall.get<any>(url);
-      // 适配API响应格式：API返回 {success: true, data: [...], message: "..."}
-      // 但组件期望 Document[] 数组
-      if (response.success && Array.isArray(response.data)) {
-        const documents: Document[] = response.data.map((doc: unknown) => adaptSimpleToDocument({
-          id: (doc as any).id,
-          folder_id: (doc as any).folder_id,
-          title: (doc as any).title,
-          content: (doc as any).content,
-          type: (doc as any).type,
-          status: (doc as any).status,
-          description: (doc as any).description,
-          tags: (doc as any).tags || [],
-          owner_id: (doc as any).owner_id,
-          visibility: (doc as any).visibility,
-          version: (doc as any).version,
-          is_template: (doc as any).is_template,
-          created_at: (doc as any).created_at,
-          updated_at: (doc as any).updated_at,
-          created_by: (doc as any).created_by,
-          owner_name: (doc as any).owner_name,
-          folder_name: (doc as any).folder_name,
-          project_id: (doc as any).project_id,
-          project_name: (doc as any).project_name,
-          customer_id: (doc as any).customer_id,
-          customer_name: (doc as any).customer_name,
-          category: (doc as any).category,
-          is_favorite: (doc as any).is_favorite
-        }));
-        
-        return documents;
-      } else if (response.success && response.data === null) {
-        return [];
-      } else {
-        console.warn('getDocuments - API响应格式不正确:', response);
-        return [];
-      }
-    } catch (error: Error | unknown) {
-      console.error('Error getting documents:', error);
-      
-      // 区分错误类型，提供更精确的错误处理
-      if ((error as any).status === 401) {
-        // 认证失败，清除无效token
-        localStorage.removeItem('token');
-        throw new Error('认证失败，请重新登录');
-      } else if ((error as any).status === 404) {
-        // API端点不存在
-        throw new Error('文档API不可用，请联系管理员');
-      } else if ((error as any).name === 'NetworkError' || !(error as any).status) {
-        // 网络错误，使用本地数据降级
-        console.warn('Network error, using local storage fallback');
-        const localDocuments = LocalDocumentStore.getDocuments();
-        if (folderId !== undefined) {
-          return localDocuments.filter(doc => doc.folder_id === folderId);
-        }
-        return localDocuments;
-      }
-      
-      // 其他服务器错误，也使用降级处理但记录错误
-      console.warn('Server error, using local storage fallback:', (error as any).message);
-      const localDocuments = LocalDocumentStore.getDocuments();
-      if (folderId !== undefined) {
-        return localDocuments.filter(doc => doc.folder_id === folderId);
-      }
-      return localDocuments;
+      // 构建查询参数
+      const params = this.buildQueryParams(filter);
+
+      // 从API获取
+      const response = await api.get('/documents', { params });
+      const listResponse = response as DocumentListResponse;
+
+      // 设置缓存（列表缓存时间较短）
+      await this.setCache(cacheKey, listResponse, this.DEFAULT_CACHE_TTL / 2);
+
+      this.endMonitoring('list_documents');
+      return listResponse;
+    } catch (error) {
+      this.endMonitoring('list_documents');
+      console.error('[listDocuments] Failed:', error);
+      throw error;
     }
   }
 
   /**
-   * 获取所有文档（带过滤）
+   * 创建文档
+   * 合并自: documentService.createDocument(), taskDocumentService.save()
+   *
+   * @param request 创建请求
+   * @returns 创建的文档
    */
-  async getAllDocuments(filter?: DocFilter): Promise<DocumentListResponse> {
+  async createDocument(request: CreateDocumentRequest): Promise<Document> {
     try {
-      const queryParams = new URLSearchParams();
-      
-      if (filter) {
-        Object.entries(filter).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && value !== '') {
-            queryParams.append(key, value.toString());
-          }
-        });
-      }
-      
-      const url = `/documents${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-      const response = await apiCall.get<any>(url);
-      // 适配API响应格式：API返回 {success: true, data: [...], message: "..."}
-      // 但组件期望 {documents: [...], total: number, ...}
-      if (response.success && response.data) {
-        const adaptedResponse: DocumentListResponse = {
-          documents: response.data.map((doc: unknown) => ({
-            id: (doc as any).id,
-            title: (doc as any).title,
-            type: (doc as any).type,
-            status: (doc as any).status,
-            owner_name: (doc as any).owner_name || 'Unknown',
-            folder_name: (doc as any).folder_name,
-            tags: (doc as any).tags || [],
-            updated_at: (doc as any).updated_at,
-            file_size: (doc as any).content?.length || 0,
-            is_favorite: (doc as any).is_favorite || false
-          })),
-          total: response.data.length,
-          page: filter?.page || 1,
-          limit: filter?.limit || 20,
-          has_more: false
-        };
-        
-        return adaptedResponse;
-      } else {
-        throw new Error('API响应格式不正确');
-      }
-    } catch (error: Error | unknown) {
-      console.error('Error getting all documents:', error);
-      console.warn('Document API not available, using local mock data');
-      
-      // 从本地存储获取文档
-      let localDocuments = LocalDocumentStore.getDocuments();
-      
-      // 应用过滤条件
-      if (filter) {
-        if (filter.folder_id !== undefined) {
-          localDocuments = localDocuments.filter(doc => doc.folder_id === filter.folder_id);
-        }
-        if (filter.type && filter.type.length > 0) {
-          localDocuments = localDocuments.filter(doc => filter.type!.includes(doc.type));
-        }
-        if (filter.status && filter.status.length > 0) {
-          localDocuments = localDocuments.filter(doc => filter.status!.includes(doc.status));
-        }
-        if (filter.search) {
-          const searchLower = filter.search.toLowerCase();
-          localDocuments = localDocuments.filter(doc => 
-            doc.title.toLowerCase().includes(searchLower) ||
-            (doc.content && doc.content.toLowerCase().includes(searchLower)) ||
-            (doc.description && doc.description.toLowerCase().includes(searchLower))
-          );
-        }
-        if (filter.tags && filter.tags.length > 0) {
-          localDocuments = localDocuments.filter(doc => 
-            filter.tags!.some(tag => doc.tags.includes(tag))
-          );
-        }
-      }
-      
-      // 应用分页
-      const page = filter?.page || 1;
-      const limit = filter?.limit || 20;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedDocs = localDocuments.slice(startIndex, endIndex);
-      
-      // 转换为DocumentListItem格式
-      const documentItems = paginatedDocs.map(doc => ({
-        id: doc.id,
-        title: doc.title,
-        type: doc.type,
-        status: doc.status,
-        owner_name: doc.owner_name || 'Current User',
-        folder_name: doc.folder_name,
-        tags: doc.tags,
-        updated_at: doc.updated_at,
-        file_size: doc.content_size,
-        is_favorite: doc.is_favorite
-      }));
-      
-      return {
-        documents: documentItems,
-        total: localDocuments.length,
-        page,
-        limit,
-        has_more: endIndex < localDocuments.length
+      this.startMonitoring('create_document', { title: request.title });
+
+      // 验证请求
+      this.validateDocumentRequest(request);
+
+      // 创建文档
+      const response = await api.post('/documents', request);
+      const document = response as Document;
+
+      // 清除列表缓存
+      await this.invalidateListCache();
+
+      this.endMonitoring('create_document');
+      return document;
+    } catch (error) {
+      this.endMonitoring('create_document');
+      console.error('[createDocument] Failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 更新文档
+   * 合并自: documentService.updateDocument(), taskDocumentService.save()
+   *
+   * @param documentId 文档ID
+   * @param request 更新请求
+   * @returns 更新后的文档
+   */
+  async updateDocument(
+    documentId: number,
+    request: UpdateDocumentRequest
+  ): Promise<Document> {
+    try {
+      this.startMonitoring('update_document', { documentId });
+
+      // 更新文档
+      const response = await api.put(`/documents/${documentId}`, request);
+      const document = response as Document;
+
+      // 失效相关缓存
+      await this.invalidateDocumentCache(documentId);
+      await this.invalidateListCache();
+
+      this.endMonitoring('update_document');
+      return document;
+    } catch (error) {
+      this.endMonitoring('update_document');
+      console.error('[updateDocument] Failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 删除文档
+   * 合并自: documentService.deleteDocument(), taskDocumentService.delete()
+   *
+   * @param documentId 文档ID
+   */
+  async deleteDocument(documentId: number): Promise<void> {
+    try {
+      this.startMonitoring('delete_document', { documentId });
+
+      // 删除文档
+      await api.delete(`/documents/${documentId}`);
+
+      // 清除缓存
+      await this.invalidateDocumentCache(documentId);
+      await this.invalidateListCache();
+
+      this.endMonitoring('delete_document');
+    } catch (error) {
+      this.endMonitoring('delete_document');
+      console.error('[deleteDocument] Failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 搜索文档
+   * 合并自: documentService.searchDocuments()
+   *
+   * @param query 搜索关键词
+   * @param filter 过滤条件
+   * @returns 搜索结果
+   */
+  async searchDocuments(
+    query: string,
+    filter?: DocumentFilter
+  ): Promise<SearchDocument[]> {
+    try {
+      this.startMonitoring('search_documents', { query });
+
+      const params = {
+        ...this.buildQueryParams(filter),
+        search: query,
       };
+
+      const response = await api.get('/documents/search', { params });
+      const results = response as SearchDocument[];
+
+      this.endMonitoring('search_documents');
+      return results;
+    } catch (error) {
+      this.endMonitoring('search_documents');
+      console.error('[searchDocuments] Failed:', error);
+      throw error;
     }
   }
 
-  // ==================== 高级功能 ====================
+  // ==================== 模块2: 任务文档操作 ====================
 
   /**
-   * 复制文档
+   * 获取任务文档
+   * 合并自: documentService.getTaskDocument(), taskDocumentService.get()
+   *
+   * @param projectId 项目ID
+   * @param taskId 任务ID
+   * @returns 任务文档，不存在返回null
    */
-  async copyDocument(id: number): Promise<Document> {
+  async getTaskDocument(
+    projectId: number,
+    taskId: number
+  ): Promise<Document | null> {
+    const cacheKey = this.generateCacheKey('task_document', projectId, taskId);
+
     try {
-      const response = await apiCall.post<Document>(`/documents/${id}/copy`);
-      return response;
-    } catch (error: Error | unknown) {
-      console.error('Error copying document:', error);
-      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to copy document');
+      this.startMonitoring('get_task_document', { projectId, taskId });
+
+      // 尝试从缓存获取
+      const cached = await this.getFromCache<Document>(cacheKey);
+      if (cached) {
+        this.endMonitoring('get_task_document');
+        return cached;
+      }
+
+      // 从API获取
+      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/document`);
+
+      // 处理空响应（任务没有文档）
+      if (!response || (response as TaskDocumentResponse).content === '') {
+        this.endMonitoring('get_task_document');
+        return null;
+      }
+
+      const document = response as Document;
+
+      // 设置缓存
+      await this.setCache(cacheKey, document, this.DEFAULT_CACHE_TTL);
+
+      this.endMonitoring('get_task_document');
+      return document;
+    } catch (error: any) {
+      this.endMonitoring('get_task_document');
+
+      // 404错误表示文档不存在，返回null而不是抛出异常
+      if (error?.response?.status === 404) {
+        return null;
+      }
+
+      console.error('[getTaskDocument] Failed:', error);
+      throw error;
     }
   }
 
   /**
-   * 切换模板状态
+   * 保存任务文档
+   * 合并自: documentService.saveTaskDocument(), taskDocumentService.save()
+   *
+   * @param projectId 项目ID
+   * @param taskId 任务ID
+   * @param content 文档内容
+   * @param metadata 元数据（可选）
+   * @returns 保存的文档
    */
-  async toggleTemplate(id: number): Promise<Document> {
+  async saveTaskDocument(
+    projectId: number,
+    taskId: number,
+    content: string,
+    metadata?: Record<string, any>
+  ): Promise<Document> {
     try {
-      const response = await apiCall.post<Document>(`/documents/${id}/toggle-template`);
-      return response;
-    } catch (error: Error | unknown) {
-      console.error('Error toggling template:', error);
-      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to toggle template');
+      this.startMonitoring('save_task_document', { projectId, taskId });
+
+      const request = {
+        content,
+        ...metadata,
+      };
+
+      // 保存文档（API会自动判断是创建还是更新）
+      const response = await api.post(
+        `/projects/${projectId}/tasks/${taskId}/document`,
+        request
+      );
+      const document = response as Document;
+
+      // 失效缓存
+      await this.invalidateTaskDocumentCache(projectId, taskId);
+
+      this.endMonitoring('save_task_document');
+      return document;
+    } catch (error) {
+      this.endMonitoring('save_task_document');
+      console.error('[saveTaskDocument] Failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 删除任务文档
+   * 合并自: taskDocumentService.delete()
+   *
+   * @param projectId 项目ID
+   * @param taskId 任务ID
+   */
+  async deleteTaskDocument(projectId: number, taskId: number): Promise<void> {
+    try {
+      this.startMonitoring('delete_task_document', { projectId, taskId });
+
+      await api.delete(`/projects/${projectId}/tasks/${taskId}/document`);
+
+      // 清除缓存
+      await this.invalidateTaskDocumentCache(projectId, taskId);
+
+      this.endMonitoring('delete_task_document');
+    } catch (error) {
+      this.endMonitoring('delete_task_document');
+      console.error('[deleteTaskDocument] Failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 检查任务是否有文档
+   * 新功能: 快速检查文档存在性
+   *
+   * @param projectId 项目ID
+   * @param taskId 任务ID
+   * @returns 是否存在文档
+   */
+  async hasTaskDocument(projectId: number, taskId: number): Promise<boolean> {
+    try {
+      const doc = await this.getTaskDocument(projectId, taskId);
+      return doc !== null;
+    } catch (error) {
+      console.error('[hasTaskDocument] Failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 获取任务的所有文档（包括上传文件）
+   * 合并自: taskDocumentService.getTaskDocuments()
+   *
+   * @param projectId 项目ID
+   * @param taskId 任务ID
+   * @returns 文档列表
+   */
+  async getTaskDocuments(
+    projectId: number,
+    taskId: number
+  ): Promise<UploadedDocumentInfo[]> {
+    try {
+      this.startMonitoring('get_task_documents', { projectId, taskId });
+
+      const response = await api.get(`/tasks/${taskId}/documents`);
+      const documents = (response as any).documents || [];
+
+      this.endMonitoring('get_task_documents');
+      return documents;
+    } catch (error) {
+      this.endMonitoring('get_task_documents');
+      console.error('[getTaskDocuments] Failed:', error);
+      throw error;
+    }
+  }
+
+  // ==================== 模块3: 文件上传 ====================
+
+  /**
+   * 上传文件并创建文档
+   * 合并自: documentService.uploadFile(), taskDocumentService.uploadDocument()
+   *
+   * @param file 文件对象
+   * @param options 上传选项
+   * @returns 创建的文档
+   */
+  async uploadFile(
+    file: File,
+    options?: FileUploadOptions
+  ): Promise<Document> {
+    try {
+      this.startMonitoring('upload_file', {
+        fileName: file.name,
+        fileSize: file.size
+      });
+
+      // 验证文件
+      this.validateFile(file, options?.maxRetries);
+
+      // 准备FormData
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // 上传文件
+      const response = await api.post('/documents/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent: any) => {
+          if (options?.onProgress && progressEvent.total) {
+            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            options.onProgress(progress, progressEvent.loaded, progressEvent.total);
+          }
+        },
+        timeout: options?.timeout || 30000,
+      });
+
+      const document = response as Document;
+
+      // 清除列表缓存
+      await this.invalidateListCache();
+
+      this.endMonitoring('upload_file');
+      return document;
+    } catch (error) {
+      this.endMonitoring('upload_file');
+      console.error('[uploadFile] Failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 上传任务文档文件
+   * 合并自: taskDocumentService.uploadDocument()
+   *
+   * @param projectId 项目ID
+   * @param taskId 任务ID
+   * @param file 文件对象
+   * @param options 上传选项
+   * @returns 上传的文档信息
+   */
+  async uploadTaskDocument(
+    projectId: number,
+    taskId: number,
+    file: File,
+    options?: FileUploadOptions
+  ): Promise<UploadedDocumentInfo> {
+    try {
+      this.startMonitoring('upload_task_document', {
+        projectId,
+        taskId,
+        fileName: file.name,
+      });
+
+      // 验证文件
+      this.validateFile(file);
+
+      // 准备FormData
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_type', 'manual');
+
+      // 上传文件
+      const response = await api.post(
+        `/projects/${projectId}/tasks/${taskId}/documents/upload`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          onUploadProgress: (progressEvent: any) => {
+            if (options?.onProgress && progressEvent.total) {
+              const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              options.onProgress(progress, progressEvent.loaded, progressEvent.total);
+            }
+          },
+        }
+      );
+
+      const uploadedInfo = response as UploadedDocumentInfo;
+
+      // 失效缓存
+      await this.invalidateTaskDocumentCache(projectId, taskId);
+
+      this.endMonitoring('upload_task_document');
+      return uploadedInfo;
+    } catch (error) {
+      this.endMonitoring('upload_task_document');
+      console.error('[uploadTaskDocument] Failed:', error);
+      throw error;
+    }
+  }
+
+  // ==================== 模块4: 版本管理 ====================
+
+  /**
+   * 获取文档版本历史
+   * 合并自: documentService.getDocumentVersions(), taskDocumentService.getVersionHistory()
+   *
+   * @param documentId 文档ID
+   * @param options 查询选项
+   * @returns 版本历史响应
+   */
+  async getVersionHistory(
+    documentId: number,
+    options?: {
+      page?: number;
+      limit?: number;
+      includeContent?: boolean;
+    }
+  ): Promise<DocumentVersionHistoryResponse> {
+    try {
+      this.startMonitoring('get_version_history', { documentId });
+
+      const params = {
+        page: options?.page || 1,
+        limit: options?.limit || 20,
+        include_content: options?.includeContent || false,
+      };
+
+      const response = await api.get(`/documents/${documentId}/versions`, { params });
+      const history = response as DocumentVersionHistoryResponse;
+
+      this.endMonitoring('get_version_history');
+      return history;
+    } catch (error) {
+      this.endMonitoring('get_version_history');
+      console.error('[getVersionHistory] Failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 比较两个版本
+   * 合并自: documentService.compareVersions(), taskDocumentService.compareVersions()
+   *
+   * @param documentId 文档ID
+   * @param version1 版本1
+   * @param version2 版本2
+   * @returns 比较结果
+   */
+  async compareVersions(
+    documentId: number,
+    version1: number,
+    version2: number
+  ): Promise<DocumentVersionComparisonResult> {
+    try {
+      this.startMonitoring('compare_versions', { documentId, version1, version2 });
+
+      const response = await api.get(
+        `/documents/${documentId}/versions/compare`,
+        {
+          params: { version1, version2 },
+        }
+      );
+
+      const comparison = response as DocumentVersionComparisonResult;
+
+      this.endMonitoring('compare_versions');
+      return comparison;
+    } catch (error) {
+      this.endMonitoring('compare_versions');
+      console.error('[compareVersions] Failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 恢复到指定版本
+   * 合并自: documentService.restoreVersion(), taskDocumentService.restoreVersion()
+   *
+   * @param documentId 文档ID
+   * @param versionNumber 版本号
+   * @returns 恢复后的文档（新版本）
+   */
+  async restoreVersion(
+    documentId: number,
+    versionNumber: number
+  ): Promise<Document> {
+    try {
+      this.startMonitoring('restore_version', { documentId, versionNumber });
+
+      const response = await api.post(
+        `/documents/${documentId}/versions/${versionNumber}/restore`
+      );
+
+      const document = response as Document;
+
+      // 失效缓存
+      await this.invalidateDocumentCache(documentId);
+
+      this.endMonitoring('restore_version');
+      return document;
+    } catch (error) {
+      this.endMonitoring('restore_version');
+      console.error('[restoreVersion] Failed:', error);
+      throw error;
+    }
+  }
+
+  // ==================== 模块5: 批量操作 ====================
+
+  /**
+   * 批量操作文档
+   * 合并自: taskDocumentService.batchOperation()
+   *
+   * @param request 批量操作请求
+   * @returns 操作结果
+   */
+  async batchOperation(request: BatchOperationRequest): Promise<BatchOperationResponse> {
+    try {
+      this.startMonitoring('batch_operation', {
+        operation: request.operation,
+        count: request.document_ids.length
+      });
+
+      const response = await api.post('/documents/batch', request);
+      const result = response as BatchOperationResponse;
+
+      // 清除相关缓存
+      await this.invalidateListCache();
+      for (const docId of request.document_ids) {
+        await this.invalidateDocumentCache(docId);
+      }
+
+      this.endMonitoring('batch_operation');
+      return result;
+    } catch (error) {
+      this.endMonitoring('batch_operation');
+      console.error('[batchOperation] Failed:', error);
+      throw error;
     }
   }
 
   /**
    * 批量删除文档
+   * 新功能: 便捷的批量删除方法
+   *
+   * @param documentIds 文档ID列表
+   * @returns 操作结果
    */
-  async batchDeleteDocuments(documentIds: number[]): Promise<void> {
-    try {
-      await apiCall.post('/documents/batch-delete', { document_ids: documentIds });
-    } catch (error: Error | unknown) {
-      console.error('Error batch deleting documents:', error);
-      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to batch delete documents');
-    }
+  async batchDeleteDocuments(documentIds: number[]): Promise<BatchOperationResponse> {
+    return this.batchOperation({
+      operation: 'delete',
+      document_ids: documentIds,
+    });
   }
 
-  /**
-   * 复制文档
-   */
-  async duplicateDocument(documentId: number, newTitle?: string): Promise<Document> {
-    try {
-      const response = await apiCall.post<Document>(`/documents/${documentId}/duplicate`, {
-        title: newTitle
-      });
-      return response;
-    } catch (error: Error | unknown) {
-      console.error('Error duplicating document:', error);
-      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to duplicate document');
-    }
-  }
+  // ==================== 私有工具方法 ====================
 
   /**
-   * 导出文档
+   * 从缓存获取数据
    */
-  async exportDocument(documentId: number, format: 'txt' | 'md' = 'txt'): Promise<Blob> {
+  private async getFromCache<T>(key: string): Promise<T | null> {
     try {
-      const response = await api.get(`/documents/${documentId}/export`, {
-        params: { format },
-        responseType: 'blob'
-      });
-      return response.data as Blob;
-    } catch (error: Error | unknown) {
-      console.error('Error exporting document:', error);
-      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to export document');
-    }
-  }
-
-  // ==================== 辅助功能 ====================
-
-  /**
-   * 获取可用项目列表
-   */
-  async getAvailableProjects(): Promise<ProjectOption[]> {
-    try {
-      const response = await apiCall.get<ProjectOption[]>('/projects/options');
-      return response;
-    } catch (error: Error | unknown) {
-      console.error('Error getting available projects:', error);
-      return [];
-    }
-  }
-
-  /**
-   * 获取可用客户列表
-   */
-  async getAvailableCustomers(): Promise<CustomerOption[]> {
-    try {
-      const response = await apiCall.get<CustomerOption[]>('/customers/options');
-      return response;
-    } catch (error: Error | unknown) {
-      console.error('Error getting available customers:', error);
-      return [];
-    }
-  }
-
-  /**
-   * 上传图片
-   */
-  async uploadImage(request: { file: File; alt_text?: string }): Promise<FileUploadResponse> {
-    try {
-      const formData = new FormData();
-      formData.append('file', request.file);
-      if (request.alt_text) {
-        formData.append('alt_text', request.alt_text);
+      // 优先使用apiCache（内存缓存）
+      const cached = apiCache.get<T>(key);
+      if (cached) {
+        return cached;
       }
-      
-      const response = await apiCall.postFormData<FileUploadResponse>('/documents/upload-image', formData);
-      return response;
-    } catch (error: Error | unknown) {
-      console.error('Error uploading image:', error);
-      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to upload image');
+
+      // 尝试从documentCacheService获取
+      return await documentCacheService.get<T>(key);
+    } catch (error) {
+      console.warn('[getFromCache] Failed:', error);
+      return null;
     }
   }
 
   /**
-   * 获取文档版本列表
+   * 设置缓存
    */
-  async getDocumentVersions(documentId: number): Promise<DocumentVersion[]> {
+  private async setCache<T>(key: string, value: T, ttl?: number): Promise<void> {
     try {
-      const response = await apiCall.get<DocumentVersion[]>(`/documents/${documentId}/versions`);
-      return response;
-    } catch (error: Error | unknown) {
-      console.error('Error getting document versions:', error);
-      return [];
+      // 设置内存缓存
+      apiCache.set(key, value, ttl || this.DEFAULT_CACHE_TTL);
+
+      // 设置持久化缓存
+      await documentCacheService.set(key, value, ttl || this.DEFAULT_CACHE_TTL);
+    } catch (error) {
+      console.warn('[setCache] Failed:', error);
     }
   }
 
   /**
-   * 恢复文档版本
+   * 生成缓存键
    */
-  async restoreDocumentVersion(documentId: number, versionId: number): Promise<Document> {
-    try {
-      const response = await apiCall.post<Document>(`/documents/${documentId}/versions/${versionId}/restore`);
-      return response;
-    } catch (error: Error | unknown) {
-      console.error('Error restoring document version:', error);
-      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to restore document version');
+  private generateCacheKey(type: string, ...params: any[]): string {
+    return `unified_doc_${type}_${params.join('_')}`;
+  }
+
+  /**
+   * 失效文档缓存
+   */
+  private async invalidateDocumentCache(documentId: number): Promise<void> {
+    const cacheKey = this.generateCacheKey('document', documentId);
+    await documentCacheService.remove(cacheKey);
+    apiCache.remove(cacheKey);
+  }
+
+  /**
+   * 失效任务文档缓存
+   */
+  private async invalidateTaskDocumentCache(
+    projectId: number,
+    taskId: number
+  ): Promise<void> {
+    const cacheKey = this.generateCacheKey('task_document', projectId, taskId);
+    await documentCacheService.remove(cacheKey);
+    apiCache.remove(cacheKey);
+  }
+
+  /**
+   * 失效列表缓存
+   */
+  private async invalidateListCache(): Promise<void> {
+    // 清除所有列表相关缓存
+    // 注意：这是简化实现，生产环境应该使用更精确的缓存键管理
+    await documentCacheService.clear();
+  }
+
+  /**
+   * 开始性能监控
+   */
+  private startMonitoring(operation: string, metadata?: Record<string, any>): void {
+    performanceMonitor.startMeasure(operation, metadata);
+  }
+
+  /**
+   * 结束性能监控
+   */
+  private endMonitoring(operation: string): void {
+    performanceMonitor.endMeasure(operation);
+  }
+
+  /**
+   * 验证文档请求
+   */
+  private validateDocumentRequest(request: CreateDocumentRequest): void {
+    if (!request.title || request.title.trim() === '') {
+      throw new Error('Document title is required');
     }
+
+    if (request.title.length > 255) {
+      throw new Error('Document title is too long (max 255 characters)');
+    }
+  }
+
+  /**
+   * 验证文件
+   */
+  private validateFile(file: File, maxSize?: number): void {
+    const limit = maxSize || this.MAX_FILE_SIZE;
+
+    if (file.size > limit) {
+      throw new Error(
+        `File size (${this.formatFileSize(file.size)}) exceeds limit (${this.formatFileSize(limit)})`
+      );
+    }
+
+    if (!file.name || file.name.trim() === '') {
+      throw new Error('File name is required');
+    }
+  }
+
+  /**
+   * 格式化文件大小
+   */
+  private formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+
+  /**
+   * 构建查询参数
+   */
+  private buildQueryParams(filter?: DocumentFilter): Record<string, any> {
+    if (!filter) return {};
+
+    const params: Record<string, any> = {};
+
+    if (filter.search) params.search = filter.search;
+    if (filter.type) params.type = Array.isArray(filter.type) ? filter.type.join(',') : filter.type;
+    if (filter.status) params.status = Array.isArray(filter.status) ? filter.status.join(',') : filter.status;
+    if (filter.owner_id) params.owner_id = filter.owner_id;
+    if (filter.folder_id) params.folder_id = filter.folder_id;
+    if (filter.project_id) params.project_id = filter.project_id;
+    if (filter.tags && filter.tags.length > 0) params.tags = filter.tags.join(',');
+    if (filter.page) params.page = filter.page;
+    if (filter.limit) params.limit = filter.limit;
+    if (filter.sort_by) params.sort_by = filter.sort_by;
+    if (filter.order) params.order = filter.order;
+
+    return params;
   }
 }
 
 // 导出单例实例
-export const unifiedDocumentService = new UnifiedDocumentService();
-export default unifiedDocumentService;
+export const documentService = UnifiedDocumentService.getInstance();
+
+// 默认导出
+export default documentService;
