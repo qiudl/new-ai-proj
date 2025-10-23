@@ -531,15 +531,27 @@ const ProjectEditPageNew: React.FC = () => {
     try {
       setSubmitting(true);
 
-      // 安全地处理 selectedUsers 数组
-      const processedUserIds = Array.isArray(selectedUsers)
-        ? selectedUsers
-            .filter(key => key && typeof key === 'string')
-            .map(key => {
+      console.log('📝 [ProjectEdit] 提交表单数据:', values);
+      console.log('📝 [ProjectEdit] 当前state:', {
+        selectedEnterprise,
+        selectedCompanies,
+        selectedUsers
+      });
+
+      // 从form values读取客户数据（优先级更高，确保数据一致性）
+      const formEnterpriseId = values.enterprise_id;
+      const formCompanyIds = values.company_ids || [];
+      const formUserKeys = values.user_keys || [];
+
+      // 安全地处理用户ID数组
+      const processedUserIds = Array.isArray(formUserKeys)
+        ? formUserKeys
+            .filter((key: any) => key && typeof key === 'string')
+            .map((key: string) => {
               const [userId] = key.split('_');
               return Number(userId);
             })
-            .filter(id => !isNaN(id) && id > 0)
+            .filter((id: number) => !isNaN(id) && id > 0)
         : [];
 
       const projectData: ProjectRequest = {
@@ -547,10 +559,10 @@ const ProjectEditPageNew: React.FC = () => {
         name: values.name?.trim() || '',
         description: values.description?.trim() || '',
         // 优先使用新的enterprise架构
-        enterprise_id: selectedEnterprise || undefined,
+        enterprise_id: formEnterpriseId || undefined,
         // 兼容旧的company架构
-        company_id: !selectedEnterprise && selectedCompanies.length > 0 ? selectedCompanies[0] : undefined,
-        company_ids: !selectedEnterprise && selectedCompanies.length > 0 ? selectedCompanies : undefined,
+        company_id: !formEnterpriseId && formCompanyIds.length > 0 ? formCompanyIds[0] : undefined,
+        company_ids: !formEnterpriseId && formCompanyIds.length > 0 ? formCompanyIds : undefined,
         user_ids: processedUserIds.length > 0 ? processedUserIds : undefined,
         status: values.status || 'planning',
         priority: values.priority || 'medium',
@@ -558,6 +570,8 @@ const ProjectEditPageNew: React.FC = () => {
         start_date: values.date_range?.[0]?.format('YYYY-MM-DD') || undefined,
         end_date: values.date_range?.[1]?.format('YYYY-MM-DD') || undefined
       };
+
+      console.log('📤 [ProjectEdit] 发送到API的数据:', projectData);
 
       if (isEditing && projectId) {
         await projectService.updateProject(Number(projectId), projectData);
@@ -568,13 +582,20 @@ const ProjectEditPageNew: React.FC = () => {
       }
 
       navigate('/projects');
-    } catch (error) {
-      console.error('保存项目失败:', error);
-      message.error(isEditing ? '更新项目失败' : '创建项目失败');
+    } catch (error: any) {
+      console.error('❌ [ProjectEdit] 保存项目失败:', error);
+      console.error('❌ [ProjectEdit] 错误详情:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+
+      const errorMsg = error.response?.data?.message || error.message || '未知错误';
+      message.error(`${isEditing ? '更新' : '创建'}项目失败: ${errorMsg}`);
     } finally {
       setSubmitting(false);
     }
-  }, [selectedUsers, selectedEnterprise, selectedCompanies, isEditing, projectId, navigate]);
+  }, [isEditing, projectId, navigate]);
 
   // ✅ 优化：使用useCallback包装handleCancel
   const handleCancel = useCallback(() => {
