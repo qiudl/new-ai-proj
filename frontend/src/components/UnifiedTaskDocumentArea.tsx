@@ -461,11 +461,10 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
       try {
         const apiCallStartTime = performance.now();
 
-        // 调用新的合并API端点
+        // 使用unifiedDocumentService的API端点
         const response = await fetchWithTimeout(
-          api.get(`/projects/${projectId}/tasks/${taskId}/documents/all`, {
+          api.get(`/tasks/${taskId}/documents`, {
             params: {
-              include_content: false, // 列表模式不加载content，提升性能
               _t: force ? Date.now() : undefined // 强制刷新时添加时间戳参数
             }
           })
@@ -474,17 +473,12 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
         const apiCallDuration = performance.now() - apiCallStartTime;
         console.log(`⚡ [LOAD-DOCS] API调用耗时: ${apiCallDuration.toFixed(2)}ms`);
 
-        // 处理新API的响应格式
-        const result = response.data;
-        const documents = result.documents || [];
-        const statistics = result.statistics || { total: 0 };
-        const cacheHit = result.cache_hit || false;
+        // 处理unifiedDocumentService的响应格式
+        const result = response.data || response;
+        const documents = result.documents || result || [];
 
-        console.log('📄 [LOAD-DOCS] 获取到合并文档', {
-          total: statistics.total,
-          byType: statistics.by_type,
-          bySource: statistics.by_source,
-          cacheHit,
+        console.log('📄 [LOAD-DOCS] 获取到文档', {
+          total: documents.length,
           force
         });
 
@@ -525,13 +519,34 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
 
       } catch (error: any) {
         console.error('❌ [LOAD-DOCS] 获取文档失败:', error);
-        // 如果新API失败，回退到旧的双API调用方式
-        console.log('🔄 [LOAD-DOCS] 回退到旧的API调用方式');
+        // 使用documentService的fallback
+        console.log('🔄 [LOAD-DOCS] 尝试使用documentService fallback');
 
-        const [documentsResult, uploadedResult] = await Promise.allSettled([
-          fetchWithTimeout(documentService.getTaskDocuments(projectId, taskId)),
-          fetchWithTimeout(taskDocumentService.getTaskDocuments(projectId, taskId))
-        ]);
+        try {
+          const documents = await documentService.getTaskDocuments(projectId, taskId);
+          docs = (documents || []).map((doc: any) => ({
+            ...doc,
+            selected: false,
+            sourceTaskId: taskId,
+            can_edit: doc.can_edit !== false,
+            can_delete: doc.can_delete !== false,
+            can_share: doc.can_share !== false
+          }));
+          console.log('✅ [LOAD-DOCS] Fallback成功，获取到', docs.length, '个文档');
+        } catch (fallbackError) {
+          console.error('❌ [LOAD-DOCS] Fallback也失败:', fallbackError);
+          docs = [];
+        }
+      }
+
+      // 以下是原来的双API处理逻辑，现已废弃，暂时注释保留以供参考
+      /*
+      const [documentsResult, uploadedResult] = await Promise.allSettled([
+        fetchWithTimeout(documentService.getTaskDocuments(projectId, taskId)),
+        fetchWithTimeout(taskDocumentService.getTaskDocuments(projectId, taskId))  // ← 这个服务已删除
+      ]);
+
+      // 原来的处理逻辑...
 
         // 处理文档服务的响应
         if (documentsResult.status === 'fulfilled') {
@@ -580,7 +595,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
           }));
           docs = [...docs, ...uploadedDocs];
         }
-      }
+      */
 
       // 禁用自动递归加载以提升性能 - 改为手动触发
       if (false && includeDescendants && docs.length > 0) { // 临时禁用自动递归加载
