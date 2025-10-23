@@ -74,19 +74,18 @@ class RealVersionHistoryService {
 
       console.log('版本历史API响应:', response);
 
-      // 处理不同的响应格式
+      // axios拦截器已解包响应，response直接是data对象
+      // 后端返回: {success: true, data: {...}}
+      // axios解包后: {document_id, versions, stats, ...}
       let versionData;
-      if (response.data?.success && response.data?.data) {
-        // 标准格式: { success: true, data: {...} }
-        versionData = response.data.data;
-      } else if (response.data?.versions) {
-        // 直接返回版本列表: { versions: [...] }
-        versionData = response.data;
-      } else if (Array.isArray(response.data)) {
+      if (response.versions !== undefined) {
+        // 标准格式: { document_id, versions: [...], stats: {...} }
+        versionData = response;
+      } else if (Array.isArray(response)) {
         // 直接返回版本数组: [...]
-        versionData = { versions: response.data };
+        versionData = { versions: response };
       } else {
-        console.warn('未能识别的API响应格式，使用模拟数据');
+        console.warn('未能识别的API响应格式，使用模拟数据', response);
         return this.generateFallbackVersions(documentId);
       }
 
@@ -175,15 +174,16 @@ class RealVersionHistoryService {
 
       console.log('版本对比API响应:', response);
 
-      // 处理不同的响应格式
+      // axios拦截器已解包响应
       let diffData;
-      if (response.data?.success && response.data?.data) {
-        diffData = response.data.data.differences || response.data.data;
-      } else if (response.data?.differences) {
-        diffData = response.data.differences;
+      if (response.differences) {
+        diffData = response.differences;
+      } else if (response.version1 && response.version2) {
+        // 可能返回了完整的比较结果对象
+        diffData = response;
       } else {
         // 如果API不存在，返回模拟差异数据
-        console.warn('版本对比API不存在，返回模拟数据');
+        console.warn('版本对比API响应格式不正确，返回模拟数据', response);
         return this.generateMockDiffResults(version1Id, version2Id);
       }
 
@@ -284,15 +284,16 @@ class RealVersionHistoryService {
         }
       );
 
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || 'Failed to rollback version');
+      // axios拦截器已解包响应
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid rollback response');
       }
 
       // 构造回滚结果
       const rollbackResult: RollbackResult = {
         success: true,
         rollbackId: `rollback_${Date.now()}`,
-        newVersionId: response.data?.data?.new_version_id,
+        newVersionId: response.new_version_id,
         fromVersion: 'current',
         toVersion: `v${versionId}`,
         strategy,
@@ -347,11 +348,12 @@ class RealVersionHistoryService {
         `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/stats`
       );
 
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || 'Failed to fetch version statistics');
+      // axios拦截器已解包响应
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid version statistics response');
       }
 
-      return response.data?.data;
+      return response;
 
     } catch (error) {
       console.error('获取版本统计失败:', error);
@@ -395,12 +397,13 @@ class RealVersionHistoryService {
         }
       );
 
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || 'Failed to create version');
+      // axios拦截器已解包响应
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid create version response');
       }
 
       console.log('新版本创建成功');
-      return response.data?.data;
+      return response;
 
     } catch (error) {
       console.error('创建版本失败:', error);
@@ -422,11 +425,12 @@ class RealVersionHistoryService {
         `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${versionId}`
       );
 
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || 'Failed to fetch version detail');
+      // axios拦截器已解包响应
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid version detail response');
       }
 
-      return response.data?.data;
+      return response;
 
     } catch (error) {
       console.error('获取版本详情失败:', error);
