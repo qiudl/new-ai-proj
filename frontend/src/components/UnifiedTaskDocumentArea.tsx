@@ -488,14 +488,18 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
           const isUploaded = doc.source_type === 'uploaded_file';
           const isWorkNote = doc.source_type === 'work_note';
 
+          // 计算文件大小：如果没有file_size，基于content长度计算
+          const content = doc.content || '';
+          const calculatedSize = doc.file_size || (content ? new Blob([content]).size : 0);
+
           return {
             id: doc.id,
             title: doc.title,
-            content: doc.content || '', // content可能为null（如果include_content=false）
+            content: content, // content可能为null（如果include_content=false）
             description: doc.description || '',
             type: doc.type,
             mime_type: doc.mime_type,
-            file_size: doc.file_size,
+            file_size: calculatedSize,
             version: doc.version || 1,
             status: doc.status || 'published',
             visibility: doc.visibility || 'team',
@@ -1349,6 +1353,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                     {/* 文档标题和状态 */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
                       <Text strong style={{ fontSize: '13px', flex: 1, marginRight: '8px' }}>
+                        <span style={{ color: '#999', marginRight: '4px' }}>#{doc.id}</span>
                         {doc.title}
                       </Text>
                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
