@@ -427,10 +427,10 @@ export class DocumentCacheService {
       // 动态导入API模块（避免循环依赖）
       const api = (await import('./api')).default;
 
-      console.log(`📡 [CACHE-PREFETCH] 调用API: /tasks/${taskId}/documents`);
+      console.log(`📡 [CACHE-PREFETCH] 调用API: /projects/${projectId}/tasks/${taskId}/documents`);
 
       // 调用合并API获取文档数据
-      const response = await api.get(`/tasks/${taskId}/documents`, {
+      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`, {
         params: {
           include_content: false, // 预取时不需要内容，减少数据量
           include_descendants: includeDescendants

@@ -442,7 +442,7 @@ export class UnifiedDocumentService {
     try {
       this.startMonitoring('get_task_documents', { projectId, taskId });
 
-      const response = await api.get(`/tasks/${taskId}/documents`);
+      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`);
       const documents = (response as any).documents || [];
 
       this.endMonitoring('get_task_documents');
