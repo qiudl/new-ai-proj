@@ -3,8 +3,9 @@
  * 三栏布局：版本列表 + Diff视图 + 操作区
  */
 
-import React, { useState, useEffect } from 'react';
-import { Modal, message } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Modal, message, Button, Space, Tooltip } from 'antd';
+import { LeftOutlined, RightOutlined, SwapOutlined } from '@ant-design/icons';
 import { VersionInfo } from '../../services/versionHistoryService';
 import { realVersionHistoryService } from '../../services/realVersionHistoryService';
 import VersionListPanel from './VersionListPanel';
@@ -81,19 +82,102 @@ const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
     }
   };
 
-  // 版本选择处理
+  // 版本选择处理（增强版）
   const handleVersionSelect = (version: VersionInfo) => {
     if (!compareVersionId) {
       // 如果还没有选择对比版本，设置为对比版本
       setCompareVersionId(version.id);
+      message.info(`已选择版本 ${version.versionNumber} 作为基准版本`);
     } else if (selectedVersionId === version.id) {
       // 如果点击的是已选中的版本，取消选择
       setSelectedVersionId(undefined);
+      message.info('已取消选择');
+    } else if (compareVersionId === version.id) {
+      // 如果点击的是对比版本，取消对比版本
+      setCompareVersionId(undefined);
+      message.info('已取消对比版本');
     } else {
       // 设置为选中版本
       setSelectedVersionId(version.id);
+      message.success(`正在对比版本 ${version.versionNumber}`);
     }
   };
+
+  // 快速导航：上一个版本
+  const handlePreviousVersion = useCallback(() => {
+    if (!selectedVersionId || versions.length === 0) return;
+
+    const currentIndex = versions.findIndex(v => v.id === selectedVersionId);
+    if (currentIndex < versions.length - 1) {
+      const previousVersion = versions[currentIndex + 1];
+      setSelectedVersionId(previousVersion.id);
+      message.info(`切换到 ${previousVersion.versionNumber}`);
+    } else {
+      message.warning('已经是最早的版本');
+    }
+  }, [selectedVersionId, versions]);
+
+  // 快速导航：下一个版本
+  const handleNextVersion = useCallback(() => {
+    if (!selectedVersionId || versions.length === 0) return;
+
+    const currentIndex = versions.findIndex(v => v.id === selectedVersionId);
+    if (currentIndex > 0) {
+      const nextVersion = versions[currentIndex - 1];
+      setSelectedVersionId(nextVersion.id);
+      message.info(`切换到 ${nextVersion.versionNumber}`);
+    } else {
+      message.warning('已经是最新的版本');
+    }
+  }, [selectedVersionId, versions]);
+
+  // 交换对比版本
+  const handleSwapVersions = useCallback(() => {
+    if (selectedVersionId && compareVersionId) {
+      const temp = selectedVersionId;
+      setSelectedVersionId(compareVersionId);
+      setCompareVersionId(temp);
+      message.info('已交换对比版本');
+    }
+  }, [selectedVersionId, compareVersionId]);
+
+  // 键盘快捷键支持
+  useEffect(() => {
+    if (!visible) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 忽略输入框中的按键
+      if ((e.target as HTMLElement).tagName === 'INPUT' ||
+          (e.target as HTMLElement).tagName === 'TEXTAREA') {
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          handlePreviousVersion();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          handleNextVersion();
+          break;
+        case 's':
+        case 'S':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            handleSwapVersions();
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          onClose();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [visible, handlePreviousVersion, handleNextVersion, handleSwapVersions, onClose]);
 
   // 回滚到指定版本
   const handleRollback = async (version: VersionInfo) => {
@@ -192,6 +276,47 @@ const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
 
         {/* 右侧：Diff视图 */}
         <div className="diff-view-section">
+          {/* 导航工具栏 */}
+          {versions.length > 0 && (
+            <div className="version-navigation-toolbar">
+              <Space>
+                <Tooltip title="上一个版本 (←)">
+                  <Button
+                    icon={<LeftOutlined />}
+                    onClick={handlePreviousVersion}
+                    disabled={!selectedVersionId || versions.findIndex(v => v.id === selectedVersionId) >= versions.length - 1}
+                  >
+                    上一版本
+                  </Button>
+                </Tooltip>
+
+                <Tooltip title="下一个版本 (→)">
+                  <Button
+                    icon={<RightOutlined />}
+                    onClick={handleNextVersion}
+                    disabled={!selectedVersionId || versions.findIndex(v => v.id === selectedVersionId) <= 0}
+                  >
+                    下一版本
+                  </Button>
+                </Tooltip>
+
+                <Tooltip title="交换对比版本 (Ctrl+S)">
+                  <Button
+                    icon={<SwapOutlined />}
+                    onClick={handleSwapVersions}
+                    disabled={!selectedVersionId || !compareVersionId}
+                  >
+                    交换对比
+                  </Button>
+                </Tooltip>
+              </Space>
+
+              <div className="keyboard-hints">
+                <span className="hint">快捷键: ← → 导航 | Ctrl+S 交换 | ESC 关闭</span>
+              </div>
+            </div>
+          )}
+
           <DiffViewPanel
             oldVersion={oldVersion}
             newVersion={newVersion}
