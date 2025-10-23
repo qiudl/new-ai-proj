@@ -1,0 +1,183 @@
+/**
+ * DiffLine 样式
+ */
+
+.diff-line {
+  display: flex;
+  align-items: flex-start;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 2px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 行号 */
+.diff-line .line-number {
+  display: inline-block;
+  min-width: 50px;
+  padding: 0 12px;
+  text-align: right;
+  color: #8c8c8c;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* 行内容 */
+.diff-line .line-content {
+  flex: 1;
+  padding: 0 12px;
+  overflow-x: auto;
+}
+
+.diff-line .line-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 新增行 */
+.diff-line-added {
+  background-color: #f6ffed;
+  border-left: 3px solid #52c41a;
+}
+
+.diff-line-added .line-number {
+  background-color: #d9f7be;
+  color: #389e0d;
+}
+
+.diff-line-added .line-content {
+  color: #135200;
+}
+
+/* 删除行 */
+.diff-line-removed {
+  background-color: #fff2f0;
+  border-left: 3px solid #ff4d4f;
+}
+
+.diff-line-removed .line-number {
+  background-color: #ffccc7;
+  color: #cf1322;
+}
+
+.diff-line-removed .line-content {
+  color: #820014;
+  text-decoration: line-through;
+}
+
+/* 修改行 */
+.diff-line-modified {
+  background-color: #fffbf0;
+  border-left: 3px solid #faad14;
+}
+
+.diff-line-modified .line-number {
+  background-color: #ffe7ba;
+  color: #d48806;
+}
+
+.diff-line-modified .line-content {
+  color: #874d00;
+}
+
+/* 修改行的旧/新内容显示 */
+.diff-line .modified-content .old-line,
+.diff-line .modified-content .new-line {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.diff-line .modified-content .old-line {
+  background-color: #fff2f0;
+  padding: 2px 8px;
+  margin: 2px 0;
+  border-radius: 3px;
+}
+
+.diff-line .modified-content .new-line {
+  background-color: #f6ffed;
+  padding: 2px 8px;
+  margin: 2px 0;
+  border-radius: 3px;
+}
+
+.diff-line .modified-content .line-indicator {
+  font-weight: bold;
+  width: 12px;
+  display: inline-block;
+}
+
+.diff-line .modified-content .old-line .line-indicator {
+  color: #ff4d4f;
+}
+
+.diff-line .modified-content .new-line .line-indicator {
+  color: #52c41a;
+}
+
+/* 未变更行 */
+.diff-line-unchanged {
+  background-color: #fafafa;
+}
+
+.diff-line-unchanged .line-number {
+  color: #bfbfbf;
+}
+
+.diff-line-unchanged .line-content {
+  color: #595959;
+}
+
+/* 行内变更高亮 */
+.inline-change {
+  padding: 0 2px;
+}
+
+.inline-added {
+  background-color: #d9f7be;
+  color: #135200;
+  font-weight: 500;
+}
+
+.inline-removed {
+  background-color: #ffccc7;
+  color: #820014;
+  text-decoration: line-through;
+  font-weight: 500;
+}
+
+.inline-unchanged {
+  /* 默认样式 */
+}
+
+/* 行内diff显示 */
+.inline-diff {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 滚动条样式 */
+.diff-line .line-content::-webkit-scrollbar {
+  height: 6px;
+}
+
+.diff-line .line-content::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+.diff-line .line-content::-webkit-scrollbar-thumb {
+  background: #bfbfbf;
+  border-radius: 3px;
+}
+
+.diff-line .line-content::-webkit-scrollbar-thumb:hover {
+  background: #8c8c8c;
+}
+
+/* Hover效果 */
+.diff-line:hover {
+  opacity: 0.9;
+}

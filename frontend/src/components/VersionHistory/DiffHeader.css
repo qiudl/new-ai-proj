@@ -1,0 +1,80 @@
+/**
+ * DiffHeader 样式
+ */
+
+.diff-header {
+  padding: 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.diff-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+/* 版本对比信息 */
+.version-comparison {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.version-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.version-time {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.comparison-arrow {
+  color: #1890ff;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+}
+
+/* 统计信息 */
+.diff-stats {
+  display: flex;
+  align-items: center;
+}
+
+.stats-tag {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: help;
+}
+
+/* 空状态提示 */
+.empty-hint {
+  text-align: center;
+  padding: 8px 0;
+  color: #8c8c8c;
+  font-size: 13px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .diff-header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .version-comparison {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .comparison-arrow {
+    font-size: 14px;
+  }
+}

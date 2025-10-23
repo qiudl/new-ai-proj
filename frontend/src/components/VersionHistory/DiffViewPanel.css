@@ -1,0 +1,82 @@
+/**
+ * DiffViewPanel 样式
+ */
+
+.diff-view-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+}
+
+/* Diff内容区 */
+.diff-content {
+  flex: 1;
+  overflow-y: auto;
+  background: #ffffff;
+}
+
+.diff-lines {
+  min-height: 100%;
+}
+
+/* 加载状态 */
+.diff-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+}
+
+/* 空状态 */
+.diff-empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  color: #8c8c8c;
+}
+
+/* 操作按钮区 */
+.diff-actions {
+  padding: 16px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.diff-actions button {
+  min-width: 120px;
+}
+
+/* 滚动条样式 */
+.diff-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.diff-content::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+.diff-content::-webkit-scrollbar-thumb {
+  background: #bfbfbf;
+  border-radius: 4px;
+}
+
+.diff-content::-webkit-scrollbar-thumb:hover {
+  background: #8c8c8c;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .diff-actions {
+    flex-direction: column;
+  }
+
+  .diff-actions button {
+    width: 100%;
+  }
+}
