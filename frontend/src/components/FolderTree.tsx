@@ -21,7 +21,7 @@ import {
   FileTextOutlined
 } from '@ant-design/icons';
 import type { DataNode, TreeProps } from 'antd/es/tree';
-import { workNoteFolderService, type WorkNoteFolder, type CreateWorkNoteFolderRequest, type UpdateWorkNoteFolderRequest } from '../services/workNoteFolderService';
+import { workNotesService, type WorkNoteFolder, type CreateWorkNoteFolderRequest, type UpdateWorkNoteFolderRequest } from '../services/workNotesService';
 
 // Local interface for folders with extended properties
 interface FolderWithExtras extends WorkNoteFolder {
@@ -90,13 +90,13 @@ const FolderTree = forwardRef<FolderTreeRef, FolderTreeProps>(({
     setLoading(true);
     try {
       // 调用真实API获取文件夹树
-      const data = await workNoteFolderService.getFolderTree();
+      const data = await workNotesService.getFolderTree();
       const folders = (data && (data as any).tree) ? (data as any).tree as WorkNoteFolder[] : [];
       // 转换为 FolderWithExtras 类型，添加缺失的属性
       const foldersWithExtras: FolderWithExtras[] = folders.map(folder => ({
         ...folder,
         path: folder.name, // 使用文件夹名称作为路径
-        document_count: folder.documents_count || 0, // 使用正确的属性名
+        document_count: folder.notes_count || 0, // workNotesService使用notes_count字段
         children: folder.children as FolderWithExtras[] || []
       }));
       setFolders(foldersWithExtras);
@@ -278,7 +278,7 @@ const FolderTree = forwardRef<FolderTreeRef, FolderTreeProps>(({
       onOk: async () => {
         try {
           // 调用真实API删除文件夹
-          await workNoteFolderService.deleteFolder(folder.id);
+          await workNotesService.deleteFolder(folder.id);
           message.success('文件夹已删除');
           loadFolders();
           onFolderChange?.();
@@ -296,11 +296,11 @@ const FolderTree = forwardRef<FolderTreeRef, FolderTreeProps>(({
       const values = await form.validateFields();
       const request: CreateWorkNoteFolderRequest = {
         name: values.name,
-        parent_folder_id: parentFolderId,
+        parent_id: parentFolderId, // workNotesService使用parent_id字段
         visibility: 'private' // 默认私有
       };
 
-      await workNoteFolderService.createFolder(request);
+      await workNotesService.createFolder(request);
       message.success('文件夹创建成功');
       setCreateModalVisible(false);
       loadFolders();
@@ -321,7 +321,7 @@ const FolderTree = forwardRef<FolderTreeRef, FolderTreeProps>(({
         name: values.name
       };
 
-      await workNoteFolderService.updateFolder(currentFolder.id, request);
+      await workNotesService.updateFolder(currentFolder.id, request);
       message.success('文件夹重命名成功');
       setEditModalVisible(false);
       setCurrentFolder(null);
@@ -355,7 +355,8 @@ const FolderTree = forwardRef<FolderTreeRef, FolderTreeProps>(({
               // 放在节点上：成为其子级
               newParentId = dropNode.id === 0 ? undefined : dropNode.id;
             }
-            await workNoteFolderService.moveFolder(dragNode.id, { parent_folder_id: newParentId, sort_order: 0 });
+            // workNotesService.moveFolder接受三个参数：(id, targetParentId, sortOrder)
+            await workNotesService.moveFolder(dragNode.id, newParentId ?? null, 0);
             // 可选：后续根据新父级的 children 顺序，调用 batchUpdateFolders 调整 sort_order
             await loadFolders();
             onFolderChange?.();

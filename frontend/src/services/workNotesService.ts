@@ -795,6 +795,173 @@ class WorkNotesService {
 
     return this.transformWorkNoteFromAPI(response.data.data);
   }
+
+  // ==================== Phase 8: 从workNoteFolderService合并的方法 ====================
+
+  // 列出文件夹
+  async listFolders(request?: {
+    parent_folder_id?: number;
+    visibility?: string;
+    owner_id?: number;
+    include_stats?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    folders: WorkNoteFolder[];
+    total_count: number;
+    has_more: boolean;
+  }> {
+    const headers = await this.getAuthHeaders();
+    const params = new URLSearchParams();
+
+    if (request?.parent_folder_id !== undefined) {
+      params.append('parent_folder_id', request.parent_folder_id.toString());
+    }
+    if (request?.visibility) {
+      params.append('visibility', request.visibility);
+    }
+    if (request?.owner_id) {
+      params.append('owner_id', request.owner_id.toString());
+    }
+    if (request?.include_stats) {
+      params.append('include_stats', 'true');
+    }
+    if (request?.limit) {
+      params.append('limit', request.limit.toString());
+    }
+    if (request?.offset) {
+      params.append('offset', request.offset.toString());
+    }
+
+    const response = await axios.get<APIResponse<{
+      folders: WorkNoteFolder[];
+      total_count: number;
+      has_more: boolean;
+    }>>(
+      `${API_BASE_URL}/work-note-folders?${params}`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to list folders');
+    }
+
+    return response.data.data;
+  }
+
+  // 获取文件夹统计信息
+  async getFolderStats(id: number): Promise<{
+    id: number;
+    name: string;
+    description?: string;
+    color?: string;
+    icon?: string;
+    visibility: string;
+    created_at: string;
+    updated_at: string;
+    owner_name: string;
+    documents_count: number;
+    subfolders_count: number;
+    last_document_updated?: string;
+  }> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<{
+      id: number;
+      name: string;
+      description?: string;
+      color?: string;
+      icon?: string;
+      visibility: string;
+      created_at: string;
+      updated_at: string;
+      owner_name: string;
+      documents_count: number;
+      subfolders_count: number;
+      last_document_updated?: string;
+    }>>(
+      `${API_BASE_URL}/work-note-folders/${id}/stats`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get folder stats');
+    }
+
+    return response.data.data;
+  }
+
+  // 获取文件夹下的子文件夹
+  async getFolderChildren(id: number): Promise<WorkNoteFolder[]> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<WorkNoteFolder[]>>(
+      `${API_BASE_URL}/work-note-folders/${id}/children`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get folder children');
+    }
+
+    return response.data.data;
+  }
+
+  // 批量更新文件夹排序
+  async batchUpdateFolders(request: {
+    folders: Array<{
+      id: number;
+      parent_folder_id?: number;
+      sort_order: number;
+    }>;
+  }): Promise<void> {
+    const headers = await this.getAuthHeaders();
+
+    // 转换为后端期望的格式
+    const updates = (request.folders || []).map(f => {
+      const fields: Record<string, any> = {};
+      if (typeof f.parent_folder_id !== 'undefined') fields.parent_id = f.parent_folder_id;
+      if (typeof f.sort_order !== 'undefined') fields.sort_order = f.sort_order;
+      return { id: f.id, fields };
+    }).filter(u => Object.keys(u.fields).length > 0);
+
+    const response = await axios.post<APIResponse<void>>(
+      `${API_BASE_URL}/work-note-folders/batch-update`,
+      { updates },
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to batch update folders');
+    }
+  }
+
+  // 获取用户文件夹统计
+  async getUserFolderStats(): Promise<any> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<any>>(
+      `${API_BASE_URL}/work-note-folders/stats`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get user folder stats');
+    }
+
+    return response.data;
+  }
+
+  // 移动文档到文件夹（兼容旧API）
+  async moveDocument(documentId: number, folderId: number | 'root'): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.post<APIResponse<void>>(
+      `${API_BASE_URL}/work-note-folders/move-document/${documentId}/to/${folderId}`,
+      {},
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to move document');
+    }
+  }
 }
 
 export const workNotesService = new WorkNotesService();
