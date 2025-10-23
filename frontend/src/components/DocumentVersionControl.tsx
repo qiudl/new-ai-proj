@@ -39,7 +39,7 @@ import {
   MoreOutlined,
   PlusOutlined
 } from '@ant-design/icons';
-import { documentService } from '../services/documentService';
+import { documentService } from '../services/unifiedDocumentService';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;

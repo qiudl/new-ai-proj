@@ -57,7 +57,7 @@ import {
 } from '@ant-design/icons';
 import TaskDocumentUploader from './TaskDocumentUploader';
 import DocumentVersionHistory from './DocumentVersionHistory';
-import { taskDocumentService } from '../services/taskDocumentService';
+import { documentService as taskDocumentService } from '../services/unifiedDocumentService';
 
 const { Text, Title } = Typography;
 const { Search } = Input;

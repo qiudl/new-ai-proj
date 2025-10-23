@@ -37,7 +37,7 @@ export { useTaskOperations } from '../hooks/useTaskOperations';
 export { useDocumentOperations } from '../hooks/useDocumentOperations';
 
 // Types
-export type { DocumentFilter } from '../services/documentService';
+export type { DocumentFilter } from '../types/document';
 export type { Task } from '../types/task';
 
 /**

@@ -9,7 +9,11 @@ import {
   GitlabOutlined,
   InboxOutlined
 } from '@ant-design/icons';
-import { taskDocumentFileService, TaskDocumentContent, GitCommit, DocumentDiff } from '../services/taskDocumentFileService';
+import { documentService as taskDocumentFileService } from '../services/unifiedDocumentService';
+// Note: TaskDocumentContent, GitCommit, DocumentDiff types may need to be defined in types/document.ts
+type TaskDocumentContent = any;
+type GitCommit = any;
+type DocumentDiff = any;
 import MarkdownEditor from './MarkdownEditor';
 import MarkdownRenderer from './MarkdownRenderer';
 

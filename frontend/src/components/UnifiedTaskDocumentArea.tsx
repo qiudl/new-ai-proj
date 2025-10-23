@@ -57,8 +57,8 @@ const TaskDocumentManager = lazy(() => import('./TaskDocumentManager'));
 const TaskDocumentVersionHistoryButton = lazy(() => import('./TaskDocumentVersionHistoryButton'));
 const TaskMarkdownEditor = lazy(() => import('./TaskMarkdownEditor'));
 const CreateAIDocDialog = lazy(() => import('./CreateAIDocDialog'));
-import { documentService, UnifiedDocument } from '../services/documentService';
-import { taskDocumentService } from '../services/taskDocumentService';
+import { documentService } from '../services/unifiedDocumentService';
+import { Document } from '../types/document';
 import { TaskService } from '../services/taskService';
 import api from '../services/api';
 import { apiCache } from '../utils/apiCacheManager';
@@ -80,7 +80,7 @@ const { TextArea } = Input;
 export type ViewMode = 'edit' | 'preview' | 'manage' | 'stats';
 
 // 文档类型定义
-export interface DocumentItem extends Omit<UnifiedDocument, 'type'> {
+export interface DocumentItem extends Omit<Document, 'type'> {
   loading?: boolean;
   selected?: boolean;
   sourceTaskId?: number;
@@ -539,7 +539,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
           const documents = result.documents || result.data?.documents || result;
           const docsArray = Array.isArray(documents) ? documents : [];
 
-          docs = docsArray.map((doc: UnifiedDocument) => ({
+          docs = docsArray.map((doc: Document) => ({
             ...doc,
             selected: false,
             sourceTaskId: taskId
@@ -627,7 +627,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
             descendantIds.map(async (descTaskId) => {
               try {
                 const resp = await documentService.getTaskDocuments(projectId, descTaskId);
-                return resp.documents.map((d: UnifiedDocument) => ({ ...d, selected: false, sourceTaskId: descTaskId }));
+                return resp.documents.map((d: Document) => ({ ...d, selected: false, sourceTaskId: descTaskId }));
               } catch (e) {
                 return [] as DocumentItem[];
               }

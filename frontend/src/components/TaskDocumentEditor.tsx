@@ -4,7 +4,7 @@ import { SaveOutlined, FullscreenOutlined, FullscreenExitOutlined, FilePdfOutlin
 import { createPortal } from 'react-dom';
 import TaskMarkdownEditor from './TaskMarkdownEditor';
 import api from '../services/api';
-import { documentService } from '../services/documentService';
+import { documentService } from '../services/unifiedDocumentService';
 import { apiCache } from '../utils/apiCacheManager';
 import '../styles/TaskDocumentEditor.css';
 // html2pdf.js and mermaid.js are loaded globally via CDN in index.html

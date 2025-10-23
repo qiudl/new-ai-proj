@@ -9,7 +9,7 @@
  */
 
 import { CSSProperties, ReactNode } from 'react';
-import { UnifiedDocument } from '../../services/documentService';
+import { Document as UnifiedDocument } from '../../types/document';
 
 // ============================================================================
 // 核心组件属性类型

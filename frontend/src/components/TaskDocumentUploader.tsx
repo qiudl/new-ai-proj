@@ -31,7 +31,7 @@ import {
   ExclamationCircleOutlined
 } from '@ant-design/icons';
 import type { UploadProps, UploadFile } from 'antd/es/upload';
-import { taskDocumentService } from '../services/taskDocumentService';
+import { documentService as taskDocumentService } from '../services/unifiedDocumentService';
 
 const { Text, Title } = Typography;
 const { Dragger } = Upload;

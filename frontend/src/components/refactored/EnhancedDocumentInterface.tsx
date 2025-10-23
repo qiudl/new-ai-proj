@@ -56,7 +56,8 @@ import {
   ImportOutlined,
   SyncOutlined
 } from '@ant-design/icons';
-import { documentService, UnifiedDocument, DocumentFilter } from '../../services/documentService';
+import { documentService } from '../../services/unifiedDocumentService';
+import { Document, DocumentFilter } from '../../types/document';
 import ModernWorkNoteEditor from '../ModernWorkNoteEditor';
 import ModernWorkNoteViewer from '../ModernWorkNoteViewer';
 import DocumentVersionControl from '../DocumentVersionControl';
@@ -76,12 +77,12 @@ interface EnhancedDocumentInterfaceProps {
   showTaskFilter?: boolean;
   allowBulkOperations?: boolean;
   height?: number | string;
-  onDocumentSelect?: (document: UnifiedDocument) => void;
-  onDocumentChange?: (documents: UnifiedDocument[]) => void;
+  onDocumentSelect?: (document: Document) => void;
+  onDocumentChange?: (documents: Document[]) => void;
 }
 
 interface DocumentState {
-  documents: UnifiedDocument[];
+  documents: Document[];
   loading: boolean;
   error: string | null;
   selectedRowKeys: React.Key[];
@@ -146,7 +147,7 @@ const EnhancedDocumentInterface: React.FC<EnhancedDocumentInterfaceProps> = memo
   });
 
   const [viewState, setViewState] = useState({
-    selectedDocument: null as UnifiedDocument | null,
+    selectedDocument: null as Document | null,
     editorVisible: false,
     viewerVisible: false,
     uploadVisible: false,
@@ -252,7 +253,7 @@ const EnhancedDocumentInterface: React.FC<EnhancedDocumentInterfaceProps> = memo
   }, []);
 
   // 处理文档操作
-  const handleDocumentAction = useCallback(async (action: string, documentId: number, document?: UnifiedDocument) => {
+  const handleDocumentAction = useCallback(async (action: string, documentId: number, document?: Document) => {
     try {
       switch (action) {
         case 'view':
@@ -397,14 +398,14 @@ const EnhancedDocumentInterface: React.FC<EnhancedDocumentInterfaceProps> = memo
   };
 
   // 表格列定义
-  const columns: ColumnsType<UnifiedDocument> = useMemo(() => [
+  const columns: ColumnsType<Document> = useMemo(() => [
     {
       title: '文档标题',
       dataIndex: 'title',
       key: 'title',
       ellipsis: true,
       sorter: (a, b) => a.title.localeCompare(b.title),
-      render: (title: string, record: UnifiedDocument) => (
+      render: (title: string, record: Document) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {getDocumentIcon(record.type)}
           <Button
@@ -456,7 +457,7 @@ const EnhancedDocumentInterface: React.FC<EnhancedDocumentInterfaceProps> = memo
       title: '操作',
       key: 'actions',
       width: 200,
-      render: (_, record: UnifiedDocument) => (
+      render: (_, record: Document) => (
         <Space size="small">
           <Tooltip title="查看">
             <Button
@@ -769,7 +770,7 @@ const EnhancedDocumentInterface: React.FC<EnhancedDocumentInterfaceProps> = memo
             ...prev,
             viewerVisible: false,
             editorVisible: true,
-            selectedDocument: note as UnifiedDocument
+            selectedDocument: note as Document
           }));
         }}
       />

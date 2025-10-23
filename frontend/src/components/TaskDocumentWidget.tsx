@@ -28,9 +28,10 @@ import {
   ShrinkOutlined
 } from '@ant-design/icons';
 import TaskDocumentManager from './TaskDocumentManager';
-import { documentService, UnifiedDocument } from '../services/documentService';
-import { 
-  useOptimizedMemo, 
+import { documentService } from '../services/unifiedDocumentService';
+import { Document } from '../types/document';
+import {
+  useOptimizedMemo,
   useOptimizedCallback,
   useMemoryMonitor
 } from '../utils/performanceOptimization';
@@ -51,7 +52,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
   showTitle = true
 }) => {
   const [managerVisible, setManagerVisible] = useState(false);
-  const [documents, setDocuments] = useState<UnifiedDocument[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [expandedDocIds, setExpandedDocIds] = useState<Set<number>>(new Set()); // 记录哪些文档是展开状态

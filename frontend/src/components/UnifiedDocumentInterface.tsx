@@ -36,7 +36,8 @@ import {
   FileOutlined,
   HistoryOutlined
 } from '@ant-design/icons';
-import { documentService, UnifiedDocument } from '../services/documentService';
+import { documentService } from '../services/unifiedDocumentService';
+import { Document } from '../types/document';
 import ModernWorkNoteEditor from './ModernWorkNoteEditor';
 import ModernWorkNoteViewer from './ModernWorkNoteViewer';
 import DocumentVersionControl from './DocumentVersionControl';
@@ -46,7 +47,7 @@ const { Search } = Input;
 const { Option } = Select;
 const { TabPane } = Tabs;
 
-interface UnifiedDocumentInterfaceProps {
+interface DocumentInterfaceProps {
   projectId?: number;
   taskId?: number;
   mode?: 'standalone' | 'embedded';
@@ -55,7 +56,7 @@ interface UnifiedDocumentInterfaceProps {
   showTaskFilter?: boolean;
 }
 
-const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
+const DocumentInterface: React.FC<DocumentInterfaceProps> = ({
   projectId,
   taskId,
   mode = 'standalone',
@@ -64,9 +65,9 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
   showTaskFilter = true
 }) => {
   // State management
-  const [documents, setDocuments] = useState<UnifiedDocument[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<UnifiedDocument | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [uploadVisible, setUploadVisible] = useState(false);
@@ -121,22 +122,22 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
     setEditorVisible(true);
   };
 
-  const handleEditDocument = (document: UnifiedDocument) => {
+  const handleEditDocument = (document: Document) => {
     setSelectedDocument(document);
     setEditorVisible(true);
   };
 
-  const handleViewDocument = (document: UnifiedDocument) => {
+  const handleViewDocument = (document: Document) => {
     setSelectedDocument(document);
     setViewerVisible(true);
   };
 
-  const handleViewVersions = (document: UnifiedDocument) => {
+  const handleViewVersions = (document: Document) => {
     setSelectedDocument(document);
     setVersionControlVisible(true);
   };
 
-  const handleDeleteDocument = async (document: UnifiedDocument) => {
+  const handleDeleteDocument = async (document: Document) => {
     try {
       await documentService.deleteDocument(document.id);
       message.success('文档删除成功');
@@ -146,7 +147,7 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
     }
   };
 
-  const handleDownloadDocument = (doc: UnifiedDocument) => {
+  const handleDownloadDocument = (doc: Document) => {
     const blob = new Blob([doc.content], { 
       type: doc.mime_type 
     });
@@ -212,12 +213,12 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
   };
 
   // Table columns
-  const columns: ColumnsType<UnifiedDocument> = [
+  const columns: ColumnsType<Document> = [
     {
       title: '文档',
       dataIndex: 'title',
       key: 'title',
-      render: (title: string, record: UnifiedDocument) => (
+      render: (title: string, record: Document) => (
         <Space>
           {getTypeIcon(record.type)}
           <span style={{ fontWeight: 500 }}>{title}</span>
@@ -285,7 +286,7 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
     {
       title: '操作',
       key: 'actions',
-      render: (_, record: UnifiedDocument) => (
+      render: (_, record: Document) => (
         <Space >
           <Tooltip title="查看">
             <Button
@@ -613,4 +614,4 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
   );
 };
 
-export default UnifiedDocumentInterface;
+export default DocumentInterface;

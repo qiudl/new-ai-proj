@@ -4,7 +4,7 @@ import { HistoryOutlined } from '@ant-design/icons';
 import VersionHistory from './VersionHistory';
 import { VersionInfo, MergeResult, RollbackResult } from '../services/versionHistoryService';
 import { DocumentItem } from './UnifiedTaskDocumentArea';
-import { taskDocumentService } from '../services/taskDocumentService';
+import { documentService as taskDocumentService } from '../services/unifiedDocumentService';
 import { realVersionHistoryService } from '../services/realVersionHistoryService';
 
 interface TaskDocumentVersionHistoryButtonProps {

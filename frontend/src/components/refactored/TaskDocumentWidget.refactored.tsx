@@ -34,7 +34,8 @@ import {
   ExclamationCircleOutlined
 } from '@ant-design/icons';
 import TaskDocumentManager from '../TaskDocumentManager';
-import { documentService, UnifiedDocument } from '../../services/documentService';
+import { documentService } from '../../services/unifiedDocumentService';
+import { Document } from '../../types/document';
 import { errorLogger } from '../../utils/ErrorLogger';
 import { 
   useOptimizedMemo, 
@@ -53,11 +54,11 @@ interface TaskDocumentWidgetProps {
   allowUpload?: boolean;
   allowEdit?: boolean;
   allowDelete?: boolean;
-  onDocumentChange?: (documents: UnifiedDocument[]) => void;
+  onDocumentChange?: (documents: Document[]) => void;
 }
 
 interface DocumentState {
-  documents: UnifiedDocument[];
+  documents: Document[];
   loading: boolean;
   uploading: boolean;
   uploadProgress: number;
@@ -263,7 +264,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = memo(({
   }, [selectedDocuments, taskId, loadDocuments]);
 
   // 下载文档
-  const handleDownloadDocument = useOptimizedCallback(async (document: UnifiedDocument) => {
+  const handleDownloadDocument = useOptimizedCallback(async (document: Document) => {
     try {
       await documentService.downloadDocument(document.id, document.title);
       message.success(`开始下载 "${document.title}"`);
@@ -296,7 +297,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = memo(({
   }, [documentState.documents, maxDisplayCount]);
 
   // 文档操作菜单
-  const getDocumentActions = useOptimizedCallback((document: UnifiedDocument): MenuProps['items'] => [
+  const getDocumentActions = useOptimizedCallback((document: Document): MenuProps['items'] => [
     {
       key: 'view',
       label: '查看',
@@ -356,7 +357,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = memo(({
   };
 
   // 渲染文档列表项
-  const renderDocumentItem = (document: UnifiedDocument) => (
+  const renderDocumentItem = (document: Document) => (
     <List.Item
       key={document.id}
       actions={compact ? [

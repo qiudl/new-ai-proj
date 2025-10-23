@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { message } from 'antd';
-import { taskDocumentService } from '../services/taskDocumentService';
-import { 
+import { documentService } from '../services/unifiedDocumentService';
+import {
   performanceMonitor,
   useOptimizedMemo,
   useOptimizedCallback,
@@ -103,7 +103,7 @@ export const useTaskDocuments = ({
     
     try {
       const stopTimer = performanceMonitor.startTimer('load_documents');
-      const response: DocumentListResponse = await taskDocumentService.getTaskDocuments(projectId, taskId);
+      const response: DocumentListResponse = await documentService.getTaskDocuments(projectId, taskId);
       setDocuments(response.documents);
       stopTimer();
     } catch (err) {
@@ -144,7 +144,7 @@ export const useTaskDocuments = ({
         });
       };
       
-      const result = await taskDocumentService.uploadDocument(
+      const result = await documentService.uploadDocument(
         projectId,
         taskId,
         file,
@@ -201,7 +201,7 @@ export const useTaskDocuments = ({
     try {
       const stopTimer = performanceMonitor.startTimer('upload_multiple_documents');
       
-      const results = await taskDocumentService.uploadMultipleDocuments(
+      const results = await documentService.uploadMultipleDocuments(
         projectId,
         taskId,
         files,
@@ -270,7 +270,7 @@ export const useTaskDocuments = ({
     try {
       const stopTimer = performanceMonitor.startTimer('upload_document_api');
       
-      const result = await taskDocumentService.uploadDocumentAPI(
+      const result = await documentService.uploadDocumentAPI(
         projectId,
         taskId,
         fileName,
@@ -313,9 +313,9 @@ export const useTaskDocuments = ({
     try {
       const stopTimer = performanceMonitor.startTimer('download_markdown');
       
-      const blob = await taskDocumentService.downloadTaskMarkdown(projectId, taskId);
+      const blob = await documentService.downloadTaskMarkdown(projectId, taskId);
       const fileName = `task-${taskId}-${new Date().toISOString().split('T')[0]}.md`;
-      taskDocumentService.triggerDownload(blob, fileName);
+      documentService.triggerDownload(blob, fileName);
       
       stopTimer();
       SuccessFeedback.show(
@@ -342,9 +342,9 @@ export const useTaskDocuments = ({
     try {
       const stopTimer = performanceMonitor.startTimer('download_pdf');
       
-      const blob = await taskDocumentService.downloadTaskPDF(projectId, taskId);
+      const blob = await documentService.downloadTaskPDF(projectId, taskId);
       const fileName = `task-${taskId}-${new Date().toISOString().split('T')[0]}.pdf`;
-      taskDocumentService.triggerDownload(blob, fileName);
+      documentService.triggerDownload(blob, fileName);
       
       stopTimer();
       SuccessFeedback.show(
@@ -370,8 +370,8 @@ export const useTaskDocuments = ({
   const deleteDocument = useCallback(async (documentId: number) => {
     try {
       // TODO: Implement delete API call when backend supports it
-      // await taskDocumentService.deleteDocument(documentId);
-      
+      // await documentService.deleteDocument(documentId);
+
       // For now, just refresh the list
       await loadDocuments();
       message.success('文档删除成功');

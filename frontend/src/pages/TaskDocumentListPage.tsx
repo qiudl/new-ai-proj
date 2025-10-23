@@ -34,7 +34,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
-import { documentService } from '../services/documentService';
+import { documentService } from '../services/unifiedDocumentService';
 import { Task } from '../types/task';
 import ViewSwitcher, { ViewType } from '../components/ViewSwitcher';
 import HierarchicalTaskTable, { HierarchicalTaskWithDocument } from '../components/HierarchicalTaskTable';

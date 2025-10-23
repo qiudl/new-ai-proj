@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { message } from 'antd';
 import { useDocumentContext } from '../contexts/DocumentContext';
-import { UnifiedDocument } from '../services/documentService';
+import { Document } from '../types/document';
 import { errorLogger } from '../utils/ErrorLogger';
 
 /**
@@ -84,7 +84,7 @@ export const useDocumentOperations = () => {
   }, [actions, setLoading]);
 
   // 复制文档
-  const duplicateDocument = useCallback(async (documentId: number, modifications?: Partial<UnifiedDocument>) => {
+  const duplicateDocument = useCallback(async (documentId: number, modifications?: Partial<Document>) => {
     const document = state.documents.find(d => d.id === documentId);
     if (!document) return;
 
