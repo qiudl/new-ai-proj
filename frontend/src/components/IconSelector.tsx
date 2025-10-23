@@ -167,7 +167,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({
                   border: value === option.name ? '2px solid #1890ff' : '1px solid #d9d9d9',
                   backgroundColor: value === option.name ? '#f0f8ff' : undefined
                 }}
-                bodyStyle={{ padding: '8px' }}
+                styles={{ body: { padding: '8px'  }}}
                 onClick={() => handleIconSelect(option.name)}
               >
                 <div style={{ fontSize: '18px', marginBottom: '4px' }}>

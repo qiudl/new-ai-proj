@@ -8,7 +8,7 @@ const DataValidationPage: React.FC = () => {
       <Card 
         title="数据验证系统" 
         style={{ maxWidth: '100%' }}
-        bodyStyle={{ padding: '24px' }}
+        styles={{ body: { padding: '24px'  }}}
       >
         <DataValidationPanel />
       </Card>

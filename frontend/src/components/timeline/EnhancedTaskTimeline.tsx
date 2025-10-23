@@ -254,7 +254,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
             cursor: onEventClick ? 'pointer' : 'default',
           }}
           onClick={() => onEventClick?.(event)}
-          bodyStyle={{ padding: compactMode ? '8px 12px' : '12px 16px' }}
+          styles={{ body: { padding: compactMode ? '8px 12px' : '12px 16px'  }}}
         >
           {/* 事件头部 */}
           <div style={{ 

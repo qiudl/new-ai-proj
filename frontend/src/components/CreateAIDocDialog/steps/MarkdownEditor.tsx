@@ -95,7 +95,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ content, onChange }) =>
       <Card
         size="small"
         style={{ marginBottom: 16 }}
-        bodyStyle={{ padding: '12px 16px' }}
+        styles={{ body: { padding: '12px 16px'  }}}
       >
         <Space size="large">
           <Statistic
@@ -123,7 +123,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ content, onChange }) =>
       </Card>
 
       {/* Markdown编辑器 */}
-      <Card bodyStyle={{ padding: 0 }}>
+      <Card styles={{ body: { padding: 0  }}}>
         <MdEditor
           ref={editorRef}
           value={content}

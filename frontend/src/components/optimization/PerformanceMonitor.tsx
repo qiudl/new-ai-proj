@@ -271,7 +271,7 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = memo(({
             zIndex: 1001,
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
           }}
-          bodyStyle={{ padding: '12px' }}
+          styles={{ body: { padding: '12px'  }}}
         >
           {/* 性能分数 */}
           <div style={{ marginBottom: '12px' }}>

@@ -386,11 +386,13 @@ const EnhancedDocumentContent: React.FC<EnhancedDocumentContentProps> = ({
         className="document-content-area"
         style={documentStyle}
       >
-        <Card 
+        <Card
           className="document-card"
-          bodyStyle={{ 
-            padding: 0,
-            background: settings.theme === 'dark' ? '#1f1f1f' : '#fff'
+          styles={{
+            body: {
+              padding: 0,
+              background: settings.theme === 'dark' ? '#1f1f1f' : '#fff'
+            }
           }}
         >
           <EnhancedMarkdownRenderer

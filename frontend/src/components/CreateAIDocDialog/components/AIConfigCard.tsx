@@ -34,7 +34,7 @@ const AIConfigCard: React.FC<AIConfigCardProps> = ({ config, selected, onClick }
         position: 'relative',
         transition: 'all 0.3s',
       }}
-      bodyStyle={{ padding: '16px' }}
+      styles={{ body: { padding: '16px'  }}}
     >
       {/* 选中标记 */}
       {selected && (

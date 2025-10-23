@@ -2072,7 +2072,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
             </Space>
           )
         }
-        bodyStyle={{ padding: 0 }}
+        styles={{ body: { padding: 0  }}}
         style={{ height: isFullscreen ? '100vh' : 'auto' }}
       >
         <Row style={{ height: isFullscreen ? 'calc(100vh - 60px)' : 'auto' }}>
@@ -2133,7 +2133,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                    
                   title="📋 基本信息" 
                   style={{ marginBottom: 16 }}
-                  bodyStyle={{ padding: '12px' }}
+                  styles={{ body: { padding: '12px'  }}}
                 >
                   <Space direction="vertical"  style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -2166,7 +2166,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                    
                   title="📈 统计信息" 
                   style={{ marginBottom: 16 }}
-                  bodyStyle={{ padding: '12px' }}
+                  styles={{ body: { padding: '12px'  }}}
                 >
                   <Space direction="vertical"  style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -2192,7 +2192,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                      
                     title="🏷️ 标签分类" 
                     style={{ marginBottom: 16 }}
-                    bodyStyle={{ padding: '12px' }}
+                    styles={{ body: { padding: '12px'  }}}
                   >
                     <Space wrap>
                       {selectedDocument.tags.map((tag, index) => (
@@ -2207,7 +2207,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                    
                   title="⚡ 快速操作" 
                   style={{ marginBottom: 16 }}
-                  bodyStyle={{ padding: '12px' }}
+                  styles={{ body: { padding: '12px'  }}}
                 >
                   <Space direction="vertical"  style={{ width: '100%' }}>
                     <Button 
@@ -2281,7 +2281,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                       <span>📚 版本历史</span>
                     </Space>
                   } 
-                  bodyStyle={{ padding: '12px' }}
+                  styles={{ body: { padding: '12px'  }}}
                 >
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <div style={{ marginBottom: '12px', fontSize: '12px', color: '#666' }}>

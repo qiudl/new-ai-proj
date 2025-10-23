@@ -36,7 +36,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
           height: '100%',
           transition: 'all 0.3s',
         }}
-        bodyStyle={{ padding: '20px 16px' }}
+        styles={{ body: { padding: '20px 16px'  }}}
       >
         {/* 选中标记 */}
         {selected && (

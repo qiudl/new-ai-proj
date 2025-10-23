@@ -217,7 +217,7 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
         okText={selectedTask ? "确定选择" : (allowClear ? "清除父任务" : "确定")}
         cancelText="取消"
         width={600}
-        bodyStyle={{ maxHeight: '450px', overflow: 'hidden' }}
+        styles={{ body: { maxHeight: '450px', overflow: 'hidden'  }}}
         okButtonProps={{
           disabled: validationError !== null || isValidating || (!selectedTask && !allowClear),
           loading: isValidating,

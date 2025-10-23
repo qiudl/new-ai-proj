@@ -105,7 +105,7 @@ const TimelineLibrary: React.FC = () => {
                 border: `2px solid transparent`,
                 transition: 'all 0.3s ease'
               }}
-              bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+              styles={{ body: { height: '100%', display: 'flex', flexDirection: 'column'  }}}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = card.color === 'blue' ? '#1890ff' : 
                   card.color === 'green' ? '#52c41a' :

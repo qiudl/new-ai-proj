@@ -48,7 +48,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ content }) => {
       <Card
         size="small"
         style={{ marginBottom: 16 }}
-        bodyStyle={{ padding: '12px 16px' }}
+        styles={{ body: { padding: '12px 16px'  }}}
       >
         <div
           style={{
@@ -94,10 +94,12 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ content }) => {
 
       {/* Markdown渲染 */}
       <Card
-        bodyStyle={{
-          padding: '24px',
-          maxHeight: '500px',
-          overflowY: 'auto',
+        styles={{
+          body: {
+            padding: '24px',
+            maxHeight: '500px',
+            overflowY: 'auto',
+          }
         }}
       >
         <div className="markdown-preview">

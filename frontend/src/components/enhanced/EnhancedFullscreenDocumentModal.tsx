@@ -654,11 +654,13 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
       footer={null}
       width="100vw"
       style={{ top: 0, paddingBottom: 0, maxWidth: 'none' }}
-      bodyStyle={{
-        padding: 0,
-        height: '100vh',
-        overflow: 'hidden',
-        background: theme === 'dark' ? '#0d1117' : '#fff'
+      styles={{
+        body: {
+          padding: 0,
+          height: '100vh',
+          overflow: 'hidden',
+          background: theme === 'dark' ? '#0d1117' : '#fff'
+        }
       }}
       maskStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.9)' }}
       destroyOnHidden

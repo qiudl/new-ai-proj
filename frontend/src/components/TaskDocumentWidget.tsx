@@ -368,7 +368,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
             </Dropdown>
           </Space>
         }
-        bodyStyle={{ padding: '12px 16px' }}
+        styles={{ body: { padding: '12px 16px'  }}}
       >
         <Space direction="vertical"  style={{ width: '100%' }}>
           {stats.total === 0 ? (

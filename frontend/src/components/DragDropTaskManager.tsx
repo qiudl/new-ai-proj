@@ -99,7 +99,7 @@ const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
           cursor: 'pointer',
           transition: 'all 0.2s ease'
         }}
-        bodyStyle={{ padding: '12px 16px' }}
+        styles={{ body: { padding: '12px 16px'  }}}
         onClick={() => onTaskClick(task)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

@@ -325,7 +325,7 @@ const EnterpriseUserDetailPage: React.FC = () => {
       <Card 
         className="user-detail-header"
         style={{ marginBottom: '24px' }}
-        bodyStyle={{ padding: '32px' }}
+        styles={{ body: { padding: '32px'  }}}
       >
         <Row align="middle" justify="space-between">
           <Col>

@@ -344,7 +344,7 @@ const VirtualizedTimeline: React.FC<VirtualizedTimelineProps> = ({
         </Space>
       }
       style={{ height: height + 100 }}
-      bodyStyle={{ height, padding: 0 }}
+      styles={{ body: { height, padding: 0  }}}
     >
       <List
         ref={listRef}
