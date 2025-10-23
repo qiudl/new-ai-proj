@@ -54,10 +54,10 @@ import { TaskComments } from '../../../../components/TaskComment';
 
 const { Text } = Typography;
 
-// Use TaskDocumentWidget for document display
-// Removed SimpleTaskDocumentViewer (404 error on /documents/all endpoint)
-// Using TaskDocumentWidget which properly integrates with unifiedDocumentService
-import TaskDocumentWidget from '../../../../components/TaskDocumentWidget';
+// Use UnifiedTaskDocumentArea for complete document editing/viewing functionality
+// Replaced TaskDocumentWidget (limited features) with UnifiedTaskDocumentArea (full features)
+// UnifiedTaskDocumentArea includes: Markdown editor, document viewer, full-screen mode, PDF export, version history, AI generation
+import UnifiedTaskDocumentArea from '../../../../components/UnifiedTaskDocumentArea';
 
 // Lazy load TaskAnalysisPanel
 const TaskAnalysisPanel = lazy(
@@ -356,12 +356,23 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
         label: documentTabLabel,
         children: (
           <div>
-            {/* TaskDocumentWidget - Integrated with unifiedDocumentService */}
-            <TaskDocumentWidget
-              taskId={task.id}
+            {/* UnifiedTaskDocumentArea - 完整的文档编辑、查看、管理功能 */}
+            <UnifiedTaskDocumentArea
               projectId={projectId}
-              compact={false}
-              showTitle={false}
+              taskId={task.id}
+              defaultViewMode="edit"      // 默认编辑模式
+              showToolbar={true}           // 显示工具栏（模式切换）
+              showDocumentList={true}      // 显示文档列表
+              compactMode={false}          // 完整功能模式
+              headerVisible={false}        // 隐藏头部（Tab已有标题）
+              onDocumentChange={(docs) => {
+                // 文档变更回调
+                onDocsChange?.();
+              }}
+              onViewModeChange={(mode) => {
+                // 视图模式变更跟踪（用于分析）
+                console.log('[TaskDetailContent] View mode changed to:', mode);
+              }}
             />
           </div>
         )
