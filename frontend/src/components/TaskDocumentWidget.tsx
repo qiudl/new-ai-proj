@@ -64,11 +64,13 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
   const loadDocuments = async () => {
     setLoading(true);
     try {
-      const response = await documentService.getTaskDocuments(projectId, taskId);
-      setDocuments(response.documents);
+      // getTaskDocuments returns array directly, not { documents: [] }
+      const documents = await documentService.getTaskDocuments(projectId, taskId);
+      setDocuments(documents || []);
     } catch (error) {
       console.error('加载文档失败:', error);
       message.error('加载文档失败');
+      setDocuments([]); // Set empty array on error
     } finally {
       setLoading(false);
     }

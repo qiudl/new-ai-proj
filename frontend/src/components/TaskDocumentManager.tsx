@@ -189,11 +189,11 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     setError(null);
     
     try {
-      const response = await taskDocumentService.getTaskDocuments(projectId, taskId);
-      const docs = response.documents;
-      
+      // getTaskDocuments returns array directly, not { documents: [] }
+      const docs = await taskDocumentService.getTaskDocuments(projectId, taskId);
+
       // 设置文档列表
-      setDocuments(docs);
+      setDocuments(docs || []);
       
       const stats: DocumentStats = {
         totalDocuments: docs.length,

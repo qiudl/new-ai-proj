@@ -103,12 +103,14 @@ export const useTaskDocuments = ({
     
     try {
       const stopTimer = performanceMonitor.startTimer('load_documents');
-      const response: DocumentListResponse = await documentService.getTaskDocuments(projectId, taskId);
-      setDocuments(response.documents);
+      // getTaskDocuments returns array directly, not DocumentListResponse
+      const documents = await documentService.getTaskDocuments(projectId, taskId);
+      setDocuments(documents || []);
       stopTimer();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load documents';
       setError(errorMessage);
+      setDocuments([]); // Set empty array on error
       NetworkErrorHandler.handleError(err, 'Failed to load documents', {
         componentName: 'useTaskDocuments',
         showDetailed: true

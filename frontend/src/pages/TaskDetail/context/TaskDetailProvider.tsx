@@ -188,18 +188,23 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
     dispatch({ type: 'SET_LOADING', payload: { key: 'documents', value: true } });
     
     try {
-      const response = await documentService.getTaskDocuments(projectId, taskId);
-      dispatch({ 
-        type: 'SET_DOCUMENTS', 
+      // getTaskDocuments returns array directly, not { documents: [], total: 0 }
+      const documents = await documentService.getTaskDocuments(projectId, taskId);
+      dispatch({
+        type: 'SET_DOCUMENTS',
         payload: {
-          list: response.documents || [],
-          total: response.total || 0,
+          list: documents || [],
+          total: (documents || []).length,
           loading: false,
           error: null
         }
       });
     } catch (error: any) {
       dispatch({ type: 'SET_ERROR', payload: { key: 'documents', error } });
+      dispatch({
+        type: 'SET_DOCUMENTS',
+        payload: { list: [], total: 0, loading: false, error }
+      });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: { key: 'documents', value: false } });
     }

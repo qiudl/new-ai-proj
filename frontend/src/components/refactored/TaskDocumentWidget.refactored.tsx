@@ -109,21 +109,22 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = memo(({
     }
     
     try {
-      const response = await documentService.getTaskDocuments(projectId, taskId);
-      
+      // getTaskDocuments returns array directly, not { documents: [] }
+      const documents = await documentService.getTaskDocuments(projectId, taskId);
+
       setDocumentState(prev => ({
         ...prev,
-        documents: response.documents,
+        documents: documents || [],
         loading: false,
         error: null,
         lastRefresh: new Date()
       }));
-      
-      onDocumentChange?.(response.documents);
-      
+
+      onDocumentChange?.(documents || []);
+
       errorLogger.debug('ui', 'TaskDocumentWidget: 文档加载成功', {
         taskId,
-        documentCount: response.documents.length
+        documentCount: (documents || []).length
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '加载文档失败';

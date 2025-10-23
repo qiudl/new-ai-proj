@@ -103,10 +103,12 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
   // Load existing documents
   const loadDocuments = useCallback(async () => {
     try {
-      const response = await taskDocumentService.getTaskDocuments(projectId, taskId);
-      setUploadedDocuments(response.documents);
+      // getTaskDocuments returns array directly, not { documents: [] }
+      const documents = await taskDocumentService.getTaskDocuments(projectId, taskId);
+      setUploadedDocuments(documents || []);
     } catch (error) {
       console.error('Failed to load documents:', error);
+      setUploadedDocuments([]); // Set empty array on error
     }
   }, [projectId, taskId]);
 
