@@ -92,13 +92,13 @@ class OrganizationService {
       } as T;
     }
 
-    // 处理标准API响应格式 {success: true, data: ...}
+    // 处理标准API响应格式 {success: true, data: ...}（拦截器已解包response.data）
     if (response.success && response.data !== undefined) {
       return response.data as T;
     }
 
-    // 处理分页响应格式
-    if (response.data && Array.isArray(response.data) && response.pagination) {
+    // 处理分页响应格式（拦截器已解包response.data）
+    if (response && Array.isArray(response.data) && response.pagination) {
       return {
         data: response.data,
         pagination: response.pagination

@@ -25,14 +25,9 @@ class ImpersonationService {
       // 1. API拦截器已解包: {is_impersonating: false}
       // 2. 标准格式: {success: true, data: {is_impersonating: false}}
 
-      // 如果是已解包的格式
+      // 拦截器已自动解包response.data
       if (response && typeof response.is_impersonating !== 'undefined') {
         return response;
-      }
-
-      // 如果是标准响应格式(未被拦截器解包)
-      if (response && response.data && typeof response.data.is_impersonating !== 'undefined') {
-        return response.data;
       }
 
       throw new Error('无效的响应格式');

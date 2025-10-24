@@ -98,8 +98,8 @@ class PositionService {
       return response.data as T;
     }
 
-    // 处理分页响应格式
-    if (response.data && Array.isArray(response.data) && response.pagination) {
+    // 处理分页响应格式（拦截器已解包response.data）
+    if (response && Array.isArray(response.data) && response.pagination) {
       return {
         data: response.data,
         pagination: response.pagination
@@ -118,7 +118,7 @@ class PositionService {
   async getPositions(): Promise<Position[]> {
     try {
       const response = await api.get(`${this.API_BASE_URL}`);
-      const result = this.handleApiResponse<Position[]>(response.data);
+      const result = this.handleApiResponse<Position[]>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取岗位列表失败:', error);
@@ -130,7 +130,7 @@ class PositionService {
   async getPosition(id: number): Promise<Position> {
     try {
       const response = await api.get(`${this.API_BASE_URL}/${id}`);
-      const result = this.handleApiResponse<Position>(response.data);
+      const result = this.handleApiResponse<Position>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取岗位详情失败:', error);
@@ -142,7 +142,7 @@ class PositionService {
   async createPosition(position: CreatePositionRequest): Promise<Position> {
     try {
       const response = await api.post(`${this.API_BASE_URL}`, position);
-      const result = this.handleApiResponse<Position>(response.data);
+      const result = this.handleApiResponse<Position>(response);
       return result;
     } catch (error) {
       console.error('❌ 创建岗位失败:', error);
@@ -154,7 +154,7 @@ class PositionService {
   async updatePosition(id: number, position: UpdatePositionRequest): Promise<Position> {
     try {
       const response = await api.put(`${this.API_BASE_URL}/${id}`, position);
-      const result = this.handleApiResponse<Position>(response.data);
+      const result = this.handleApiResponse<Position>(response);
       return result;
     } catch (error) {
       console.error('❌ 更新岗位失败:', error);
@@ -180,7 +180,7 @@ class PositionService {
         : `/organization/employee-positions`;
       
       const response = await api.get(url);
-      const result = this.handleApiResponse<EmployeePosition[]>(response.data);
+      const result = this.handleApiResponse<EmployeePosition[]>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取岗位员工分配列表失败:', error);
@@ -192,7 +192,7 @@ class PositionService {
   async getAvailableDepartments(): Promise<{id: number; name: string}[]> {
     try {
       const response = await api.get('/organization/departments/simple');
-      const result = this.handleApiResponse<{id: number; name: string}[]>(response.data);
+      const result = this.handleApiResponse<{id: number; name: string}[]>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取可用部门列表失败:', error);
@@ -204,7 +204,7 @@ class PositionService {
   async getSkillRequirements(): Promise<SkillRequirement[]> {
     try {
       const response = await api.get('/organization/skills');
-      const result = this.handleApiResponse<SkillRequirement[]>(response.data);
+      const result = this.handleApiResponse<SkillRequirement[]>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取技能要求列表失败:', error);
@@ -229,7 +229,7 @@ class PositionService {
         recruitingPositions: number;
         avgSalaryRange: { min: number; max: number };
         categoryStats: { category: string; count: number }[];
-      }>(response.data);
+      }>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取岗位统计信息失败:', error);

@@ -10,9 +10,9 @@ export class HistoryTaskService {
     try {
       // 尝试调用专门的历史任务API
       const response = await api.get(`/timer/history?limit=${limit}&order_by=last_updated&order=desc`);
-      
-      if (response?.data && Array.isArray(response.data)) {
-        const items = response.data.map(this.transformHistoryTask);
+
+      if (response && Array.isArray(response)) {
+        const items = response.map(this.transformHistoryTask);
         // 健壮排序：按 last_updated 降序，无效时间置后
         items.sort((a, b) => this.safeTime(b.last_updated) - this.safeTime(a.last_updated));
         return items.slice(0, limit);
@@ -202,8 +202,8 @@ export class HistoryTaskService {
     try {
       const response = await api.get(`/tasks/${taskId}/time-history`);
       
-      if (response?.data) {
-        return response.data;
+      if (response) {
+        return response;
       }
       
       return null;
