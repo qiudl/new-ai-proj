@@ -3,7 +3,7 @@
  * 包含: 计时器警告、正在计时的任务列表、快速操作、基本信息、文档概览
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { Card, Space, Alert, Typography } from 'antd';
 import {
   WarningOutlined,
@@ -15,10 +15,11 @@ import {
 } from '@ant-design/icons';
 import MVPTaskDetailTimer from '../../../../components/MVPTaskDetailTimer';
 import { TaskDetailInfo } from '../../../../components/TaskDetailBasicInfo';
-import TaskDocumentWidget from '../../../../components/TaskDocumentWidget';
+import { DocumentVersionPanel } from '../../../../components/DocumentVersionPanel';
 import { TaskRelationsPanel } from '../../../../components/TaskDetailRelations';
 import { useTaskDetailContext } from '../../hooks/useTaskDetailContext';
 import { useTimer } from '../../../../contexts/TimerContext';
+import { documentService } from '../../../../services/unifiedDocumentService';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
@@ -51,6 +52,26 @@ const TaskDetailSidebar: React.FC<TaskDetailSidebarProps> = ({
   // State for expanded sections
   const [expandedSubtasks, setExpandedSubtasks] = useState(true);
   const [expandedSiblings, setExpandedSiblings] = useState(false);
+
+  // State for document ID
+  const [documentId, setDocumentId] = useState<number | undefined>(undefined);
+
+  // Load document ID when task changes
+  useEffect(() => {
+    const loadDocumentId = async () => {
+      if (!task) return;
+
+      try {
+        const doc = await documentService.getTaskDocument(projectId, task.id);
+        setDocumentId(doc?.id);
+      } catch (error) {
+        console.error('Failed to load document ID:', error);
+        setDocumentId(undefined);
+      }
+    };
+
+    loadDocumentId();
+  }, [task?.id, projectId]);
 
   // 如果没有任务数据，不渲染
   if (!task) {
@@ -281,13 +302,14 @@ const TaskDetailSidebar: React.FC<TaskDetailSidebarProps> = ({
         parentTask={relations.parent}
       />
 
-      {/* 任务文档小部件 */}
+      {/* 文档版本面板 */}
       <div style={{ marginBottom: '16px' }}>
-        <TaskDocumentWidget
+        <DocumentVersionPanel
           projectId={projectId}
           taskId={task.id}
-          compact={false}
+          documentId={documentId}
           showTitle={true}
+          compact={false}
         />
       </div>
 
