@@ -1,8 +1,8 @@
 package services
 
 import (
+	"ai-project-backend/database"
 	"ai-project-backend/interfaces"
-	"ai-project-backend/models"
 	"context"
 	"database/sql"
 	"fmt"
@@ -213,24 +213,9 @@ func (s *UnifiedDocumentService) UpdateDocumentByID(ctx context.Context, req *in
 	}
 
 	// 类型断言获取database.DB接口
-	type DBInterface interface {
-		Documents() interface {
-			GetByID(ctx context.Context, id int) (*models.Document, error)
-			Update(ctx context.Context, document *models.Document) (*models.Document, error)
-		}
-	}
-
-	// 导入models包类型定义
-	type Document struct {
-		ID        uint
-		Content   *string
-		CreatedBy int
-		// 其他字段...
-	}
-
-	db, ok := s.db.(DBInterface)
+	db, ok := s.db.(database.DB)
 	if !ok {
-		return fmt.Errorf("database does not implement Documents() method")
+		return fmt.Errorf("database does not implement database.DB interface")
 	}
 
 	// 获取文档
@@ -249,6 +234,43 @@ func (s *UnifiedDocumentService) UpdateDocumentByID(ctx context.Context, req *in
 	}
 
 	return nil
+}
+
+// GetDocumentByID 通过文档ID获取文档
+// 用于全局文档路由
+func (s *UnifiedDocumentService) GetDocumentByID(ctx context.Context, req *interfaces.GetDocumentByIDRequest) (*interfaces.DocumentResponse, error) {
+	if s.db == nil {
+		return nil, fmt.Errorf("database not available for GetDocumentByID operation")
+	}
+
+	// 类型断言获取database.DB接口
+	db, ok := s.db.(database.DB)
+	if !ok {
+		return nil, fmt.Errorf("database does not implement database.DB interface")
+	}
+
+	// 获取文档
+	doc, err := db.Documents().GetByID(ctx, req.DocumentID)
+	if err != nil {
+		return nil, fmt.Errorf("document not found: %w", err)
+	}
+
+	// 构建响应
+	var content string
+	if doc.Content != nil {
+		content = *doc.Content
+	}
+
+	response := &interfaces.DocumentResponse{
+		Content:     content,
+		Version:     fmt.Sprintf("v%d", doc.Version),
+		CreatedAt:   doc.CreatedAt,
+		LastUpdated: doc.UpdatedAt,
+		Format:      "markdown",
+		Size:        int64(len(content)),
+	}
+
+	return response, nil
 }
 
 // DeleteDocument 删除文档

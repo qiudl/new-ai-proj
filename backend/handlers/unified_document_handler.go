@@ -1512,3 +1512,47 @@ func (h *UnifiedDocumentHandler) UpdateDocumentByID(c *gin.Context) {
 		},
 	})
 }
+
+// GetDocumentByID 通过文档ID获取文档
+// GET /api/v1/documents/:id
+func (h *UnifiedDocumentHandler) GetDocumentByID(c *gin.Context) {
+	// 解析文档ID
+	docID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid document ID",
+			"code":    "INVALID_DOCUMENT_ID",
+		})
+		return
+	}
+
+	// 调用Service层的GetDocumentByID方法
+	req := &interfaces.GetDocumentByIDRequest{
+		DocumentID: docID,
+	}
+
+	doc, err := h.documentService.GetDocumentByID(c.Request.Context(), req)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"message": "Document not found",
+				"code":    "DOCUMENT_NOT_FOUND",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Failed to get document",
+				"code":    "GET_FAILED",
+				"details": err.Error(),
+			})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    doc,
+	})
+}

@@ -61,11 +61,11 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 	}
 
 	// Document CRUD routes（全局文档资源）
-	// 使用UnifiedDocumentHandler处理文档更新操作
+	// 使用UnifiedDocumentHandler处理文档读写操作
 	unifiedHandler := app.GetUnifiedDocumentHandler()
 	authorized.GET("/documents", app.GetDocumentHandler().GetDocuments)
 	authorized.POST("/documents", app.GetDocumentHandler().CreateDocument)
-	authorized.GET("/documents/:id", app.GetDocumentHandler().GetDocument)
+	authorized.GET("/documents/:id", unifiedHandler.GetDocumentByID)     // 使用GetDocumentByID处理全局文档获取
 	authorized.PUT("/documents/:id", unifiedHandler.UpdateDocumentByID)  // 使用UpdateDocumentByID处理全局文档更新
 	authorized.DELETE("/documents/:id", app.GetDocumentHandler().DeleteDocument)
 
