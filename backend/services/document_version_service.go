@@ -35,6 +35,7 @@ type DocumentVersionInfo struct {
 	DocumentID     uint64                 `json:"document_id"`
 	VersionNumber  int                    `json:"version_number"`
 	Title          string                 `json:"title"`
+	Content        string                 `json:"content,omitempty"` // 版本内容（可选，根据include_content参数）
 	Description    string                 `json:"description"`
 	ChangesSummary string                 `json:"changes_summary"`
 	FileName       string                 `json:"file_name"`
@@ -243,6 +244,12 @@ func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, docume
 			DocumentID:    uint64(v.DocumentID),
 			VersionNumber: v.VersionNumber,
 			Title:         v.Title,
+			Content: func() string {
+				if v.Content != nil {
+					return *v.Content
+				}
+				return ""
+			}(),
 			Description:   "", // Not available in DocumentVersion model
 			ChangesSummary: func() string {
 				if v.ChangeSummary != nil {
@@ -310,6 +317,12 @@ func (dvs *DocumentVersionService) GetVersion(ctx context.Context, documentID ui
 		DocumentID:    uint64(versionData.DocumentID),
 		VersionNumber: versionData.VersionNumber,
 		Title:         versionData.Title,
+		Content: func() string {
+			if versionData.Content != nil {
+				return *versionData.Content
+			}
+			return ""
+		}(),
 		Description:   "", // Not available in DocumentVersion model
 		ChangesSummary: func() string {
 			if versionData.ChangeSummary != nil {

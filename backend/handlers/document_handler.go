@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"ai-project-backend/database"
+	"ai-project-backend/models"
 	"ai-project-backend/services"
 	"strconv"
 
@@ -128,4 +129,90 @@ func (h *DocumentHandler) GetTaskDocumentsWithoutProject(c *gin.Context) {
 
 func (h *DocumentHandler) CreateTaskDocumentWithoutProject(c *gin.Context) {
 	c.JSON(501, gin.H{"error": "Not implemented - use UnifiedDocumentHandler"})
+}
+
+// UpsertTaskDocument 保存任务文档（自动判断创建或更新）
+// POST /api/v1/projects/:id/tasks/:taskId/document
+func (h *DocumentHandler) UpsertTaskDocument(c *gin.Context) {
+	// 获取路径参数
+	taskIDStr := c.Param("taskId")
+
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		c.JSON(400, gin.H{"success": false, "message": "Invalid task ID"})
+		return
+	}
+
+	// 获取用户ID
+	userID := uint(0)
+	if uid, exists := c.Get("user_id"); exists {
+		if u, ok := uid.(uint); ok {
+			userID = u
+		}
+	}
+
+	// 解析请求体
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"success": false, "message": "Invalid request body"})
+		return
+	}
+
+	if req.Content == "" {
+		c.JSON(400, gin.H{"success": false, "message": "Content cannot be empty"})
+		return
+	}
+
+	// 获取document repository
+	docRepo := h.db.Documents()
+
+	// 检查任务是否已有文档
+	existingDocs, err := docRepo.GetTaskDocuments(c.Request.Context(), taskID)
+	if err != nil {
+		c.JSON(500, gin.H{"success": false, "message": "Failed to check existing documents", "error": err.Error()})
+		return
+	}
+
+	// 如果文档已存在，更新第一个文档
+	if len(existingDocs) > 0 {
+		doc := existingDocs[0]
+		doc.Content = &req.Content
+
+		// 调用Update方法（会触发自动版本创建！）
+		updatedDoc, err := docRepo.Update(c.Request.Context(), doc)
+		if err != nil {
+			c.JSON(500, gin.H{"success": false, "message": "Failed to update document", "error": err.Error()})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"success": true,
+			"message": "Document updated successfully",
+			"document": updatedDoc,
+		})
+		return
+	}
+
+	// 文档不存在，创建新文档
+	newDoc := &models.Document{
+		Title:     "Task " + strconv.Itoa(taskID) + " Document",
+		Content:   &req.Content,
+		CreatedBy: int(userID),
+		OwnerID:   int(userID),
+		Type:      "task",
+	}
+
+	createdDoc, err := docRepo.Create(c.Request.Context(), newDoc)
+	if err != nil {
+		c.JSON(500, gin.H{"success": false, "message": "Failed to create document", "error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"success": true,
+		"message": "Document created successfully",
+		"document": createdDoc,
+	})
 }

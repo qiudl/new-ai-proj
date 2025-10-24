@@ -118,13 +118,10 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 					"replacement": "/api/v1/projects/:id/tasks/:taskId/documents",
 				})
 			})
-			// 这些方法暂时用占位符
-			tasks.POST("/:taskId/document", func(c *gin.Context) {
-				c.JSON(200, gin.H{"success": true, "message": "Task document upsert coming soon"})
-			})
-			tasks.PUT("/:taskId/document", func(c *gin.Context) {
-				c.JSON(200, gin.H{"success": true, "message": "Task document upsert coming soon"})
-			})
+			// 任务文档保存（自动判断创建或更新）
+			// 使用数据库backed handler，支持自动版本创建
+			tasks.POST("/:taskId/document", app.GetDocumentHandler().UpsertTaskDocument)
+			tasks.PUT("/:taskId/document", app.GetDocumentHandler().UpsertTaskDocument)
 			taskDocuments := tasks.Group("/:taskId/documents")
 			{
 				// 获取任务的所有文档（合并API - P1优化）

@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -183,11 +184,19 @@ func (r *documentRepository) Update(ctx context.Context, id int, updates *models
 		createdBy = oldDoc.CreatedBy
 	}
 
-	// 调用CreateVersion保存当前版本到document_versions表
-	_, versionErr := r.createVersionSnapshot(ctx, id, oldDoc, createdBy)
-	if versionErr != nil {
-		// 版本创建失败不阻止文档更新，只记录警告
-		fmt.Printf("[WARNING] Failed to create version snapshot for document %d: %v\n", id, versionErr)
+	// 检查该版本快照是否已存在（避免重复创建）
+	versionExists, _ := r.versionSnapshotExists(ctx, id, oldDoc.Version)
+	if !versionExists {
+		// 调用CreateVersion保存当前版本到document_versions表
+		_, versionErr := r.createVersionSnapshot(ctx, id, oldDoc, createdBy)
+		if versionErr != nil {
+			// 版本创建失败不阻止文档更新，只记录警告
+			fmt.Printf("[WARNING] Failed to create version snapshot for document %d: %v\n", id, versionErr)
+		} else {
+			fmt.Printf("[INFO] Created version snapshot v%d for document %d\n", oldDoc.Version, id)
+		}
+	} else {
+		fmt.Printf("[DEBUG] Version snapshot v%d for document %d already exists, skipping\n", oldDoc.Version, id)
 	}
 
 	// Step 3: 执行文档更新
@@ -218,12 +227,14 @@ func (r *documentRepository) Update(ctx context.Context, id int, updates *models
 
 // createVersionSnapshot 创建文档版本快照（内部方法）
 // 在document_versions表中保存当前文档状态
+// 注意：实际数据库表字段为 id, document_id, version_number, title, content,
+//       changes_summary, metadata, created_by, created_at
 func (r *documentRepository) createVersionSnapshot(ctx context.Context, documentID int, doc *models.Document, createdBy int) (*models.DocumentVersion, error) {
 	query := `
 		INSERT INTO document_versions (
 			document_id, version_number, title, content, changes_summary,
-			file_size, metadata, created_by
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			metadata, created_by
+		) VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at`
 
 	var id int
@@ -231,17 +242,22 @@ func (r *documentRepository) createVersionSnapshot(ctx context.Context, document
 
 	// 处理Content指针
 	var content string
-	var contentSize int64
 	if doc.Content != nil {
 		content = *doc.Content
-		contentSize = int64(len(content))
 	} else {
 		content = ""
-		contentSize = 0
 	}
 
 	// 生成变更摘要
 	changeSummary := fmt.Sprintf("版本 v%d 自动快照", doc.Version)
+
+	// 转换metadata为JSON
+	var metadataJSON []byte
+	if doc.Metadata != nil {
+		metadataJSON, _ = json.Marshal(doc.Metadata)
+	} else {
+		metadataJSON = []byte("{}")
+	}
 
 	err := r.db.QueryRowContext(ctx, query,
 		documentID,
@@ -249,8 +265,7 @@ func (r *documentRepository) createVersionSnapshot(ctx context.Context, document
 		doc.Title,
 		content,
 		changeSummary,
-		contentSize,
-		doc.Metadata,
+		metadataJSON,
 		createdBy,
 	).Scan(&id, &createdAt)
 
@@ -265,10 +280,21 @@ func (r *documentRepository) createVersionSnapshot(ctx context.Context, document
 		Title:         doc.Title,
 		Content:       &content,
 		ChangeSummary: &changeSummary,
-		FileSize:      contentSize,
+		FileSize:      0, // 表中没有此字段
 		CreatedBy:     createdBy,
 		CreatedAt:     createdAt,
 	}, nil
+}
+
+// versionSnapshotExists 检查指定版本的快照是否已存在
+func (r *documentRepository) versionSnapshotExists(ctx context.Context, documentID int, version int) (bool, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM document_versions WHERE document_id = $1 AND version_number = $2`
+	err := r.db.QueryRowContext(ctx, query, documentID, version).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 // Delete 软删除文档
