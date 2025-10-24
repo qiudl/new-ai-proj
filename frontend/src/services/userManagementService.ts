@@ -64,7 +64,7 @@ class UserManagementService {
   async createUser(userData: UserCreateRequest): Promise<User> {
     try {
       const response = await api.post('/admin/users', userData);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error creating user:', error);
       throw new Error('Failed to create user');
@@ -77,7 +77,7 @@ class UserManagementService {
   async updateUser(id: number, userData: UserUpdateRequest): Promise<User> {
     try {
       const response = await api.put(`/admin/users/${id}`, userData);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error updating user:', error);
       throw new Error('Failed to update user');
@@ -119,7 +119,7 @@ class UserManagementService {
       }
       
       const response = await api.put(`/admin/users/${id}/status`, { status });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error updating user status:', error);
       if (error instanceof Error && error.message.includes('404')) {
@@ -184,7 +184,7 @@ class UserManagementService {
       const response = await api.get(`/admin/users/export?${queryParams.toString()}`, {
         responseType: 'blob'
       });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error exporting users:', error);
       throw new Error('Failed to export user data');
@@ -205,7 +205,7 @@ class UserManagementService {
   }> {
     try {
       const response = await api.get(`/admin/users/${userId}/projects`);
-      return { data: response.data || [] };
+      return { data: response || [] };
     } catch (error) {
       console.error('Error fetching user projects:', error);
       // 返回空数据而不是抛出错误，以便页面能正常显示
@@ -233,7 +233,7 @@ class UserManagementService {
       
       const response = await api.get(`/admin/users/${userId}/activity?${queryParams.toString()}`);
       return {
-        data: response.data || [],
+        data: response || [],
         total: response.total || 0
       };
     } catch (error) {

@@ -439,14 +439,14 @@ export class DocumentCacheService {
 
       console.log(`📦 [CACHE-PREFETCH] API响应:`, response);
 
-      // 检查response.data是否存在
-      if (!response || !response.data) {
+      // 检查响应是否存在（拦截器已自动解包response.data）
+      if (!response) {
         console.error(`❌ [CACHE-PREFETCH] API响应无效:`, response);
         this.preloadQueue.delete(key);
         return;
       }
 
-      const result = response.data;
+      const result = response;
       console.log(`📊 [CACHE-PREFETCH] 解析数据:`, {
         hasDocuments: !!result.documents,
         hasWorkNotes: !!result.work_notes,

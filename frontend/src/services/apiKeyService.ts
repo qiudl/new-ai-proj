@@ -71,9 +71,9 @@ export class APIKeyService {
   }): Promise<APIKeyListResponse> {
     try {
       const response = await api.get('/api-keys', { params });
-      
+
       // 为每个API Key添加安全掩码
-      const processedData = response.data.map((apiKey: APIKey) => ({
+      const processedData = (response as APIKey[]).map((apiKey: APIKey) => ({
         ...apiKey,
         maskedKey: APIKeySecurity.maskApiKey(apiKey.key)
       }));
@@ -96,10 +96,10 @@ export class APIKeyService {
   static async getAPIKey(id: string): Promise<APIKey> {
     try {
       const response = await api.get(`/api-keys/${id}`);
-      
+
       return {
-        ...response.data,
-        maskedKey: APIKeySecurity.maskApiKey(response.data.key)
+        ...response,
+        maskedKey: APIKeySecurity.maskApiKey((response as APIKey).key)
       };
     } catch (error) {
       console.error(`Failed to load API key ${id}:`, error);
@@ -122,13 +122,13 @@ export class APIKeyService {
       }
 
       const response = await api.post('/api-keys', data);
-      
+
       return {
         apiKey: {
-          ...response.data.apiKey,
-          maskedKey: APIKeySecurity.maskApiKey(response.data.apiKey.key)
+          ...(response as any).apiKey,
+          maskedKey: APIKeySecurity.maskApiKey((response as any).apiKey.key)
         },
-        plainKey: response.data.key
+        plainKey: (response as any).key
       };
     } catch (error) {
       console.error('Failed to create API key:', error);
@@ -150,10 +150,10 @@ export class APIKeyService {
       }
 
       const response = await api.put(`/api-keys/${id}`, data);
-      
+
       return {
-        ...response.data,
-        maskedKey: APIKeySecurity.maskApiKey(response.data.key)
+        ...response,
+        maskedKey: APIKeySecurity.maskApiKey((response as APIKey).key)
       };
     } catch (error) {
       console.error(`Failed to update API key ${id}:`, error);
@@ -179,10 +179,10 @@ export class APIKeyService {
   static async toggleAPIKeyStatus(id: string, status: 'active' | 'inactive'): Promise<APIKey> {
     try {
       const response = await api.patch(`/api-keys/${id}/status`, { status });
-      
+
       return {
-        ...response.data,
-        maskedKey: APIKeySecurity.maskApiKey(response.data.key)
+        ...response,
+        maskedKey: APIKeySecurity.maskApiKey((response as APIKey).key)
       };
     } catch (error) {
       console.error(`Failed to toggle API key status ${id}:`, error);
@@ -199,13 +199,13 @@ export class APIKeyService {
   }> {
     try {
       const response = await api.post(`/api-keys/${id}/regenerate`);
-      
+
       return {
         apiKey: {
-          ...response.data.apiKey,
-          maskedKey: APIKeySecurity.maskApiKey(response.data.apiKey.key)
+          ...(response as any).apiKey,
+          maskedKey: APIKeySecurity.maskApiKey((response as any).apiKey.key)
         },
-        plainKey: response.data.key
+        plainKey: (response as any).key
       };
     } catch (error) {
       console.error(`Failed to regenerate API key ${id}:`, error);
@@ -219,7 +219,7 @@ export class APIKeyService {
   static async getAPIKeyStatistics(): Promise<APIKeyStatistics> {
     try {
       const response = await api.get('/api-keys/statistics');
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Failed to load API key statistics:', error);
       throw error;
@@ -236,7 +236,7 @@ export class APIKeyService {
   }> {
     try {
       const response = await api.post(`/api-keys/${id}/test`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error(`Failed to test API key ${id}:`, error);
       throw error;
@@ -266,7 +266,7 @@ export class APIKeyService {
   }> {
     try {
       const response = await api.get(`/api-keys/${id}/usage-logs`, { params });
-      return response.data;
+      return response;
     } catch (error) {
       console.error(`Failed to load usage logs for API key ${id}:`, error);
       throw error;
@@ -288,7 +288,7 @@ export class APIKeyService {
         ids,
         operation
       });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Failed to perform batch operation:', error);
       throw error;
@@ -304,7 +304,7 @@ export class APIKeyService {
         { ids }, 
         { responseType: 'blob' }
       );
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Failed to export API key configs:', error);
       throw error;

@@ -35,7 +35,7 @@ class DependencyService {
       }
 
       const response = await axios.get(`/api/v1/projects/${projectId}/dependencies?${params.toString()}`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('获取依赖关系失败:', error);
       throw new Error('获取依赖关系失败');
@@ -51,7 +51,7 @@ class DependencyService {
   }> {
     try {
       const response = await axios.get(`/api/v1/projects/${projectId}/tasks/${taskId}/dependencies`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('获取任务依赖关系失败:', error);
       throw new Error('获取任务依赖关系失败');
@@ -64,7 +64,7 @@ class DependencyService {
   static async createDependency(projectId: number, dependency: CreateDependencyRequest): Promise<TaskDependency> {
     try {
       const response = await axios.post(`/api/v1/projects/${projectId}/dependencies`, dependency);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('创建依赖关系失败:', error);
       throw new Error('创建依赖关系失败');
@@ -83,7 +83,7 @@ class DependencyService {
   }> {
     try {
       const response = await axios.post(`/api/v1/projects/${projectId}/dependencies/batch`, request);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('批量创建依赖关系失败:', error);
       throw new Error('批量创建依赖关系失败');
@@ -100,7 +100,7 @@ class DependencyService {
   ): Promise<TaskDependency> {
     try {
       const response = await axios.put(`/api/v1/projects/${projectId}/dependencies/${dependencyId}`, updates);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('更新依赖关系失败:', error);
       throw new Error('更新依赖关系失败');
@@ -130,7 +130,7 @@ class DependencyService {
       const response = await axios.delete(`/api/v1/projects/${projectId}/dependencies/batch`, {
         data: { dependency_ids: dependencyIds }
       });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('批量删除依赖关系失败:', error);
       throw new Error('批量删除依赖关系失败');
@@ -148,7 +148,7 @@ class DependencyService {
       const response = await axios.post(`/api/v1/projects/${projectId}/dependencies/validate`, {
         dependencies
       });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('验证依赖关系失败:', error);
       throw new Error('验证依赖关系失败');
@@ -167,7 +167,7 @@ class DependencyService {
   }> {
     try {
       const response = await axios.get(`/api/v1/projects/${projectId}/dependencies/circular-check`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('检测循环依赖失败:', error);
       throw new Error('检测循环依赖失败');
@@ -180,7 +180,7 @@ class DependencyService {
   static async calculateCriticalPath(projectId: number): Promise<CriticalPathAnalysis> {
     try {
       const response = await axios.get(`/api/v1/projects/${projectId}/dependencies/critical-path`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('计算关键路径失败:', error);
       throw new Error('计算关键路径失败');
@@ -196,7 +196,7 @@ class DependencyService {
   ): Promise<AutoScheduleResponse> {
     try {
       const response = await axios.post(`/api/v1/projects/${projectId}/dependencies/auto-schedule`, request);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('自动调度失败:', error);
       throw new Error('自动调度失败');
@@ -209,7 +209,7 @@ class DependencyService {
   static async getDependencyStatistics(projectId: number): Promise<DependencyStatistics> {
     try {
       const response = await axios.get(`/api/v1/projects/${projectId}/dependencies/statistics`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('获取依赖统计失败:', error);
       throw new Error('获取依赖统计失败');
@@ -250,7 +250,7 @@ class DependencyService {
   }> {
     try {
       const response = await axios.get(`/api/v1/projects/${projectId}/dependencies/graph`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('获取依赖关系图失败:', error);
       throw new Error('获取依赖关系图失败');
@@ -268,7 +268,7 @@ class DependencyService {
       const response = await axios.post(`/api/v1/projects/${projectId}/dependencies/export`, options, {
         responseType: 'blob'
       });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('导出依赖关系失败:', error);
       throw new Error('导出依赖关系失败');
@@ -292,7 +292,7 @@ class DependencyService {
   }>> {
     try {
       const response = await axios.get(`/api/v1/projects/${projectId}/tasks/${taskId}/possible-predecessors`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('获取可能前置任务失败:', error);
       throw new Error('获取可能前置任务失败');
@@ -316,7 +316,7 @@ class DependencyService {
   }>> {
     try {
       const response = await axios.get(`/api/v1/projects/${projectId}/tasks/${taskId}/possible-successors`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('获取可能后续任务失败:', error);
       throw new Error('获取可能后续任务失败');
@@ -349,7 +349,7 @@ class DependencyService {
   }> {
     try {
       const response = await axios.post(`/api/v1/projects/${projectId}/dependencies/preview-impact`, dependency);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('预览依赖影响失败:', error);
       throw new Error('预览依赖影响失败');
@@ -374,7 +374,7 @@ class DependencyService {
   }> {
     try {
       const response = await axios.get(`/api/v1/projects/${projectId}/dependencies/path/${fromTaskId}/${toTaskId}`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('查找依赖路径失败:', error);
       throw new Error('查找依赖路径失败');
@@ -399,7 +399,7 @@ class DependencyService {
   }> {
     try {
       const response = await axios.post(`/api/v1/projects/${projectId}/dependencies/optimize`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('优化依赖关系失败:', error);
       throw new Error('优化依赖关系失败');
@@ -426,7 +426,7 @@ class DependencyService {
         source_project_id: sourceProjectId,
         task_mapping: taskMapping
       });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('复制依赖模板失败:', error);
       throw new Error('复制依赖模板失败');

@@ -27,7 +27,7 @@ export class BatchOperationService {
    */
   async validateBatchOperation(request: BatchOperationRequest): Promise<BatchValidationResult> {
     const response = await api.post<BatchValidationResult>(`${this.baseUrl}/batch/validate`, request);
-    return response.data;
+    return response;
   }
 
   /**
@@ -35,7 +35,7 @@ export class BatchOperationService {
    */
   async executeBatchOperation(request: BatchOperationRequest): Promise<BatchOperationResponse> {
     const response = await api.post<BatchOperationResponse>(`${this.baseUrl}/batch/execute`, request);
-    return response.data;
+    return response;
   }
 
   /**
@@ -43,7 +43,7 @@ export class BatchOperationService {
    */
   async getBatchOperationStatus(operationId: string): Promise<BatchOperationResponse> {
     const response = await api.get<BatchOperationResponse>(`${this.baseUrl}/batch/status/${operationId}`);
-    return response.data;
+    return response;
   }
 
   /**
@@ -51,7 +51,7 @@ export class BatchOperationService {
    */
   async previewBatchOperation(request: BatchOperationRequest): Promise<BatchOperationPreview> {
     const response = await api.post<BatchOperationPreview>(`${this.baseUrl}/batch/preview`, request);
-    return response.data;
+    return response;
   }
 
   // 具体的批量操作方法
@@ -64,7 +64,7 @@ export class BatchOperationService {
       `${this.baseUrl}/batch/operations/status-update`, 
       request
     );
-    return response.data;
+    return response;
   }
 
   /**
@@ -75,7 +75,7 @@ export class BatchOperationService {
       `${this.baseUrl}/batch/operations/parent-change`, 
       request
     );
-    return response.data;
+    return response;
   }
 
   /**
@@ -86,7 +86,7 @@ export class BatchOperationService {
       `${this.baseUrl}/batch/operations/assignee-change`, 
       request
     );
-    return response.data;
+    return response;
   }
 
   /**
@@ -131,7 +131,7 @@ export class BatchOperationService {
       `${this.baseUrl}/batch/operations/archive`, 
       request
     );
-    return response.data;
+    return response;
   }
 
   /**
@@ -142,7 +142,7 @@ export class BatchOperationService {
       `${this.baseUrl}/batch/operations/delete`, 
       request
     );
-    return response.data;
+    return response;
   }
 
   /**
@@ -208,7 +208,7 @@ export class BatchOperationService {
    */
   async bulkImportTasks(data: any): Promise<any> {
     const response = await api.post(`${this.baseUrl}/batch/tasks/import`, data);
-    return response.data;
+    return response;
   }
 
   /**
@@ -220,7 +220,7 @@ export class BatchOperationService {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return response.data;
+    return response;
   }
 
   /**
@@ -228,7 +228,7 @@ export class BatchOperationService {
    */
   async batchValidateTasksPreview(data: any): Promise<any> {
     const response = await api.post(`${this.baseUrl}/batch/tasks/validate-preview`, data);
-    return response.data;
+    return response;
   }
 
   /**
@@ -236,7 +236,7 @@ export class BatchOperationService {
    */
   async bulkUpdateTaskStatus(data: any): Promise<any> {
     const response = await api.post(`${this.baseUrl}/batch/tasks/status-update`, data);
-    return response.data;
+    return response;
   }
 
   /**
@@ -244,7 +244,7 @@ export class BatchOperationService {
    */
   async bulkUpdateTasks(data: any): Promise<any> {
     const response = await api.post(`${this.baseUrl}/batch/tasks/update`, data);
-    return response.data;
+    return response;
   }
 
   /**
@@ -252,7 +252,7 @@ export class BatchOperationService {
    */
   async bulkDeleteTasks(data: any): Promise<any> {
     const response = await api.delete(`${this.baseUrl}/batch/tasks/delete`, { data });
-    return response.data;
+    return response;
   }
 
   // 历史记录和监控
@@ -274,7 +274,7 @@ export class BatchOperationService {
     pageSize: number;
   }> {
     const response = await api.get(`${this.baseUrl}/batch/history`, { params });
-    return response.data;
+    return response;
   }
 
   /**

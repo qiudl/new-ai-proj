@@ -401,7 +401,7 @@ export class SystemService {
     const response = await api.get(`/system/audit/export?${params.toString()}`, {
       responseType: 'blob'
     });
-    return response.data;
+    return response;
   }
 
 }

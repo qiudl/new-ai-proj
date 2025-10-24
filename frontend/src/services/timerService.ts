@@ -15,67 +15,46 @@ class TimerService {
   static async startTimer(taskId: number): Promise<TimerStartResponse> {
     const request: TimerStartRequest = { task_id: taskId };
     const response = await api.post('/timer/start', request);
-    // Handle API response format: {success: true, data: {...}}
-    if (response && typeof response === 'object' && 'data' in response) {
-      return response.data as TimerStartResponse;
-    }
-    return response as unknown as TimerStartResponse;
+    // Interceptor automatically unwraps response.data
+    return response as TimerStartResponse;
   }
 
   // Stop current timer (Phase 4: Use unified API)
   static async stopTimer(): Promise<TimerStopResponse> {
     const response = await api.post('/user/timer/stop');
-    // Handle API response format: {success: true, data: {...}}
-    if (response && typeof response === 'object' && 'data' in response) {
-      return response.data as TimerStopResponse;
-    }
-    return response as unknown as TimerStopResponse;
+    // Interceptor automatically unwraps response.data
+    return response as TimerStopResponse;
   }
 
   // Pause current timer (Phase 4: Use unified API)
   static async pauseTimer(): Promise<TimerPauseResponse> {
     const response = await api.post('/user/timer/pause');
-    // Handle API response format: {success: true, data: {...}}
-    if (response && typeof response === 'object' && 'data' in response) {
-      return response.data as TimerPauseResponse;
-    }
-    return response as unknown as TimerPauseResponse;
+    // Interceptor automatically unwraps response.data
+    return response as TimerPauseResponse;
   }
 
   // Resume current timer (Phase 4: Use unified API)
   static async resumeTimer(): Promise<TimerResumeResponse> {
     const response = await api.post('/user/timer/resume');
-    // Handle API response format: {success: true, data: {...}}
-    if (response && typeof response === 'object' && 'data' in response) {
-      return response.data as TimerResumeResponse;
-    }
-    return response as unknown as TimerResumeResponse;
+    // Interceptor automatically unwraps response.data
+    return response as TimerResumeResponse;
   }
 
   // Get current timer status (Phase 4: Use unified API)
   static async getCurrentTimer(): Promise<TimerCurrentResponse> {
     const response = await api.get('/user/timer/current');
-    // Handle API response format: {success: true, data: {is_running: true, ...}}
-    if (response && typeof response === 'object' && 'data' in response) {
-      return response.data as TimerCurrentResponse;
-    }
-    // Fallback for direct response
-    return response as unknown as TimerCurrentResponse;
+    // Interceptor automatically unwraps response.data
+    return response as TimerCurrentResponse;
   }
 
   // Get timer statistics
   static async getTimerStats(): Promise<TimerStatsResponse> {
     try {
       const response = await api.get('/timer/stats');
-      
-      // Handle API response format: {success: true, data: {...}}
-      let data: Record<string, unknown>;
-      if (response && typeof response === 'object' && 'data' in response) {
-        data = response.data;
-      } else {
-        data = response as any;
-      }
-      
+
+      // Interceptor automatically unwraps response.data
+      const data = response as any;
+
       // Ensure the response has the correct structure with safe defaults
       return {
         today_total_seconds: data?.today_total_seconds || 0,
@@ -104,16 +83,9 @@ class TimerService {
   static async getWeeklyReport(startDate: string, endDate: string): Promise<any> {
     try {
       const response = await api.get(`/timer/weekly?start_date=${startDate}&end_date=${endDate}`);
-      
-      // Handle API response format: {success: true, data: {...}}
-      let data: Record<string, unknown>;
-      if (response && typeof response === 'object' && 'data' in response) {
-        data = response.data;
-      } else {
-        data = response as any;
-      }
-      
-      return data;
+
+      // Interceptor automatically unwraps response.data
+      return response;
       
     } catch (error) {
       console.error('Failed to get weekly report:', error);
