@@ -205,28 +205,16 @@ class EnterpriseService {
       } as T;
     }
 
-    // 处理嵌套的 data.data 响应格式
-    if (response.data && typeof response.data === 'object' && Array.isArray(response.data.data)) {
+    // 处理嵌套的 data 响应格式（拦截器已解包response.data，所以原来的data.data变成了data）
+    if (response && typeof response === 'object' && Array.isArray(response.data)) {
       return {
-        data: response.data.data,
-        pagination: response.data.pagination
+        data: response.data,
+        pagination: response.pagination
       } as T;
     }
 
-    // 处理API返回的 { data: [] } 直接数组格式
-    if (Array.isArray(response.data)) {
-      return {
-        data: response.data,
-        pagination: {
-          page: 1,
-          page_size: response.data.length,
-          total: response.data.length,
-          total_pages: 1,
-          has_next: false,
-          has_prev: false
-        }
-      } as T;
-    }
+    // 处理API返回的 { data: [] } 直接数组格式（拦截器已解包）
+    // 这种情况在上面的条件中已处理，这里保留作为后备
 
     // 直接返回响应数据，API拦截器已经处理了标准响应格式
     return response as T;

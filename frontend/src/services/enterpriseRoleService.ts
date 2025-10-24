@@ -103,13 +103,13 @@ class EnterpriseRoleService {
       } as T;
     }
 
-    // 处理标准API响应格式 {success: true, data: ...}
+    // 处理标准API响应格式 {success: true, data: ...}（拦截器已解包response.data）
     if (response.success && response.data !== undefined) {
       return response.data as T;
     }
 
-    // 处理分页响应格式
-    if (response.data && Array.isArray(response.data) && response.pagination) {
+    // 处理分页响应格式（拦截器已解包response.data）
+    if (response && Array.isArray(response.data) && response.pagination) {
       return {
         data: response.data,
         pagination: response.pagination
@@ -128,7 +128,7 @@ class EnterpriseRoleService {
   async getRoles(): Promise<EnterpriseRole[]> {
     try {
       const response = await api.get(`${this.API_BASE_URL}`);
-      const result = this.handleApiResponse<EnterpriseRole[]>(response.data);
+      const result = this.handleApiResponse<EnterpriseRole[]>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取企业角色列表失败:', error);
@@ -140,7 +140,7 @@ class EnterpriseRoleService {
   async getRole(id: number): Promise<EnterpriseRole> {
     try {
       const response = await api.get(`${this.API_BASE_URL}/${id}`);
-      const result = this.handleApiResponse<EnterpriseRole>(response.data);
+      const result = this.handleApiResponse<EnterpriseRole>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取角色详情失败:', error);
@@ -152,7 +152,7 @@ class EnterpriseRoleService {
   async createRole(role: CreateRoleRequest): Promise<EnterpriseRole> {
     try {
       const response = await api.post(`${this.API_BASE_URL}`, role);
-      const result = this.handleApiResponse<EnterpriseRole>(response.data);
+      const result = this.handleApiResponse<EnterpriseRole>(response);
       return result;
     } catch (error) {
       console.error('❌ 创建角色失败:', error);
@@ -164,7 +164,7 @@ class EnterpriseRoleService {
   async updateRole(id: number, role: UpdateRoleRequest): Promise<EnterpriseRole> {
     try {
       const response = await api.put(`${this.API_BASE_URL}/${id}`, role);
-      const result = this.handleApiResponse<EnterpriseRole>(response.data);
+      const result = this.handleApiResponse<EnterpriseRole>(response);
       return result;
     } catch (error) {
       console.error('❌ 更新角色失败:', error);
@@ -186,7 +186,7 @@ class EnterpriseRoleService {
   async copyRole(id: number, newName: string): Promise<EnterpriseRole> {
     try {
       const response = await api.post(`${this.API_BASE_URL}/${id}/copy`, { name: newName });
-      const result = this.handleApiResponse<EnterpriseRole>(response.data);
+      const result = this.handleApiResponse<EnterpriseRole>(response);
       return result;
     } catch (error) {
       console.error('❌ 复制角色失败:', error);
@@ -198,7 +198,7 @@ class EnterpriseRoleService {
   async getPermissions(): Promise<Permission[]> {
     try {
       const response = await api.get('/organization/permissions');
-      const result = this.handleApiResponse<Permission[]>(response.data);
+      const result = this.handleApiResponse<Permission[]>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取权限列表失败:', error);
@@ -210,7 +210,7 @@ class EnterpriseRoleService {
   async getRolePermissions(roleId: number): Promise<string[]> {
     try {
       const response = await api.get(`${this.API_BASE_URL}/${roleId}/permissions`);
-      const result = this.handleApiResponse<string[]>(response.data);
+      const result = this.handleApiResponse<string[]>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取角色权限配置失败:', error);
@@ -238,7 +238,7 @@ class EnterpriseRoleService {
         : '/organization/user-roles';
       
       const response = await api.get(url);
-      const result = this.handleApiResponse<UserRole[]>(response.data);
+      const result = this.handleApiResponse<UserRole[]>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取角色用户分配列表失败:', error);
@@ -270,7 +270,7 @@ class EnterpriseRoleService {
   async getAvailableUsers(): Promise<{id: number; name: string; email: string}[]> {
     try {
       const response = await api.get('/organization/users/available');
-      const result = this.handleApiResponse<{id: number; name: string; email: string}[]>(response.data);
+      const result = this.handleApiResponse<{id: number; name: string; email: string}[]>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取可分配用户列表失败:', error);
@@ -294,7 +294,7 @@ class EnterpriseRoleService {
         customRoles: number;
         totalUsers: number;
         roleDistribution: { role_name: string; user_count: number }[];
-      }>(response.data);
+      }>(response);
       return result;
     } catch (error) {
       console.error('❌ 获取角色统计信息失败:', error);
@@ -333,7 +333,7 @@ class EnterpriseRoleService {
         valid: boolean;
         conflicts: string[];
         suggestions: string[];
-      }>(response.data);
+      }>(response);
       return result;
     } catch (error) {
       console.error('❌ 验证角色权限失败:', error);
