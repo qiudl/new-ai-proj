@@ -1464,6 +1464,7 @@ func (h *UnifiedDocumentHandler) UpdateDocumentByID(c *gin.Context) {
 
 	// 解析请求体
 	var request struct {
+		Title   string `json:"title,omitempty"`
 		Content string `json:"content" binding:"required"`
 		Message string `json:"message,omitempty"`
 	}
@@ -1481,6 +1482,7 @@ func (h *UnifiedDocumentHandler) UpdateDocumentByID(c *gin.Context) {
 	// 调用Service层的UpdateDocumentByID方法
 	req := &interfaces.UpdateDocumentByIDRequest{
 		DocumentID: docID,
+		Title:      request.Title,
 		Content:    request.Content,
 		UserID:     int(userID),  // 转换uint为int
 		Message:    request.Message,

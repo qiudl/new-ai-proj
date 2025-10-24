@@ -82,6 +82,7 @@ type UpdateDocumentRequest struct {
 // 用于全局文档路由，不需要提供项目和任务ID
 type UpdateDocumentByIDRequest struct {
 	DocumentID int    `json:"document_id" validate:"required,min=1"`
+	Title      string `json:"title,omitempty"`                      // 文档标题
 	Content    string `json:"content" validate:"required"`
 	UserID     int    `json:"user_id" validate:"required,min=1"`
 	Message    string `json:"message,omitempty"` // Git提交信息
@@ -132,6 +133,7 @@ type MigrateRequest struct {
 type DocumentResponse struct {
 	TaskID      int       `json:"task_id"`
 	ProjectID   int       `json:"project_id"`
+	Title       string    `json:"title,omitempty"`     // 文档标题
 	Content     string    `json:"content"`
 	Format      string    `json:"format"`
 	Size        int64     `json:"size"`

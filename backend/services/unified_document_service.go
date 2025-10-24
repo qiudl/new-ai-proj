@@ -224,6 +224,11 @@ func (s *UnifiedDocumentService) UpdateDocumentByID(ctx context.Context, req *in
 		return fmt.Errorf("document not found: %w", err)
 	}
 
+	// 更新标题（如果提供）
+	if req.Title != "" {
+		doc.Title = req.Title
+	}
+
 	// 更新内容
 	doc.Content = &req.Content
 
@@ -262,6 +267,7 @@ func (s *UnifiedDocumentService) GetDocumentByID(ctx context.Context, req *inter
 	}
 
 	response := &interfaces.DocumentResponse{
+		Title:       doc.Title,
 		Content:     content,
 		Version:     fmt.Sprintf("v%d", doc.Version),
 		CreatedAt:   doc.CreatedAt,
