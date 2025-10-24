@@ -121,8 +121,8 @@ class WeeklyReportService {
         return this.getEmptyWeeklyReportData();
       }
 
-      // response.data可能不存在，直接使用response
-      const rawData = response.data || response;
+      // Interceptor automatically unwraps response.data
+      const rawData = response;
       
       // 检查debug_info
       if (rawData.debug_info) {

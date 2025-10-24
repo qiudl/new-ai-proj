@@ -37,7 +37,7 @@ class AuthService {
       const response = await api.get('/auth/google');
       return {
         success: true,
-        ...response.data
+        ...response
       };
     } catch (error) {
       console.error('发起Google认证失败:', error);
@@ -57,7 +57,7 @@ class AuthService {
       const response = await api.get('/users/google-connection');
       return {
         success: true,
-        data: response.data
+        data: response
       };
     } catch (error) {
       console.error('获取Google连接状态失败:', error);
@@ -77,7 +77,7 @@ class AuthService {
       const response = await api.delete('/users/google-connection');
       return {
         success: true,
-        data: response.data
+        data: response
       };
     } catch (error) {
       console.error('断开Google连接失败:', error);

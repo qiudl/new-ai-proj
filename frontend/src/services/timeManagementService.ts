@@ -99,10 +99,10 @@ export class TimeManagementService {
     try {
       // 优先尝试调用后端统计API
       const response = await statsApi.get('/statistics/today-stats');
-      
-      if (response.data) {
+
+      if (response) {
         // 转换API数据为前端格式
-        const apiData = response.data;
+        const apiData = response;
         const todayStats: TodayTaskStats = {
           totalTasks: apiData.totalTasks || 0,
           completedTasks: apiData.completedTasks || 0,
@@ -235,7 +235,7 @@ export class TimeManagementService {
       
       // 合并所有任务数据
       return taskResponses.reduce((allTasks, response) => {
-        const projectTasks = response.data?.data || [];
+        const projectTasks = response || [];
         return allTasks.concat(projectTasks);
       }, []);
     } catch (error) {

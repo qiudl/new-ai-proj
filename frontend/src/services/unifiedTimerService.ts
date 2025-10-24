@@ -258,7 +258,7 @@ export class UnifiedTimerService {
       
       return {
         success: true,
-        data: response.data?.templates || [],
+        data: response?.templates || [],
         message: '获取模板成功'
       };
     } catch (error: any) {
@@ -343,7 +343,7 @@ export class UnifiedTimerService {
 
       return {
         success: true,
-        data: response.data?.tasks || [],
+        data: response?.tasks || [],
         message: '获取最近任务成功'
       };
     } catch (error: any) {
@@ -411,14 +411,14 @@ export class UnifiedTimerService {
       try {
         const local = localStorage.getItem('userTimerPreferences');
         if (local) {
-          const merged = { ...response.data, ...JSON.parse(local) };
+          const merged = { ...response, ...JSON.parse(local) };
           return { success: true, data: merged, message: '获取用户偏好成功' };
         }
       } catch {}
 
       return {
         success: true,
-        data: response.data,
+        data: response,
         message: '获取用户偏好成功'
       };
     } catch (error: any) {
@@ -454,7 +454,7 @@ export class UnifiedTimerService {
 
       return {
         success: true,
-        data: response.data,
+        data: response,
         message: '更新用户偏好成功'
       };
     } catch (error: any) {
@@ -481,7 +481,7 @@ export class UnifiedTimerService {
 
       return {
         success: true,
-        data: response.data,
+        data: response,
         message: '获取统计数据成功'
       };
     } catch (error: any) {
