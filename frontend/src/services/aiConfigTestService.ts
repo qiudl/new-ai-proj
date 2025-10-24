@@ -27,15 +27,16 @@ export class AIConfigTestService {
       `/system/ai-configs/${provider}/test-history?${params.toString()}`
     );
 
-    if (!response.success || !response.data) {
+    if (!response.success || !response) {
       throw new Error(response.message || '获取测试历史失败');
     }
 
     // 后端返回的数据结构映射到前端期望的格式
-    const backendData = response.data;
+    // 拦截器已自动解包response.data，所以response就是包含success和data的业务对象
+    const backendData = response;
 
     // 调试：打印实际的数据结构
-    console.log('Backend response.data:', backendData);
+    console.log('Backend response:', backendData);
     console.log('backendData.data:', backendData.data);
     console.log('backendData.data.data:', backendData.data?.data);
 
@@ -83,10 +84,11 @@ export class AIConfigTestService {
       `/system/ai-configs/test-logs/${logId}`
     );
 
-    if (!response.success || !response.data) {
+    if (!response.success || !response) {
       throw new Error(response.message || '获取测试详情失败');
     }
 
+    // 拦截器已自动解包response.data，response.data是业务数据字段
     const log = response.data;
     return {
       id: log.id,
@@ -117,10 +119,11 @@ export class AIConfigTestService {
       req
     );
 
-    if (!response.success || !response.data) {
+    if (!response.success || !response) {
       throw new Error(response.message || '验证测试失败');
     }
 
+    // 拦截器已自动解包response.data，response.data是业务数据字段
     return response.data;
   }
 

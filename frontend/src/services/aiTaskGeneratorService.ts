@@ -1111,9 +1111,9 @@ class AITaskGeneratorService {
    * 检查缓存是否有效
    */
   private isCacheValid(response: AITaskGenerationResponse): boolean {
-    if (!response.data) return false;
-    
-    const cacheAge = Date.now() - (response.data.generationTime || 0);
+    if (!response) return false;
+
+    const cacheAge = Date.now() - (response.generationTime || 0);
     return cacheAge < AI_TASK_GENERATION_CONSTANTS.CACHE_DURATION;
   }
 
@@ -1321,12 +1321,12 @@ class AITaskGeneratorService {
         parentTaskId: request.parentTaskId,
         parentTaskTitle: request.parentTaskTitle,
         keywords: request.keywords,
-        usedProvider: response.data?.usedProvider || 'unknown' as AIProvider,
-        usedModel: response.data?.usedModel || 'unknown',
-        generatedCount: response.data?.generatedTasks?.length || 0,
-        quality: response.data?.estimatedQuality || 0,
-        tokensUsed: response.data?.tokensUsed?.total || 0,
-        cost: response.data?.estimatedCost || 0,
+        usedProvider: response?.usedProvider || 'unknown' as AIProvider,
+        usedModel: response?.usedModel || 'unknown',
+        generatedCount: response?.generatedTasks?.length || 0,
+        quality: response?.estimatedQuality || 0,
+        tokensUsed: response?.tokensUsed?.total || 0,
+        cost: response?.estimatedCost || 0,
         success: response.success,
         errorMessage: response.error?.message
       };

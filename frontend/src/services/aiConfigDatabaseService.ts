@@ -90,8 +90,8 @@ class AIConfigDatabaseService {
     try {
       const response = await request.get<AIConfigResponse[]>('/system/ai-configs');
       
-      // 如果后端返回空数组或空数据，使用localStorage的模拟数据
-      if (response.success && response.data && Array.isArray(response.data) && response.data.length === 0) {
+      // 如果后端返回空数组或空数据，使用localStorage的模拟数据（拦截器已解包response.data）
+      if (response.success && response && Array.isArray(response.data) && response.data.length === 0) {
         // 从localStorage获取模拟配置（用于演示）
         const savedConfigs = localStorage.getItem('ai-configs-demo');
         let configs = savedConfigs ? JSON.parse(savedConfigs) : [];

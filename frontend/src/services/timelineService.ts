@@ -88,14 +88,14 @@ class TimelineService {
 
       const response = await api.get(url);
 
-      if (!response?.success || !response?.data) {
+      if (!response) {
         throw new Error('Invalid API response');
       }
 
       const timeline: TaskTimeline = {
-        taskId: response.data.task_id || taskId,
-        taskTitle: response.data.task_title || `任务 #${taskId}`,
-        events: (response.data.events || []).map((event: any) => ({
+        taskId: response.task_id || taskId,
+        taskTitle: response.task_title || `任务 #${taskId}`,
+        events: (response.events || []).map((event: any) => ({
           id: event.id,
           taskId: event.task_id || taskId,
           eventType: event.event_type,
@@ -106,8 +106,8 @@ class TimelineService {
           category: event.category || 'user',
           metadata: event.metadata
         })),
-        totalEvents: response.data.total || 0,
-        pagination: response.data.pagination
+        totalEvents: response.total || 0,
+        pagination: response.pagination
       };
 
       // 缓存结果
@@ -163,11 +163,11 @@ class TimelineService {
 
       const response = await api.get(url);
 
-      if (!response?.success || !response?.data) {
+      if (!response) {
         throw new Error('Invalid API response');
       }
 
-      const events = (response.data || []).map((event: any) => ({
+      const events = (response || []).map((event: any) => ({
         id: event.id,
         taskId: event.task_id,
         eventType: event.event_type,
@@ -219,11 +219,11 @@ class TimelineService {
 
       const response = await api.get(url);
 
-      if (!response?.success || !response?.data) {
+      if (!response) {
         throw new Error('Invalid API response');
       }
 
-      const events = (response.data || []).map((event: any) => ({
+      const events = (response || []).map((event: any) => ({
         id: event.id,
         taskId: event.task_id,
         eventType: event.event_type,
@@ -265,16 +265,16 @@ class TimelineService {
 
       const response = await api.get(url);
 
-      if (!response?.success || !response?.data) {
+      if (!response) {
         throw new Error('Invalid API response');
       }
 
       return {
-        totalEvents: response.data.total_events || 0,
-        eventsByType: response.data.events_by_type || {},
-        eventsByCategory: response.data.events_by_category || {},
-        recentActivityCount: response.data.recent_activity_count || 0,
-        topUsers: response.data.top_users || []
+        totalEvents: response.total_events || 0,
+        eventsByType: response.events_by_type || {},
+        eventsByCategory: response.events_by_category || {},
+        recentActivityCount: response.recent_activity_count || 0,
+        topUsers: response.top_users || []
       };
     } catch (error) {
       console.error('获取时间轴统计信息失败:', error);
@@ -321,15 +321,15 @@ class TimelineService {
       timerCache.deletePattern(`task_timeline_${taskId}_*`);
 
       return {
-        id: response.data.id,
-        taskId: response.data.task_id,
-        eventType: response.data.event_type,
-        eventDate: response.data.event_date,
-        description: response.data.description,
-        username: response.data.username || '当前用户',
-        severity: response.data.severity,
-        category: response.data.category,
-        metadata: response.data.metadata
+        id: response.id,
+        taskId: response.task_id,
+        eventType: response.event_type,
+        eventDate: response.event_date,
+        description: response.description,
+        username: response.username || '当前用户',
+        severity: response.severity,
+        category: response.category,
+        metadata: response.metadata
       };
     } catch (error) {
       console.error('创建时间轴事件失败:', error);

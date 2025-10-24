@@ -213,8 +213,8 @@ class AITaskService {
     request: BatchCreateSubtasksRequest
   ): Promise<BatchCreateSubtasksResponse> {
     try {
-      // 后端直接返回 BatchCreateSubtasksResponse（包含success字段，但不包装在{success, data}中）
-      // 拦截器不会解包这种格式，所以response.data就是BatchCreateSubtasksResponse
+      // 后端直接返回 BatchCreateSubtasksResponse（包含success字段）
+      // 拦截器已自动解包response.data，所以response就是BatchCreateSubtasksResponse
       const response = await api.post<BatchCreateSubtasksResponse>(
         `/tasks/batch-create-subtasks`,
         request

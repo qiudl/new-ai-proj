@@ -54,13 +54,13 @@ class DailyEfficiencyService {
       const response = await api.get<DailyComparisonResponse>('/timer/daily-comparison');
       
       // 验证响应结构
-      if (!response.data) {
-        console.warn('Invalid daily comparison API response:', response.data);
+      if (!response) {
+        console.warn('Invalid daily comparison API response:', response);
         throw new Error('Invalid response format');
       }
 
-      // 检查是否有嵌套的data字段
-      const responseData = response.data.data || response.data;
+      // 检查是否有嵌套的data字段（拦截器已解包response.data）
+      const responseData = response.data || response;
       
       // 缓存结果
       timerCache.set(cacheKey, responseData, DAILY_EFFICIENCY_CACHE_TTL.COMPARISON_DATA);
