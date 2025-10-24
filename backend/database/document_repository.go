@@ -123,7 +123,14 @@ func (r *documentRepository) GetByID(ctx context.Context, id int) (*models.Docum
 }
 
 // Update 更新文档
+// 自动在document_versions表中创建版本快照
 func (r *documentRepository) Update(ctx context.Context, id int, updates *models.UpdateDocumentRequest) (*models.Document, error) {
+	// Step 1: 获取更新前的文档状态（用于创建版本快照）
+	oldDoc, err := r.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("获取文档失败: %w", err)
+	}
+
 	// 构建动态更新查询
 	setParts := []string{}
 	args := []interface{}{}
@@ -169,13 +176,28 @@ func (r *documentRepository) Update(ctx context.Context, id int, updates *models
 		return r.GetByID(ctx, id) // 没有更新，直接返回原文档
 	}
 
+	// Step 2: 在更新前创建版本快照（保存旧内容）
+	// 使用documents.owner_id作为创建者（如果没有owner_id则使用0）
+	createdBy := oldDoc.OwnerID
+	if createdBy == 0 {
+		createdBy = oldDoc.CreatedBy
+	}
+
+	// 调用CreateVersion保存当前版本到document_versions表
+	_, versionErr := r.createVersionSnapshot(ctx, id, oldDoc, createdBy)
+	if versionErr != nil {
+		// 版本创建失败不阻止文档更新，只记录警告
+		fmt.Printf("[WARNING] Failed to create version snapshot for document %d: %v\n", id, versionErr)
+	}
+
+	// Step 3: 执行文档更新
 	// 自动更新版本号和时间
 	setParts = append(setParts, fmt.Sprintf("version = version + 1, updated_at = CURRENT_TIMESTAMP"))
 
 	query := fmt.Sprintf(`
-		UPDATE documents 
-		SET %s 
-		WHERE id = $%d AND deleted_at IS NULL 
+		UPDATE documents
+		SET %s
+		WHERE id = $%d AND deleted_at IS NULL
 		RETURNING version, updated_at`,
 		strings.Join(setParts, ", "), argIndex)
 
@@ -183,7 +205,7 @@ func (r *documentRepository) Update(ctx context.Context, id int, updates *models
 
 	var version int
 	var updatedAt time.Time
-	err := r.db.QueryRowContext(ctx, query, args...).Scan(&version, &updatedAt)
+	err = r.db.QueryRowContext(ctx, query, args...).Scan(&version, &updatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("文档不存在或已删除")
@@ -192,6 +214,61 @@ func (r *documentRepository) Update(ctx context.Context, id int, updates *models
 	}
 
 	return r.GetByID(ctx, id)
+}
+
+// createVersionSnapshot 创建文档版本快照（内部方法）
+// 在document_versions表中保存当前文档状态
+func (r *documentRepository) createVersionSnapshot(ctx context.Context, documentID int, doc *models.Document, createdBy int) (*models.DocumentVersion, error) {
+	query := `
+		INSERT INTO document_versions (
+			document_id, version_number, title, content, changes_summary,
+			file_size, metadata, created_by
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, created_at`
+
+	var id int
+	var createdAt time.Time
+
+	// 处理Content指针
+	var content string
+	var contentSize int64
+	if doc.Content != nil {
+		content = *doc.Content
+		contentSize = int64(len(content))
+	} else {
+		content = ""
+		contentSize = 0
+	}
+
+	// 生成变更摘要
+	changeSummary := fmt.Sprintf("版本 v%d 自动快照", doc.Version)
+
+	err := r.db.QueryRowContext(ctx, query,
+		documentID,
+		doc.Version,
+		doc.Title,
+		content,
+		changeSummary,
+		contentSize,
+		doc.Metadata,
+		createdBy,
+	).Scan(&id, &createdAt)
+
+	if err != nil {
+		return nil, fmt.Errorf("创建文档版本快照失败: %w", err)
+	}
+
+	return &models.DocumentVersion{
+		ID:            id,
+		DocumentID:    documentID,
+		VersionNumber: doc.Version,
+		Title:         doc.Title,
+		Content:       &content,
+		ChangeSummary: &changeSummary,
+		FileSize:      contentSize,
+		CreatedBy:     createdBy,
+		CreatedAt:     createdAt,
+	}, nil
 }
 
 // Delete 软删除文档
