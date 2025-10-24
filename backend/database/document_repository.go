@@ -184,11 +184,25 @@ func (r *documentRepository) Update(ctx context.Context, id int, updates *models
 		createdBy = oldDoc.CreatedBy
 	}
 
+	// 准备新标题和新内容用于生成智能变更摘要
+	newTitle := oldDoc.Title
+	if updates.Title != nil {
+		newTitle = *updates.Title
+	}
+
+	newContent := ""
+	if oldDoc.Content != nil {
+		newContent = *oldDoc.Content
+	}
+	if updates.Content != nil {
+		newContent = *updates.Content
+	}
+
 	// 检查该版本快照是否已存在（避免重复创建）
 	versionExists, _ := r.versionSnapshotExists(ctx, id, oldDoc.Version)
 	if !versionExists {
-		// 调用CreateVersion保存当前版本到document_versions表
-		_, versionErr := r.createVersionSnapshot(ctx, id, oldDoc, createdBy)
+		// 调用createVersionSnapshot保存当前版本到document_versions表，并传入新标题和新内容用于对比
+		_, versionErr := r.createVersionSnapshot(ctx, id, oldDoc, createdBy, newTitle, newContent)
 		if versionErr != nil {
 			// 版本创建失败不阻止文档更新，只记录警告
 			fmt.Printf("[WARNING] Failed to create version snapshot for document %d: %v\n", id, versionErr)
@@ -229,7 +243,8 @@ func (r *documentRepository) Update(ctx context.Context, id int, updates *models
 // 在document_versions表中保存当前文档状态
 // 注意：实际数据库表字段为 id, document_id, version_number, title, content,
 //       changes_summary, metadata, created_by, created_at
-func (r *documentRepository) createVersionSnapshot(ctx context.Context, documentID int, doc *models.Document, createdBy int) (*models.DocumentVersion, error) {
+// newTitle 和 newContent 用于对比生成智能变更摘要
+func (r *documentRepository) createVersionSnapshot(ctx context.Context, documentID int, doc *models.Document, createdBy int, newTitle string, newContent string) (*models.DocumentVersion, error) {
 	query := `
 		INSERT INTO document_versions (
 			document_id, version_number, title, content, changes_summary,
@@ -248,8 +263,14 @@ func (r *documentRepository) createVersionSnapshot(ctx context.Context, document
 		content = ""
 	}
 
-	// 生成变更摘要
-	changeSummary := fmt.Sprintf("版本 v%d 自动快照", doc.Version)
+	// 生成智能变更摘要
+	changeSummary := r.generateChangeSummary(doc.Title, newTitle, content, newContent)
+	fmt.Printf("\n[DEBUG] ====== createVersionSnapshot ======\n")
+	fmt.Printf("[DEBUG] documentID: %d\n", documentID)
+	fmt.Printf("[DEBUG] version: %d\n", doc.Version)
+	fmt.Printf("[DEBUG] Generated changeSummary: '%s'\n", changeSummary)
+	fmt.Printf("[DEBUG] Will insert changeSummary into document_versions.changes_summary\n")
+	fmt.Printf("[DEBUG] ===================================\n\n")
 
 	// 转换metadata为JSON
 	var metadataJSON []byte
@@ -612,6 +633,101 @@ func (r *documentRepository) CreateVersion(ctx context.Context, documentID int, 
 		CreatedBy:     createdBy,
 		CreatedAt:     createdAt,
 	}, nil
+}
+
+// generateChangeSummary 生成智能变更摘要
+// 对比新旧标题和内容，生成详细的变更说明
+func (r *documentRepository) generateChangeSummary(oldTitle, newTitle, oldContent, newContent string) string {
+	// DEBUG: 记录输入参数
+	fmt.Printf("\n[DEBUG] ====== generateChangeSummary called ======\n")
+	fmt.Printf("[DEBUG] oldTitle: '%s'\n", oldTitle)
+	fmt.Printf("[DEBUG] newTitle: '%s'\n", newTitle)
+	fmt.Printf("[DEBUG] oldContent length: %d\n", len(oldContent))
+	fmt.Printf("[DEBUG] newContent length: %d\n", len(newContent))
+
+	changes := []string{}
+
+	// 1. 检测标题变更
+	if oldTitle != newTitle {
+		fmt.Printf("[DEBUG] Title changed detected!\n")
+		if oldTitle == "" {
+			changes = append(changes, fmt.Sprintf("📝 标题: 新建「%s」", newTitle))
+		} else if newTitle == "" {
+			changes = append(changes, "📝 标题: 已删除")
+		} else {
+			// 检测标题的具体变化
+			titleChange := r.detectTitleChange(oldTitle, newTitle)
+			fmt.Printf("[DEBUG] Title change result: %s\n", titleChange)
+			changes = append(changes, titleChange)
+		}
+	} else {
+		fmt.Printf("[DEBUG] No title change detected\n")
+	}
+
+	// 2. 检测内容变更
+	if oldContent != newContent {
+		fmt.Printf("[DEBUG] Content changed detected!\n")
+		oldLines := len(strings.Split(oldContent, "\n"))
+		newLines := len(strings.Split(newContent, "\n"))
+		lineDiff := newLines - oldLines
+
+		if lineDiff > 0 {
+			changes = append(changes, fmt.Sprintf("📄 内容: +%d行", lineDiff))
+		} else if lineDiff < 0 {
+			changes = append(changes, fmt.Sprintf("📄 内容: -%d行", -lineDiff))
+		} else {
+			changes = append(changes, "📄 内容: 已修改")
+		}
+	}
+
+	// 3. 如果没有任何变更
+	if len(changes) == 0 {
+		result := "无变更"
+		fmt.Printf("[DEBUG] Final result: '%s'\n", result)
+		fmt.Printf("[DEBUG] ======================================\n\n")
+		return result
+	}
+
+	// 返回变更摘要（用 | 分隔）
+	result := strings.Join(changes, " | ")
+	fmt.Printf("[DEBUG] Final result: '%s'\n", result)
+	fmt.Printf("[DEBUG] ======================================\n\n")
+	return result
+}
+
+// detectTitleChange 检测标题的具体变化类型
+func (r *documentRepository) detectTitleChange(oldTitle, newTitle string) string {
+	// 检测是否是简单的添加/删除文字
+	if strings.Contains(newTitle, oldTitle) {
+		// 新标题包含旧标题，说明是添加内容
+		added := strings.ReplaceAll(newTitle, oldTitle, "")
+		added = strings.TrimSpace(added)
+		if added != "" {
+			return fmt.Sprintf("📝 标题: 添加了「%s」", added)
+		}
+	} else if strings.Contains(oldTitle, newTitle) {
+		// 旧标题包含新标题，说明是删除内容
+		removed := strings.ReplaceAll(oldTitle, newTitle, "")
+		removed = strings.TrimSpace(removed)
+		if removed != "" {
+			return fmt.Sprintf("📝 标题: 删除了「%s」", removed)
+		}
+	}
+
+	// 复杂变更，显示完整的新旧对比
+	// 如果标题太长，截断显示
+	const maxLen = 30
+	oldDisplay := oldTitle
+	newDisplay := newTitle
+
+	if len(oldTitle) > maxLen {
+		oldDisplay = oldTitle[:maxLen] + "..."
+	}
+	if len(newTitle) > maxLen {
+		newDisplay = newTitle[:maxLen] + "..."
+	}
+
+	return fmt.Sprintf("📝 标题:「%s」→「%s」", oldDisplay, newDisplay)
 }
 
 // 辅助函数

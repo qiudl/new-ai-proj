@@ -239,6 +239,13 @@ func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, docume
 	// Convert to response format
 	var versionInfos []DocumentVersionInfo
 	for _, v := range versions {
+		changeSummary := func() string {
+			if v.ChangeSummary != nil {
+				return *v.ChangeSummary
+			}
+			return ""
+		}()
+
 		versionInfos = append(versionInfos, DocumentVersionInfo{
 			ID:            uint64(v.ID),
 			DocumentID:    uint64(v.DocumentID),
@@ -250,13 +257,8 @@ func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, docume
 				}
 				return ""
 			}(),
-			Description:   "", // Not available in DocumentVersion model
-			ChangesSummary: func() string {
-				if v.ChangeSummary != nil {
-					return *v.ChangeSummary
-				}
-				return ""
-			}(),
+			Description:    changeSummary, // Use smart change summary for description
+			ChangesSummary: changeSummary,
 			FileName:      "", // Not available in DocumentVersion model
 			FileSize:      v.FileSize,
 			Checksum:      "",  // Not available in DocumentVersion model
@@ -312,6 +314,13 @@ func (dvs *DocumentVersionService) GetVersion(ctx context.Context, documentID ui
 		return nil, fmt.Errorf("failed to retrieve version: %w", err)
 	}
 
+	changeSummary := func() string {
+		if versionData.ChangeSummary != nil {
+			return *versionData.ChangeSummary
+		}
+		return ""
+	}()
+
 	return &DocumentVersionInfo{
 		ID:            uint64(versionData.ID),
 		DocumentID:    uint64(versionData.DocumentID),
@@ -323,13 +332,8 @@ func (dvs *DocumentVersionService) GetVersion(ctx context.Context, documentID ui
 			}
 			return ""
 		}(),
-		Description:   "", // Not available in DocumentVersion model
-		ChangesSummary: func() string {
-			if versionData.ChangeSummary != nil {
-				return *versionData.ChangeSummary
-			}
-			return ""
-		}(),
+		Description:    changeSummary, // Use smart change summary for description
+		ChangesSummary: changeSummary,
 		FileName:      "", // Not available in DocumentVersion model
 		FileSize:      versionData.FileSize,
 		Checksum:      "",  // Not available in DocumentVersion model

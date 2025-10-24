@@ -8,11 +8,12 @@
 // 基础类型定义
 export interface VersionInfo {
   id: number;
+  title: string;  // 文档标题
   content: string;
   versionNumber: string;
   createdAt: Date;
   createdBy: number;
-  description?: string;
+  description?: string;  // 变更摘要 (change_summary)
   size: number;
   hash?: string;
 }

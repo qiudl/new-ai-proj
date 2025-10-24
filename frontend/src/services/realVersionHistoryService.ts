@@ -10,6 +10,7 @@ export interface DocumentVersionApiResponse {
   id: number;
   document_id: number;
   version_number: number;
+  title: string;  // 文档标题
   content: string;
   content_hash: string;
   created_at: string;
@@ -101,6 +102,7 @@ class RealVersionHistoryService {
       // 转换为前端格式
       const convertedVersions: VersionInfo[] = versions.map((version: any, index: number) => ({
         id: version.id || index + 1,
+        title: version.title || '未命名文档',  // 文档标题
         content: version.content || '',
         versionNumber: version.version_number ? `v${version.version_number}` : `v1.${index}`,
         createdAt: version.created_at ? new Date(version.created_at) : new Date(),
@@ -126,10 +128,11 @@ class RealVersionHistoryService {
   private generateFallbackVersions(documentId: number): VersionInfo[] {
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    
+
     return [
       {
         id: 1,
+        title: `文档 ${documentId} - 初始版本`,
         content: `# 文档版本 v1.0\n\n这是文档 ${documentId} 的初始版本。\n\n## 基础内容\n- 创建时间: ${yesterday.toLocaleString()}\n- 文档ID: ${documentId}\n- 版本号: v1.0`,
         versionNumber: 'v1.0',
         createdAt: yesterday,
@@ -140,6 +143,7 @@ class RealVersionHistoryService {
       },
       {
         id: 2,
+        title: `文档 ${documentId} - 更新版本`,
         content: `# 文档版本 v1.1\n\n这是文档 ${documentId} 的更新版本。\n\n## 基础内容\n- 创建时间: ${yesterday.toLocaleString()}\n- 更新时间: ${now.toLocaleString()}\n- 文档ID: ${documentId}\n- 版本号: v1.1\n\n## 更新内容\n- 完善了文档结构\n- 增加了详细说明\n- 优化了格式`,
         versionNumber: 'v1.1',
         createdAt: now,

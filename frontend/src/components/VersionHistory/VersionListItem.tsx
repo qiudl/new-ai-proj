@@ -4,10 +4,11 @@
  */
 
 import React from 'react';
-import { List, Tag, Tooltip } from 'antd';
-import { CheckCircleOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
+import { List, Tag, Tooltip, Space } from 'antd';
+import { CheckCircleOutlined, ClockCircleOutlined, UserOutlined, EditOutlined, FileTextOutlined } from '@ant-design/icons';
 import { VersionInfo } from '../../services/versionHistoryService';
 import { DiffStats, DiffCalculator } from '../../utils/DiffCalculator';
+import { ChangeSummaryParser, ParsedChange } from '../../utils/ChangeSummaryParser';
 import './VersionListItem.css';
 
 export interface VersionListItemProps {
@@ -31,6 +32,23 @@ const VersionListItem: React.FC<VersionListItemProps> = ({
   onClick
 }) => {
   const diffCalculator = new DiffCalculator();
+
+  // 解析变更摘要
+  const parsedChanges = version.description
+    ? ChangeSummaryParser.parse(version.description)
+    : [];
+
+  // 获取变更图标
+  const getChangeIcon = (change: ParsedChange) => {
+    switch (change.type) {
+      case 'title':
+        return <EditOutlined style={{ color: change.color }} />;
+      case 'content':
+        return <FileTextOutlined style={{ color: change.color }} />;
+      default:
+        return null;
+    }
+  };
 
   // 格式化时间
   const formatTime = (date: Date): string => {
@@ -105,6 +123,13 @@ const VersionListItem: React.FC<VersionListItemProps> = ({
           <strong>{version.versionNumber}</strong>
         </div>
 
+        {/* 文档标题 */}
+        {version.title && (
+          <div className="version-title">
+            {version.title}
+          </div>
+        )}
+
         {/* 变更统计 */}
         {statsText && hasChanges && (
           <Tooltip title={getStatsTooltip()}>
@@ -117,10 +142,21 @@ const VersionListItem: React.FC<VersionListItemProps> = ({
           </Tooltip>
         )}
 
-        {/* 版本描述 */}
-        {version.description && (
-          <div className="version-description">
-            {version.description}
+        {/* 版本变更详情 */}
+        {parsedChanges.length > 0 && (
+          <div className="version-changes">
+            <Space size="small" wrap>
+              {parsedChanges.map((change, index) => (
+                <Tag
+                  key={index}
+                  className="change-tag"
+                  icon={getChangeIcon(change)}
+                  color={ChangeSummaryParser.getChangeColor([change])}
+                >
+                  {change.text}
+                </Tag>
+              ))}
+            </Space>
           </div>
         )}
 
