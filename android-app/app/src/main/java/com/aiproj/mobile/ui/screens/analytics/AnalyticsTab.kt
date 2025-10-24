@@ -1,6 +1,7 @@
 package com.aiproj.mobile.ui.screens.analytics
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarToday
@@ -29,12 +30,12 @@ enum class AnalyticsTab(
     ),
     TASK_STATS(
         title = "任务",
-        icon = Icons.Default.Assignment,
+        icon = Icons.AutoMirrored.Filled.Assignment,
         description = "任务统计、Top任务、完成趋势"
     ),
     EFFICIENCY(
         title = "效率",
-        icon = Icons.Default.TrendingUp,
+        icon = Icons.AutoMirrored.Filled.TrendingUp,
         description = "效率趋势、智能分析建议"
     )
 }

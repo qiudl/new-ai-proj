@@ -3,6 +3,7 @@ package com.aiproj.mobile.ui.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -109,10 +110,10 @@ private fun getFileTypeIcon(fileType: String): ImageVector {
         fileType.startsWith("audio/") -> Icons.Default.AudioFile
         fileType.contains("pdf") -> Icons.Default.PictureAsPdf
         fileType.contains("zip") || fileType.contains("rar") -> Icons.Default.FolderZip
-        fileType.contains("text") -> Icons.Default.TextSnippet
+        fileType.contains("text") -> Icons.AutoMirrored.Filled.TextSnippet
         fileType.contains("word") || fileType.contains("document") -> Icons.Default.Description
         fileType.contains("excel") || fileType.contains("spreadsheet") -> Icons.Default.TableChart
-        else -> Icons.Default.InsertDriveFile
+        else -> Icons.AutoMirrored.Filled.InsertDriveFile
     }
 }
 

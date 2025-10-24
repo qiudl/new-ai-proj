@@ -93,7 +93,7 @@ fun DailyDetailCard(
                             label = "工作时长"
                         )
 
-                        Divider(
+                        HorizontalDivider(
                             modifier = Modifier
                                 .width(1.dp)
                                 .height(60.dp),
@@ -106,7 +106,7 @@ fun DailyDetailCard(
                             label = "完成任务"
                         )
 
-                        Divider(
+                        HorizontalDivider(
                             modifier = Modifier
                                 .width(1.dp)
                                 .height(60.dp),

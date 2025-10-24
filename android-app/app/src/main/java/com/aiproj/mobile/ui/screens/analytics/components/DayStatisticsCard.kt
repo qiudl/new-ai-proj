@@ -80,7 +80,7 @@ fun DayStatisticsCard(
                     modifier = Modifier.weight(1f)
                 )
 
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier
                         .width(1.dp)
                         .height(60.dp),
@@ -95,7 +95,7 @@ fun DayStatisticsCard(
                     modifier = Modifier.weight(1f)
                 )
 
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier
                         .width(1.dp)
                         .height(60.dp),

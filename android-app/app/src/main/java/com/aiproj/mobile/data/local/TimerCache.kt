@@ -56,10 +56,10 @@ class TimerCache @Inject constructor(
             try {
                 val timer = gson.fromJson(json, TimerStatus::class.java)
                 // 验证数据完整性
-                if (timer != null && timer.status != null) {
+                if (timer != null) {
                     timer
                 } else {
-                    android.util.Log.w("TimerCache", "Timer数据损坏: status为null, 清除缓存")
+                    android.util.Log.w("TimerCache", "Timer数据损坏, 清除缓存")
                     clearCurrentTimer()
                     null
                 }
@@ -88,7 +88,7 @@ class TimerCache @Inject constructor(
                     android.util.Log.d(TAG, "🔍 反序列化结果: timer=$timer")
 
                     // 验证数据完整性
-                    if (timer != null && timer.status != null) {
+                    if (timer != null) {
                         android.util.Log.d(TAG, "✅ 验证通过: id=${timer.id}, status=${timer.status}")
                         timer
                     } else {

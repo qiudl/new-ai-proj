@@ -5,8 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,8 +23,6 @@ import com.aiproj.mobile.ui.components.ProjectProgressBar
 import com.aiproj.mobile.ui.components.ProjectStatusChip
 //import com.aiproj.mobile.ui.components.ProjectSearchBar
 //import com.aiproj.mobile.ui.components.ProjectFilterDialog
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
 /**
  * 项目列表页面
@@ -34,7 +35,6 @@ fun ProjectListScreen(
     viewModel: ProjectListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoading)
     var showFilterDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -105,7 +105,7 @@ fun ProjectListScreen(
             */
 
             SwipeRefresh(
-                state = swipeRefreshState,
+                state = rememberSwipeRefreshState(uiState.isLoading),
                 onRefresh = { viewModel.refresh() },
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -230,7 +230,7 @@ fun ProjectCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 ProjectStatItem(
-                    icon = Icons.Default.Assignment,
+                    icon = Icons.AutoMirrored.Filled.Assignment,
                     label = "任务",
                     value = "${project.taskCount ?: 0}"
                 )

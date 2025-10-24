@@ -2,6 +2,7 @@ package com.aiproj.mobile.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -123,7 +124,7 @@ fun MainScreen(
                     onTaskClick = { taskId ->
                         navController.navigate(Screen.TaskDetail.createRoute(taskId))
                     },
-                    onProjectClick = { projectId ->
+                    onProjectClick = { _ ->
                         // TODO: 导航到项目详情
                     },
                     onNavigateToTimer = {
@@ -213,7 +214,7 @@ fun MainScreen(
             composable(Screen.ActiveProjectsDetail.route) {
                 ActiveProjectsDetailScreen(
                     onBackClick = { navController.popBackStack() },
-                    onProjectClick = { projectId ->
+                    onProjectClick = { _ ->
                         // TODO: 导航到项目详情
                     }
                 )
@@ -256,7 +257,8 @@ fun MainScreen(
                     navArgument("taskId") { type = NavType.IntType }
                 )
             ) { backStackEntry ->
-                val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+                // taskId 通过 SavedStateHandle 传递给 ViewModel
+                backStackEntry.arguments?.getInt("taskId") ?: return@composable
                 TaskDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onEdit = { editTaskId ->
@@ -283,8 +285,7 @@ fun MainScreen(
                         defaultValue = -1
                     }
                 )
-            ) { backStackEntry ->
-                val taskIdArg = backStackEntry.arguments?.getInt("taskId") ?: -1
+            ) { _ ->
                 // taskId 通过 SavedStateHandle 传递给 TaskFormViewModel
                 TaskFormScreen(
                     onNavigateBack = { navController.popBackStack() }
@@ -544,15 +545,16 @@ fun MainScreen(
                     navArgument("projectId") { type = NavType.IntType }
                 )
             ) { backStackEntry ->
-                val projectId = backStackEntry.arguments?.getInt("projectId") ?: return@composable
+                // projectId 通过 SavedStateHandle 传递给 ViewModel
+                backStackEntry.arguments?.getInt("projectId") ?: return@composable
                 ProjectDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onTaskClick = { taskId ->
                         navController.navigate(Screen.TaskDetail.createRoute(taskId))
                     },
-                    onEdit = { editProjectId ->
+                    onEdit = { _ ->
                         // TODO: 创建ProjectFormScreen后启用
-                        // navController.navigate(Screen.ProjectForm.createRoute(editProjectId))
+                        // navController.navigate(Screen.ProjectForm.createRoute(_))
                     }
                 )
             }
@@ -571,7 +573,7 @@ data class BottomNavItem(
 
 private val bottomNavItems = listOf(
     BottomNavItem(Screen.Dashboard.route, "首页", Icons.Default.Home),
-    BottomNavItem(Screen.TaskList.route, "任务", Icons.Default.Assignment),
+    BottomNavItem(Screen.TaskList.route, "任务", Icons.AutoMirrored.Filled.Assignment),
     BottomNavItem(Screen.NoteList.route, "工作笔记", Icons.Default.Description),
     BottomNavItem(Screen.Analytics.route, "统计", Icons.Default.BarChart),
     BottomNavItem(Screen.Profile.route, "我的", Icons.Default.Person)

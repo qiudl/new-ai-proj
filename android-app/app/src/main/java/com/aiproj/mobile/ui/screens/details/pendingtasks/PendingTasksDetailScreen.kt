@@ -4,8 +4,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -13,8 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aiproj.mobile.data.models.Task
 import com.aiproj.mobile.ui.screens.details.pendingtasks.components.*
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
 /**
  * 待办任务详情页
@@ -27,7 +28,6 @@ fun PendingTasksDetailScreen(
     viewModel: PendingTasksDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoading)
 
     Scaffold(
         topBar = {
@@ -37,7 +37,7 @@ fun PendingTasksDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 },
                 actions = {
@@ -59,7 +59,7 @@ fun PendingTasksDetailScreen(
         }
     ) { paddingValues ->
         SwipeRefresh(
-            state = swipeRefreshState,
+            state = rememberSwipeRefreshState(uiState.isLoading),
             onRefresh = { viewModel.refreshData() },
             modifier = Modifier
                 .fillMaxSize()
@@ -183,7 +183,7 @@ fun GroupedPendingTaskList(
  * 空分组视图
  */
 @Composable
-fun EmptyGroupView(priority: String) {
+fun EmptyGroupView(@Suppress("UNUSED_PARAMETER") priority: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()

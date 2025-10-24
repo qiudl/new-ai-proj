@@ -2,7 +2,7 @@ package com.aiproj.mobile.ui.screens.suggestions.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -205,7 +205,7 @@ private fun getSuggestionIcon(type: String): ImageVector {
     return when (type) {
         "incomplete_task" -> Icons.AutoMirrored.Filled.Assignment
         "recurring_task" -> Icons.Default.Repeat
-        "peak_time" -> Icons.Default.TrendingUp
+        "peak_time" -> Icons.AutoMirrored.Filled.TrendingUp
         "break_reminder" -> Icons.Default.SelfImprovement
         "focus_mode" -> Icons.Default.Whatshot
         else -> Icons.Default.AutoAwesome

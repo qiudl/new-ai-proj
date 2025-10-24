@@ -2,6 +2,7 @@ package com.aiproj.mobile.ui.screens.ai.document
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,7 +15,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AIDocumentGenerateScreen(
-    taskId: Int,
+    @Suppress("UNUSED_PARAMETER") taskId: Int,
     onNavigateBack: () -> Unit,
     onDocumentSaved: () -> Unit,
     viewModel: AIDocumentViewModel = hiltViewModel()
@@ -28,7 +29,7 @@ fun AIDocumentGenerateScreen(
                 title = { Text("AI生成任务文档") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 }
             )

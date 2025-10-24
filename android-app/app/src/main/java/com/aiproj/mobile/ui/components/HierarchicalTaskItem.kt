@@ -53,7 +53,7 @@ fun HierarchicalTaskItem(
     completionProgress: Float = 0f,
     onExpandClick: () -> Unit = {},
     onTaskClick: () -> Unit,
-    onStatusChange: (Boolean) -> Unit = {},
+    @Suppress("UNUSED_PARAMETER") onStatusChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val level = task.level

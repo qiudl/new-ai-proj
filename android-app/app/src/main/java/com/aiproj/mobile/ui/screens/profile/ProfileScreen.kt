@@ -117,13 +117,13 @@ fun ProfileScreen(
                         leadingContent = { Icon(Icons.Default.Notifications, null) },
                         trailingContent = { Icon(Icons.Default.ChevronRight, null) }
                     )
-                    Divider()
+                    HorizontalDivider()
                     ListItem(
                         headlineContent = { Text("隐私设置") },
                         leadingContent = { Icon(Icons.Default.Lock, null) },
                         trailingContent = { Icon(Icons.Default.ChevronRight, null) }
                     )
-                    Divider()
+                    HorizontalDivider()
                     ListItem(
                         headlineContent = { Text("关于") },
                         leadingContent = { Icon(Icons.Default.Info, null) },

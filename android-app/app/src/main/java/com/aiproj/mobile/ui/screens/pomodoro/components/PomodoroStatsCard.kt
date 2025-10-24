@@ -2,6 +2,7 @@ package com.aiproj.mobile.ui.screens.pomodoro.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingUp
@@ -58,7 +59,7 @@ fun PomodoroStatsCard(
                 )
 
                 StatItem(
-                    icon = Icons.Default.TrendingUp,
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
                     value = String.format("%.1f", stats.averageFocusScore),
                     label = "专注度",
                     modifier = Modifier.weight(1f)

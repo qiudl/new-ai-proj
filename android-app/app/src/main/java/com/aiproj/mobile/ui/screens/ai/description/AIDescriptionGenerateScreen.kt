@@ -20,7 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AIDescriptionGenerateScreen(
-    taskId: Int,
+    @Suppress("UNUSED_PARAMETER") taskId: Int,
     onNavigateBack: () -> Unit,
     onDescriptionApplied: () -> Unit,
     viewModel: AIDescriptionViewModel = hiltViewModel()

@@ -2,6 +2,7 @@ package com.aiproj.mobile.ui.screens.details.worktime.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.Assessment
@@ -38,7 +39,7 @@ fun EfficiencyAnalysisCard(
             // 最高工作日
             metrics.mostProductiveDay?.let { day ->
                 EfficiencyMetricItem(
-                    icon = Icons.Default.TrendingUp,
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
                     iconTint = Color(0xFF4CAF50),
                     label = "最高工作日",
                     value = formatDate(day.date),
@@ -51,7 +52,7 @@ fun EfficiencyAnalysisCard(
             /*
             metrics.leastProductiveDay?.let { day ->
                 EfficiencyMetricItem(
-                    icon = Icons.Default.TrendingDown,
+                    icon = Icons.AutoMirrored.Filled.TrendingDown,
                     iconTint = Color(0xFFF44336),
                     label = "最低工作日",
                     value = formatDate(day.date),

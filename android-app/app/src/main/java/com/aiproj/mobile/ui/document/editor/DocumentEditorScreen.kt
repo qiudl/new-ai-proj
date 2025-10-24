@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,7 +21,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DocumentEditorScreen(
-    taskId: Int,
+    @Suppress("UNUSED_PARAMETER") taskId: Int,
     documentId: Int? = null,
     onNavigateBack: () -> Unit,
     viewModel: DocumentEditorViewModel = hiltViewModel()
@@ -43,7 +44,7 @@ fun DocumentEditorScreen(
                 title = { Text(if (documentId == null) "新建文档" else "编辑文档") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
                     }
                 },
                 actions = {
@@ -60,7 +61,7 @@ fun DocumentEditorScreen(
                         )
                     }
                     IconButton(onClick = { showStatusDialog = true }) {
-                        Icon(Icons.Default.Label, "状态")
+                        Icon(Icons.AutoMirrored.Filled.Label, "状态")
                     }
                     IconButton(
                         onClick = {
@@ -177,7 +178,7 @@ private fun MarkdownToolbar(
             Icon(Icons.Default.Title, "标题")
         }
         IconButton(onClick = { onInsert("- ", "") }) {
-            Icon(Icons.Default.FormatListBulleted, "列表")
+            Icon(Icons.AutoMirrored.Filled.FormatListBulleted, "列表")
         }
         IconButton(onClick = { onInsert("1. ", "") }) {
             Icon(Icons.Default.FormatListNumbered, "编号")

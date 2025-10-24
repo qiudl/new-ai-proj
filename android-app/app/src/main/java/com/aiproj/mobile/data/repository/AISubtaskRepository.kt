@@ -66,7 +66,7 @@ class AISubtaskRepository @Inject constructor(
                         Log.d(TAG, "Subtasks created successfully: ${batchResponse.createdCount} subtasks")
                         Result.success(batchResponse)
                     } else {
-                        val errorMsg = batchResponse.message ?: "批量创建子任务失败"
+                        val errorMsg = batchResponse.message
                         Log.e(TAG, "API error: $errorMsg")
                         Result.failure(Exception(errorMsg))
                     }

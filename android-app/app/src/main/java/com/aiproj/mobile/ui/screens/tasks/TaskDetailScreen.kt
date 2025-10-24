@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -75,7 +76,7 @@ fun TaskDetailScreen(
                 title = { Text("任务详情") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 },
                 actions = {
@@ -286,7 +287,7 @@ fun TaskDetailContent(
             }
         }
 
-        Divider()
+        HorizontalDivider()
 
         // 描述
         task.description?.let { description ->
@@ -359,7 +360,7 @@ fun TaskDetailContent(
         }
 
         // 任务文档（始终显示）
-        Divider()
+        HorizontalDivider()
         DetailSection(
             title = "任务文档 (${documents.size})",
             icon = Icons.Default.Description
@@ -389,7 +390,7 @@ fun TaskDetailContent(
 
         // 子任务列表
         if (subtasks.isNotEmpty()) {
-            Divider()
+            HorizontalDivider()
             DetailSection(
                 title = "子任务 (${subtasks.size})",
                 icon = Icons.Default.Checklist
@@ -407,7 +408,7 @@ fun TaskDetailContent(
 
         // 时间日志列表
         if (timeLogs.isNotEmpty()) {
-            Divider()
+            HorizontalDivider()
             DetailSection(
                 title = "时间日志 (${timeLogs.size})",
                 icon = Icons.Default.Timer
@@ -426,7 +427,7 @@ fun TaskDetailContent(
 
         // 附件列表
         if (attachments.isNotEmpty()) {
-            Divider()
+            HorizontalDivider()
             DetailSection(
                 title = "附件 (${attachments.size})",
                 icon = Icons.Default.AttachFile
@@ -444,10 +445,10 @@ fun TaskDetailContent(
         }
 
         // 评论列表
-        Divider()
+        HorizontalDivider()
         DetailSection(
             title = "评论 (${comments.size})",
-            icon = Icons.Default.Comment
+            icon = Icons.AutoMirrored.Filled.Comment
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // 评论输入框

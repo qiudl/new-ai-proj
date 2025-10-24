@@ -62,7 +62,7 @@ fun TimeStatsChart(
                 }
             }
 
-            Divider()
+            HorizontalDivider()
 
             // 简化的柱状图 - 使用 Canvas 手动绘制
             TimeBarChart(
@@ -110,7 +110,6 @@ private fun TimeBarChart(
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
 
     Column(modifier = modifier) {
         // 柱状图

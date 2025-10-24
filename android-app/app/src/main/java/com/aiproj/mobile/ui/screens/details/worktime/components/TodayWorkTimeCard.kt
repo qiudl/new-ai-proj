@@ -2,6 +2,7 @@ package com.aiproj.mobile.ui.screens.details.worktime.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material3.*
@@ -64,9 +65,9 @@ fun TodayWorkTimeCard(
                 ) {
                     Icon(
                         imageVector = if (comparisonYesterday > 0)
-                            Icons.Default.TrendingUp
+                            Icons.AutoMirrored.Filled.TrendingUp
                         else
-                            Icons.Default.TrendingDown,
+                            Icons.AutoMirrored.Filled.TrendingDown,
                         contentDescription = null,
                         tint = if (comparisonYesterday > 0)
                             Color(0xFF4CAF50)

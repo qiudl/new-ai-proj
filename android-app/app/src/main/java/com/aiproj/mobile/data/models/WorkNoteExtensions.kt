@@ -52,13 +52,13 @@ val WorkNote.safeViewCount: Int
  * 获取置顶状态（带默认值）
  */
 val WorkNote.safeIsPinned: Boolean
-    get() = isPinned ?: false
+    get() = isPinned
 
 /**
  * 获取收藏状态（带默认值）
  */
 val WorkNote.safeIsBookmarked: Boolean
-    get() = isBookmarked ?: false
+    get() = isBookmarked
 
 /**
  * 获取标签列表（非空）

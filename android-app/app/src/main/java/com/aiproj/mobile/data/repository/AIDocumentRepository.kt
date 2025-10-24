@@ -118,11 +118,11 @@ class AIDocumentRepository @Inject constructor(
 
                 if (response.isSuccessful && response.body() != null) {
                     val saveResponse = response.body()!!
-                    if (saveResponse.success && saveResponse.data != null) {
+                    if (saveResponse.success) {
                         Log.d(TAG, "Document saved successfully: document_id=${saveResponse.data.documentId}")
                         Result.success(saveResponse.data)
                     } else {
-                        val errorMsg = saveResponse.message ?: "保存文档失败"
+                        val errorMsg = saveResponse.message
                         Log.e(TAG, "API error: $errorMsg")
                         Result.failure(Exception(errorMsg))
                     }

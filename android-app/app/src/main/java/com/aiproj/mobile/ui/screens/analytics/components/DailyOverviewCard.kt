@@ -181,7 +181,7 @@ private fun DailyStatRow(
 
                 // 简单的进度条（基于8小时工作制）
                 LinearProgressIndicator(
-                    progress = (hours / 8f).coerceIn(0f, 1f),
+                    progress = { (hours / 8f).coerceIn(0f, 1f) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 4.dp)

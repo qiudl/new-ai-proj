@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -110,10 +111,10 @@ fun NotificationItem(
  */
 private fun getNotificationIcon(type: NotificationType): ImageVector {
     return when (type) {
-        NotificationType.TASK_ASSIGNED -> Icons.Default.Assignment
+        NotificationType.TASK_ASSIGNED -> Icons.AutoMirrored.Filled.Assignment
         NotificationType.TASK_UPDATED -> Icons.Default.Update
         NotificationType.TASK_COMPLETED -> Icons.Default.CheckCircle
-        NotificationType.COMMENT_ADDED -> Icons.Default.Comment
+        NotificationType.COMMENT_ADDED -> Icons.AutoMirrored.Filled.Comment
         NotificationType.DEADLINE_APPROACHING -> Icons.Default.Warning
         NotificationType.PROJECT_UPDATED -> Icons.Default.Folder
         NotificationType.SYSTEM -> Icons.Default.Notifications

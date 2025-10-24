@@ -2,6 +2,7 @@ package com.aiproj.mobile.ui.screens.analytics.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.ShowChart
@@ -69,7 +70,7 @@ fun EfficiencyMetricsCard(
             // 最低效率
             if (worstEfficiency != null) {
                 EfficiencyMetricItem(
-                    icon = Icons.Default.TrendingDown,
+                    icon = Icons.AutoMirrored.Filled.TrendingDown,
                     title = "最低效率",
                     value = "${(worstEfficiency.efficiency * 100).toInt()}% (${worstEfficiency.weekday})",
                     subtitle = "仅完成${worstEfficiency.tasksCompleted}个任务",
@@ -81,7 +82,7 @@ fun EfficiencyMetricsCard(
 
             // 效率波动
             EfficiencyMetricItem(
-                icon = Icons.Default.ShowChart,
+                icon = Icons.AutoMirrored.Filled.ShowChart,
                 title = "效率波动",
                 value = volatility,
                 subtitle = when (volatility) {

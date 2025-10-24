@@ -2,6 +2,7 @@ package com.aiproj.mobile.ui.screens.efficiency.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -18,8 +19,8 @@ fun TrendCard(
     modifier: Modifier = Modifier
 ) {
     val (trendText, trendColor, trendIcon) = when (trend) {
-        "improving" -> Triple("效率提升中", Color(0xFF4CAF50), Icons.Default.TrendingUp)
-        "declining" -> Triple("效率下降中", Color(0xFFF44336), Icons.Default.TrendingDown)
+        "improving" -> Triple("效率提升中", Color(0xFF4CAF50), Icons.AutoMirrored.Filled.TrendingUp)
+        "declining" -> Triple("效率下降中", Color(0xFFF44336), Icons.AutoMirrored.Filled.TrendingDown)
         else -> Triple("保持稳定", Color(0xFF2196F3), Icons.Default.Remove)
     }
 

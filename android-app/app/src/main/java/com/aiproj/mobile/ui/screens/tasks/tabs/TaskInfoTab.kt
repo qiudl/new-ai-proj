@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -115,12 +116,10 @@ fun TaskInfoTab(
                         value = formatDate(it)
                     )
                 }
-                task.updatedAt?.let {
-                    InfoRow(
-                        label = "更新时间",
-                        value = formatDate(it)
-                    )
-                }
+                InfoRow(
+                    label = "更新时间",
+                    value = formatDate(task.updatedAt)
+                )
                 task.dueDate?.let {
                     InfoRow(
                         label = "截止日期",
@@ -230,7 +229,7 @@ fun TaskInfoTab(
         HorizontalDivider()
         DetailSection(
             title = "评论 (${comments.size})",
-            icon = Icons.Default.Comment
+            icon = Icons.AutoMirrored.Filled.Comment
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // 评论输入框
@@ -259,7 +258,7 @@ fun TaskInfoTab(
                         enabled = commentText.isNotBlank()
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Send,
+                            imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = "发送评论",
                             tint = if (commentText.isNotBlank()) {
                                 MaterialTheme.colorScheme.primary

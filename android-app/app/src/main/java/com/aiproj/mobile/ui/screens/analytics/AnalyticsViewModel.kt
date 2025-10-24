@@ -584,8 +584,8 @@ class AnalyticsViewModel @Inject constructor(
     private fun processWorkTimeTrend(
         dailyStats: List<com.aiproj.mobile.data.api.DailyTimeStat>,
         granularity: TimeGranularity,
-        days: Int,
-        startDate: String,
+        @Suppress("UNUSED_PARAMETER") days: Int,
+        @Suppress("UNUSED_PARAMETER") startDate: String,
         endDate: String
     ): List<DailyWorkTime> {
         return when (granularity) {
@@ -636,15 +636,15 @@ class AnalyticsViewModel @Inject constructor(
                 dailyStats.chunked(7).mapIndexed { weekIndex, weekData ->
                     val weekHours = weekData.sumOf { it.hours.toDouble() }.toFloat()
                     val weekTaskCount = weekData.sumOf { it.taskCount }
-                    val startDate = weekData.firstOrNull()?.date ?: ""
-                    val endDate = weekData.lastOrNull()?.date ?: ""
+                    val weekStartDate = weekData.firstOrNull()?.date ?: ""
+                    val weekEndDate = weekData.lastOrNull()?.date ?: ""
 
                     DailyWorkTime(
-                        date = startDate,
+                        date = weekStartDate,
                         dayLabel = "第${weekIndex + 1}周",
                         hours = weekHours,
                         taskCount = weekTaskCount,
-                        detailInfo = "$startDate ~ $endDate: ${weekHours}h, ${weekTaskCount}个任务"
+                        detailInfo = "$weekStartDate ~ $weekEndDate: ${weekHours}h, ${weekTaskCount}个任务"
                     )
                 }
             }

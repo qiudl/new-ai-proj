@@ -2,6 +2,7 @@ package com.aiproj.mobile.ui.screens.analytics.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
@@ -96,7 +97,7 @@ fun EfficiencyTrendCard(
                     } else {
                         "↘ ${(efficiencyChange * 100).toInt()}%"
                     },
-                    icon = if (efficiencyChange >= 0) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                    icon = if (efficiencyChange >= 0) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                     color = if (efficiencyChange >= 0) Color(0xFF4CAF50) else Color(0xFFE53935)
                 )
             }

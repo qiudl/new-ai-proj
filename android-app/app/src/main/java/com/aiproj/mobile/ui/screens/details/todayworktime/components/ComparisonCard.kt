@@ -2,6 +2,7 @@ package com.aiproj.mobile.ui.screens.details.todayworktime.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
@@ -112,9 +113,9 @@ private fun ComparisonRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = if (percent >= 0) {
-                        Icons.Default.TrendingUp
+                        Icons.AutoMirrored.Filled.TrendingUp
                     } else {
-                        Icons.Default.TrendingDown
+                        Icons.AutoMirrored.Filled.TrendingDown
                     },
                     contentDescription = null,
                     tint = if (percent >= 0) {

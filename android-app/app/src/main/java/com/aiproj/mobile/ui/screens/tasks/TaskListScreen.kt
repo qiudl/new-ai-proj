@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,8 +29,6 @@ import com.aiproj.mobile.ui.components.ExpandableHierarchicalTaskItem
 import com.aiproj.mobile.ui.components.HierarchicalTaskItem
 import com.aiproj.mobile.ui.components.SwipeableTaskItem
 import com.aiproj.mobile.ui.screens.tasks.components.ProjectFilterDrawer
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import kotlinx.coroutines.launch
 
 private const val TAG = "TaskListScreen"
@@ -71,7 +72,6 @@ fun TaskListScreen(
 
     // 刷新状态基于Paging LoadState
     val isRefreshing = tasksPagingItems.loadState.refresh is LoadState.Loading
-    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = isRefreshing)
 
     var showFilterDialog by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
@@ -124,7 +124,7 @@ fun TaskListScreen(
                     // 排序按钮
                     Box {
                         IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.Default.Sort, contentDescription = "排序")
+                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "排序")
                         }
 
                         // 排序菜单
@@ -365,7 +365,7 @@ fun TaskListScreen(
 
             // 任务列表 (使用Paging 3)
             SwipeRefresh(
-                state = swipeRefreshState,
+                state = rememberSwipeRefreshState(isRefreshing),
                 onRefresh = { tasksPagingItems.refresh() }
             ) {
                 when {
@@ -496,7 +496,7 @@ fun TaskListScreen(
                         }
                     }
                 }
-            } // End of SwipeRefresh
+            }
         } // End of Column (Scaffold content)
     } // End of Scaffold content lambda
     } // End of ModalNavigationDrawer
@@ -688,7 +688,7 @@ fun EmptyTaskList() {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Assignment,
+                imageVector = Icons.AutoMirrored.Filled.Assignment,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)

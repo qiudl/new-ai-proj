@@ -20,7 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AISubtaskGenerateScreen(
-    taskId: Int,
+    @Suppress("UNUSED_PARAMETER") taskId: Int,
     onNavigateBack: () -> Unit,
     onSubtasksCreated: () -> Unit,
     viewModel: AISubtaskViewModel = hiltViewModel()

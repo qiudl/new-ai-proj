@@ -78,7 +78,7 @@ class TaskPagingSource(
                         if (!apiResponse.success || apiResponse.data == null) {
                             LoadResult.Error(Exception(apiResponse.error ?: apiResponse.message ?: "API返回失败"))
                         } else {
-                            val allTasks = apiResponse.data.tasks ?: emptyList()
+                            val allTasks = apiResponse.data.tasks
 
                             // ✅ 只返回顶层任务（parentId == null）
                             val topLevelTasks = allTasks.filter { it.parentId == null }

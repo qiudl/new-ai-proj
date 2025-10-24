@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -83,7 +84,7 @@ fun EfficiencyScoreCard(
                     }
                 }
 
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier.padding(vertical = 8.dp),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                 )
@@ -99,7 +100,7 @@ fun EfficiencyScoreCard(
                             label = "最佳",
                             date = bestDay.getDisplayDate(),
                             score = bestDay.efficiencyScore.toFloat(),
-                            icon = Icons.Default.TrendingUp,
+                            icon = Icons.AutoMirrored.Filled.TrendingUp,
                             color = MaterialTheme.colorScheme.tertiary
                         )
                     }
@@ -110,7 +111,7 @@ fun EfficiencyScoreCard(
                             label = "待提升",
                             date = worstDay.getDisplayDate(),
                             score = worstDay.efficiencyScore.toFloat(),
-                            icon = Icons.Default.TrendingDown,
+                            icon = Icons.AutoMirrored.Filled.TrendingDown,
                             color = MaterialTheme.colorScheme.error
                         )
                     }
@@ -209,9 +210,9 @@ private fun CircularScoreIndicator(
 @Composable
 private fun TrendIndicator(trend: String) {
     val (icon, text, color) = when (trend) {
-        "improving" -> Triple(Icons.Default.TrendingUp, "上升趋势", Color(0xFF4CAF50))
-        "declining" -> Triple(Icons.Default.TrendingDown, "下降趋势", Color(0xFFF44336))
-        else -> Triple(Icons.Default.TrendingFlat, "保持稳定", Color(0xFFFFC107))
+        "improving" -> Triple(Icons.AutoMirrored.Filled.TrendingUp, "上升趋势", Color(0xFF4CAF50))
+        "declining" -> Triple(Icons.AutoMirrored.Filled.TrendingDown, "下降趋势", Color(0xFFF44336))
+        else -> Triple(Icons.AutoMirrored.Filled.TrendingFlat, "保持稳定", Color(0xFFFFC107))
     }
 
     Row(

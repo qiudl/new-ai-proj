@@ -4,9 +4,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -14,8 +17,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aiproj.mobile.data.models.TodayTasksDetail
 import com.aiproj.mobile.ui.screens.details.todaytasks.components.*
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -30,7 +31,6 @@ fun TodayTasksDetailScreen(
     viewModel: TodayTasksDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoading)
 
     // 格式化日期显示
     val dateFormatter = DateTimeFormatter.ofPattern("yyyy年MM月dd日")
@@ -46,7 +46,7 @@ fun TodayTasksDetailScreen(
                 title = { Text("今日任务 ($displayDate)") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 },
                 actions = {
@@ -58,7 +58,7 @@ fun TodayTasksDetailScreen(
         }
     ) { paddingValues ->
         SwipeRefresh(
-            state = swipeRefreshState,
+            state = rememberSwipeRefreshState(uiState.isLoading),
             onRefresh = { viewModel.refreshData() },
             modifier = Modifier
                 .fillMaxSize()

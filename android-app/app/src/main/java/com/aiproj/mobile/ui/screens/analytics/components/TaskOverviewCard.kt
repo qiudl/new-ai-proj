@@ -3,6 +3,7 @@ package com.aiproj.mobile.ui.screens.analytics.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
@@ -116,7 +117,7 @@ fun TaskOverviewCard(
                 )
 
                 TaskStatusItem(
-                    icon = Icons.Default.Assignment,
+                    icon = Icons.AutoMirrored.Filled.Assignment,
                     label = "待办",
                     count = todoTasks,
                     percentage = if (totalTasks > 0) todoTasks.toFloat() / totalTasks else 0f,

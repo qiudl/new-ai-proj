@@ -270,7 +270,7 @@ private fun OverviewTabContent(
                 // 显示单日详情卡片
                 item {
                     DailyDetailCard(
-                        date = uiState.selectedDate!!,
+                        date = uiState.selectedDate,
                         dayDetail = uiState.selectedDayDetail,
                         onTaskClick = onNavigateToTaskDetail
                     )

@@ -8,8 +8,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,8 +38,6 @@ import com.aiproj.mobile.ui.components.TimeStatsChart
 import com.aiproj.mobile.ui.screens.dashboard.components.TimerDashboardCard
 import com.aiproj.mobile.ui.screens.timer.TimerUiState
 import com.aiproj.mobile.ui.screens.timer.TimerViewModel
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
 /**
  * Dashboard 仪表盘页面
@@ -56,7 +57,6 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val timerState by timerViewModel.uiState.collectAsState()
-    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoading)
 
     Scaffold(
         topBar = {
@@ -85,7 +85,7 @@ fun DashboardScreen(
         }
     ) { paddingValues ->
         SwipeRefresh(
-            state = swipeRefreshState,
+            state = rememberSwipeRefreshState(uiState.isLoading),
             onRefresh = { viewModel.refresh() },
             modifier = Modifier
                 .fillMaxSize()
@@ -328,7 +328,7 @@ fun StatsSection(
 
             StatCard(
                 modifier = Modifier.weight(1f),
-                icon = Icons.Default.Assignment,
+                icon = Icons.AutoMirrored.Filled.Assignment,
                 title = "待办任务",
                 value = pendingTasks.toString(),
                 color = Color(0xFFFF9800),
@@ -700,7 +700,7 @@ fun ProjectCardEnhanced(
 
             // 进度条
             LinearProgressIndicator(
-                progress = (project.completionRate ?: 0f) / 100f,
+                progress = { (project.completionRate ?: 0f) / 100f },
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
@@ -729,7 +729,7 @@ fun ProjectCardEnhanced(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Assignment,
+                        imageVector = Icons.AutoMirrored.Filled.Assignment,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1134,7 +1134,7 @@ fun EmptyFocusTasksCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.EventNote,
+                imageVector = Icons.AutoMirrored.Filled.EventNote,
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
