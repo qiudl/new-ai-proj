@@ -1440,13 +1440,24 @@ func (h *UnifiedDocumentHandler) UpdateDocumentByID(c *gin.Context) {
 		return
 	}
 
-	// 获取用户ID
-	userID, exists := c.Get("user_id")
+	// 获取用户ID (context中存储的是uint类型)
+	userIDRaw, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
 			"message": "User not authenticated",
 			"code":    "NOT_AUTHENTICATED",
+		})
+		return
+	}
+
+	// 类型断言并转换为int
+	userID, ok := userIDRaw.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Invalid user ID type",
+			"code":    "INVALID_USER_ID",
 		})
 		return
 	}
@@ -1471,7 +1482,7 @@ func (h *UnifiedDocumentHandler) UpdateDocumentByID(c *gin.Context) {
 	req := &interfaces.UpdateDocumentByIDRequest{
 		DocumentID: docID,
 		Content:    request.Content,
-		UserID:     userID.(int),
+		UserID:     int(userID),  // 转换uint为int
 		Message:    request.Message,
 	}
 
