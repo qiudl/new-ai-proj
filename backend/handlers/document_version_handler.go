@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -427,7 +428,7 @@ func (h *DocumentVersionHandler) CompareVersions(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
+	userIDRaw, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -436,7 +437,18 @@ func (h *DocumentVersionHandler) CompareVersions(c *gin.Context) {
 		return
 	}
 
-	comparison, err := h.versionService.CompareVersions(c.Request.Context(), documentID, fromVersion, toVersion, userID.(uint64))
+	// 类型断言为int (JWT中间件设置的是int类型)
+	userIDInt, ok := userIDRaw.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Invalid user ID type: expected int, got %T", userIDRaw),
+			"code":    "INVALID_USER_ID",
+		})
+		return
+	}
+
+	comparison, err := h.versionService.CompareVersions(c.Request.Context(), documentID, fromVersion, toVersion, uint64(userIDInt))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
