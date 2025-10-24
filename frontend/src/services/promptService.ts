@@ -120,7 +120,7 @@ class PromptService {
       const response = await api.get<PromptTemplate[]>(`${this.baseURL}/templates`, {
         params
       });
-      return response.data || response as any;
+      return response as any;
     } catch (error) {
       console.error('[PromptService] Failed to fetch templates:', error);
       throw error;
@@ -133,7 +133,7 @@ class PromptService {
   async getTemplateById(id: number): Promise<PromptTemplate> {
     try {
       const response = await api.get<PromptTemplate>(`${this.baseURL}/templates/${id}`);
-      return response.data || response as any;
+      return response as any;
     } catch (error) {
       console.error(`[PromptService] Failed to fetch template ${id}:`, error);
       throw error;
@@ -148,7 +148,7 @@ class PromptService {
       const response = await api.get<UserPromptHistory[]>(`${this.baseURL}/history`, {
         params
       });
-      return response.data || response as any;
+      return response as any;
     } catch (error) {
       console.error('[PromptService] Failed to fetch user history:', error);
       throw error;
@@ -164,7 +164,7 @@ class PromptService {
         `${this.baseURL}/history`,
         data
       );
-      return response.data || response as any;
+      return response as any;
     } catch (error) {
       console.error('[PromptService] Failed to save history:', error);
       throw error;
@@ -195,7 +195,7 @@ class PromptService {
         `${this.baseURL}/recommendations`,
         { params }
       );
-      return response.data || response as any;
+      return response as any;
     } catch (error) {
       console.error('[PromptService] Failed to fetch recommendations:', error);
       throw error;

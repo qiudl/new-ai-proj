@@ -88,22 +88,22 @@ class DailyFocusTasksService {
     const url = queryString ? `${this.basePath}/stats?${queryString}` : `${this.basePath}/stats`;
     
     const response = await api.get<APIResponse<DailyFocusTaskStats>>(url);
-    
-    if (!response.data || !response.data.success) {
-      throw new Error(response.data?.error?.message || '获取统计信息失败');
+
+    if (!response || !response.success) {
+      throw new Error(response?.error?.message || '获取统计信息失败');
     }
-    
-    return response.data.data!;
+
+    return response.data!;
   }
 
   async getDailyFocusTask(id: number): Promise<DailyFocusTask> {
     const response = await api.get<APIResponse<DailyFocusTask>>(`${this.basePath}/${id}`);
-    
-    if (!response.data || !response.data.success) {
-      throw new Error(response.data?.error?.message || '获取任务详情失败');
+
+    if (!response || !response.success) {
+      throw new Error(response?.error?.message || '获取任务详情失败');
     }
-    
-    return response.data.data!;
+
+    return response.data!;
   }
 
   async addDailyFocusTask(request: DailyFocusTaskRequest): Promise<DailyFocusTask> {

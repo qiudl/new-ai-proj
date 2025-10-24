@@ -59,7 +59,7 @@ class CustomerService {
         `${this.baseUrl}?page=1&page_size=50`;
       
       const response = await api.get(endpoint);
-      return response.data || response;
+      return response;
     } catch (error) {
       console.error('获取客户列表失败:', error);
       
@@ -129,7 +129,7 @@ class CustomerService {
   async getCustomer(id: number): Promise<Customer> {
     try {
       const response = await api.get(`${this.baseUrl}/${id}`);
-      return response.data || response;
+      return response;
     } catch (error) {
       console.error(`获取客户${id}详情失败:`, error);
       throw error;
@@ -139,7 +139,7 @@ class CustomerService {
   async createCustomer(customer: CustomerRequest): Promise<Customer> {
     try {
       const response = await api.post(this.baseUrl, customer);
-      return response.data || response;
+      return response;
     } catch (error) {
       console.error('创建客户失败:', error);
       throw error;
@@ -149,7 +149,7 @@ class CustomerService {
   async updateCustomer(id: number, customer: CustomerRequest): Promise<Customer> {
     try {
       const response = await api.put(`${this.baseUrl}/${id}`, customer);
-      return response.data || response;
+      return response;
     } catch (error) {
       console.error(`更新客户${id}失败:`, error);
       throw error;
