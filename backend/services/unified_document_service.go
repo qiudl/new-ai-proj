@@ -2,6 +2,7 @@ package services
 
 import (
 	"ai-project-backend/interfaces"
+	"ai-project-backend/models"
 	"context"
 	"database/sql"
 	"fmt"
@@ -200,6 +201,52 @@ func (s *UnifiedDocumentService) UpdateDocument(ctx context.Context, req *interf
 
 	// 清除缓存
 	s.clearCache(s.getCacheKey(req.ProjectID, req.TaskID))
+
+	return nil
+}
+
+// UpdateDocumentByID 通过文档ID更新文档
+// 用于全局文档路由，自动查找文档所属的项目和任务
+func (s *UnifiedDocumentService) UpdateDocumentByID(ctx context.Context, req *interfaces.UpdateDocumentByIDRequest) error {
+	if s.db == nil {
+		return fmt.Errorf("database not available for UpdateDocumentByID operation")
+	}
+
+	// 类型断言获取database.DB接口
+	type DBInterface interface {
+		Documents() interface {
+			GetByID(ctx context.Context, id int) (*models.Document, error)
+			Update(ctx context.Context, document *models.Document) (*models.Document, error)
+		}
+	}
+
+	// 导入models包类型定义
+	type Document struct {
+		ID        uint
+		Content   *string
+		CreatedBy int
+		// 其他字段...
+	}
+
+	db, ok := s.db.(DBInterface)
+	if !ok {
+		return fmt.Errorf("database does not implement Documents() method")
+	}
+
+	// 获取文档
+	doc, err := db.Documents().GetByID(ctx, req.DocumentID)
+	if err != nil {
+		return fmt.Errorf("document not found: %w", err)
+	}
+
+	// 更新内容
+	doc.Content = &req.Content
+
+	// 调用Update方法（会自动创建版本快照）
+	_, err = db.Documents().Update(ctx, doc)
+	if err != nil {
+		return fmt.Errorf("failed to update document: %w", err)
+	}
 
 	return nil
 }

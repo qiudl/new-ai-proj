@@ -1424,3 +1424,80 @@ func (h *UnifiedDocumentHandler) ToggleTemplate(c *gin.Context) {
 		},
 	})
 }
+
+// UpdateDocumentByID 通过文档ID更新文档
+// PUT /api/v1/documents/:id
+// 用于全局文档路由，自动查找文档所属的项目和任务
+func (h *UnifiedDocumentHandler) UpdateDocumentByID(c *gin.Context) {
+	// 解析文档ID
+	docID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid document ID",
+			"code":    "INVALID_DOCUMENT_ID",
+		})
+		return
+	}
+
+	// 获取用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "User not authenticated",
+			"code":    "NOT_AUTHENTICATED",
+		})
+		return
+	}
+
+	// 解析请求体
+	var request struct {
+		Content string `json:"content" binding:"required"`
+		Message string `json:"message,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request body",
+			"code":    "INVALID_REQUEST",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// 调用Service层的UpdateDocumentByID方法
+	req := &interfaces.UpdateDocumentByIDRequest{
+		DocumentID: docID,
+		Content:    request.Content,
+		UserID:     userID.(int),
+		Message:    request.Message,
+	}
+
+	if err := h.documentService.UpdateDocumentByID(c.Request.Context(), req); err != nil {
+		if strings.Contains(err.Error(), "document not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"message": "Document not found",
+				"code":    "DOCUMENT_NOT_FOUND",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Failed to update document",
+				"code":    "UPDATE_FAILED",
+				"details": err.Error(),
+			})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Document updated successfully",
+		"data": gin.H{
+			"document_id": docID,
+		},
+	})
+}

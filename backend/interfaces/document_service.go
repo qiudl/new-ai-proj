@@ -11,6 +11,7 @@ type DocumentServiceInterface interface {
 	CreateDocument(ctx context.Context, req *CreateDocumentRequest) error
 	ReadDocument(ctx context.Context, req *ReadDocumentRequest) (*DocumentResponse, error)
 	UpdateDocument(ctx context.Context, req *UpdateDocumentRequest) error
+	UpdateDocumentByID(ctx context.Context, req *UpdateDocumentByIDRequest) error // 通过文档ID更新
 	DeleteDocument(ctx context.Context, req *DeleteDocumentRequest) error
 
 	// 高级功能
@@ -74,6 +75,15 @@ type UpdateDocumentRequest struct {
 	Content   string `json:"content" validate:"required"`
 	UserID    int    `json:"user_id" validate:"required,min=1"`
 	Message   string `json:"message,omitempty"` // Git提交信息
+}
+
+// UpdateDocumentByIDRequest 通过文档ID更新文档请求
+// 用于全局文档路由，不需要提供项目和任务ID
+type UpdateDocumentByIDRequest struct {
+	DocumentID int    `json:"document_id" validate:"required,min=1"`
+	Content    string `json:"content" validate:"required"`
+	UserID     int    `json:"user_id" validate:"required,min=1"`
+	Message    string `json:"message,omitempty"` // Git提交信息
 }
 
 // DeleteDocumentRequest 删除文档请求

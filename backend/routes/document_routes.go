@@ -61,10 +61,12 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 	}
 
 	// Document CRUD routes（全局文档资源）
+	// 使用UnifiedDocumentHandler处理文档更新操作
+	unifiedHandler := app.GetUnifiedDocumentHandler()
 	authorized.GET("/documents", app.GetDocumentHandler().GetDocuments)
 	authorized.POST("/documents", app.GetDocumentHandler().CreateDocument)
 	authorized.GET("/documents/:id", app.GetDocumentHandler().GetDocument)
-	authorized.PUT("/documents/:id", app.GetDocumentHandler().UpdateDocument)
+	authorized.PUT("/documents/:id", unifiedHandler.UpdateDocumentByID)  // 使用UpdateDocumentByID处理全局文档更新
 	authorized.DELETE("/documents/:id", app.GetDocumentHandler().DeleteDocument)
 
 	// Archive/Unarchive - 占位符实现
@@ -94,8 +96,7 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 	authorized.GET("/documents/:id/versions/:version_number/download", versionHandler.DownloadVersion)
 	authorized.DELETE("/documents/:id/versions/:version_number", versionHandler.DeleteVersion)
 
-	// 文档操作路由（已迁移到UnifiedDocumentHandler）
-	unifiedHandler := app.GetUnifiedDocumentHandler()
+	// 文档操作路由（已迁移到UnifiedDocumentHandler，使用前面声明的unifiedHandler）
 	authorized.POST("/documents/:id/copy", unifiedHandler.CopyDocument)
 	authorized.POST("/documents/:id/toggle-template", unifiedHandler.ToggleTemplate)
 }
