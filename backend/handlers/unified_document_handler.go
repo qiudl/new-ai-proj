@@ -1440,7 +1440,7 @@ func (h *UnifiedDocumentHandler) UpdateDocumentByID(c *gin.Context) {
 		return
 	}
 
-	// 获取用户ID (context中存储的是uint类型)
+	// 获取用户ID (JWT中间件设置的是int类型)
 	userIDRaw, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -1451,12 +1451,12 @@ func (h *UnifiedDocumentHandler) UpdateDocumentByID(c *gin.Context) {
 		return
 	}
 
-	// 类型断言并转换为int
-	userID, ok := userIDRaw.(uint)
+	// 类型断言为int
+	userID, ok := userIDRaw.(int)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "Invalid user ID type",
+			"message": fmt.Sprintf("Invalid user ID type: expected int, got %T", userIDRaw),
 			"code":    "INVALID_USER_ID",
 		})
 		return
