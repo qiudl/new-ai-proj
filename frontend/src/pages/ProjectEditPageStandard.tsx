@@ -227,13 +227,25 @@ const ProjectEditPageNew: React.FC = () => {
 
   // 企业相关状态（新架构）
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
-  const [selectedEnterprise, setSelectedEnterprise] = useState<number | null>(null);
+  const [_selectedEnterprise, _setSelectedEnterprise] = useState<number | null>(null);
+
+  // 🔍 包装 setSelectedEnterprise 来追踪所有调用
+  const setSelectedEnterprise = useCallback((value: number | null | ((prev: number | null) => number | null)) => {
+    const newValue = typeof value === 'function' ? value(_selectedEnterprise) : value;
+    console.log('🎯 [setSelectedEnterprise 被调用]');
+    console.log('   旧值:', _selectedEnterprise);
+    console.log('   新值:', newValue);
+    console.log('   调用位置:');
+    console.trace();
+    _setSelectedEnterprise(value);
+  }, [_selectedEnterprise]);
+
+  // 为了类型兼容，使用 selectedEnterprise 作为对外接口
+  const selectedEnterprise = _selectedEnterprise;
 
   // 🔍 调试：监控 selectedEnterprise 的所有变化
   useEffect(() => {
-    console.log('🔔 [selectedEnterprise变化] 新值:', selectedEnterprise);
-    console.log('   调用栈:');
-    console.trace();
+    console.log('🔔 [selectedEnterprise 状态已更新] 当前值:', selectedEnterprise);
   }, [selectedEnterprise]);
 
   // 用户相关状态
