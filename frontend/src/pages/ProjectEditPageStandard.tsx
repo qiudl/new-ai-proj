@@ -298,10 +298,16 @@ const ProjectEditPageNew: React.FC = () => {
   // ✅ 优化：使用useCallback包装loadCompanies
   const loadCompanies = useCallback(async () => {
     try {
+      console.log('🔄 [loadCompanies] 开始执行');
+      console.log('   currentEnterprise:', currentEnterprise);
+      console.log('   selectedEnterprise:', selectedEnterprise);
+
       setLoadingStates(prev => ({ ...prev, company: true }));
 
       // 判断是否为企业模式：只有当前企业上下文存在或用户选择了企业时
       const isEnterpriseMode = !!currentEnterprise || !!selectedEnterprise;
+      console.log('   isEnterpriseMode:', isEnterpriseMode);
+      console.log('   计算结果: !!currentEnterprise =', !!currentEnterprise, ', !!selectedEnterprise =', !!selectedEnterprise);
 
       if (isEnterpriseMode) {
         // 企业模式：项目只关联当前企业，不需要选择外部公司
@@ -892,10 +898,14 @@ const ProjectEditPageNew: React.FC = () => {
     loadEnterprises();
   }, [projectId, form, searchParams, loadProject, loadCompanies, loadEnterprises]);
 
-  // 监听企业选择变化，重新加载客户列表
+  // 监听企业模式变化，重新加载客户列表
+  // 注意：同时监听 currentEnterprise 和 selectedEnterprise
   useEffect(() => {
+    console.log('⚡️ [useEffect] 企业状态变化，触发 loadCompanies');
+    console.log('   currentEnterprise:', currentEnterprise);
+    console.log('   selectedEnterprise:', selectedEnterprise);
     loadCompanies();
-  }, [selectedEnterprise, loadCompanies]);
+  }, [currentEnterprise, selectedEnterprise, loadCompanies]);
 
   // ✅ 优化：修复useEffect依赖，添加缺失的函数依赖
   useEffect(() => {
