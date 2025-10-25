@@ -194,7 +194,7 @@ const createMockCompanyUsers = (companyId: number, company?: Company): CompanyUs
 const ProjectEditPageNew: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [form] = Form.useForm();
   
   // 企业上下文 - 用于数据隔离
@@ -720,27 +720,39 @@ const ProjectEditPageNew: React.FC = () => {
   const handleExitEnterpriseMode = useCallback(() => {
     console.log('🚪 [ProjectEdit] 开始退出企业模式...');
     console.log('   当前企业:', currentEnterprise);
+    console.log('   selectedEnterprise:', selectedEnterprise);
     console.log('   localStorage.currentEnterpriseId:', localStorage.getItem('currentEnterpriseId'));
+    console.log('   URL参数 enterpriseId:', searchParams.get('enterpriseId'));
 
     // 1. 清除localStorage中的企业ID
     localStorage.removeItem('currentEnterpriseId');
     console.log('✅ [ProjectEdit] 已清除 localStorage.currentEnterpriseId');
 
-    // 2. 清除当前企业上下文（这会触发 EnterpriseContext 的状态更新）
+    // 2. 清除URL参数中的enterpriseId（这是关键！）
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (newSearchParams.has('enterpriseId')) {
+      newSearchParams.delete('enterpriseId');
+      setSearchParams(newSearchParams, { replace: true });
+      console.log('✅ [ProjectEdit] 已清除 URL参数 enterpriseId');
+    }
+
+    // 3. 清除当前企业上下文（这会触发 EnterpriseContext 的状态更新）
     setCurrentEnterprise(null);
     console.log('✅ [ProjectEdit] 已清除 EnterpriseContext.currentEnterprise');
 
-    // 3. 清空本地选择的企业
+    // 4. 清空本地选择的企业
     setSelectedEnterprise(null);
     console.log('✅ [ProjectEdit] 已清除 selectedEnterprise');
 
-    // 4. 提示用户
+    // 5. 清空表单中的企业字段
+    form.setFieldsValue({ enterprise_id: undefined });
+    console.log('✅ [ProjectEdit] 已清除表单字段 enterprise_id');
+
+    // 6. 提示用户
     message.success('已退出企业模式，切换到传统模式');
 
-    // 注意：不需要手动调用 loadEnterprises/loadCompanies
-    // React 会在状态更新后自动触发相关的 useEffect
     console.log('✅ [ProjectEdit] 退出企业模式完成，等待状态更新触发数据重载...');
-  }, [setCurrentEnterprise, currentEnterprise]);
+  }, [setCurrentEnterprise, currentEnterprise, selectedEnterprise, searchParams, setSearchParams, form]);
 
   const getStatusOptions = () => [
     { label: '规划中', value: 'planning', color: 'blue' },
