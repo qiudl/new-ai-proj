@@ -79,7 +79,7 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	templateHandler := handlers.NewMCPTemplateHandler(app.GetDB())
 
 	// 任务文档相关路由
-	mcp.POST("/create-and-attach", createAndAttachTaskDocument(documentHandler, app))
+	mcp.POST("/create-and-attach", createAndAttachTaskDocument(app))
 	mcp.POST("/create-and-attach-work-note", createAndAttachWorkNote(workNoteHandler))
 	mcp.POST("/create-batch-documents", createBatchDocuments(documentHandler))
 	mcp.POST("/create-task-docs", createTaskDocs(documentHandler))
@@ -120,7 +120,8 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 }
 
 // createAndAttachTaskDocument MCP专用：创建并关联任务文档
-func createAndAttachTaskDocument(h *handlers.DocumentHandler, app ApplicationInterface) gin.HandlerFunc {
+// 实现UPSERT语义：如果文档已存在则更新，否则创建新文档
+func createAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
 			TaskID    int    `json:"taskId"`
@@ -140,6 +141,13 @@ func createAndAttachTaskDocument(h *handlers.DocumentHandler, app ApplicationInt
 			"content": req.Content,
 		}); err != nil {
 			c.JSON(http.StatusBadRequest, standardErrorResponse("Validation failed", err))
+			return
+		}
+
+		// 获取用户ID（验证用户已认证）
+		_, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, standardErrorResponse("User not authenticated", nil))
 			return
 		}
 
@@ -180,23 +188,118 @@ func createAndAttachTaskDocument(h *handlers.DocumentHandler, app ApplicationInt
 			}
 		}
 
-		// 设置路径参数，模拟标准API调用
-		c.Params = append(c.Params, gin.Param{Key: "id", Value: strconv.Itoa(projectID)})
-		c.Params = append(c.Params, gin.Param{Key: "taskId", Value: strconv.Itoa(req.TaskID)})
-
-		// 构造请求体，匹配DocumentHandler.CreateAndAttachDocument期望的格式
-		requestBody := map[string]interface{}{
-			"title":   title,
-			"content": req.Content,
+		// ✅ 核心改进：检查任务是否已有文档（UPSERT语义）
+		sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
+			return
 		}
 
-		// 将请求体重新编码为JSON
-		jsonBody, _ := json.Marshal(requestBody)
-		c.Request.Body = io.NopCloser(strings.NewReader(string(jsonBody)))
-		c.Request.ContentLength = int64(len(jsonBody))
+		var existingDocID int
+		err := sqlDB.QueryRow(`
+			SELECT d.id
+			FROM documents d
+			INNER JOIN task_documents td ON d.id = td.document_id
+			WHERE td.task_id = $1
+			  AND d.deleted_at IS NULL
+			  AND td.deleted_at IS NULL
+			ORDER BY
+			  CASE WHEN td.relationship_type = 'main' THEN 1 ELSE 2 END,
+			  td.created_at ASC
+			LIMIT 1
+		`, req.TaskID).Scan(&existingDocID)
 
-		// 调用现有的任务文档创建逻辑
-		h.CreateAndAttachDocument(c)
+		if err == nil {
+			// 文档已存在 → 更新文档
+			// 构造更新请求体
+			updateBody := map[string]interface{}{
+				"content": req.Content,
+				"message": "Updated via MCP create-and-attach",
+			}
+			if req.Title != "" {
+				updateBody["title"] = req.Title
+			}
+
+			// 编码请求体
+			jsonBody, _ := json.Marshal(updateBody)
+			c.Request.Body = io.NopCloser(strings.NewReader(string(jsonBody)))
+			c.Request.ContentLength = int64(len(jsonBody))
+
+			// 设置文档ID参数
+			c.Params = []gin.Param{{Key: "id", Value: strconv.Itoa(existingDocID)}}
+
+			// 调用UnifiedDocumentHandler.UpdateDocumentByID
+			unifiedHandler := app.GetUnifiedDocumentHandler()
+
+			// 保存原始Writer，用于修改响应
+			originalWriter := c.Writer
+			recorder := &responseRecorder{ResponseWriter: c.Writer, body: &bytes.Buffer{}}
+			c.Writer = recorder
+
+			unifiedHandler.UpdateDocumentByID(c)
+
+			// 修改响应，添加action标识
+			var updateResp map[string]interface{}
+			if err := json.Unmarshal(recorder.body.Bytes(), &updateResp); err == nil {
+				if data, ok := updateResp["data"].(map[string]interface{}); ok {
+					data["action"] = "updated"
+					data["task_id"] = req.TaskID
+					data["project_id"] = projectID
+				}
+				c.Writer = originalWriter
+				c.JSON(recorder.ResponseWriter.Status(), updateResp)
+			} else {
+				c.Writer = originalWriter
+				c.Writer.Write(recorder.body.Bytes())
+			}
+
+		} else if err == sql.ErrNoRows {
+			// 文档不存在 → 创建新文档
+			// 设置路径参数，模拟标准API调用
+			c.Params = []gin.Param{
+				{Key: "id", Value: strconv.Itoa(projectID)},
+				{Key: "taskId", Value: strconv.Itoa(req.TaskID)},
+			}
+
+			// 构造请求体，匹配UnifiedDocumentHandler.CreateDocument期望的格式
+			createBody := map[string]interface{}{
+				"title":   title,
+				"content": req.Content,
+				"format":  "markdown",
+			}
+
+			// 编码请求体
+			jsonBody, _ := json.Marshal(createBody)
+			c.Request.Body = io.NopCloser(strings.NewReader(string(jsonBody)))
+			c.Request.ContentLength = int64(len(jsonBody))
+
+			// 调用UnifiedDocumentHandler.CreateDocument
+			unifiedHandler := app.GetUnifiedDocumentHandler()
+
+			// 保存原始Writer，用于修改响应
+			originalWriter := c.Writer
+			recorder := &responseRecorder{ResponseWriter: c.Writer, body: &bytes.Buffer{}}
+			c.Writer = recorder
+
+			unifiedHandler.CreateDocument(c)
+
+			// 修改响应，添加action标识
+			var createResp map[string]interface{}
+			if err := json.Unmarshal(recorder.body.Bytes(), &createResp); err == nil {
+				if data, ok := createResp["data"].(map[string]interface{}); ok {
+					data["action"] = "created"
+				}
+				c.Writer = originalWriter
+				c.JSON(recorder.ResponseWriter.Status(), createResp)
+			} else {
+				c.Writer = originalWriter
+				c.Writer.Write(recorder.body.Bytes())
+			}
+
+		} else {
+			// 数据库查询错误
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to check existing document", err))
+		}
 	}
 }
 
