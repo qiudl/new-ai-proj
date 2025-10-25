@@ -203,6 +203,9 @@ const ProjectEditPageNew: React.FC = () => {
   // ✅ 使用 ref 追踪是否已经初始化过 URL 参数，防止重复设置
   const urlParamsInitializedRef = useRef(false);
 
+  // ✅ 使用 ref 追踪企业是否是从项目数据加载的（而不是用户手动选择的）
+  const enterpriseLoadedFromProjectRef = useRef(false);
+
   // 🔍 调试：监控企业状态变化
   useEffect(() => {
     console.log('🔍 [ProjectEdit] 企业状态变化:');
@@ -288,9 +291,18 @@ const ProjectEditPageNew: React.FC = () => {
       });
 
       // 设置选中的企业（优先使用新架构）
+      // ⚠️ 只在首次加载时设置，避免覆盖用户的手动选择
       if (projectData.enterprise_id) {
-        setSelectedEnterprise(projectData.enterprise_id);
-        form.setFieldsValue({ enterprise_id: projectData.enterprise_id });
+        if (!enterpriseLoadedFromProjectRef.current) {
+          console.log('📥 [loadProject] 首次加载，设置企业:', projectData.enterprise_id);
+          setSelectedEnterprise(projectData.enterprise_id);
+          form.setFieldsValue({ enterprise_id: projectData.enterprise_id });
+          enterpriseLoadedFromProjectRef.current = true;
+        } else {
+          console.log('⏭️ [loadProject] 跳过企业设置（用户可能已手动修改）');
+          console.log('   项目数据中的enterprise_id:', projectData.enterprise_id);
+          console.log('   当前selectedEnterprise:', selectedEnterprise);
+        }
       } else if (projectData.companies) {
         // 兼容旧的多客户架构
         const companyIds = projectData.companies.map(pc => pc.company_id);
@@ -1302,6 +1314,11 @@ const ProjectEditPageNew: React.FC = () => {
                     console.log('📝 [企业选择器] onChange 被调用，新值:', value);
                     // Ant Design Select 清除时返回 undefined，需要转换为 null
                     const enterpriseId = value === undefined ? null : value;
+
+                    // 标记企业已被手动修改，防止 loadProject 覆盖
+                    enterpriseLoadedFromProjectRef.current = true;
+                    console.log('🔐 [企业选择器] 标记为用户手动选择，防止被 loadProject 覆盖');
+
                     setSelectedEnterprise(enterpriseId);
                     form.setFieldsValue({ enterprise_id: enterpriseId, company_ids: undefined });
                     // 清空公司选择
