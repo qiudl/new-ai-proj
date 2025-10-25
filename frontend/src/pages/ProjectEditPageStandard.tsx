@@ -206,12 +206,6 @@ const ProjectEditPageNew: React.FC = () => {
   // ✅ 使用 ref 追踪企业是否是从项目数据加载的（而不是用户手动选择的）
   const enterpriseLoadedFromProjectRef = useRef(false);
 
-  // 🔍 调试：监控企业状态变化
-  useEffect(() => {
-    console.log('🔍 [ProjectEdit] 企业状态变化:');
-    console.log('   currentEnterprise:', currentEnterprise);
-    console.log('   localStorage.currentEnterpriseId:', localStorage.getItem('currentEnterpriseId'));
-  }, [currentEnterprise]);
   
   // ✅ 优化：合并loading相关状态，减少重渲染
   const [loadingStates, setLoadingStates] = useState({
@@ -232,24 +226,8 @@ const ProjectEditPageNew: React.FC = () => {
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [_selectedEnterprise, _setSelectedEnterprise] = useState<number | null>(null);
 
-  // 🔍 包装 setSelectedEnterprise 来追踪所有调用
-  const setSelectedEnterprise = useCallback((value: number | null | ((prev: number | null) => number | null)) => {
-    const newValue = typeof value === 'function' ? value(_selectedEnterprise) : value;
-    console.log('🎯 [setSelectedEnterprise 被调用]');
-    console.log('   旧值:', _selectedEnterprise);
-    console.log('   新值:', newValue);
-    console.log('   调用位置:');
-    console.trace();
-    _setSelectedEnterprise(value);
-  }, [_selectedEnterprise]);
-
-  // 为了类型兼容，使用 selectedEnterprise 作为对外接口
+  const setSelectedEnterprise = _setSelectedEnterprise;
   const selectedEnterprise = _selectedEnterprise;
-
-  // 🔍 调试：监控 selectedEnterprise 的所有变化
-  useEffect(() => {
-    console.log('🔔 [selectedEnterprise 状态已更新] 当前值:', selectedEnterprise);
-  }, [selectedEnterprise]);
 
   // 用户相关状态
   const [companyUsers, setCompanyUsers] = useState<{ [companyId: number]: CompanyUser[] }>({});
@@ -332,24 +310,16 @@ const ProjectEditPageNew: React.FC = () => {
   // ✅ 优化：使用useCallback包装loadCompanies
   const loadCompanies = useCallback(async () => {
     try {
-      console.log('🔄 [loadCompanies] 开始执行');
-      console.log('   currentEnterprise:', currentEnterprise);
-      console.log('   selectedEnterprise:', selectedEnterprise);
-
       setLoadingStates(prev => ({ ...prev, company: true }));
 
       // 判断是否为企业模式：只有当前企业上下文存在或用户选择了企业时
       const isEnterpriseMode = !!currentEnterprise || !!selectedEnterprise;
-      console.log('   isEnterpriseMode:', isEnterpriseMode);
-      console.log('   计算结果: !!currentEnterprise =', !!currentEnterprise, ', !!selectedEnterprise =', !!selectedEnterprise);
 
       if (isEnterpriseMode) {
         // 企业模式：项目只关联当前企业，不需要选择外部公司
-        console.log('🏢 [ProjectEdit] 企业模式下不加载客户列表，项目自动关联企业');
         setCompanies([]);
       } else {
         // 传统模式：从API加载企业列表作为客户
-        console.log('📋 [ProjectEdit] 传统模式，从API加载企业列表');
         try {
           const response = await enterpriseService.getEnterprises(1, 100);
 
@@ -374,7 +344,6 @@ const ProjectEditPageNew: React.FC = () => {
           }));
 
           setCompanies(companiesData);
-          console.log(`✅ [ProjectEdit] 成功加载 ${companiesData.length} 个企业作为客户列表`);
         } catch (apiError) {
           console.error('❌ [ProjectEdit] API加载失败，使用模拟数据:', apiError);
           setCompanies(MOCK_COMPANIES);
