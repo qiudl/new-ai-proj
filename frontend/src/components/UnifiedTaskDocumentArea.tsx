@@ -324,7 +324,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   const [newDocumentModalVisible, setNewDocumentModalVisible] = useState(false);
   const [newDocumentForm, setNewDocumentForm] = useState({ title: '', type: 'markdown', description: '' });
   const [documentListView, setDocumentListView] = useState<'grouped' | 'list' | 'timeline' | 'grid'>('grouped');
-  const [documentSortBy, setDocumentSortBy] = useState<'created_at' | 'updated_at'>('created_at');
+  const [documentSortBy, setDocumentSortBy] = useState<'created_at' | 'updated_at'>('updated_at'); // 默认按更新时间排序
   const [documentSortOrder, setDocumentSortOrder] = useState<'asc' | 'desc'>('desc');
   const [aiDocDialogVisible, setAiDocDialogVisible] = useState(false); // AI文档创建对话框
 
@@ -696,8 +696,19 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
           setSelectedDocument(null);
         }
       } else if (docs.length > 0) {
-        // 如果没有选中文档且有文档列表，选中第一个
-        setSelectedDocument(docs[0]);
+        // 如果没有选中文档且有文档列表，选中按updated_at排序后的第一个（最新更新的文档）
+        // 直接在这里实现排序，避免依赖sortDocuments函数
+        const sortedDocs = [...docs].sort((a, b) => {
+          const aTime = new Date(a.updated_at).getTime();
+          const bTime = new Date(b.updated_at).getTime();
+          return bTime - aTime; // 倒序：最新的在前
+        });
+        console.log('📄 [AUTO-SELECT] 自动选择最新更新的文档', {
+          selectedId: sortedDocs[0].id,
+          selectedTitle: sortedDocs[0].title,
+          updatedAt: sortedDocs[0].updated_at
+        });
+        setSelectedDocument(sortedDocs[0]);
       }
 
       // 通知父组件数据变化
