@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Card,
@@ -199,6 +199,9 @@ const ProjectEditPageNew: React.FC = () => {
   
   // 企业上下文 - 用于数据隔离
   const { currentEnterprise, setCurrentEnterprise } = useEnterprise();
+
+  // ✅ 使用 ref 追踪是否已经初始化过 URL 参数，防止重复设置
+  const urlParamsInitializedRef = useRef(false);
 
   // 🔍 调试：监控企业状态变化
   useEffect(() => {
@@ -736,6 +739,12 @@ const ProjectEditPageNew: React.FC = () => {
       console.log('✅ [ProjectEdit] 已清除 URL参数 enterpriseId');
     }
 
+    // ⚠️ 不要重置 urlParamsInitializedRef.current
+    // 因为 setSearchParams 是异步的，如果立即重置 ref，
+    // useEffect 再次触发时可能还会读到旧的 URL 参数
+    console.log('ℹ️  [ProjectEdit] 保持 URL参数初始化标志为 true，防止重复读取');
+
+
     // 3. 清除当前企业上下文（这会触发 EnterpriseContext 的状态更新）
     setCurrentEnterprise(null);
     console.log('✅ [ProjectEdit] 已清除 EnterpriseContext.currentEnterprise');
@@ -886,24 +895,38 @@ const ProjectEditPageNew: React.FC = () => {
         user_keys: undefined
       });
 
-      // 检查URL参数中的enterpriseId，优先使用新架构
-      const enterpriseIdParam = searchParams.get('enterpriseId');
-      if (enterpriseIdParam) {
-        const enterpriseId = parseInt(enterpriseIdParam);
-        if (!isNaN(enterpriseId)) {
-          setSelectedEnterprise(enterpriseId);
-          form.setFieldsValue({ enterprise_id: enterpriseId });
-        }
-      } else {
-        // 兼容旧的companyId参数
-        const companyIdParam = searchParams.get('companyId');
-        if (companyIdParam) {
-          const companyId = parseInt(companyIdParam);
-          if (!isNaN(companyId)) {
-            setSelectedCompanies([companyId]);
-            form.setFieldsValue({ company_ids: [companyId] });
+      // ✅ 只在首次挂载时读取URL参数，防止退出企业模式后又被恢复
+      if (!urlParamsInitializedRef.current) {
+        console.log('🔧 [ProjectEdit] 初始化：读取URL参数');
+        console.log('   enterpriseId:', searchParams.get('enterpriseId'));
+
+        // 检查URL参数中的enterpriseId，优先使用新架构
+        const enterpriseIdParam = searchParams.get('enterpriseId');
+        if (enterpriseIdParam) {
+          const enterpriseId = parseInt(enterpriseIdParam);
+          if (!isNaN(enterpriseId)) {
+            console.log('   设置 selectedEnterprise =', enterpriseId);
+            setSelectedEnterprise(enterpriseId);
+            form.setFieldsValue({ enterprise_id: enterpriseId });
+          }
+        } else {
+          // 兼容旧的companyId参数
+          const companyIdParam = searchParams.get('companyId');
+          if (companyIdParam) {
+            const companyId = parseInt(companyIdParam);
+            if (!isNaN(companyId)) {
+              console.log('   设置 selectedCompanies =', [companyId]);
+              setSelectedCompanies([companyId]);
+              form.setFieldsValue({ company_ids: [companyId] });
+            }
           }
         }
+
+        // 标记已初始化
+        urlParamsInitializedRef.current = true;
+        console.log('✅ [ProjectEdit] URL参数初始化完成');
+      } else {
+        console.log('⏭️  [ProjectEdit] 跳过URL参数读取（已初始化）');
       }
     }
     loadCompanies();
