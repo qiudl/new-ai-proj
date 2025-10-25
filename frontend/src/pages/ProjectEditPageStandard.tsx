@@ -697,20 +697,28 @@ const ProjectEditPageNew: React.FC = () => {
 
   // ✅ 新增：退出企业模式处理函数
   const handleExitEnterpriseMode = useCallback(() => {
+    console.log('🚪 [ProjectEdit] 开始退出企业模式...');
+    console.log('   当前企业:', currentEnterprise);
+    console.log('   localStorage.currentEnterpriseId:', localStorage.getItem('currentEnterpriseId'));
+
     // 清除localStorage中的企业ID
     localStorage.removeItem('currentEnterpriseId');
+    console.log('✅ [ProjectEdit] 已清除 localStorage.currentEnterpriseId');
 
     // 清除当前企业上下文
     setCurrentEnterprise(null);
+    console.log('✅ [ProjectEdit] 已清除 EnterpriseContext.currentEnterprise');
 
     // 清空已选择的企业
     setSelectedEnterprise(null);
+    console.log('✅ [ProjectEdit] 已清除 selectedEnterprise');
 
     // 重新加载客户列表（将进入传统模式）
+    console.log('🔄 [ProjectEdit] 正在重新加载客户列表...');
     loadCompanies();
 
     message.success('已退出企业模式，切换到传统模式');
-  }, [setCurrentEnterprise, loadCompanies]);
+  }, [setCurrentEnterprise, loadCompanies, currentEnterprise]);
 
   const getStatusOptions = () => [
     { label: '规划中', value: 'planning', color: 'blue' },
