@@ -80,7 +80,10 @@ func (h *DocumentVersionHandler) GetVersionHistory(c *gin.Context) {
 		return
 	}
 
-	versions, err := h.versionService.GetVersionHistory(c.Request.Context(), documentID, userIDUint64)
+	// Get include_content query parameter (default to false for performance)
+	includeContent := c.DefaultQuery("include_content", "false") == "true"
+
+	versions, err := h.versionService.GetVersionHistory(c.Request.Context(), documentID, userIDUint64, includeContent)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

@@ -202,7 +202,8 @@ func (dvs *DocumentVersionService) CreateVersion(ctx context.Context, documentID
 }
 
 // GetVersionHistory retrieves the version history of a document
-func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, documentID uint64, userID uint64) ([]DocumentVersionInfo, error) {
+// includeContent: if true, includes full content in response; if false, omits content
+func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, documentID uint64, userID uint64, includeContent bool) ([]DocumentVersionInfo, error) {
 	// Check if user can access the document (simplified permission check)
 	// Use raw SQL to avoid CustomFields parsing issues
 	var documentExists bool
@@ -221,16 +222,32 @@ func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, docume
 		CreatedByName string `json:"created_by_name"`
 	}
 
-	query := `
-		SELECT v.id, v.document_id, v.version_number, v.title, v.content, 
-		       v.changes_summary as change_summary, v.metadata, v.created_by, v.created_at,
-		       false as is_major_version, null as tags, 0 as label_count, 0 as comment_count,
-		       u.username as created_by_name
-		FROM document_versions v
-		LEFT JOIN users u ON v.created_by = u.id
-		WHERE v.document_id = ?
-		ORDER BY v.version_number DESC
-	`
+	// Build query based on includeContent parameter
+	var query string
+	if includeContent {
+		query = `
+			SELECT v.id, v.document_id, v.version_number, v.title, v.content,
+			       v.changes_summary as change_summary, v.metadata, v.created_by, v.created_at,
+			       false as is_major_version, null as tags, 0 as label_count, 0 as comment_count,
+			       u.username as created_by_name
+			FROM document_versions v
+			LEFT JOIN users u ON v.created_by = u.id
+			WHERE v.document_id = ?
+			ORDER BY v.version_number DESC
+		`
+	} else {
+		// Omit content field when not needed
+		query = `
+			SELECT v.id, v.document_id, v.version_number, v.title, NULL as content,
+			       v.changes_summary as change_summary, v.metadata, v.created_by, v.created_at,
+			       false as is_major_version, null as tags, 0 as label_count, 0 as comment_count,
+			       u.username as created_by_name
+			FROM document_versions v
+			LEFT JOIN users u ON v.created_by = u.id
+			WHERE v.document_id = ?
+			ORDER BY v.version_number DESC
+		`
+	}
 
 	if err := dvs.db.Raw(query, documentID).Scan(&versions).Error; err != nil {
 		return nil, fmt.Errorf("failed to retrieve version history: %w", err)
@@ -276,6 +293,8 @@ func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, docume
 }
 
 // GetVersion retrieves a specific version of a document
+// versionNumber: can be either version_number (1,2,3...) or version_id (373,374...)
+// The method will try version_number first, then fall back to version_id
 func (dvs *DocumentVersionService) GetVersion(ctx context.Context, documentID uint64, versionNumber int, userID uint64) (*DocumentVersionInfo, error) {
 	// Check if user can access the document (simplified permission check)
 	// Use raw SQL to avoid CustomFields parsing issues
@@ -295,8 +314,9 @@ func (dvs *DocumentVersionService) GetVersion(ctx context.Context, documentID ui
 		IsCurrent     bool   `json:"is_current"`
 	}
 
+	// First try to query by version_number
 	query := `
-		SELECT v.id, v.document_id, v.version_number, v.title, v.content, 
+		SELECT v.id, v.document_id, v.version_number, v.title, v.content,
 		       v.changes_summary as change_summary, v.metadata, v.created_by, v.created_at,
 		       false as is_major_version, null as tags, 0 as label_count, 0 as comment_count,
 		       u.username as created_by_name,
@@ -307,11 +327,34 @@ func (dvs *DocumentVersionService) GetVersion(ctx context.Context, documentID ui
 		WHERE v.document_id = ? AND v.version_number = ?
 	`
 
-	if err := dvs.db.Raw(query, documentID, versionNumber).Scan(&versionData).Error; err != nil {
+	err = dvs.db.Raw(query, documentID, versionNumber).Scan(&versionData).Error
+
+	// If not found by version_number, try by version_id
+	if err == gorm.ErrRecordNotFound || versionData.ID == 0 {
+		queryByID := `
+			SELECT v.id, v.document_id, v.version_number, v.title, v.content,
+			       v.changes_summary as change_summary, v.metadata, v.created_by, v.created_at,
+			       false as is_major_version, null as tags, 0 as label_count, 0 as comment_count,
+			       u.username as created_by_name,
+			       (v.version_number = d.version) as is_current
+			FROM document_versions v
+			LEFT JOIN users u ON v.created_by = u.id
+			LEFT JOIN documents d ON v.document_id = d.id
+			WHERE v.document_id = ? AND v.id = ?
+		`
+		err = dvs.db.Raw(queryByID, documentID, versionNumber).Scan(&versionData).Error
+	}
+
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("version %d not found for document %d", versionNumber, documentID)
 		}
 		return nil, fmt.Errorf("failed to retrieve version: %w", err)
+	}
+
+	// Check if we actually got data
+	if versionData.ID == 0 {
+		return nil, fmt.Errorf("version %d not found for document %d", versionNumber, documentID)
 	}
 
 	changeSummary := func() string {
