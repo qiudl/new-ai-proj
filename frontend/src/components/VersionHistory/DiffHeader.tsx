@@ -59,6 +59,9 @@ const DiffHeader: React.FC<DiffHeaderProps> = ({
     return 'red';
   };
 
+  // 检查标题是否发生变更
+  const hasTitleChange = oldVersion && newVersion && oldVersion.title !== newVersion.title;
+
   return (
     <div className="diff-header">
       <div className="diff-header-content">
@@ -101,6 +104,25 @@ const DiffHeader: React.FC<DiffHeaderProps> = ({
           </div>
         )}
       </div>
+
+      {/* 标题变更信息 */}
+      {hasTitleChange && (
+        <div className="title-change-section">
+          <div className="title-change-label">
+            <Tag color="purple" style={{ margin: 0 }}>标题变更</Tag>
+          </div>
+          <div className="title-change-content">
+            <div className="title-old">
+              <Tag color="red" style={{ marginRight: 8 }}>-</Tag>
+              <span className="title-text removed-text">{oldVersion.title}</span>
+            </div>
+            <div className="title-new">
+              <Tag color="green" style={{ marginRight: 8 }}>+</Tag>
+              <span className="title-text added-text">{newVersion.title}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 没有选择版本时的提示 */}
       {!oldVersion && !newVersion && (

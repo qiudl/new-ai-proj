@@ -61,6 +61,60 @@
   font-size: 13px;
 }
 
+/* 标题变更区域 */
+.title-change-section {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+}
+
+.title-change-label {
+  margin-bottom: 8px;
+}
+
+.title-change-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title-old,
+.title-new {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.title-old {
+  background-color: #fff1f0;
+  border-left: 3px solid #ff4d4f;
+}
+
+.title-new {
+  background-color: #f6ffed;
+  border-left: 3px solid #52c41a;
+}
+
+.title-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  word-break: break-word;
+}
+
+.removed-text {
+  color: #cf1322;
+  text-decoration: line-through;
+}
+
+.added-text {
+  color: #389e0d;
+  font-weight: 500;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .diff-header-content {
@@ -76,5 +130,13 @@
 
   .comparison-arrow {
     font-size: 14px;
+  }
+
+  .title-change-section {
+    padding: 10px;
+  }
+
+  .title-text {
+    font-size: 12px;
   }
 }
