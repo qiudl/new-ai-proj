@@ -110,7 +110,7 @@ describe('TaskDocumentService Integration Tests', () => {
       const result = await taskDocumentService.get(1, 123);
 
       // Assert
-      expect(mockApi.get).toHaveBeenCalledWith('/projects/1/tasks/123/document');
+      expect(mockApi.get).toHaveBeenCalledWith('/projects/1/tasks/123/documents');
       expect(result).toEqual(mockTaskDocument);
     });
 
@@ -122,7 +122,7 @@ describe('TaskDocumentService Integration Tests', () => {
       const result = await taskDocumentService.getAdvanced(1, 123);
 
       // Assert
-      expect(mockApi.get).toHaveBeenCalledWith('/projects/1/tasks/123/document/advanced');
+      expect(mockApi.get).toHaveBeenCalledWith('/projects/1/tasks/123/documents/advanced');
       expect(result).toEqual(mockAdvancedTaskDocument);
     });
 
@@ -136,7 +136,7 @@ describe('TaskDocumentService Integration Tests', () => {
 
       // Assert
       expect(mockApi.put).toHaveBeenCalledWith(
-        '/projects/1/tasks/123/document',
+        '/projects/1/tasks/123/documents',
         { content }
       );
       expect(result).toEqual({ content });
@@ -150,7 +150,7 @@ describe('TaskDocumentService Integration Tests', () => {
       await taskDocumentService.delete(1, 123);
 
       // Assert
-      expect(mockApi.delete).toHaveBeenCalledWith('/projects/1/tasks/123/document');
+      expect(mockApi.delete).toHaveBeenCalledWith('/projects/1/tasks/123/documents');
     });
   });
 

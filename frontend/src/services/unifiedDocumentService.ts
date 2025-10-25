@@ -314,7 +314,7 @@ export class UnifiedDocumentService {
       }
 
       // 从API获取
-      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/document`);
+      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`);
 
       // 处理空响应（任务没有文档）
       if (!response || (response as TaskDocumentResponse).content === '') {
@@ -368,7 +368,7 @@ export class UnifiedDocumentService {
 
       // 保存文档（API会自动判断是创建还是更新）
       const response = await api.post(
-        `/projects/${projectId}/tasks/${taskId}/document`,
+        `/projects/${projectId}/tasks/${taskId}/documents`,
         request
       );
       const document = response as Document;
@@ -396,7 +396,7 @@ export class UnifiedDocumentService {
     try {
       this.startMonitoring('delete_task_document', { projectId, taskId });
 
-      await api.delete(`/projects/${projectId}/tasks/${taskId}/document`);
+      await api.delete(`/projects/${projectId}/tasks/${taskId}/documents`);
 
       // 清除缓存
       await this.invalidateTaskDocumentCache(projectId, taskId);
