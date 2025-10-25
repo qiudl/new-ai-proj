@@ -433,15 +433,6 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                             style={{ padding: '0 4px' }}
                           />
                         </Tooltip>
-                        <Tooltip title="编辑文档">
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={<EditOutlined />}
-                            onClick={() => setManagerVisible(true)}
-                            style={{ padding: '0 4px' }}
-                          />
-                        </Tooltip>
                         <Popconfirm
                           title={`确定删除文档 "${doc.title}"？`}
                           description="删除后无法恢复，请确认操作"
