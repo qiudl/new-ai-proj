@@ -1299,10 +1299,17 @@ const ProjectEditPageNew: React.FC = () => {
                   }
                   value={selectedEnterprise}
                   onChange={(value) => {
-                    setSelectedEnterprise(value);
-                    form.setFieldsValue({ enterprise_id: value, company_ids: undefined });
+                    console.log('📝 [企业选择器] onChange 被调用，新值:', value);
+                    // Ant Design Select 清除时返回 undefined，需要转换为 null
+                    const enterpriseId = value === undefined ? null : value;
+                    setSelectedEnterprise(enterpriseId);
+                    form.setFieldsValue({ enterprise_id: enterpriseId, company_ids: undefined });
                     // 清空公司选择
                     setSelectedCompanies([]);
+
+                    if (enterpriseId === null) {
+                      console.log('✅ [企业选择器] 已清除企业选择，切换到传统模式');
+                    }
                   }}
                   loading={loadingStates.enterprise}
                   disabled={!canChangeEnterprise} // ✅ 方案A：使用新的权限检查逻辑
