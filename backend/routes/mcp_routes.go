@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -89,6 +90,9 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	mcp.DELETE("/task-document/:taskId", deleteTaskDocument(documentHandler, app))
 	mcp.GET("/task-document/:taskId/exists", hasTaskDocument(documentHandler, app))
 
+	// 文档直接查询路由（通过文档ID）
+	mcp.GET("/documents/:documentId", getDocumentByID(app))
+
 	// 工作笔记相关路由
 	mcp.POST("/create-work-note", createWorkNote(workNoteHandler))
 	mcp.POST("/work-notes", createWorkNote(workNoteHandler))  // 保留兼容性
@@ -171,8 +175,8 @@ func createAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 			lines := strings.Split(req.Content, "\n")
 			if len(lines) > 0 {
 				firstLine := strings.TrimSpace(lines[0])
-				// 移除Markdown标题标记
-				firstLine = strings.TrimPrefix(firstLine, "#")
+				// 移除Markdown标题标记（支持多级标题如 ### 标题）
+				firstLine = strings.TrimLeft(firstLine, "# ")
 				firstLine = strings.TrimSpace(firstLine)
 				// 限制标题长度为60个中文字符（使用rune计数避免UTF-8乱码）
 				runes := []rune(firstLine)
@@ -216,8 +220,9 @@ func createAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 				"content": req.Content,
 				"message": "Updated via MCP create-and-attach",
 			}
-			if req.Title != "" {
-				updateBody["title"] = req.Title
+			// 使用生成的title变量（包含智能提取的标题）
+			if title != "" {
+				updateBody["title"] = title
 			}
 
 			// 编码请求体
@@ -225,8 +230,10 @@ func createAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 			c.Request.Body = io.NopCloser(strings.NewReader(string(jsonBody)))
 			c.Request.ContentLength = int64(len(jsonBody))
 
-			// 设置文档ID参数
-			c.Params = []gin.Param{{Key: "id", Value: strconv.Itoa(existingDocID)}}
+			// 设置文档ID参数（使用gin.Params类型）
+			c.Params = gin.Params{
+				gin.Param{Key: "id", Value: strconv.Itoa(existingDocID)},
+			}
 
 			// 调用UnifiedDocumentHandler.UpdateDocumentByID
 			unifiedHandler := app.GetUnifiedDocumentHandler()
@@ -241,24 +248,30 @@ func createAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 			// 修改响应，添加action标识
 			var updateResp map[string]interface{}
 			if err := json.Unmarshal(recorder.body.Bytes(), &updateResp); err == nil {
+				// 增强的类型检查和日志
 				if data, ok := updateResp["data"].(map[string]interface{}); ok {
 					data["action"] = "updated"
 					data["task_id"] = req.TaskID
 					data["project_id"] = projectID
+				} else {
+					// 记录警告日志，但不阻塞请求
+					log.Printf("[WARN] MCP create-and-attach: Failed to add action field - data is not map[string]interface{}, got type %T", updateResp["data"])
 				}
 				c.Writer = originalWriter
 				c.JSON(recorder.ResponseWriter.Status(), updateResp)
 			} else {
+				// 解析失败时记录错误，并返回原始响应（保持Content-Type）
+				log.Printf("[ERROR] MCP create-and-attach: Failed to parse update response JSON: %v", err)
 				c.Writer = originalWriter
-				c.Writer.Write(recorder.body.Bytes())
+				c.Data(recorder.ResponseWriter.Status(), "application/json", recorder.body.Bytes())
 			}
 
 		} else if err == sql.ErrNoRows {
 			// 文档不存在 → 创建新文档
 			// 设置路径参数，模拟标准API调用
-			c.Params = []gin.Param{
-				{Key: "id", Value: strconv.Itoa(projectID)},
-				{Key: "taskId", Value: strconv.Itoa(req.TaskID)},
+			c.Params = gin.Params{
+				gin.Param{Key: "id", Value: strconv.Itoa(projectID)},
+				gin.Param{Key: "taskId", Value: strconv.Itoa(req.TaskID)},
 			}
 
 			// 构造请求体，匹配UnifiedDocumentHandler.CreateDocument期望的格式
@@ -286,14 +299,22 @@ func createAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 			// 修改响应，添加action标识
 			var createResp map[string]interface{}
 			if err := json.Unmarshal(recorder.body.Bytes(), &createResp); err == nil {
+				// 增强的类型检查和日志
 				if data, ok := createResp["data"].(map[string]interface{}); ok {
 					data["action"] = "created"
+					data["task_id"] = req.TaskID
+					data["project_id"] = projectID
+				} else {
+					// 记录警告日志，但不阻塞请求
+					log.Printf("[WARN] MCP create-and-attach: Failed to add action field - data is not map[string]interface{}, got type %T", createResp["data"])
 				}
 				c.Writer = originalWriter
 				c.JSON(recorder.ResponseWriter.Status(), createResp)
 			} else {
+				// 解析失败时记录错误，并返回原始响应（保持Content-Type）
+				log.Printf("[ERROR] MCP create-and-attach: Failed to parse create response JSON: %v", err)
 				c.Writer = originalWriter
-				c.Writer.Write(recorder.body.Bytes())
+				c.Data(recorder.ResponseWriter.Status(), "application/json", recorder.body.Bytes())
 			}
 
 		} else {
@@ -526,6 +547,30 @@ func getTaskDocument(h *handlers.DocumentHandler, app ApplicationInterface) gin.
 		}
 
 		c.JSON(http.StatusOK, standardSuccessResponse("Task document retrieved successfully", docData))
+	}
+}
+
+// getDocumentByID MCP专用：通过文档ID直接获取文档
+func getDocumentByID(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 解析文档ID
+		documentIDStr := c.Param("documentId")
+		if _, err := strconv.Atoi(documentIDStr); err != nil {
+			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid documentId", err))
+			return
+		}
+
+		// 获取UnifiedDocumentHandler
+		unifiedHandler := app.GetUnifiedDocumentHandler()
+
+		// 直接设置路径参数为"id"（UnifiedDocumentHandler.GetDocumentByID期望的参数名）
+		c.Params = gin.Params{
+			{Key: "id", Value: documentIDStr},
+		}
+
+		// 直接调用UnifiedDocumentHandler的GetDocumentByID方法
+		// UnifiedDocumentHandler会直接写入响应，无需我们再次处理
+		unifiedHandler.GetDocumentByID(c)
 	}
 }
 
