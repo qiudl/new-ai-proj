@@ -67,7 +67,7 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 	authorized.POST("/documents", app.GetDocumentHandler().CreateDocument)
 	authorized.GET("/documents/:id", unifiedHandler.GetDocumentByID)     // 使用GetDocumentByID处理全局文档获取
 	authorized.PUT("/documents/:id", unifiedHandler.UpdateDocumentByID)  // 使用UpdateDocumentByID处理全局文档更新
-	authorized.DELETE("/documents/:id", app.GetDocumentHandler().DeleteDocument)
+	authorized.DELETE("/documents/:id", unifiedHandler.DeleteDocumentByID) // 使用DeleteDocumentByID处理全局文档删除
 
 	// Archive/Unarchive - 占位符实现
 	authorized.POST("/documents/:id/archive", func(c *gin.Context) {

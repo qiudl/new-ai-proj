@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"ai-project-backend/database"
 	"ai-project-backend/interfaces"
 	"fmt"
 	"net/http"
@@ -14,12 +15,14 @@ import (
 // UnifiedDocumentHandler 统一文档处理器
 type UnifiedDocumentHandler struct {
 	documentService interfaces.DocumentServiceInterface
+	db              database.DB
 }
 
 // NewUnifiedDocumentHandler 创建统一文档处理器实例
-func NewUnifiedDocumentHandler(documentService interfaces.DocumentServiceInterface) *UnifiedDocumentHandler {
+func NewUnifiedDocumentHandler(documentService interfaces.DocumentServiceInterface, db database.DB) *UnifiedDocumentHandler {
 	return &UnifiedDocumentHandler{
 		documentService: documentService,
+		db:              db,
 	}
 }
 
@@ -1563,5 +1566,71 @@ func (h *UnifiedDocumentHandler) GetDocumentByID(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    doc,
+	})
+}
+
+// DeleteDocumentByID 通过文档ID删除文档（软删除）
+// DELETE /api/v1/documents/:id
+func (h *UnifiedDocumentHandler) DeleteDocumentByID(c *gin.Context) {
+	// 解析文档ID
+	docID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid document ID",
+			"code":    "INVALID_DOCUMENT_ID",
+		})
+		return
+	}
+
+	// 获取用户ID
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "User not authenticated",
+			"code":    "NOT_AUTHENTICATED",
+		})
+		return
+	}
+
+	// 类型断言为int
+	userID, ok := userIDRaw.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("Invalid user ID type: expected int, got %T", userIDRaw),
+			"code":    "INVALID_USER_ID",
+		})
+		return
+	}
+
+	// 调用Repository层的Delete方法（软删除）
+	err = h.db.Documents().Delete(c.Request.Context(), docID)
+	if err != nil {
+		if strings.Contains(err.Error(), "不存在") || strings.Contains(err.Error(), "已删除") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"message": "Document not found or already deleted",
+				"code":    "DOCUMENT_NOT_FOUND",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Failed to delete document",
+				"code":    "DELETE_FAILED",
+				"details": err.Error(),
+			})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Document %d deleted successfully", docID),
+		"data": gin.H{
+			"document_id": docID,
+			"deleted_by":  userID,
+		},
 	})
 }

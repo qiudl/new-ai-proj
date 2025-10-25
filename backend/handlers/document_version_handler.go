@@ -93,6 +93,12 @@ func (h *DocumentVersionHandler) GetVersionHistory(c *gin.Context) {
 		return
 	}
 
+	// Get document title from the base service
+	documentTitle := ""
+	if doc, err := h.versionService.GetDocumentInfo(c.Request.Context(), documentID); err == nil && doc != nil {
+		documentTitle = doc.Title
+	}
+
 	// Convert to response format
 	// Initialize as empty slice to avoid null in JSON response when no versions exist
 	versionPtrs := make([]*models.DocumentVersion, 0, len(versions))
@@ -118,8 +124,9 @@ func (h *DocumentVersionHandler) GetVersionHistory(c *gin.Context) {
 	}
 
 	response := models.DocumentVersionHistoryResponse{
-		DocumentID: int(documentID),
-		Versions:   versionPtrs,
+		DocumentID:    int(documentID),
+		DocumentTitle: documentTitle,
+		Versions:      versionPtrs,
 		Stats: models.DocumentVersionStats{
 			DocumentID:    int(documentID),
 			TotalVersions: len(versions),

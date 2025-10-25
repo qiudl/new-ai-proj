@@ -163,7 +163,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 		}
 	}
 	unifiedDocumentService := services.NewUnifiedDocumentService(documentConfig, f.db)
-	allHandlers.UnifiedDocumentHandler = handlers.NewUnifiedDocumentHandler(unifiedDocumentService)
+	allHandlers.UnifiedDocumentHandler = handlers.NewUnifiedDocumentHandler(unifiedDocumentService, f.db)
 
 	// 基于文件的任务文档处理器 (向后兼容)
 	taskDocumentFileService := services.NewTaskDocumentFileService(docsBasePath)

@@ -614,3 +614,12 @@ func (dvs *DocumentVersionService) logVersionOperation(db *gorm.DB, documentID u
 
 	return db.Create(operation).Error
 }
+
+// GetDocumentInfo retrieves basic document information
+func (dvs *DocumentVersionService) GetDocumentInfo(ctx context.Context, documentID uint64) (*models.TaskDocument, error) {
+	var document models.TaskDocument
+	if err := dvs.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", documentID).First(&document).Error; err != nil {
+		return nil, fmt.Errorf("failed to get document: %w", err)
+	}
+	return &document, nil
+}
