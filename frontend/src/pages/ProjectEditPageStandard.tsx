@@ -199,6 +199,13 @@ const ProjectEditPageNew: React.FC = () => {
   
   // 企业上下文 - 用于数据隔离
   const { currentEnterprise, setCurrentEnterprise } = useEnterprise();
+
+  // 🔍 调试：监控企业状态变化
+  useEffect(() => {
+    console.log('🔍 [ProjectEdit] 企业状态变化:');
+    console.log('   currentEnterprise:', currentEnterprise);
+    console.log('   localStorage.currentEnterpriseId:', localStorage.getItem('currentEnterpriseId'));
+  }, [currentEnterprise]);
   
   // ✅ 优化：合并loading相关状态，减少重渲染
   const [loadingStates, setLoadingStates] = useState({
@@ -345,20 +352,28 @@ const ProjectEditPageNew: React.FC = () => {
   // ✅ 优化：使用useCallback包装loadEnterprises
   const loadEnterprises = useCallback(async () => {
     try {
+      console.log('🔄 [loadEnterprises] 开始加载企业列表');
+      console.log('   currentEnterprise:', currentEnterprise);
+      console.log('   selectedEnterprise:', selectedEnterprise);
+
       setLoadingStates(prev => ({ ...prev, enterprise: true }));
 
       // 在企业模式下，只显示当前企业，不允许选择其他企业
       if (currentEnterprise) {
-        console.log('企业模式：只加载当前企业', currentEnterprise.name);
+        console.log('🏢 [loadEnterprises] 企业模式：只加载当前企业', currentEnterprise.name);
         setEnterprises([currentEnterprise]);
-        setSelectedEnterprise(currentEnterprise.id);
+        // ⚠️ 不自动设置 selectedEnterprise，由其他逻辑（如表单加载）来设置
+        // 这样可以避免在退出企业模式时重新设置的问题
+        console.log('   已加载当前企业（不自动选中）');
       } else {
+        console.log('📋 [loadEnterprises] 传统模式：加载所有企业（管理员模式）');
         // 兼容模式：加载所有企业（管理员模式）
         const response = await enterpriseService.getEnterprises(1, 100);
         setEnterprises(response.data);
+        console.log('   已加载企业数量:', response.data.length);
       }
     } catch (error) {
-      console.error('加载企业列表失败:', error);
+      console.error('❌ [loadEnterprises] 加载企业列表失败:', error);
       message.error('加载企业列表失败');
     } finally {
       setLoadingStates(prev => ({ ...prev, enterprise: false }));
@@ -701,24 +716,25 @@ const ProjectEditPageNew: React.FC = () => {
     console.log('   当前企业:', currentEnterprise);
     console.log('   localStorage.currentEnterpriseId:', localStorage.getItem('currentEnterpriseId'));
 
-    // 清除localStorage中的企业ID
+    // 1. 清除localStorage中的企业ID
     localStorage.removeItem('currentEnterpriseId');
     console.log('✅ [ProjectEdit] 已清除 localStorage.currentEnterpriseId');
 
-    // 清除当前企业上下文
+    // 2. 清除当前企业上下文（这会触发 EnterpriseContext 的状态更新）
     setCurrentEnterprise(null);
     console.log('✅ [ProjectEdit] 已清除 EnterpriseContext.currentEnterprise');
 
-    // 清空已选择的企业
+    // 3. 清空本地选择的企业
     setSelectedEnterprise(null);
     console.log('✅ [ProjectEdit] 已清除 selectedEnterprise');
 
-    // 重新加载客户列表（将进入传统模式）
-    console.log('🔄 [ProjectEdit] 正在重新加载客户列表...');
-    loadCompanies();
-
+    // 4. 提示用户
     message.success('已退出企业模式，切换到传统模式');
-  }, [setCurrentEnterprise, loadCompanies, currentEnterprise]);
+
+    // 注意：不需要手动调用 loadEnterprises/loadCompanies
+    // React 会在状态更新后自动触发相关的 useEffect
+    console.log('✅ [ProjectEdit] 退出企业模式完成，等待状态更新触发数据重载...');
+  }, [setCurrentEnterprise, currentEnterprise]);
 
   const getStatusOptions = () => [
     { label: '规划中', value: 'planning', color: 'blue' },
