@@ -198,7 +198,7 @@ const ProjectEditPageNew: React.FC = () => {
   const [form] = Form.useForm();
   
   // 企业上下文 - 用于数据隔离
-  const { currentEnterprise } = useEnterprise();
+  const { currentEnterprise, setCurrentEnterprise } = useEnterprise();
   
   // ✅ 优化：合并loading相关状态，减少重渲染
   const [loadingStates, setLoadingStates] = useState({
@@ -695,6 +695,23 @@ const ProjectEditPageNew: React.FC = () => {
     }
   }, [isEditing, projectId, navigate]);
 
+  // ✅ 新增：退出企业模式处理函数
+  const handleExitEnterpriseMode = useCallback(() => {
+    // 清除localStorage中的企业ID
+    localStorage.removeItem('currentEnterpriseId');
+
+    // 清除当前企业上下文
+    setCurrentEnterprise(null);
+
+    // 清空已选择的企业
+    setSelectedEnterprise(null);
+
+    // 重新加载客户列表（将进入传统模式）
+    loadCompanies();
+
+    message.success('已退出企业模式，切换到传统模式');
+  }, [setCurrentEnterprise, loadCompanies]);
+
   const getStatusOptions = () => [
     { label: '规划中', value: 'planning', color: 'blue' },
     { label: '进行中', value: 'active', color: 'green' },
@@ -936,6 +953,44 @@ const ProjectEditPageNew: React.FC = () => {
             </Space>
           </div>
         </Card>
+
+        {/* ✅ 新增：企业模式状态提示 */}
+        {currentEnterprise && (
+          <Alert
+            type="info"
+            message={
+              <Space>
+                <BankOutlined />
+                <span>
+                  <strong>企业模式</strong>：当前企业为 <strong>{currentEnterprise.name}</strong>
+                  {!isEditing && ' - 项目将自动关联到此企业'}
+                </span>
+              </Space>
+            }
+            description={
+              <div>
+                {!isEditing ? (
+                  <>在企业模式下创建的项目将自动关联到当前企业。如需在传统模式下选择多个客户，请点击下方按钮退出企业模式。</>
+                ) : (
+                  <>您可以在编辑模式下修改项目的企业关联。</>
+                )}
+              </div>
+            }
+            action={
+              <Button
+                size="small"
+                type="primary"
+                onClick={handleExitEnterpriseMode}
+                icon={<CloseOutlined />}
+              >
+                退出企业模式
+              </Button>
+            }
+            closable
+            onClose={handleExitEnterpriseMode}
+            style={{ marginTop: '16px' }}
+          />
+        )}
       </div>
 
 
