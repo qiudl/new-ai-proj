@@ -75,12 +75,28 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     setError(null);
 
     try {
-      // 【修复】始终从API加载最新数据，不使用prop（避免缓存问题）
-      console.log('📥 [加载文档] 强制从API加载最新文档...', {
+      // 如果传入了taskDocument prop，优先使用它的数据
+      if (taskDocument && taskDocument.id) {
+        console.log('📥 [加载文档] 使用传入的taskDocument prop', {
+          documentId: taskDocument.id,
+          title: taskDocument.title,
+          contentLength: (taskDocument.content || '').length,
+          version: (taskDocument as any).version
+        });
+
+        // 直接使用传入的文档数据
+        setContent(taskDocument.content || '');
+        setOriginalContent(taskDocument.content || '');
+        setTitle(taskDocument.title || '');
+        setOriginalTitle(taskDocument.title || '');
+        setLoading(false);
+        return;
+      }
+
+      // 如果没有传入taskDocument，则从API加载主文档
+      console.log('📥 [加载文档] 从API加载主文档...', {
         projectId,
-        taskId,
-        propVersion: taskDocument?.version,
-        documentId: taskDocument?.id
+        taskId
       });
 
       // 直接调用API，添加时间戳绕过所有缓存
@@ -107,7 +123,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
         setOriginalContent(mainDoc.content || '');
         setTitle(mainDoc.title || '');
         setOriginalTitle(mainDoc.title || '');
-        console.log('✅ [加载文档] 加载成功（直接从API）', {
+        console.log('✅ [加载文档] 加载成功（从API查找main文档）', {
           documentId: mainDoc.id,
           version: mainDoc.version,
           contentLength: (mainDoc.content || '').length
@@ -118,7 +134,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
         setOriginalContent('');
         setTitle('');
         setOriginalTitle('');
-        console.log('📄 [加载文档] 文档不存在，显示空内容');
+        console.log('📄 [加载文档] 主文档不存在，显示空内容');
       }
 
     } catch (err: unknown) {
@@ -129,7 +145,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [projectId, taskId]); // 移除taskDocument依赖，始终从API加载
+  }, [projectId, taskId, taskDocument]); // 添加taskDocument依赖
 
   // 保存文档
   const saveDocument = useCallback(async () => {
