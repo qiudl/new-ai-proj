@@ -198,7 +198,12 @@ type SystemRepository interface {
 	HardDeleteTask(ctx context.Context, id int) error
 
 	GetRecycledDocuments(ctx context.Context, page, pageSize int) ([]*models.RecycledDocument, int, error)
+	RestoreDocument(ctx context.Context, id int) error
+	HardDeleteDocument(ctx context.Context, id int) error
+
 	GetRecycledWorkNotes(ctx context.Context, page, pageSize int) ([]*models.RecycledWorkNote, int, error)
+	RestoreWorkNote(ctx context.Context, id int) error
+	HardDeleteWorkNote(ctx context.Context, id int) error
 
 	// Enhanced audit log operations
 	GetAuditLogsWithFilter(ctx context.Context, filter *models.AuditLogFilter) ([]interface{}, int, error)

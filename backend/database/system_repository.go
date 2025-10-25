@@ -352,6 +352,96 @@ func (r *PostgresSystemRepository) GetRecycledWorkNotes(ctx context.Context, pag
 	return workNotes, total, nil
 }
 
+// RestoreDocument restores a deleted document
+func (r *PostgresSystemRepository) RestoreDocument(ctx context.Context, id int) error {
+	query := `UPDATE documents SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to restore document: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("document not found in recycle bin")
+	}
+
+	return nil
+}
+
+// HardDeleteDocument permanently deletes a document
+func (r *PostgresSystemRepository) HardDeleteDocument(ctx context.Context, id int) error {
+	query := `DELETE FROM documents WHERE id = $1 AND deleted_at IS NOT NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to permanently delete document: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("document not found in recycle bin or already deleted")
+	}
+
+	return nil
+}
+
+// RestoreWorkNote restores a deleted work note
+func (r *PostgresSystemRepository) RestoreWorkNote(ctx context.Context, id int) error {
+	// Work notes are stored in the documents table
+	query := `UPDATE documents SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to restore work note: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("work note not found in recycle bin")
+	}
+
+	return nil
+}
+
+// HardDeleteWorkNote permanently deletes a work note
+func (r *PostgresSystemRepository) HardDeleteWorkNote(ctx context.Context, id int) error {
+	// Work notes are stored in the documents table
+	query := `DELETE FROM documents WHERE id = $1 AND deleted_at IS NOT NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to permanently delete work note: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("work note not found in recycle bin or already deleted")
+	}
+
+	return nil
+}
+
 // RestoreTask restores a deleted task
 func (r *PostgresSystemRepository) RestoreTask(ctx context.Context, id int) error {
 	query := `UPDATE tasks SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`

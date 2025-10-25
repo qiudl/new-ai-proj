@@ -32,13 +32,17 @@ func RegisterRecycleBinRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 	// 文档回收站路由
 	documents := recycleGroup.Group("/documents")
 	{
-		documents.GET("", app.GetRecycledDocumentsHandler())         // GET /api/v1/system/recycle/documents
+		documents.GET("", app.GetRecycledDocumentsHandler())           // GET /api/v1/system/recycle/documents
+		documents.POST("/:id/restore", app.RestoreDocumentHandler())  // POST /api/v1/system/recycle/documents/:id/restore
+		documents.DELETE("/:id", app.HardDeleteDocumentHandler())     // DELETE /api/v1/system/recycle/documents/:id
 	}
 
 	// 工作笔记回收站路由
 	workNotes := recycleGroup.Group("/work-notes")
 	{
-		workNotes.GET("", app.GetRecycledWorkNotesHandler())        // GET /api/v1/system/recycle/work-notes
+		workNotes.GET("", app.GetRecycledWorkNotesHandler())          // GET /api/v1/system/recycle/work-notes
+		workNotes.POST("/:id/restore", app.RestoreWorkNoteHandler())  // POST /api/v1/system/recycle/work-notes/:id/restore
+		workNotes.DELETE("/:id", app.HardDeleteWorkNoteHandler())     // DELETE /api/v1/system/recycle/work-notes/:id
 	}
 
 	// 清空回收站

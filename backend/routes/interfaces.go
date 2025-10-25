@@ -183,7 +183,11 @@ type ApplicationInterface interface {
 	RestoreProjectHandler() gin.HandlerFunc
 	HardDeleteProjectHandler() gin.HandlerFunc
 	GetRecycledDocumentsHandler() gin.HandlerFunc
+	RestoreDocumentHandler() gin.HandlerFunc
+	HardDeleteDocumentHandler() gin.HandlerFunc
 	GetRecycledWorkNotesHandler() gin.HandlerFunc
+	RestoreWorkNoteHandler() gin.HandlerFunc
+	HardDeleteWorkNoteHandler() gin.HandlerFunc
 	EmptyRecycleBinHandler() gin.HandlerFunc
 
 	// AI配置处理器

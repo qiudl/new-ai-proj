@@ -501,12 +501,48 @@ func (app *Application) GetRecycledDocumentsHandler() gin.HandlerFunc {
 	}
 }
 
+func (app *Application) RestoreDocumentHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.RestoreDocument
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "RestoreDocumentHandler not implemented"})
+	}
+}
+
+func (app *Application) HardDeleteDocumentHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.HardDeleteDocument
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "HardDeleteDocumentHandler not implemented"})
+	}
+}
+
 func (app *Application) GetRecycledWorkNotesHandler() gin.HandlerFunc {
 	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
 		return app.handlers.RecycleBinHandler.GetRecycledWorkNotes
 	}
 	return func(c *gin.Context) {
 		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetRecycledWorkNotesHandler not implemented"})
+	}
+}
+
+func (app *Application) RestoreWorkNoteHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.RestoreWorkNote
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "RestoreWorkNoteHandler not implemented"})
+	}
+}
+
+func (app *Application) HardDeleteWorkNoteHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.HardDeleteWorkNote
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "HardDeleteWorkNoteHandler not implemented"})
 	}
 }
 

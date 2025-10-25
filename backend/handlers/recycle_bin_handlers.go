@@ -321,6 +321,98 @@ func (h *RecycleBinHandler) GetRecycledWorkNotes(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// RestoreDocument 恢复文档
+func (h *RecycleBinHandler) RestoreDocument(c *gin.Context) {
+	documentIDStr := c.Param("id")
+	documentID, err := strconv.Atoi(documentIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "无效的文档ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	err = h.db.System().RestoreDocument(c.Request.Context(), documentID)
+	if err != nil {
+		h.logger.Printf("Error restoring document %d: %v", documentID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "恢复文档失败", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	h.logger.Printf("Successfully restored document %d", documentID)
+	response := models.NewSuccessResponse(nil, "文档恢复成功")
+	c.JSON(http.StatusOK, response)
+}
+
+// HardDeleteDocument 永久删除文档
+func (h *RecycleBinHandler) HardDeleteDocument(c *gin.Context) {
+	documentIDStr := c.Param("id")
+	documentID, err := strconv.Atoi(documentIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "无效的文档ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	err = h.db.System().HardDeleteDocument(c.Request.Context(), documentID)
+	if err != nil {
+		h.logger.Printf("Error hard deleting document %d: %v", documentID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "永久删除文档失败", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	h.logger.Printf("Successfully hard deleted document %d", documentID)
+	response := models.NewSuccessResponse(nil, "文档已永久删除")
+	c.JSON(http.StatusOK, response)
+}
+
+// RestoreWorkNote 恢复工作笔记
+func (h *RecycleBinHandler) RestoreWorkNote(c *gin.Context) {
+	workNoteIDStr := c.Param("id")
+	workNoteID, err := strconv.Atoi(workNoteIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "无效的工作笔记ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	err = h.db.System().RestoreWorkNote(c.Request.Context(), workNoteID)
+	if err != nil {
+		h.logger.Printf("Error restoring work note %d: %v", workNoteID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "恢复工作笔记失败", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	h.logger.Printf("Successfully restored work note %d", workNoteID)
+	response := models.NewSuccessResponse(nil, "工作笔记恢复成功")
+	c.JSON(http.StatusOK, response)
+}
+
+// HardDeleteWorkNote 永久删除工作笔记
+func (h *RecycleBinHandler) HardDeleteWorkNote(c *gin.Context) {
+	workNoteIDStr := c.Param("id")
+	workNoteID, err := strconv.Atoi(workNoteIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "无效的工作笔记ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	err = h.db.System().HardDeleteWorkNote(c.Request.Context(), workNoteID)
+	if err != nil {
+		h.logger.Printf("Error hard deleting work note %d: %v", workNoteID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "永久删除工作笔记失败", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	h.logger.Printf("Successfully hard deleted work note %d", workNoteID)
+	response := models.NewSuccessResponse(nil, "工作笔记已永久删除")
+	c.JSON(http.StatusOK, response)
+}
+
 // EmptyRecycleBin 清空回收站（待实现）
 func (h *RecycleBinHandler) EmptyRecycleBin(c *gin.Context) {
 	// TODO: Implement batch deletion of all items in recycle bin
