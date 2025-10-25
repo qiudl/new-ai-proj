@@ -59,7 +59,11 @@ const TaskDetailSidebar: React.FC<TaskDetailSidebarProps> = ({
   // Load document ID when task changes
   useEffect(() => {
     const loadDocumentId = async () => {
-      if (!task) return;
+      if (!task) {
+        // 清理状态：当任务不存在时，确保清除旧的 documentId，避免显示错误数据
+        setDocumentId(undefined);
+        return;
+      }
 
       try {
         const doc = await documentService.getTaskDocument(projectId, task.id);
@@ -221,7 +225,11 @@ const TaskDetailSidebar: React.FC<TaskDetailSidebarProps> = ({
         style={{ marginBottom: '16px' }}
       />
 
-      {/* 计时器警告 - 当有其他任务正在计时时显示 */}
+      {/*
+        计时器警告 - 仅在当前任务未计时时显示
+        设计意图：当用户查看未计时的任务时，提醒其他任务还在计时，建议先停止
+        如果当前任务已在计时，则不需要此提醒（用户已知自己的操作）
+      */}
       {!isCurrentTaskTiming && otherActiveTimers.length > 0 && (
         <Alert
           message="其他任务正在计时"
@@ -246,7 +254,11 @@ const TaskDetailSidebar: React.FC<TaskDetailSidebarProps> = ({
         />
       )}
 
-      {/* 正在计时的任务列表卡片 */}
+      {/*
+        正在计时的任务列表卡片 - 始终显示（如果有其他计时任务）
+        设计意图：无论当前任务是否计时，都展示其他计时任务的信息供用户参考
+        这是信息展示区域，不同于上方的警告提示
+      */}
       {otherActiveTimers.length > 0 && (
         <Card
           title="正在计时的任务"
@@ -295,7 +307,12 @@ const TaskDetailSidebar: React.FC<TaskDetailSidebarProps> = ({
         getStatusConfig={getStatusConfig}
       />
 
-      {/* 任务基本信息 */}
+      {/*
+        任务基本信息
+        注意：projectInfo 根据初始加载状态传递不同值
+        - null: 初始加载中，TaskDetailInfo 组件内部可能显示加载状态
+        - undefined: 加载完成，组件正常渲染（不显示项目信息）
+      */}
       <TaskDetailInfo
         task={task}
         projectInfo={loading.initial ? null : undefined}
