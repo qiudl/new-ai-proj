@@ -739,13 +739,13 @@ func updateTaskDocument(h *handlers.DocumentHandler, app ApplicationInterface) g
 			return
 		}
 
-		// 设置文档ID参数，模拟标准UpdateDocument API调用
-		// UpdateDocument方法期望从"id"或"documentId"参数获取文档ID
+		// 设置文档ID参数，供UnifiedDocumentHandler使用
 		c.Params = append(c.Params, gin.Param{Key: "id", Value: strconv.Itoa(documentID)})
 
-		// 调用现有的UpdateDocument方法
-		// UpdateDocument会处理请求体解析、权限检查、数据库更新等
-		h.UpdateDocument(c)
+		// 使用UnifiedDocumentHandler而不是DocumentHandler
+		// UnifiedDocumentHandler有完整的实现，而DocumentHandler只是stub
+		unifiedHandler := app.GetUnifiedDocumentHandler()
+		unifiedHandler.UpdateDocumentByID(c)
 	}
 }
 
