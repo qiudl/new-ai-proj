@@ -4,6 +4,7 @@ import android.content.Context
 import com.aiproj.mobile.data.local.AppDatabase
 import com.aiproj.mobile.data.local.dao.TaskDao
 import com.aiproj.mobile.data.local.dao.DocumentDao
+import com.aiproj.mobile.data.local.dao.DocumentVersionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,5 +37,11 @@ object DatabaseModule {
     @Singleton
     fun provideDocumentDao(database: AppDatabase): DocumentDao {
         return database.documentDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideDocumentVersionDao(database: AppDatabase): DocumentVersionDao {
+        return database.documentVersionDao()
     }
 }

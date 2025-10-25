@@ -14,6 +14,7 @@ import com.aiproj.mobile.data.api.DailyFocusTaskApi
 import com.aiproj.mobile.data.api.DashboardApi
 import com.aiproj.mobile.data.api.DetailApi
 import com.aiproj.mobile.data.api.DocumentApi
+import com.aiproj.mobile.data.api.DocumentVersionApi
 import com.aiproj.mobile.data.api.EfficiencyApi
 import com.aiproj.mobile.data.api.ProjectApi
 import com.aiproj.mobile.data.api.SuggestionApi
@@ -300,6 +301,16 @@ object NetworkModule {
     @Singleton
     fun provideSuggestionApi(retrofit: Retrofit): SuggestionApi {
         return retrofit.create(SuggestionApi::class.java)
+    }
+
+    /**
+     * 提供 DocumentVersionApi
+     * 用于文档版本历史功能
+     */
+    @Provides
+    @Singleton
+    fun provideDocumentVersionApi(retrofit: Retrofit): DocumentVersionApi {
+        return retrofit.create(DocumentVersionApi::class.java)
     }
 
     /**

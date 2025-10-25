@@ -526,7 +526,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <span>
               {isImpersonating && impersonationStatus?.enterprise ? 
                 `${impersonationStatus.enterprise.name} - 企业后台` : 
-                'AI上下文任务系统 - 系统后台'}
+                'AI-Proj - 系统后台'}
             </span>
 {/* 环境标志显示 */}
             {process.env['REACT_APP_LOCAL_DEV'] === 'true' && (
