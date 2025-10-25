@@ -1479,7 +1479,7 @@ func (h *UnifiedDocumentHandler) UpdateDocumentByID(c *gin.Context) {
 		return
 	}
 
-	// 调用Service层的UpdateDocumentByID方法
+	// 调用Service层的UpdateDocumentByID方法（返回更新后的完整文档）
 	req := &interfaces.UpdateDocumentByIDRequest{
 		DocumentID: docID,
 		Title:      request.Title,
@@ -1488,7 +1488,8 @@ func (h *UnifiedDocumentHandler) UpdateDocumentByID(c *gin.Context) {
 		Message:    request.Message,
 	}
 
-	if err := h.documentService.UpdateDocumentByID(c.Request.Context(), req); err != nil {
+	updatedDoc, err := h.documentService.UpdateDocumentByID(c.Request.Context(), req)
+	if err != nil {
 		if strings.Contains(err.Error(), "document not found") {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,
@@ -1506,11 +1507,17 @@ func (h *UnifiedDocumentHandler) UpdateDocumentByID(c *gin.Context) {
 		return
 	}
 
+	// 返回完整的文档信息（包含标题、内容、版本等）
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Document updated successfully",
 		"data": gin.H{
 			"document_id": docID,
+			"title":       updatedDoc.Title,
+			"content":     updatedDoc.Content,
+			"version":     updatedDoc.Version,
+			"updated_at":  updatedDoc.LastUpdated,
+			"size":        updatedDoc.Size,
 		},
 	})
 }

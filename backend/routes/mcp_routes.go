@@ -18,15 +18,28 @@ import (
 	"ai-project-backend/middleware"
 )
 
-// responseRecorder 用于捕获响应内容
+// responseRecorder 用于捕获响应内容（不写入原始Writer，避免重复响应）
 type responseRecorder struct {
 	gin.ResponseWriter
-	body *bytes.Buffer
+	body       *bytes.Buffer
+	statusCode int
 }
 
 func (r *responseRecorder) Write(data []byte) (int, error) {
-	r.body.Write(data)
-	return r.ResponseWriter.Write(data)
+	// 只写入buffer，不写入原始Writer
+	return r.body.Write(data)
+}
+
+func (r *responseRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
+	// 不调用原始Writer的WriteHeader，避免提前发送响应
+}
+
+func (r *responseRecorder) Status() int {
+	if r.statusCode == 0 {
+		return 200 // 默认200
+	}
+	return r.statusCode
 }
 
 // standardErrorResponse 标准错误响应格式
@@ -258,12 +271,12 @@ func createAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 					log.Printf("[WARN] MCP create-and-attach: Failed to add action field - data is not map[string]interface{}, got type %T", updateResp["data"])
 				}
 				c.Writer = originalWriter
-				c.JSON(recorder.ResponseWriter.Status(), updateResp)
+				c.JSON(recorder.Status(), updateResp)
 			} else {
 				// 解析失败时记录错误，并返回原始响应（保持Content-Type）
 				log.Printf("[ERROR] MCP create-and-attach: Failed to parse update response JSON: %v", err)
 				c.Writer = originalWriter
-				c.Data(recorder.ResponseWriter.Status(), "application/json", recorder.body.Bytes())
+				c.Data(recorder.Status(), "application/json", recorder.body.Bytes())
 			}
 
 		} else if err == sql.ErrNoRows {
@@ -309,12 +322,12 @@ func createAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 					log.Printf("[WARN] MCP create-and-attach: Failed to add action field - data is not map[string]interface{}, got type %T", createResp["data"])
 				}
 				c.Writer = originalWriter
-				c.JSON(recorder.ResponseWriter.Status(), createResp)
+				c.JSON(recorder.Status(), createResp)
 			} else {
 				// 解析失败时记录错误，并返回原始响应（保持Content-Type）
 				log.Printf("[ERROR] MCP create-and-attach: Failed to parse create response JSON: %v", err)
 				c.Writer = originalWriter
-				c.Data(recorder.ResponseWriter.Status(), "application/json", recorder.body.Bytes())
+				c.Data(recorder.Status(), "application/json", recorder.body.Bytes())
 			}
 
 		} else {

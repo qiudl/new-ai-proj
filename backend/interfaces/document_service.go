@@ -11,7 +11,7 @@ type DocumentServiceInterface interface {
 	CreateDocument(ctx context.Context, req *CreateDocumentRequest) error
 	ReadDocument(ctx context.Context, req *ReadDocumentRequest) (*DocumentResponse, error)
 	UpdateDocument(ctx context.Context, req *UpdateDocumentRequest) error
-	UpdateDocumentByID(ctx context.Context, req *UpdateDocumentByIDRequest) error // 通过文档ID更新
+	UpdateDocumentByID(ctx context.Context, req *UpdateDocumentByIDRequest) (*DocumentResponse, error) // 通过文档ID更新，返回更新后的文档
 	GetDocumentByID(ctx context.Context, req *GetDocumentByIDRequest) (*DocumentResponse, error) // 通过文档ID获取
 	DeleteDocument(ctx context.Context, req *DeleteDocumentRequest) error
 

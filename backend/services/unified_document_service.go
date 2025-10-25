@@ -207,21 +207,22 @@ func (s *UnifiedDocumentService) UpdateDocument(ctx context.Context, req *interf
 
 // UpdateDocumentByID 通过文档ID更新文档
 // 用于全局文档路由，自动查找文档所属的项目和任务
-func (s *UnifiedDocumentService) UpdateDocumentByID(ctx context.Context, req *interfaces.UpdateDocumentByIDRequest) error {
+// 返回更新后的完整文档数据，方便MCP客户端使用
+func (s *UnifiedDocumentService) UpdateDocumentByID(ctx context.Context, req *interfaces.UpdateDocumentByIDRequest) (*interfaces.DocumentResponse, error) {
 	if s.db == nil {
-		return fmt.Errorf("database not available for UpdateDocumentByID operation")
+		return nil, fmt.Errorf("database not available for UpdateDocumentByID operation")
 	}
 
 	// 类型断言获取database.DB接口
 	db, ok := s.db.(database.DB)
 	if !ok {
-		return fmt.Errorf("database does not implement database.DB interface")
+		return nil, fmt.Errorf("database does not implement database.DB interface")
 	}
 
 	// 获取文档
 	doc, err := db.Documents().GetByID(ctx, req.DocumentID)
 	if err != nil {
-		return fmt.Errorf("document not found: %w", err)
+		return nil, fmt.Errorf("document not found: %w", err)
 	}
 
 	// 更新标题（如果提供）
@@ -233,12 +234,36 @@ func (s *UnifiedDocumentService) UpdateDocumentByID(ctx context.Context, req *in
 	doc.Content = &req.Content
 
 	// 调用Update方法（会自动创建版本快照）
-	_, err = db.Documents().Update(ctx, doc)
+	updatedDoc, err := db.Documents().Update(ctx, doc)
 	if err != nil {
-		return fmt.Errorf("failed to update document: %w", err)
+		return nil, fmt.Errorf("failed to update document: %w", err)
 	}
 
-	return nil
+	// 构造响应（包含完整文档信息）
+	content := ""
+	if updatedDoc.Content != nil {
+		content = *updatedDoc.Content
+	}
+
+	// 处理ProjectID指针
+	projectID := 0
+	if updatedDoc.ProjectID != nil {
+		projectID = *updatedDoc.ProjectID
+	}
+
+	response := &interfaces.DocumentResponse{
+		TaskID:      updatedDoc.ID, // 使用文档ID（TaskID字段在此场景下暂时使用文档ID）
+		ProjectID:   projectID,
+		Title:       updatedDoc.Title,
+		Content:     content,
+		Format:      string(updatedDoc.Type), // 转换DocumentType为string
+		Size:        int64(len(content)),
+		LastUpdated: updatedDoc.UpdatedAt,
+		CreatedAt:   updatedDoc.CreatedAt,
+		Version:     fmt.Sprintf("%d", updatedDoc.Version),
+	}
+
+	return response, nil
 }
 
 // GetDocumentByID 通过文档ID获取文档
