@@ -1380,17 +1380,29 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                             onVersionUpdate={() => {/* 处理版本更新 */}}
                           />
                         </Suspense>
-                        <Button
-                          type="text"
-                          icon={<EditOutlined />}
-                          
-                          style={{ width: '20px', height: '20px', fontSize: '10px' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedDocument(doc);
-                            setViewMode('edit');
+                        <Popconfirm
+                          title="确认删除文档"
+                          description={`确定要删除文档"${doc.title}"吗？删除后无法恢复。`}
+                          onConfirm={(e) => {
+                            e?.stopPropagation();
+                            handleDocumentDelete(doc);
                           }}
-                        />
+                          okText="删除"
+                          cancelText="取消"
+                          okType="danger"
+                          placement="topRight"
+                        >
+                          <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+
+                            style={{ width: '20px', height: '20px', fontSize: '10px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                          />
+                        </Popconfirm>
                       </div>
                     </div>
                     
@@ -1474,16 +1486,28 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                         onVersionUpdate={() => {/* 处理版本更新 */}}
                       />
                     </Suspense>
-                    <Button
-                      type="text"
-                      icon={<EditOutlined />}
-                      
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedDocument(doc);
-                        setViewMode('edit');
+                    <Popconfirm
+                      title="确认删除文档"
+                      description={`确定要删除文档"${doc.title}"吗？删除后无法恢复。`}
+                      onConfirm={(e) => {
+                        e?.stopPropagation();
+                        handleDocumentDelete(doc);
                       }}
-                    />
+                      okText="删除"
+                      cancelText="取消"
+                      okType="danger"
+                      placement="topRight"
+                    >
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                      />
+                    </Popconfirm>
                   </Space>
                 </div>
               ))}
