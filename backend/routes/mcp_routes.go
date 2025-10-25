@@ -93,7 +93,7 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	templateHandler := handlers.NewMCPTemplateHandler(app.GetDB())
 
 	// 任务文档相关路由
-	mcp.POST("/create-and-attach", createAndAttachTaskDocument(app))
+	mcp.POST("/create-and-attach", CreateAndAttachTaskDocument(app))
 	mcp.POST("/create-and-attach-work-note", createAndAttachWorkNote(workNoteHandler))
 	mcp.POST("/create-batch-documents", createBatchDocuments(documentHandler))
 	mcp.POST("/create-task-docs", createTaskDocs(documentHandler))
@@ -136,9 +136,10 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	RegisterMCPWorktreeRoutes(mcp, app)
 }
 
-// createAndAttachTaskDocument MCP专用：创建并关联任务文档
+// CreateAndAttachTaskDocument MCP专用：创建并关联任务文档
 // 实现UPSERT语义：如果文档已存在则更新，否则创建新文档
-func createAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
+// 此函数可供MCP路由和标准HTTP路由共同使用
+func CreateAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
 			TaskID    int    `json:"taskId"`

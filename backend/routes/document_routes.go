@@ -137,10 +137,11 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 					c.JSON(200, gin.H{"success": true, "data": []interface{}{}})
 				})
 
-				// 原子：创建文档并关联到任务（使用现有方法）
-				taskDocuments.POST("/create-and-attach", app.GetDocumentHandler().CreateAndAttachDocument)
+				// 原子：创建文档并关联到任务（使用共享的UPSERT实现）
+				// 复用MCP路由的CreateAndAttachTaskDocument函数，实现统一的UPSERT语义
+				taskDocuments.POST("/create-and-attach", CreateAndAttachTaskDocument(app))
 				// 别名路由
-				taskDocuments.POST("", app.GetDocumentHandler().CreateAndAttachDocument)
+				taskDocuments.POST("", CreateAndAttachTaskDocument(app))
 
 				// 批量更新任务文档关联 - 占位符
 				taskDocuments.PUT("", func(c *gin.Context) {
