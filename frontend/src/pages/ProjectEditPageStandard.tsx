@@ -301,10 +301,38 @@ const ProjectEditPageNew: React.FC = () => {
         console.log('🏢 [ProjectEdit] 企业模式下不加载客户列表，项目自动关联企业');
         setCompanies([]);
       } else {
-        // 传统模式：加载客户列表供选择
-        console.log('📋 [ProjectEdit] 传统模式，加载客户列表（模拟数据）');
-        setCompanies(MOCK_COMPANIES);
-        message.info('使用模拟数据显示客户列表');
+        // 传统模式：从API加载企业列表作为客户
+        console.log('📋 [ProjectEdit] 传统模式，从API加载企业列表');
+        try {
+          const response = await enterpriseService.getEnterprises(1, 100);
+
+          // 将Enterprise数据转换为Company格式（兼容UI组件）
+          const companiesData: Company[] = response.data.map(enterprise => ({
+            id: enterprise.id,
+            companyName: enterprise.name,
+            name: enterprise.name, // 兼容性字段
+            companyCode: enterprise.code,
+            industry: enterprise.industry_type,
+            address: enterprise.address,
+            mainPhone: enterprise.contact_phone,
+            mainEmail: enterprise.contact_email,
+            website: enterprise.website,
+            status: enterprise.status as 'active' | 'inactive' | 'potential' | 'suspended',
+            statusText: enterprise.status_text,
+            priority: 'medium', // 默认优先级
+            priorityText: '中优先级',
+            companyTypeText: enterprise.business_type_text,
+            createdAt: enterprise.created_at,
+            updatedAt: enterprise.updated_at
+          }));
+
+          setCompanies(companiesData);
+          console.log(`✅ [ProjectEdit] 成功加载 ${companiesData.length} 个企业作为客户列表`);
+        } catch (apiError) {
+          console.error('❌ [ProjectEdit] API加载失败，使用模拟数据:', apiError);
+          setCompanies(MOCK_COMPANIES);
+          message.warning('无法加载客户列表，使用示例数据');
+        }
       }
     } catch (error) {
       console.error('❌ [ProjectEdit] 加载客户列表失败:', error);
@@ -388,23 +416,68 @@ const ProjectEditPageNew: React.FC = () => {
     try {
       setLoadingStates(prev => ({ ...prev, user: true }));
 
-      // ✅ 由于 companyService 已废弃，直接使用模拟数据
+      console.log('📋 [ProjectEdit] 从API加载企业用户数据');
+
       try {
-        // 注释掉旧的 companyService 调用
-        // const userPromises = selectedCompanies.map(companyId =>
-        //   companyService.getCompanyUsers(companyId).then(users => ({
-        //     companyId,
-        //     users
-        //   }))
-        // );
-        // const results = await Promise.all(userPromises);
+        // 使用enterpriseService获取每个企业的用户列表
+        const userPromises = selectedCompanies.map(enterpriseId =>
+          enterpriseService.getEnterpriseUsers(enterpriseId, 1, 100).then(response => ({
+            enterpriseId,
+            users: response.data
+          }))
+        );
+        const results = await Promise.all(userPromises);
 
-        // 直接抛出错误以使用模拟数据
-        throw new Error('companyService is deprecated, using mock data');
+        const newCompanyUsers: { [companyId: number]: CompanyUser[] } = {};
+        const newAvailableUsers: ProjectCompanyUser[] = [];
+
+        results.forEach(({ enterpriseId, users }) => {
+          // 将EnterpriseUser转换为CompanyUser格式
+          const convertedUsers: CompanyUser[] = users.map(user => ({
+            id: user.id,
+            customerId: enterpriseId,
+            company_id: enterpriseId,
+            name: user.name,
+            user_name: user.username,
+            email: user.email,
+            phone: user.phone,
+            position: user.position,
+            department: user.department_name,
+            role: user.is_primary_contact ? 'primary_contact' : 'normal',
+            status: user.status,
+            is_active: user.status === 'active',
+            createdAt: user.created_at,
+            updatedAt: user.updated_at
+          }));
+
+          newCompanyUsers[enterpriseId] = convertedUsers;
+
+          const company = Array.isArray(companies)
+            ? companies.find(c => c.id === enterpriseId)
+            : null;
+
+          convertedUsers.forEach(user => {
+            newAvailableUsers.push({
+              key: `${user.id}_${enterpriseId}`,
+              companyId: enterpriseId,
+              companyName: company?.companyName || '未知客户',
+              userId: user.id,
+              userName: user.name || '未知用户',
+              userEmail: user.email,
+              position: user.position,
+              department: user.department,
+              avatar: undefined
+            });
+          });
+        });
+
+        setCompanyUsers(newCompanyUsers);
+        setAvailableUsers(newAvailableUsers);
+        console.log(`✅ [ProjectEdit] 成功加载 ${newAvailableUsers.length} 个企业用户`);
       } catch (apiError) {
-        console.warn('使用模拟数据（companyService 已废弃）:', apiError);
+        console.error('❌ [ProjectEdit] API加载失败，使用模拟数据:', apiError);
 
-        // ✅ Phase 2优化：使用提取的工厂函数，避免每次都创建新对象
+        // API失败时使用模拟数据
         const mockUsers = selectedCompanies.map(companyId => {
           const company = Array.isArray(companies)
             ? companies.find(c => c.id === companyId)
@@ -414,16 +487,16 @@ const ProjectEditPageNew: React.FC = () => {
             users: createMockCompanyUsers(companyId, company || undefined)
           };
         });
-        
+
         const newCompanyUsers: { [companyId: number]: CompanyUser[] } = {};
         const newAvailableUsers: ProjectCompanyUser[] = [];
-        
+
         mockUsers.forEach(({ companyId, users }) => {
           newCompanyUsers[companyId] = users;
-          const company = Array.isArray(companies) 
+          const company = Array.isArray(companies)
             ? companies.find(c => c.id === companyId)
             : null;
-          
+
           users.forEach(user => {
             newAvailableUsers.push({
               key: `${user.id}_${companyId}`,
@@ -434,14 +507,14 @@ const ProjectEditPageNew: React.FC = () => {
               userEmail: user.email,
               position: user.position,
               department: user.department,
-              avatar: undefined // CompanyUser不包含avatar字段
+              avatar: undefined
             });
           });
         });
-        
+
         setCompanyUsers(newCompanyUsers);
         setAvailableUsers(newAvailableUsers);
-        message.info('使用模拟数据显示客户用户');
+        message.warning('无法加载企业用户，使用示例数据');
       }
     } catch (error) {
       console.error('加载客户用户失败:', error);
