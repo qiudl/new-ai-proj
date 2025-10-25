@@ -23,7 +23,8 @@ import {
   Modal,
   Input,
   message,
-  Descriptions
+  Descriptions,
+  Popconfirm
 } from 'antd';
 import type { MenuProps, TabsProps } from 'antd';
 import {
@@ -208,19 +209,6 @@ const DocumentListItem: React.FC<{
               />
             </Tooltip>
           ] : []),
-          ...(document.type !== 'image' && document.type !== 'file' ? [
-            <Tooltip title="编辑">
-              <Button
-                type="text"
-                icon={<EditOutlined />}
-                
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit?.(document);
-                }}
-              />
-            </Tooltip>
-          ] : []),
           <Tooltip title="版本历史">
             <TaskDocumentVersionHistoryButton
               projectId={document.project_id}
@@ -243,18 +231,30 @@ const DocumentListItem: React.FC<{
               }}
             />
           </Tooltip>,
-          <Tooltip title="删除">
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
+          <Popconfirm
+            title="确认删除文档"
+            description={`确定要删除文档"${document.title}"吗？删除后无法恢复。`}
+            onConfirm={(e) => {
+              e?.stopPropagation();
+              onDelete?.(document);
+            }}
+            okText="删除"
+            cancelText="取消"
+            okType="danger"
+            placement="topRight"
+          >
+            <Tooltip title="删除">
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
 
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete?.(document);
-              }}
-            />
-          </Tooltip>
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              />
+            </Tooltip>
+          </Popconfirm>
         ]}
       >
         <List.Item.Meta
