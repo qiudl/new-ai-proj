@@ -209,13 +209,6 @@ const ProjectEditPageNew: React.FC = () => {
     console.log('   currentEnterprise:', currentEnterprise);
     console.log('   localStorage.currentEnterpriseId:', localStorage.getItem('currentEnterpriseId'));
   }, [currentEnterprise]);
-
-  // 🔍 调试：监控 selectedEnterprise 的所有变化
-  useEffect(() => {
-    console.log('🔔 [selectedEnterprise变化] 新值:', selectedEnterprise);
-    console.log('   调用栈:');
-    console.trace();
-  }, [selectedEnterprise]);
   
   // ✅ 优化：合并loading相关状态，减少重渲染
   const [loadingStates, setLoadingStates] = useState({
@@ -235,6 +228,13 @@ const ProjectEditPageNew: React.FC = () => {
   // 企业相关状态（新架构）
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [selectedEnterprise, setSelectedEnterprise] = useState<number | null>(null);
+
+  // 🔍 调试：监控 selectedEnterprise 的所有变化
+  useEffect(() => {
+    console.log('🔔 [selectedEnterprise变化] 新值:', selectedEnterprise);
+    console.log('   调用栈:');
+    console.trace();
+  }, [selectedEnterprise]);
 
   // 用户相关状态
   const [companyUsers, setCompanyUsers] = useState<{ [companyId: number]: CompanyUser[] }>({});
