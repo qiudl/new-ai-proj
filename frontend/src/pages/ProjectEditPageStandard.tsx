@@ -525,6 +525,23 @@ const ProjectEditPageNew: React.FC = () => {
     return roleInfo || { value: 'customer', label: '客户代表', color: 'orange' };
   };
 
+  // ✅ 方案A：检查是否可以修改企业关联
+  const canChangeEnterprise = useMemo(() => {
+    // 创建模式：企业模式下不可修改（保持数据隔离）
+    if (!isEditing && currentEnterprise) {
+      return false;
+    }
+
+    // 编辑模式：允许修改（管理员可以迁移项目到其他企业）
+    // TODO: 后续可以添加权限检查，限制只有管理员可以修改
+    if (isEditing) {
+      return true;
+    }
+
+    // 其他情况（管理员模式，无企业上下文）：可修改
+    return true;
+  }, [isEditing, currentEnterprise]);
+
   // ✅ 优化：使用useCallback包装handleSubmit
   const handleSubmit = useCallback(async (values: any) => {
     try {
@@ -1023,6 +1040,27 @@ const ProjectEditPageNew: React.FC = () => {
               style={{ marginBottom: 24 }}
             >
               <div style={{ marginBottom: '16px' }}>
+                {/* ✅ 方案A：添加企业模式提示 */}
+                {currentEnterprise && !isEditing && (
+                  <Alert
+                    message="企业模式"
+                    description={`项目将自动关联到当前企业：${currentEnterprise.name}`}
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: '16px' }}
+                  />
+                )}
+
+                {currentEnterprise && isEditing && (
+                  <Alert
+                    message="可以修改企业关联"
+                    description="在编辑模式下，您可以将此项目迁移到其他企业。此操作可能会影响项目的访问权限和数据隔离。"
+                    type="warning"
+                    showIcon
+                    style={{ marginBottom: '16px' }}
+                  />
+                )}
+
                 {/* 企业选择器（新架构） */}
                 <Row justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
                   <Col>
@@ -1031,7 +1069,7 @@ const ProjectEditPageNew: React.FC = () => {
                     </Text>
                     <br />
                     <Text type="secondary" style={{ fontSize: '12px' }}>
-                      {currentEnterprise 
+                      {currentEnterprise
                         ? `当前企业模式，项目自动关联到 ${currentEnterprise.name}`
                         : '推荐使用企业架构，选择一个企业来管理项目'
                       }
@@ -1051,7 +1089,7 @@ const ProjectEditPageNew: React.FC = () => {
                     setSelectedCompanies([]);
                   }}
                   loading={loadingStates.enterprise}
-                  disabled={!!currentEnterprise} // 在企业模式下禁用选择器
+                  disabled={!canChangeEnterprise} // ✅ 方案A：使用新的权限检查逻辑
                   showSearch
                   allowClear
                   filterOption={(input, option) =>
