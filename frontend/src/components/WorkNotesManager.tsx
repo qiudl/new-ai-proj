@@ -24,6 +24,7 @@ import {
   Divider,
   FloatButton
 } from 'antd';
+import TreeSelect from 'antd/es/tree-select';
 import { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined,
@@ -44,7 +45,8 @@ import {
   UndoOutlined,
   LockOutlined,
   TeamOutlined,
-  GlobalOutlined
+  GlobalOutlined,
+  FolderOutlined
 } from '@ant-design/icons';
 import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest, WorkNoteFolder } from '../services/workNotesService';
 import WorkNoteConversionModal from './conversion/WorkNoteConversionModal';
@@ -396,11 +398,38 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     setLastRefreshTime(0);
   }, []);
 
-  // 加载文件夹列表
+  // 将文件夹转换为TreeSelect数据
+  const buildFolderTreeData = useCallback((folders: WorkNoteFolder[], parentId: number | null = null): any[] => {
+    return folders
+      .filter(f => f.parent_id === parentId)
+      .map(folder => ({
+        title: folder.name,
+        value: folder.id,
+        key: folder.id,
+        icon: <FolderOutlined style={{ color: folder.color || '#1890ff' }} />,
+        children: buildFolderTreeData(folders, folder.id)
+      }));
+  }, []);
+
+  // 加载文件夹列表 - 从三棵树加载
   const loadFolders = useCallback(async () => {
     try {
-      const data = await workNotesService.getFolderTree(null, 10); // 加载所有层级
-      setFolders(data);
+      const allFolders: WorkNoteFolder[] = [];
+      const treeTypes: ('private' | 'team' | 'public')[] = ['private', 'team', 'public'];
+
+      for (const treeType of treeTypes) {
+        try {
+          const response = await workNotesService.getFolderTreeByType(treeType, undefined, 10);
+          if (response.folders) {
+            allFolders.push(...response.folders);
+          }
+        } catch (error) {
+          console.error(`Failed to load ${treeType} folders:`, error);
+          // 继续加载其他树
+        }
+      }
+
+      setFolders(allFolders);
     } catch (error: any) {
       console.error('加载文件夹列表失败:', error);
       message.error('加载文件夹失败');
@@ -866,6 +895,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       priority: workNote.priority,
       status: workNote.status,
       visibility: workNote.visibility,
+      folder_id: workNote.folder_id, // 添加文件夹ID
       tags: workNote.tags,
       is_pinned: workNote.is_pinned,
       is_bookmarked: workNote.is_bookmarked,
@@ -1992,7 +2022,25 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
               </Form.Item>
             </Col>
           </Row>
-          
+
+          <Form.Item
+            name="folder_id"
+            label="文件夹"
+          >
+            <TreeSelect
+              showSearch
+              style={{ width: '100%' }}
+              dropdownStyle={{ maxHeight: 400, overflow: 'auto' }}
+              placeholder="选择文件夹（可选）"
+              allowClear
+              treeDefaultExpandAll
+              treeData={buildFolderTreeData(folders)}
+              filterTreeNode={(input, node) =>
+                (node.title as string).toLowerCase().includes(input.toLowerCase())
+              }
+            />
+          </Form.Item>
+
           <Form.Item
             name="tags"
             label="标签"
