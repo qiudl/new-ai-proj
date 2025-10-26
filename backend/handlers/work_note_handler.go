@@ -474,6 +474,26 @@ func (h *WorkNoteHandler) GetWorkNoteStats(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetWorkNoteCategoryStats 获取工作笔记分类统计（基于现有tags和work_note_type）
+func (h *WorkNoteHandler) GetWorkNoteCategoryStats(c *gin.Context) {
+	log.Printf("[DEBUG-HANDLER] GetWorkNoteCategoryStats CALLED")
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
+		return
+	}
+
+	stats, err := h.workNoteService.GetWorkNoteCategoryStats(c.Request.Context(), userID.(int))
+	if err != nil {
+		log.Printf("[ERROR] GetWorkNoteCategoryStats failed: %v", err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get category stats", err.Error()))
+		return
+	}
+
+	log.Printf("[DEBUG] CategoryStats - UserID: %v, Categories: %d, Tags: %d", userID, len(stats.Categories), len(stats.Tags))
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": stats})
+}
+
 // GetRecentNotes 获取最近笔记
 func (h *WorkNoteHandler) GetRecentNotes(c *gin.Context) {
 	userID, exists := c.Get("user_id")

@@ -558,6 +558,103 @@ func (s *WorkNoteService) GetWorkNoteStats(ctx context.Context, userID int) (*mo
 	return stats, nil
 }
 
+// GetWorkNoteCategoryStats 获取工作笔记分类统计（基于现有tags和work_note_type）
+func (s *WorkNoteService) GetWorkNoteCategoryStats(ctx context.Context, userID int) (*models.WorkNoteCategoryStats, error) {
+	log.Printf("[DEBUG-SERVICE] GetWorkNoteCategoryStats called with userID: %d", userID)
+
+	stats := &models.WorkNoteCategoryStats{
+		Categories: make(map[string]models.CategoryInfo),
+		Tags:       make(map[string]int),
+		Associations: models.AssociationStats{},
+	}
+
+	// 1. 统计work_note_type（categories）
+	rows1, err := s.db.QueryContext(ctx, `
+		SELECT
+			COALESCE(metadata->>'work_note_type', 'general') AS note_type,
+			COUNT(*) AS count
+		FROM documents
+		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL
+		GROUP BY note_type`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get category stats: %w", err)
+	}
+	defer rows1.Close()
+
+	// 定义类型的图标和颜色映射
+	typeIconMap := map[string]string{
+		"general":   "📝",
+		"meeting":   "🤝",
+		"idea":      "💡",
+		"log":       "📋",
+		"reference": "📚",
+		"template":  "📄",
+	}
+	typeColorMap := map[string]string{
+		"general":   "#1890ff",
+		"meeting":   "#52c41a",
+		"idea":      "#faad14",
+		"log":       "#13c2c2",
+		"reference": "#722ed1",
+		"template":  "#eb2f96",
+	}
+
+	for rows1.Next() {
+		var noteType string
+		var count int
+		if err := rows1.Scan(&noteType, &count); err == nil {
+			stats.Categories[noteType] = models.CategoryInfo{
+				Count: count,
+				Icon:  typeIconMap[noteType],
+				Color: typeColorMap[noteType],
+			}
+		}
+	}
+
+	// 2. 统计tags（使用unnest展开数组）
+	rows2, err := s.db.QueryContext(ctx, `
+		SELECT
+			tag,
+			COUNT(*) AS count
+		FROM documents,
+		LATERAL unnest(tags) AS tag
+		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL
+		GROUP BY tag
+		ORDER BY count DESC
+		LIMIT 20`, userID) // 限制返回前20个最常用标签
+	if err == nil {
+		defer rows2.Close()
+		for rows2.Next() {
+			var tag string
+			var count int
+			if err := rows2.Scan(&tag, &count); err == nil {
+				stats.Tags[tag] = count
+			}
+		}
+	}
+
+	// 3. 统计关联情况（检查tags中是否包含task-attached或metadata中是否有related_tasks）
+	row := s.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*) FILTER (WHERE 'task-attached' = ANY(tags) OR metadata->'related_tasks' IS NOT NULL) AS associated,
+			COUNT(*) FILTER (WHERE 'task-attached' != ALL(COALESCE(tags, ARRAY[]::text[])) AND metadata->'related_tasks' IS NULL) AS unassociated,
+			COUNT(*) AS total
+		FROM documents
+		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL`, userID)
+
+	var associated, unassociated, total int
+	if err := row.Scan(&associated, &unassociated, &total); err == nil {
+		stats.Associations.Associated = associated
+		stats.Associations.Unassociated = unassociated
+		stats.Associations.Convertible = unassociated // 未关联的笔记都可以转换为任务文档
+	}
+
+	log.Printf("[DEBUG-SERVICE] CategoryStats: Categories=%d, Tags=%d, Associated=%d, Unassociated=%d",
+		len(stats.Categories), len(stats.Tags), stats.Associations.Associated, stats.Associations.Unassociated)
+
+	return stats, nil
+}
+
 func (s *WorkNoteService) GetRecentNotes(ctx context.Context, userID, limit int) ([]models.WorkNote, error) {
 	if limit <= 0 {
 		limit = 10

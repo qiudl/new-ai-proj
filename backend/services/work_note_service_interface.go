@@ -15,6 +15,7 @@ type WorkNoteServiceInterface interface {
 	DeleteWorkNote(ctx context.Context, noteID, userID int) error
 	BatchUpdateWorkNotes(ctx context.Context, op models.BatchWorkNoteOperation, userID int) error
 	GetWorkNoteStats(ctx context.Context, userID int) (*models.WorkNoteStats, error)
+	GetWorkNoteCategoryStats(ctx context.Context, userID int) (*models.WorkNoteCategoryStats, error)
 	GetRecentNotes(ctx context.Context, userID, limit int) ([]models.WorkNote, error)
 	GetPinnedNotes(ctx context.Context, userID int) ([]models.WorkNote, error)
 	GetBookmarkedNotes(ctx context.Context, userID int) ([]models.WorkNote, error)

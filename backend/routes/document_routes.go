@@ -217,6 +217,7 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 
 		// 工作笔记特有功能 - 使用真实handler实现
 		workNotes.GET("/stats", workNotesHandler.GetWorkNoteStats)
+		workNotes.GET("/category-stats", workNotesHandler.GetWorkNoteCategoryStats) // 基于tags和work_note_type的分类统计
 
 		// 占位符实现 - 待开发功能
 		workNotes.POST("/batch", func(c *gin.Context) {

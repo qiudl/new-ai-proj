@@ -349,6 +349,43 @@ type WorkNoteRecentActivity struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+// WorkNoteCategoryStats 工作笔记分类统计（基于现有tags和work_note_type）
+type WorkNoteCategoryStats struct {
+	// 按类型分类（使用work_note_type字段）
+	Categories map[string]CategoryInfo `json:"categories"`
+
+	// 标签统计（使用tags字段）
+	Tags map[string]int `json:"tags"`
+
+	// 关联统计
+	Associations AssociationStats `json:"associations"`
+
+	// 时间范围统计（可选）
+	TimeRanges *TimeRangeStats `json:"time_ranges,omitempty"`
+}
+
+// CategoryInfo 分类信息（work_note_type统计）
+type CategoryInfo struct {
+	Count int    `json:"count"`
+	Icon  string `json:"icon,omitempty"`
+	Color string `json:"color,omitempty"`
+}
+
+// AssociationStats 关联统计
+type AssociationStats struct {
+	Associated    int `json:"associated"`    // 已关联任务的笔记数
+	Unassociated  int `json:"unassociated"`  // 未关联任务的笔记数
+	Convertible   int `json:"convertible"`   // 可转换为任务文档的笔记数
+}
+
+// TimeRangeStats 时间范围统计
+type TimeRangeStats struct {
+	Today     int `json:"today"`
+	ThisWeek  int `json:"thisWeek"`
+	ThisMonth int `json:"thisMonth"`
+	Earlier   int `json:"earlier"`
+}
+
 // 实例方法
 
 // ToDocument 转换为Document模型
