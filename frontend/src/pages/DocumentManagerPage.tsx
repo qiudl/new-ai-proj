@@ -86,9 +86,7 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
               <FileMarkdownOutlined style={{ marginRight: '8px' }} />
               工作笔记管理
             </Title>
-            <div style={{ color: '#666', marginTop: '8px' }}>
-              管理和编辑您的工作笔记文档
-            </div>
+           
           </div>
           <WorkNotesManager />
         </Content>

@@ -141,6 +141,15 @@ export interface WorkNotesListResponse {
   page_size: number;
 }
 
+// 工作笔记统计数据接口
+export interface WorkNotesStats {
+  total: number;
+  draft: number;
+  published: number;
+  archived: number;
+  associated: number;
+}
+
 export interface APIResponse<T> {
   success: boolean;
   message: string;
@@ -392,6 +401,21 @@ class WorkNotesService {
       page: backendData.pagination?.page || 1,
       page_size: backendData.pagination?.page_size || 20
     };
+  }
+
+  // 获取工作笔记统计数据
+  async getWorkNoteStats(): Promise<WorkNotesStats> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<WorkNotesStats>>(
+      `${API_BASE_URL}/work-notes/stats`,
+      { headers }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get work note stats');
+    }
+
+    return response.data.data;
   }
 
   // 搜索工作笔记
