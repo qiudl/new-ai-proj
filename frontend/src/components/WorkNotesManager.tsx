@@ -196,6 +196,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [conversionModalVisible, setConversionModalVisible] = useState(false);
   const [currentWorkNote, setCurrentWorkNote] = useState<WorkNote | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const [editForm] = Form.useForm();
   const [quickCreateForm] = Form.useForm();
@@ -690,20 +691,40 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const handleUpdate = async (values: any) => {
     try {
       if (!currentWorkNote) return;
+      setSaving(true);
 
+      // 构建规范的UpdateWorkNoteRequest
       const updateRequest: UpdateWorkNoteRequest = {
-        ...values,
+        title: values.title,
+        content: values.content,
+        description: values.description || '',
+        status: values.status,
+        visibility: values.visibility,
+        folder_id: values.folder_id,  // 必填
+        tags: values.tags || [],
       };
 
-      await workNotesService.updateWorkNote(currentWorkNote.id, updateRequest);
+      console.log('[WorkNotesManager] Updating work note:', currentWorkNote.id, updateRequest);
+
+      const result = await workNotesService.updateWorkNote(
+        currentWorkNote.id,
+        updateRequest
+      );
+
+      console.log('[WorkNotesManager] Update success:', result);
+
       message.success('工作笔记更新成功');
       setEditModalVisible(false);
       editForm.resetFields();
       setCurrentWorkNote(null);
-      loadWorkNotes();
-    } catch (error) {
-      console.error('Failed to update work note:', error);
-      message.error('更新失败');
+
+      // 刷新列表
+      await loadWorkNotes();
+    } catch (error: any) {
+      console.error('[WorkNotesManager] Failed to update work note:', error);
+      message.error(error.message || '更新失败，请重试');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1945,7 +1966,15 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           setCurrentWorkNote(null);
           editForm.resetFields();
         }}
-        width={800}
+        width={900}
+        centered
+        bodyStyle={{
+          maxHeight: '70vh',
+          overflowY: 'auto',
+          padding: '24px'
+        }}
+        destroyOnClose
+        confirmLoading={saving}
         okText="保存"
         cancelText="取消"
       >
@@ -2025,14 +2054,14 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
 
           <Form.Item
             name="folder_id"
-            label="文件夹"
+            label="所属文件夹"
+            rules={[{ required: true, message: '请选择所属文件夹' }]}
           >
             <TreeSelect
               showSearch
               style={{ width: '100%' }}
               dropdownStyle={{ maxHeight: 400, overflow: 'auto' }}
-              placeholder="选择文件夹（可选）"
-              allowClear
+              placeholder="请选择文件夹"
               treeDefaultExpandAll
               treeData={buildFolderTreeData(folders)}
               filterTreeNode={(input, node) =>
