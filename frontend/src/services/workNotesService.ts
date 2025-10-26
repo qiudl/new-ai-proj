@@ -33,7 +33,7 @@ export interface CreateWorkNoteFolderRequest {
   description?: string;
   parent_id?: number;
   project_id?: number;
-  visibility?: 'private' | 'team' | 'public';
+  visibility: 'private' | 'team' | 'public'; // 必填字段
   color?: string;
   icon?: string;
 }

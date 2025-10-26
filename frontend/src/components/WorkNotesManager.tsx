@@ -471,10 +471,14 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         await workNotesService.updateFolder(editingFolder.id, values);
         message.success('文件夹更新成功');
       } else {
-        // 使用表单中的parent_id，如果未设置则使用undefined（后端会转换为null）
+        // 创建文件夹时确保包含所有必需字段
         await workNotesService.createFolder({
-          ...values,
+          name: values.name,
+          description: values.description,
           parent_id: values.parent_id,
+          visibility: values.visibility || 'private', // 确保visibility有值
+          color: values.color,
+          icon: values.icon,
         });
         message.success('文件夹创建成功');
       }
