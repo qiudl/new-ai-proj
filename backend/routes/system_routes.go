@@ -20,6 +20,9 @@ func RegisterSystemRoutes(authorized *gin.RouterGroup, app ApplicationInterface)
 
 	// API密钥管理路由
 	registerAPIKeyRoutes(authorized, app)
+
+	// 系统管理员权限管理路由
+	registerSystemAdminRoutes(authorized, app)
 }
 
 // registerPermissionManagementRoutes 注册权限管理路由
@@ -196,4 +199,50 @@ func registerAPIKeyRoutes(authorized *gin.RouterGroup, app ApplicationInterface)
 	}
 
 	log.Printf("[DEBUG] API密钥管理路由注册完成")
+}
+
+// registerSystemAdminRoutes 注册系统管理员权限管理路由
+func registerSystemAdminRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	log.Printf("[DEBUG] 开始注册系统管理员权限管理路由")
+
+	// 检查SystemAdminHandler是否为nil
+	systemAdminHandler := app.GetSystemAdminHandler()
+	if systemAdminHandler == nil {
+		log.Printf("[ERROR] SystemAdminHandler is nil, cannot register system admin routes!")
+		return
+	}
+	log.Printf("[DEBUG] SystemAdminHandler OK: %p", systemAdminHandler)
+
+	// 系统管理员路由组 - 所有路由都在 /system/admins 下
+	systemGroup := authorized.Group("/system")
+	{
+		adminsGroup := systemGroup.Group("/admins")
+		{
+			// ========== 授予和撤销权限 ==========
+			// 授予完整的系统管理员权限（需要自定义admin_scopes）
+			adminsGroup.POST("/grant", middleware.RequireAdminPermission(), systemAdminHandler.GrantSystemAdmin)
+
+			// 授予范围限定的系统管理员权限（简化版，自动构建admin_scopes）
+			adminsGroup.POST("/grant-scoped", middleware.RequireAdminPermission(), systemAdminHandler.GrantScopedAdmin)
+
+			// 撤销系统管理员权限
+			adminsGroup.POST("/revoke", middleware.RequireAdminPermission(), systemAdminHandler.RevokeSystemAdmin)
+
+			// ========== 查询管理员信息 ==========
+			// 获取所有系统管理员列表
+			adminsGroup.GET("", middleware.RequireView(), systemAdminHandler.ListSystemAdmins)
+
+			// 检查当前用户是否为系统管理员
+			adminsGroup.GET("/check", systemAdminHandler.CheckCurrentUser)
+
+			// 获取指定管理员可访问的项目列表
+			adminsGroup.GET("/:id/accessible-projects", middleware.RequireView(), systemAdminHandler.GetAccessibleProjects)
+
+			// ========== 审计日志 ==========
+			// 获取系统管理员操作审计日志
+			adminsGroup.GET("/audit-logs", middleware.RequireView(), systemAdminHandler.GetAuditLogs)
+		}
+	}
+
+	log.Printf("[DEBUG] 系统管理员权限管理路由注册完成")
 }

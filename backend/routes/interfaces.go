@@ -138,6 +138,7 @@ type ApplicationInterface interface {
 
 	// 工作笔记文件夹处理器
 	GetWorkNoteFolderHandler() *handlers.WorkNoteFolderHandler
+	GetWorkNoteFolderTreeHandler() *handlers.WorkNoteFolderTreeHandler // 三棵树处理器（新增）
 
 	// 协作处理器
 	GetCollaborationHandler() *handlers.DocumentCollaborationHandler
@@ -195,6 +196,9 @@ type ApplicationInterface interface {
 
 	// API密钥处理器
 	GetAPIKeyHandler() *handlers.APIKeyHandler
+
+	// 系统管理员权限处理器
+	GetSystemAdminHandler() *handlers.SystemAdminHandler
 
 	// Dashboard处理器
 	GetDashboardHandler() *handlers.DashboardHandler

@@ -59,6 +59,7 @@ type Application struct {
 	conflictHandler          *handlers.ConflictHandler          // Conflict management handler instance (Phase 4)
 	mcpWorktreeHandler       *handlers.MCPWorktreeHandler       // MCP Worktree handler instance (Phase 5)
 	monitoringHandler        *handlers.WorktreeMonitoringHandler // Worktree monitoring handler instance (Phase 6)
+	systemAdminHandler       *handlers.SystemAdminHandler       // System admin handler instance
 	mirrorWritable           bool
 }
 
@@ -243,6 +244,10 @@ func NewApplication() (*Application, error) {
 	monitoringService := services.NewWorktreeMonitoringService(db, worktreeService, worktreeBaseDir)
 	monitoringHandler := handlers.NewWorktreeMonitoringHandler(monitoringService)
 
+	// Initialize System Admin Handler
+	sqlDB, _ := db.GetDB().(*sql.DB)
+	systemAdminHandler := handlers.NewSystemAdminHandler(sqlDB)
+
 	// Initialize WebSocket Hub (temporarily disabled)
 	// wsHub := ws.NewHub(logger)
 	// go wsHub.Run() // Start the hub in a goroutine
@@ -290,6 +295,7 @@ func NewApplication() (*Application, error) {
 		conflictHandler:          conflictHandler, // Phase 4
 		mcpWorktreeHandler:       mcpWorktreeHandler, // Phase 5
 		monitoringHandler:        monitoringHandler,  // Phase 6
+		systemAdminHandler:       systemAdminHandler, // System admin handler
 	}
 
 	// Perform startup permission/volume checks
@@ -569,6 +575,12 @@ func (app *Application) GetWorkNoteFolderHandler() *handlers.WorkNoteFolderHandl
 	return handlers.NewWorkNoteFolderHandler(app.db)
 }
 
+// GetWorkNoteFolderTreeHandler returns the work note folder tree handler (three-tree system)
+func (app *Application) GetWorkNoteFolderTreeHandler() *handlers.WorkNoteFolderTreeHandler {
+	// Create a new instance on-demand
+	return handlers.NewWorkNoteFolderTreeHandler(app.db)
+}
+
 // GetCollaborationHandler returns the collaboration handler
 func (app *Application) GetCollaborationHandler() *handlers.DocumentCollaborationHandler {
 	// TODO: Initialize collaboration service properly
@@ -766,6 +778,11 @@ func (app *Application) GetAPIKeyHandler() *handlers.APIKeyHandler {
 		return app.handlers.APIKeyHandler
 	}
 	return nil // 需要通过工厂创建
+}
+
+// GetSystemAdminHandler returns the system admin handler
+func (app *Application) GetSystemAdminHandler() *handlers.SystemAdminHandler {
+	return app.systemAdminHandler
 }
 
 // GetDashboardHandler returns the Dashboard handler

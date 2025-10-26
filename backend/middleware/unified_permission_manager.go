@@ -22,8 +22,27 @@ type UnifiedPermissionManager struct {
 	permissionRepo     database.PermissionRepository
 	auditRepo          database.AuditRepository
 	rateLimiter        *security.RateLimiter
+	systemAdminService SystemAdminServiceInterface // Database-driven system admin check
 	enableAuditLogging bool
 	enableRateLimit    bool
+	enableDBAdminCheck bool // Enable database-driven admin check (Phase 2 feature)
+}
+
+// SystemAdminServiceInterface defines the interface for system admin service
+type SystemAdminServiceInterface interface {
+	CheckSystemAdmin(ctx context.Context, userID int) (*SystemAdminInfo, error)
+	CheckSystemAdminByUsername(ctx context.Context, username string) (*SystemAdminInfo, error)
+	IsSystemAdminActive(ctx context.Context, userID int) bool
+}
+
+// SystemAdminInfo represents system admin information (minimal interface)
+type SystemAdminInfo struct {
+	UserID             int
+	Username           string
+	IsSystemAdmin      bool
+	AdminLevel         int
+	AdminScopes        map[string]interface{}
+	AdminDeactivatedAt *time.Time
 }
 
 // ---------- Superadmin helpers (env-driven) ----------
@@ -135,10 +154,12 @@ type UnifiedPermissionConfig struct {
 	PermissionRepo     database.PermissionRepository
 	AuditRepo          database.AuditRepository
 	RateLimiter        *security.RateLimiter
+	SystemAdminService SystemAdminServiceInterface // Phase 2: Database-driven system admin check
 	CacheTTL           time.Duration
 	EnableCache        bool
 	EnableAuditLogging bool
 	EnableRateLimit    bool
+	EnableDBAdminCheck bool // Enable database admin check (defaults to false for backward compatibility)
 }
 
 // PermissionCheckRequest represents a permission check request
@@ -206,8 +227,10 @@ func NewUnifiedPermissionManager(config *UnifiedPermissionConfig) *UnifiedPermis
 		permissionRepo:     config.PermissionRepo,
 		auditRepo:          config.AuditRepo,
 		rateLimiter:        config.RateLimiter,
+		systemAdminService: config.SystemAdminService,
 		enableAuditLogging: config.EnableAuditLogging,
 		enableRateLimit:    config.EnableRateLimit,
+		enableDBAdminCheck: config.EnableDBAdminCheck,
 	}
 }
 
@@ -238,15 +261,54 @@ func (m *UnifiedPermissionManager) CheckPermission(ctx context.Context, request 
 
 	// Superadmin override (after rate limiting, before cache/DB)
 	if request.EnableOverrides {
+		// Phase 2: Database-driven system admin check (priority over env-based check)
+		if m.enableDBAdminCheck && m.systemAdminService != nil {
+			// Extract user_id from request context
+			var userID int
+			if v, ok := request.RequestContext["user_id"]; ok {
+				switch t := v.(type) {
+				case int:
+					userID = t
+				case int64:
+					userID = int(t)
+				case float64:
+					userID = int(t)
+				case string:
+					if parsed, err := strconv.Atoi(t); err == nil {
+						userID = parsed
+					}
+				}
+			}
+
+			// Check if user is a system admin in database
+			if userID > 0 {
+				if adminInfo, err := m.systemAdminService.CheckSystemAdmin(ctx, userID); err == nil && adminInfo.IsSystemAdmin {
+					response.HasPermission = true
+					response.Reason = fmt.Sprintf("System Admin (Level %d, DB-driven)", adminInfo.AdminLevel)
+					response.Source = "system_admin_db"
+					response.ResponseTime = time.Since(startTime)
+					if response.Metadata == nil {
+						response.Metadata = map[string]interface{}{}
+					}
+					response.Metadata["system_admin"] = true
+					response.Metadata["admin_level"] = adminInfo.AdminLevel
+					response.Metadata["admin_source"] = "database"
+					return response, nil
+				}
+			}
+		}
+
+		// Fallback to environment variable-based check (backward compatibility)
 		if ok, why := isSuperAdminFromRequestContext(request.RequestContext); ok {
 			response.HasPermission = true
 			response.Reason = fmt.Sprintf("Admin override (%s)", why)
-			response.Source = "admin_override"
+			response.Source = "admin_override_env"
 			response.ResponseTime = time.Since(startTime)
 			if response.Metadata == nil {
 				response.Metadata = map[string]interface{}{}
 			}
 			response.Metadata["admin_override"] = true
+			response.Metadata["admin_source"] = "environment"
 			return response, nil
 		}
 	}
