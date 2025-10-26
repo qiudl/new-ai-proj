@@ -7,6 +7,7 @@ import {
   Input,
   Select,
   message,
+  notification,
   Skeleton,
   Popconfirm,
   Tag,
@@ -39,7 +40,8 @@ import {
   CopyOutlined,
   BookOutlined,
   StarOutlined,
-  InboxOutlined
+  InboxOutlined,
+  UndoOutlined
 } from '@ant-design/icons';
 import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest, WorkNoteFolder } from '../services/workNotesService';
 import WorkNoteConversionModal from './conversion/WorkNoteConversionModal';
@@ -1124,7 +1126,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     });
   };
 
-  const handleBatchStatusUpdate = async (status: string) => {
+  const handleBatchStatusUpdate = async (status: 'draft' | 'published' | 'archived' | 'template') => {
     if (selectedRowKeys.length === 0) {
       message.warning('请先选择要更新的笔记');
       return;
@@ -1132,7 +1134,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
 
     try {
       setBatchLoading(true);
-      const promises = selectedRowKeys.map(id => 
+      const promises = selectedRowKeys.map(id =>
         workNotesService.updateWorkNote(Number(id), { status })
       );
       await Promise.all(promises);
