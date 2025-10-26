@@ -649,8 +649,42 @@ func (s *WorkNoteService) GetWorkNoteCategoryStats(ctx context.Context, userID i
 		stats.Associations.Convertible = unassociated // 未关联的笔记都可以转换为任务文档
 	}
 
-	log.Printf("[DEBUG-SERVICE] CategoryStats: Categories=%d, Tags=%d, Associated=%d, Unassociated=%d",
-		len(stats.Categories), len(stats.Tags), stats.Associations.Associated, stats.Associations.Unassociated)
+	// 4. 统计时间范围（今天、本周、本月、更早）
+	now := time.Now()
+	today := now.Truncate(24 * time.Hour)
+	weekStart := today.AddDate(0, 0, -int(now.Weekday()))
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+
+	timeRow := s.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*) FILTER (WHERE created_at >= $2) AS today,
+			COUNT(*) FILTER (WHERE created_at >= $3 AND created_at < $2) AS this_week,
+			COUNT(*) FILTER (WHERE created_at >= $4 AND created_at < $3) AS this_month,
+			COUNT(*) FILTER (WHERE created_at < $4) AS earlier
+		FROM documents
+		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL`,
+		userID, today, weekStart, monthStart)
+
+	var todayCount, thisWeekCount, thisMonthCount, earlierCount int
+	if err := timeRow.Scan(&todayCount, &thisWeekCount, &thisMonthCount, &earlierCount); err == nil {
+		stats.TimeRanges = &models.TimeRangeStats{
+			Today:     todayCount,
+			ThisWeek:  thisWeekCount,
+			ThisMonth: thisMonthCount,
+			Earlier:   earlierCount,
+		}
+	} else {
+		// 如果查询失败，返回零值确保字段存在
+		stats.TimeRanges = &models.TimeRangeStats{
+			Today:     0,
+			ThisWeek:  0,
+			ThisMonth: 0,
+			Earlier:   0,
+		}
+	}
+
+	log.Printf("[DEBUG-SERVICE] CategoryStats: Categories=%d, Tags=%d, Associated=%d, Unassociated=%d, TimeRanges=%+v",
+		len(stats.Categories), len(stats.Tags), stats.Associations.Associated, stats.Associations.Unassociated, stats.TimeRanges)
 
 	return stats, nil
 }
