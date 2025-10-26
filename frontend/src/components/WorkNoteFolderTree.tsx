@@ -232,8 +232,6 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
           )}
         </div>
       ),
-      icon: ({ expanded }: { expanded: boolean }) =>
-        expanded ? <FolderOpenOutlined /> : <FolderOutlined />,
       isLeaf: !hasChildren,
       children: folder.children?.map(folderToTreeNode),
       // 存储原始文件夹数据
@@ -251,7 +249,6 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
           <span style={{ fontWeight: 500 }}>全部笔记</span>
         </div>
       ),
-      icon: <FolderFilled style={{ color: '#1890ff' }} />,
       isLeaf: false,
       children: folders.map(folderToTreeNode),
     };
@@ -523,7 +520,6 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
             expandedKeys={expandedKeys}
             onSelect={handleSelect}
             onExpand={handleExpand}
-            onRightClick={handleRightClick}
             loadData={handleLoadData}
             treeData={treeData}
             defaultExpandedKeys={['root']}
@@ -543,15 +539,6 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
           />
         )}
       </div>
-
-      {/* 右键菜单 */}
-      <FolderContextMenu
-        folder={contextMenuFolder}
-        position={contextMenuPosition}
-        onClose={handleCloseContextMenu}
-        onAction={handleContextMenuAction}
-        showShortcuts={true}
-      />
     </div>
   );
 };

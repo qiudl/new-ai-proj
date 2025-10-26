@@ -18,10 +18,8 @@ const WorkNotesLayout: React.FC<WorkNotesLayoutProps> = ({
   siderWidth = 280,
   collapsedWidth = 48
 }) => {
-  // 从 localStorage 读取折叠状态
-  const [collapsed, setCollapsed] = useState(() => {
-    return workNotesStorage.getFolderCollapsed(false);
-  });
+  // 强制默认展开，不读取localStorage
+  const [collapsed, setCollapsed] = useState(false);
 
   // 保存折叠状态
   useEffect(() => {
