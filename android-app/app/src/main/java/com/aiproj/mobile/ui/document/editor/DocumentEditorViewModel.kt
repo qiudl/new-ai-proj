@@ -39,8 +39,8 @@ class DocumentEditorViewModel @Inject constructor(
                         document = doc,
                         title = doc.title,
                         content = doc.content,
-                        type = doc.type,
-                        status = doc.status
+                        type = doc.type ?: "markdown",
+                        status = doc.status ?: "draft"
                     )
                 }
                 .onFailure { e ->

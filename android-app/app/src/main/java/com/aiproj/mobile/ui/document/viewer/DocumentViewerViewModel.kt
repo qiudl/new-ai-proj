@@ -18,6 +18,7 @@ import javax.inject.Inject
 @HiltViewModel
 class DocumentViewerViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
+    private val taskRepository: com.aiproj.mobile.data.repository.TaskRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -29,6 +30,8 @@ class DocumentViewerViewModel @Inject constructor(
 
     init {
         loadDocument()
+        // 预取项目信息（用于版本历史导航）
+        fetchProjectId()
     }
 
     /**
@@ -73,6 +76,20 @@ class DocumentViewerViewModel @Inject constructor(
     }
 
     /**
+     * 获取任务所属项目ID
+     */
+    fun fetchProjectId() {
+        if (taskId == 0) return
+        viewModelScope.launch {
+            val result = taskRepository.getTask(taskId)
+            result.onSuccess { task ->
+                _uiState.value = _uiState.value.copy(taskProjectId = task.projectId)
+            }
+            // 失败时忽略，不影响文档查看；点击版本历史时可提示重试
+        }
+    }
+
+    /**
      * 删除文档
      */
     fun deleteDocument(onSuccess: () -> Unit) {
@@ -102,5 +119,6 @@ data class DocumentViewerUiState(
     val document: Document? = null,
     val error: String? = null,
     val isFullScreen: Boolean = false,
-    val isDeleting: Boolean = false
+    val isDeleting: Boolean = false,
+    val taskProjectId: Int? = null
 )

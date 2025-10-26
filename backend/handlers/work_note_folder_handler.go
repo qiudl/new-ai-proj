@@ -327,10 +327,12 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolder(c *gin.Context) {
 	}
 
 	// 计算笔记数量
+	// 工作笔记存储在documents表，通过metadata->>'work_note_type'标识
 	noteCountQuery := `
-		SELECT COUNT(*) FROM work_notes wn
-		INNER JOIN documents d ON wn.document_id = d.id
-		WHERE d.folder_id = $1 AND d.deleted_at IS NULL
+		SELECT COUNT(*) FROM documents d
+		WHERE d.folder_id = $1
+		  AND d.deleted_at IS NULL
+		  AND d.metadata->>'work_note_type' IS NOT NULL
 	`
 	var noteCount int
 	err = h.db.QueryRow(noteCountQuery, folderID).Scan(&noteCount)
@@ -622,15 +624,16 @@ func (h *WorkNoteFolderHandler) DeleteWorkNoteFolder(c *gin.Context) {
 	}
 
 	// 检查是否有工作笔记
+	// 工作笔记存储在documents表，通过metadata->>'work_note_type'标识
 	noteCountQuery := `
-		SELECT COUNT(*) FROM work_notes wn
-		INNER JOIN documents d ON wn.document_id = d.id
-		WHERE d.folder_id = $1 AND d.deleted_at IS NULL
+		SELECT COUNT(*) FROM documents d
+		WHERE d.folder_id = $1
+		  AND d.deleted_at IS NULL
+		  AND d.metadata->>'work_note_type' IS NOT NULL
 	`
 	var noteCount int
 	err = h.db.QueryRow(noteCountQuery, folderID).Scan(&noteCount)
 	if err != nil {
-		// 如果查询失败，可能是work_notes表不存在，我们忽略这个检查
 		log.Printf("Warning: Could not check work notes count: %v", err)
 		noteCount = 0
 	}
@@ -764,17 +767,24 @@ func (h *WorkNoteFolderHandler) ListWorkNoteFolders(c *gin.Context) {
 		return
 	}
 
-	// 简化查询以排除错误源
+	// 查询文件夹列表并计算笔记数量
+	// 工作笔记存储在documents表，通过metadata->>'work_note_type'标识
 	query := fmt.Sprintf(`
-		SELECT 
-			wnf.id, wnf.name, wnf.description, wnf.parent_id, 
-			wnf.owner_id, wnf.project_id, wnf.visibility, 
+		SELECT
+			wnf.id, wnf.name, wnf.description, wnf.parent_id,
+			wnf.owner_id, wnf.project_id, wnf.visibility,
 			wnf.color, wnf.icon, wnf.sort_order, wnf.created_by,
 			wnf.created_at, wnf.updated_at, wnf.deleted_at,
-			'' as owner_name,
-			0 as notes_count,
-			0 as subfolders_count
+			COALESCE(u.username, '') as owner_name,
+			(SELECT COUNT(*) FROM documents d
+			 WHERE d.folder_id = wnf.id
+			 AND d.deleted_at IS NULL
+			 AND d.metadata->>'work_note_type' IS NOT NULL) as notes_count,
+			(SELECT COUNT(*) FROM work_note_folders sf
+			 WHERE sf.parent_id = wnf.id
+			 AND sf.deleted_at IS NULL) as subfolders_count
 		FROM work_note_folders wnf
+		LEFT JOIN users u ON wnf.owner_id = u.id
 		WHERE %s
 		ORDER BY wnf.sort_order, wnf.name
 		LIMIT $%d OFFSET $%d
@@ -829,16 +839,7 @@ func (h *WorkNoteFolderHandler) ListWorkNoteFolders(c *gin.Context) {
 
 // GetWorkNoteFolderTree 获取工作笔记文件夹树（懒加载优化）
 func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
-	// TEMPORARY FIX: Return empty folder tree to unblock user
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    []*models.WorkNoteFolder{},
-		"message": "Empty folder tree (temporary fix while debugging SQL issue)",
-	})
-	return
-
-	fmt.Println("=== GetWorkNoteFolderTree CALLED AT", time.Now().Format("15:04:05"), "===")
-	log.Printf("[GetWorkNoteFolderTree] Starting request V3 - FRESH RESTART")
+	log.Printf("[GetWorkNoteFolderTree] Starting request")
 
 	// 获取当前用户ID
 	userID, exists := c.Get("user_id")
@@ -870,18 +871,24 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
 		// 懒加载模式：只获取指定父级的直接子级
 		if parentID == "null" {
 			// 获取根级文件夹
+			// 工作笔记存储在documents表，通过metadata->>'work_note_type'标识
 			query = `
-				SELECT 
-					wnf.id, wnf.name, wnf.description, wnf.parent_id, 
-					wnf.owner_id, wnf.project_id, wnf.visibility, 
+				SELECT
+					wnf.id, wnf.name, wnf.description, wnf.parent_id,
+					wnf.owner_id, wnf.project_id, wnf.visibility,
 					wnf.color, wnf.icon, wnf.sort_order, wnf.created_by,
 					wnf.created_at, wnf.updated_at, wnf.deleted_at,
 					COALESCE(u.username, '') as owner_name,
-					0 as notes_count,
-					(SELECT COUNT(*) FROM work_note_folders sf WHERE sf.parent_id = wnf.id AND sf.deleted_at IS NULL) as subfolders_count
+					(SELECT COUNT(*) FROM documents d
+					 WHERE d.folder_id = wnf.id
+					 AND d.deleted_at IS NULL
+					 AND d.metadata->>'work_note_type' IS NOT NULL) as notes_count,
+					(SELECT COUNT(*) FROM work_note_folders sf
+					 WHERE sf.parent_id = wnf.id
+					 AND sf.deleted_at IS NULL) as subfolders_count
 				FROM work_note_folders wnf
 				LEFT JOIN users u ON wnf.owner_id = u.id
-				WHERE wnf.deleted_at IS NULL 
+				WHERE wnf.deleted_at IS NULL
 				AND wnf.parent_id IS NULL
 				AND (wnf.owner_id = $1 OR wnf.visibility = 'team' OR wnf.visibility = 'public')
 				ORDER BY wnf.sort_order, wnf.name
@@ -890,18 +897,24 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
 		} else {
 			// 获取指定父级的子文件夹
 			if pid, err := strconv.Atoi(parentID); err == nil {
+				// 工作笔记存储在documents表，通过metadata->>'work_note_type'标识
 				query = `
-					SELECT 
-						wnf.id, wnf.name, wnf.description, wnf.parent_id, 
-						wnf.owner_id, wnf.project_id, wnf.visibility, 
+					SELECT
+						wnf.id, wnf.name, wnf.description, wnf.parent_id,
+						wnf.owner_id, wnf.project_id, wnf.visibility,
 						wnf.color, wnf.icon, wnf.sort_order, wnf.created_by,
 						wnf.created_at, wnf.updated_at, wnf.deleted_at,
 						COALESCE(u.username, '') as owner_name,
-						0 as notes_count,
-						(SELECT COUNT(*) FROM work_note_folders sf WHERE sf.parent_id = wnf.id AND sf.deleted_at IS NULL) as subfolders_count
+						(SELECT COUNT(*) FROM documents d
+						 WHERE d.folder_id = wnf.id
+						 AND d.deleted_at IS NULL
+						 AND d.metadata->>'work_note_type' IS NOT NULL) as notes_count,
+						(SELECT COUNT(*) FROM work_note_folders sf
+						 WHERE sf.parent_id = wnf.id
+						 AND sf.deleted_at IS NULL) as subfolders_count
 					FROM work_note_folders wnf
 					LEFT JOIN users u ON wnf.owner_id = u.id
-					WHERE wnf.deleted_at IS NULL 
+					WHERE wnf.deleted_at IS NULL
 					AND wnf.parent_id = $2
 					AND (wnf.owner_id = $1 OR wnf.visibility = 'team' OR wnf.visibility = 'public')
 					ORDER BY wnf.sort_order, wnf.name
@@ -917,43 +930,49 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
 		}
 	} else {
 		// 完整树模式：使用递归CTE限制深度
+		// 工作笔记存储在documents表，通过metadata->>'work_note_type'标识
 		query = `
 			WITH RECURSIVE folder_tree AS (
 				-- 根级文件夹
-				SELECT 
-					wnf.id, wnf.name, wnf.description, wnf.parent_id, 
-					wnf.owner_id, wnf.project_id, wnf.visibility, 
+				SELECT
+					wnf.id, wnf.name, wnf.description, wnf.parent_id,
+					wnf.owner_id, wnf.project_id, wnf.visibility,
 					wnf.color, wnf.icon, wnf.sort_order, wnf.created_by,
 					wnf.created_at, wnf.updated_at, wnf.deleted_at,
 					1 as depth
 				FROM work_note_folders wnf
-				WHERE wnf.deleted_at IS NULL 
+				WHERE wnf.deleted_at IS NULL
 				AND wnf.parent_id IS NULL
 				AND (wnf.owner_id = $1 OR wnf.visibility = 'team' OR wnf.visibility = 'public')
-				
+
 				UNION ALL
-				
+
 				-- 递归获取子文件夹（限制深度）
-				SELECT 
-					wnf.id, wnf.name, wnf.description, wnf.parent_id, 
-					wnf.owner_id, wnf.project_id, wnf.visibility, 
+				SELECT
+					wnf.id, wnf.name, wnf.description, wnf.parent_id,
+					wnf.owner_id, wnf.project_id, wnf.visibility,
 					wnf.color, wnf.icon, wnf.sort_order, wnf.created_by,
 					wnf.created_at, wnf.updated_at, wnf.deleted_at,
 					ft.depth + 1
 				FROM work_note_folders wnf
 				INNER JOIN folder_tree ft ON wnf.parent_id = ft.id
-				WHERE wnf.deleted_at IS NULL 
+				WHERE wnf.deleted_at IS NULL
 				AND ft.depth < $2
 				AND (wnf.owner_id = $1 OR wnf.visibility = 'team' OR wnf.visibility = 'public')
 			)
-			SELECT 
-				ft.id, ft.name, ft.description, ft.parent_id, 
-				ft.owner_id, ft.project_id, ft.visibility, 
+			SELECT
+				ft.id, ft.name, ft.description, ft.parent_id,
+				ft.owner_id, ft.project_id, ft.visibility,
 				ft.color, ft.icon, ft.sort_order, ft.created_by,
 				ft.created_at, ft.updated_at, ft.deleted_at,
 				COALESCE(u.username, '') as owner_name,
-				0 as notes_count,
-				(SELECT COUNT(*) FROM work_note_folders sf WHERE sf.parent_id = ft.id AND sf.deleted_at IS NULL) as subfolders_count
+				(SELECT COUNT(*) FROM documents d
+				 WHERE d.folder_id = ft.id
+				 AND d.deleted_at IS NULL
+				 AND d.metadata->>'work_note_type' IS NOT NULL) as notes_count,
+				(SELECT COUNT(*) FROM work_note_folders sf
+				 WHERE sf.parent_id = ft.id
+				 AND sf.deleted_at IS NULL) as subfolders_count
 			FROM folder_tree ft
 			LEFT JOIN users u ON ft.owner_id = u.id
 			ORDER BY ft.sort_order, ft.name

@@ -42,6 +42,7 @@ fun DocumentViewerScreen(
     @Suppress("UNUSED_PARAMETER") documentId: Int,
     onNavigateBack: () -> Unit,
     onNavigateToEdit: (Int, Int) -> Unit,
+    onNavigateToVersionHistory: ((projectId: Int, taskId: Int, documentId: Int) -> Unit)? = null,
     viewModel: DocumentViewerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -103,6 +104,31 @@ fun DocumentViewerScreen(
                                 expanded = showMoreMenu,
                                 onDismissRequest = { showMoreMenu = false }
                             ) {
+                                // 版本历史菜单项
+                                onNavigateToVersionHistory?.let { navigate ->
+                                    DropdownMenuItem(
+                                        text = { Text("版本历史") },
+                                        onClick = {
+                                            uiState.document?.let { doc ->
+                                                val pid = uiState.taskProjectId
+                                                if (pid != null && pid > 0) {
+                                                    navigate(pid, doc.taskId, doc.id)
+                                                } else {
+                                                    // 尝试刷新项目ID，并提示用户稍后重试
+                                                    viewModel.fetchProjectId()
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("正在获取项目信息，请稍后重试")
+                                                    }
+                                                }
+                                            }
+                                            showMoreMenu = false
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.History, null)
+                                        }
+                                    )
+                                }
+
                                 DropdownMenuItem(
                                     text = { Text("删除") },
                                     onClick = {
@@ -314,11 +340,11 @@ private fun DocumentMetadata(document: Document) {
                 onClick = {},
                 label = {
                     Text(
-                        when (document.status) {
+                        when (document.status ?: "draft") {
                             "draft" -> "草稿"
                             "published" -> "已发布"
                             "archived" -> "已归档"
-                            else -> document.status
+                            else -> document.status ?: "草稿"
                         }
                     )
                 }
@@ -326,19 +352,19 @@ private fun DocumentMetadata(document: Document) {
 
             AssistChip(
                 onClick = {},
-                label = { Text(document.type.uppercase()) }
+                label = { Text((document.type ?: "markdown").uppercase()) }
             )
         }
 
         // 时间信息
         Text(
-            text = "创建: ${formatTime(document.createdAt)}",
+            text = "创建: ${formatTime(document.createdAt ?: "")}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Text(
-            text = "更新: ${formatTime(document.updatedAt)}",
+            text = "更新: ${formatTime(document.updatedAt ?: "")}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

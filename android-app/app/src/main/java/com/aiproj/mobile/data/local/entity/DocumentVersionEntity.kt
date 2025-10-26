@@ -42,7 +42,7 @@ data class DocumentVersionEntity(
     val contentLength: Int,
 
     @ColumnInfo(name = "change_type")
-    val changeType: String, // "created", "updated", "restored"
+    val changeType: String,
 
     val tag: String? = null,
 
@@ -61,13 +61,13 @@ fun com.aiproj.mobile.data.models.DocumentVersionDto.toEntity(): DocumentVersion
         id = this.id,
         documentId = this.documentId,
         versionNumber = this.versionNumber,
-        title = this.title,
-        content = this.content,
+        title = this.title ?: "",
+        content = this.content ?: "",
         changeDescription = this.changeDescription,
-        createdBy = this.createdBy,
-        createdAt = this.createdAt,
-        contentLength = this.contentLength,
-        changeType = this.changeType,
+        createdBy = this.createdBy ?: 0,
+        createdAt = this.createdAt ?: "",
+        contentLength = this.contentLength ?: 0,
+        changeType = this.changeType ?: "updated",
         tag = this.tag,
         creatorName = this.creatorName
     )

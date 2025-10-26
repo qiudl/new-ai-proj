@@ -1634,3 +1634,104 @@ func (h *UnifiedDocumentHandler) DeleteDocumentByID(c *gin.Context) {
 		},
 	})
 }
+
+// ==================== 短路由适配方法（用于移动端API） ====================
+
+// GetTaskDocumentsWithoutProject 获取任务文档列表（短路由）
+// GET /api/v1/tasks/:id/documents
+func (h *UnifiedDocumentHandler) GetTaskDocumentsWithoutProject(c *gin.Context) {
+	// 解析taskID
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid task ID",
+		})
+		return
+	}
+
+	// 从数据库直接获取任务文档
+	docs, err := h.db.Documents().GetTaskDocuments(c.Request.Context(), taskID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// 返回文档列表
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    docs,
+		"message": nil,
+		"error":   nil,
+	})
+}
+
+// CreateTaskDocumentWithoutProject 创建任务文档（短路由）
+// POST /api/v1/tasks/:id/documents
+func (h *UnifiedDocumentHandler) CreateTaskDocumentWithoutProject(c *gin.Context) {
+	// 解析taskID
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid task ID",
+		})
+		return
+	}
+
+	// 从数据库获取任务信息以获取projectID
+	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "Task not found",
+		})
+		return
+	}
+
+	// 设置projectId和taskId到路径参数中，以便调用标准方法
+	c.Params = append(c.Params, gin.Param{Key: "id", Value: strconv.Itoa(task.ProjectID)})
+	c.Params = append(c.Params, gin.Param{Key: "taskId", Value: strconv.Itoa(taskID)})
+
+	// 调用标准的CreateDocument方法
+	h.CreateDocument(c)
+}
+
+// GetDocumentForShortRoute 获取单个文档（短路由）
+// GET /api/v1/tasks/:id/documents/:documentId
+func (h *UnifiedDocumentHandler) GetDocumentForShortRoute(c *gin.Context) {
+	// 直接使用documentId调用GetDocumentByID
+	// 将documentId参数重命名为id以匹配GetDocumentByID的期望
+	documentID := c.Param("documentId")
+	c.Params = gin.Params{
+		{Key: "id", Value: documentID},
+	}
+	h.GetDocumentByID(c)
+}
+
+// UpdateDocumentForShortRoute 更新文档（短路由）
+// PUT /api/v1/tasks/:id/documents/:documentId
+func (h *UnifiedDocumentHandler) UpdateDocumentForShortRoute(c *gin.Context) {
+	// 直接使用documentId调用UpdateDocumentByID
+	// 将documentId参数重命名为id以匹配UpdateDocumentByID的期望
+	documentID := c.Param("documentId")
+	c.Params = gin.Params{
+		{Key: "id", Value: documentID},
+	}
+	h.UpdateDocumentByID(c)
+}
+
+// DeleteDocumentForShortRoute 删除文档（短路由）
+// DELETE /api/v1/tasks/:id/documents/:documentId
+func (h *UnifiedDocumentHandler) DeleteDocumentForShortRoute(c *gin.Context) {
+	// 直接使用documentId调用DeleteDocumentByID
+	// 将documentId参数重命名为id以匹配DeleteDocumentByID的期望
+	documentID := c.Param("documentId")
+	c.Params = gin.Params{
+		{Key: "id", Value: documentID},
+	}
+	h.DeleteDocumentByID(c)
+}

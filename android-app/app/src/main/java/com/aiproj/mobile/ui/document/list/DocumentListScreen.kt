@@ -271,11 +271,11 @@ private fun DocumentListItem(
                         onClick = {},
                         label = {
                             Text(
-                                text = when (document.status) {
+                                text = when (document.status ?: "draft") {
                                     "draft" -> "草稿"
                                     "published" -> "已发布"
                                     "archived" -> "已归档"
-                                    else -> document.status
+                                    else -> document.status ?: "草稿"
                                 },
                                 style = MaterialTheme.typography.labelSmall
                             )
@@ -287,7 +287,7 @@ private fun DocumentListItem(
                         onClick = {},
                         label = {
                             Text(
-                                text = document.type.uppercase(),
+                                text = (document.type ?: "markdown").uppercase(),
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
@@ -296,7 +296,7 @@ private fun DocumentListItem(
 
                 // 更新时间
                 Text(
-                    text = formatTime(document.updatedAt),
+                    text = formatTime(document.updatedAt ?: ""),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

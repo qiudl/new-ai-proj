@@ -11,16 +11,16 @@ data class Document(
     val taskId: Int,
     val title: String,
     val content: String,
-    val type: String,
-    val status: String,
+    val type: String? = "markdown",
+    val status: String? = "draft",
     @SerializedName("created_at")
-    val createdAt: String,
+    val createdAt: String? = null,
     @SerializedName("updated_at")
-    val updatedAt: String,
+    val updatedAt: String? = null,
     @SerializedName("created_by")
-    val createdBy: Int,
+    val createdBy: Int? = null,
     @SerializedName("updated_by")
-    val updatedBy: Int,
+    val updatedBy: Int? = null,
     val version: Int = 1
 )
 

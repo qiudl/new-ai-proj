@@ -489,25 +489,28 @@ func RegisterDocumentHealthRoute(router *gin.Engine, app ApplicationInterface) {
 
 // registerShortTaskDocumentRoutes 注册简短的任务文档路由（用于移动端API）
 func registerShortTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// 使用UnifiedDocumentHandler处理短路由
+	unifiedHandler := app.GetUnifiedDocumentHandler()
+
 	// 简短路由: /api/v1/tasks/:id/documents
 	tasks := authorized.Group("/tasks")
 	{
 		taskDocuments := tasks.Group("/:id/documents")
 		{
 			// 获取任务的所有文档（需要从taskId反查projectId）
-			taskDocuments.GET("", app.GetDocumentHandler().GetTaskDocumentsWithoutProject)
+			taskDocuments.GET("", unifiedHandler.GetTaskDocumentsWithoutProject)
 
 			// 获取单个文档
-			taskDocuments.GET("/:documentId", app.GetDocumentHandler().GetDocument)
+			taskDocuments.GET("/:documentId", unifiedHandler.GetDocumentForShortRoute)
 
 			// 创建文档并关联到任务
-			taskDocuments.POST("", app.GetDocumentHandler().CreateTaskDocumentWithoutProject)
+			taskDocuments.POST("", unifiedHandler.CreateTaskDocumentWithoutProject)
 
 			// 更新文档
-			taskDocuments.PUT("/:documentId", app.GetDocumentHandler().UpdateDocument)
+			taskDocuments.PUT("/:documentId", unifiedHandler.UpdateDocumentForShortRoute)
 
 			// 删除文档关联
-			taskDocuments.DELETE("/:documentId", app.GetDocumentHandler().DeleteDocument)
+			taskDocuments.DELETE("/:documentId", unifiedHandler.DeleteDocumentForShortRoute)
 		}
 	}
 }

@@ -99,7 +99,7 @@ func (h *DocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 }
 
 func (h *DocumentHandler) GetTaskDocumentsWithoutProject(c *gin.Context) {
-	// 短路由: /tasks/:id/documents
+	// 短路由: /tasks/:id/documents (用于Android客户端)
 	taskIDStr := c.Param("id")
 
 	// 解析taskID
@@ -119,11 +119,12 @@ func (h *DocumentHandler) GetTaskDocumentsWithoutProject(c *gin.Context) {
 		return
 	}
 
-	// 返回文档列表
+	// 返回文档列表 (使用data字段以匹配ApiResponse<List<Document>>格式)
 	c.JSON(200, gin.H{
 		"success": true,
-		"documents": docs,
-		"total": len(docs),
+		"data":    docs,
+		"message": nil,
+		"error":   nil,
 	})
 }
 

@@ -46,7 +46,27 @@ data class VersionHistoryUiState(
     /**
      * 是否为空状态
      */
-    val isEmpty: Boolean = false
+    val isEmpty: Boolean = false,
+
+    /**
+     * 是否处于对比选择模式
+     */
+    val isComparisonMode: Boolean = false,
+
+    /**
+     * 选中用于对比的版本1（旧版本）
+     */
+    val selectedVersion1: Int? = null,
+
+    /**
+     * 选中用于对比的版本2（新版本）
+     */
+    val selectedVersion2: Int? = null,
+
+    /**
+     * 成功消息（用于显示操作成功反馈）
+     */
+    val successMessage: String? = null
 ) {
     /**
      * 是否显示空状态
@@ -65,47 +85,13 @@ data class VersionHistoryUiState(
      */
     val shouldShowContent: Boolean
         get() = versions.isNotEmpty() && error == null
+
+    /**
+     * 是否可以执行对比（已选择两个版本）
+     */
+    val canCompare: Boolean
+        get() = isComparisonMode && selectedVersion1 != null && selectedVersion2 != null
 }
-
-/**
- * 版本对比UI状态
- */
-data class VersionComparisonUiState(
-    /**
-     * 版本1
-     */
-    val version1: DocumentVersionDto? = null,
-
-    /**
-     * 版本2
-     */
-    val version2: DocumentVersionDto? = null,
-
-    /**
-     * Diff内容
-     */
-    val diff: String? = null,
-
-    /**
-     * 新增行数
-     */
-    val additions: Int = 0,
-
-    /**
-     * 删除行数
-     */
-    val deletions: Int = 0,
-
-    /**
-     * 是否正在加载
-     */
-    val isLoading: Boolean = false,
-
-    /**
-     * 错误信息
-     */
-    val error: String? = null
-)
 
 /**
  * 版本详情UI状态

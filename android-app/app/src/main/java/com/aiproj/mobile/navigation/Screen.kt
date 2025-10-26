@@ -122,6 +122,23 @@ sealed class Screen(val route: String) {
         }
     }
 
+    // 文档版本历史
+    object DocumentVersionHistory : Screen("document_version_history/{projectId}/{taskId}/{documentId}") {
+        fun createRoute(projectId: Int, taskId: Int, documentId: Int) =
+            "document_version_history/$projectId/$taskId/$documentId"
+    }
+
+    // 文档版本对比
+    object DocumentVersionComparison : Screen("document_version_comparison/{projectId}/{taskId}/{documentId}/{version1}/{version2}") {
+        fun createRoute(
+            projectId: Int,
+            taskId: Int,
+            documentId: Int,
+            version1: Int,
+            version2: Int
+        ) = "document_version_comparison/$projectId/$taskId/$documentId/$version1/$version2"
+    }
+
     // ========== 笔记模块 ==========
 
     // 笔记列表

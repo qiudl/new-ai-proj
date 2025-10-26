@@ -32,6 +32,8 @@ import com.aiproj.mobile.ui.screens.efficiency.EfficiencyComparisonScreen
 import com.aiproj.mobile.ui.document.list.DocumentListScreen
 import com.aiproj.mobile.ui.document.viewer.DocumentViewerScreen
 import com.aiproj.mobile.ui.document.editor.DocumentEditorScreen
+import com.aiproj.mobile.ui.document.version.VersionHistoryScreen
+import com.aiproj.mobile.ui.document.version.VersionComparisonScreen
 import com.aiproj.mobile.ui.screens.notes.NotesScreen
 import com.aiproj.mobile.ui.screens.notes.NoteDetailScreen
 import com.aiproj.mobile.ui.screens.notes.NoteEditorScreen
@@ -398,6 +400,11 @@ fun MainScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToEdit = { editTaskId, editDocumentId ->
                         navController.navigate(Screen.DocumentEditor.createRoute(editTaskId, editDocumentId))
+                    },
+                    onNavigateToVersionHistory = { projectId, versionTaskId, versionDocumentId ->
+                        navController.navigate(
+                            Screen.DocumentVersionHistory.createRoute(projectId, versionTaskId, versionDocumentId)
+                        )
                     }
                 )
             }
@@ -419,6 +426,61 @@ fun MainScreen(
                 DocumentEditorScreen(
                     taskId = taskId,
                     documentId = documentId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // 文档版本历史
+            composable(
+                route = Screen.DocumentVersionHistory.route,
+                arguments = listOf(
+                    navArgument("projectId") { type = NavType.IntType },
+                    navArgument("taskId") { type = NavType.IntType },
+                    navArgument("documentId") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val projectId = backStackEntry.arguments?.getInt("projectId") ?: return@composable
+                val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+                val documentId = backStackEntry.arguments?.getInt("documentId") ?: return@composable
+                VersionHistoryScreen(
+                    projectId = projectId.toLong(),
+                    taskId = taskId.toLong(),
+                    documentId = documentId.toLong(),
+                    onNavigateBack = { navController.popBackStack() },
+                    onVersionClick = { versionNumber ->
+                        // TODO: Phase 4.1 - Navigate to version detail view
+                        // For now, just show a toast or do nothing
+                    },
+                    onCompareVersions = { pId, tId, dId, v1, v2 ->
+                        navController.navigate(
+                            Screen.DocumentVersionComparison.createRoute(pId, tId, dId, v1, v2)
+                        )
+                    }
+                )
+            }
+
+            // 文档版本对比
+            composable(
+                route = Screen.DocumentVersionComparison.route,
+                arguments = listOf(
+                    navArgument("projectId") { type = NavType.IntType },
+                    navArgument("taskId") { type = NavType.IntType },
+                    navArgument("documentId") { type = NavType.IntType },
+                    navArgument("version1") { type = NavType.IntType },
+                    navArgument("version2") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val projectId = backStackEntry.arguments?.getInt("projectId") ?: return@composable
+                val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+                val documentId = backStackEntry.arguments?.getInt("documentId") ?: return@composable
+                val version1 = backStackEntry.arguments?.getInt("version1") ?: return@composable
+                val version2 = backStackEntry.arguments?.getInt("version2") ?: return@composable
+                VersionComparisonScreen(
+                    projectId = projectId.toLong(),
+                    taskId = taskId.toLong(),
+                    documentId = documentId.toLong(),
+                    version1Number = version1,
+                    version2Number = version2,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

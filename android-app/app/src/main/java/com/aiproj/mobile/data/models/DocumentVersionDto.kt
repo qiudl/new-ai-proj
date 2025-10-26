@@ -18,25 +18,25 @@ data class DocumentVersionDto(
     val versionNumber: Int,
 
     @SerializedName("title")
-    val title: String,
+    val title: String? = "",
 
     @SerializedName("content")
-    val content: String,
+    val content: String? = "",
 
     @SerializedName("change_description")
     val changeDescription: String? = null,
 
     @SerializedName("created_by")
-    val createdBy: Long,
+    val createdBy: Long? = null,
 
     @SerializedName("created_at")
-    val createdAt: String,
+    val createdAt: String? = "",
 
     @SerializedName("content_length")
-    val contentLength: Int,
+    val contentLength: Int? = 0,
 
     @SerializedName("change_type")
-    val changeType: String, // "created", "updated", "restored"
+    val changeType: String? = "updated", // "created", "updated", "restored"
 
     @SerializedName("tag")
     val tag: String? = null,
@@ -50,13 +50,13 @@ data class DocumentVersionDto(
  */
 data class VersionHistoryResponse(
     @SerializedName("versions")
-    val versions: List<DocumentVersionDto>,
+    val versions: List<DocumentVersionDto>? = emptyList(),
 
     @SerializedName("pagination")
-    val pagination: PaginationDto,
+    val pagination: PaginationDto? = null,
 
     @SerializedName("total_versions")
-    val totalVersions: Int
+    val totalVersions: Int = 0
 )
 
 /**
@@ -64,16 +64,16 @@ data class VersionHistoryResponse(
  */
 data class PaginationDto(
     @SerializedName("limit")
-    val limit: Int,
+    val limit: Int? = null,
 
     @SerializedName("offset")
-    val offset: Int,
+    val offset: Int? = null,
 
     @SerializedName("total")
-    val total: Int,
+    val total: Int? = null,
 
     @SerializedName("has_more")
-    val hasMore: Boolean
+    val hasMore: Boolean? = null
 )
 
 /**
