@@ -40,14 +40,26 @@ func RegisterWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		// 使用专用的WorkNoteFolderHandler处理文件夹特有功能
 		workNoteFolderHandler := app.GetWorkNoteFolderHandler()
 
+		// 三棵树Handler（新增）
+		workNoteFolderTreeHandler := app.GetWorkNoteFolderTreeHandler()
+
 		// 基础CRUD操作
 		workNoteFolders.GET("", workNoteFolderHandler.ListWorkNoteFolders)          // 获取文件夹列表
 		workNoteFolders.POST("", workNoteFolderHandler.CreateWorkNoteFolder)        // 创建文件夹
 		workNoteFolders.GET("/search", workNoteFolderHandler.SearchWorkNoteFolders) // 搜索文件夹
-		workNoteFolders.GET("/tree", workNoteFolderHandler.GetWorkNoteFolderTree)   // 获取文件夹树
+		workNoteFolders.GET("/tree", workNoteFolderHandler.GetWorkNoteFolderTree)   // 获取文件夹树（旧）
 		workNoteFolders.GET("/:id", workNoteFolderHandler.GetWorkNoteFolder)        // 获取单个文件夹
 		workNoteFolders.PUT("/:id", workNoteFolderHandler.UpdateWorkNoteFolder)     // 更新文件夹
 		workNoteFolders.DELETE("/:id", workNoteFolderHandler.DeleteWorkNoteFolder)  // 删除文件夹
+
+		// 三棵树API（新增）
+		trees := workNoteFolders.Group("/trees")
+		{
+			trees.GET("/overview", workNoteFolderTreeHandler.GetTreesOverview)                     // 获取三棵树概览
+			trees.GET("/:tree_type", workNoteFolderTreeHandler.GetFolderTreeByType)               // 获取指定树的文件夹
+			trees.POST("/:tree_type/folders", workNoteFolderTreeHandler.CreateFolderInTree)       // 在指定树中创建文件夹
+			trees.GET("/:tree_type/stats", workNoteFolderTreeHandler.GetTreeStats)                // 获取树统计信息
+		}
 
 		// 文件夹管理操作
 		workNoteFolders.POST("/:id/move", workNoteFolderHandler.MoveWorkNoteFolder) // 移动文件夹

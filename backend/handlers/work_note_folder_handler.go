@@ -420,11 +420,11 @@ func (h *WorkNoteFolderHandler) UpdateWorkNoteFolder(c *gin.Context) {
 
 	// 验证文件夹是否存在
 	checkQuery := `
-		SELECT id, owner_id FROM work_note_folders 
+		SELECT id FROM work_note_folders
 		WHERE id = $1 AND deleted_at IS NULL
 	`
-	var existingOwnerID int
-	err = h.db.QueryRow(checkQuery, folderID).Scan(&folderID, &existingOwnerID)
+	var existingID int
+	err = h.db.QueryRow(checkQuery, folderID).Scan(&existingID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
@@ -433,14 +433,8 @@ func (h *WorkNoteFolderHandler) UpdateWorkNoteFolder(c *gin.Context) {
 		return
 	}
 
-	// 检查权限（只允许拥有者更新）
-	if existingOwnerID != userID.(int) {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"message": "Permission denied: You can only update your own folders",
-		})
-		return
-	}
+	// 权限已经在第412行通过checkFolderOwnershipOrPermission检查过了
+	// 移除重复的owner检查，允许有权限的用户更新文件夹
 
 	// 构建更新语句
 	setParts := []string{}

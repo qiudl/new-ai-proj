@@ -305,6 +305,21 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 				})
 			})
 		}
+
+		// 三棵树API（新增）
+		workNoteFolderTreeHandler := app.GetWorkNoteFolderTreeHandler()
+		if workNoteFolderTreeHandler != nil {
+			fmt.Println("DEBUG ROUTES: Registering three-tree routes")
+			trees := workNoteFolders.Group("/trees")
+			{
+				trees.GET("/overview", workNoteFolderTreeHandler.GetTreesOverview)                     // 获取三棵树概览
+				trees.GET("/:tree_type", workNoteFolderTreeHandler.GetFolderTreeByType)               // 获取指定树的文件夹
+				trees.POST("/:tree_type/folders", workNoteFolderTreeHandler.CreateFolderInTree)       // 在指定树中创建文件夹
+				trees.GET("/:tree_type/stats", workNoteFolderTreeHandler.GetTreeStats)                // 获取树统计信息
+			}
+		} else {
+			fmt.Println("DEBUG ROUTES: workNoteFolderTreeHandler is nil! Three-tree routes not registered")
+		}
 	}
 }
 
