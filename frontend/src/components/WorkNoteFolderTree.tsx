@@ -96,6 +96,29 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
     loadRootFolders();
   }, []);
 
+  // 自动展开所有文件夹节点
+  useEffect(() => {
+    if (folders.length > 0) {
+      // 递归收集所有文件夹的keys
+      const collectAllKeys = (folderList: WorkNoteFolder[]): React.Key[] => {
+        const keys: React.Key[] = ['root']; // 始终包含root节点
+        const traverse = (folders: WorkNoteFolder[]) => {
+          folders.forEach(folder => {
+            keys.push(`folder-${folder.id}`);
+            if (folder.children && folder.children.length > 0) {
+              traverse(folder.children);
+            }
+          });
+        };
+        traverse(folderList);
+        return keys;
+      };
+
+      const allKeys = collectAllKeys(folders);
+      setExpandedKeys(allKeys);
+    }
+  }, [folders]);
+
   // 同步选中状态
   useEffect(() => {
     if (selectedFolderId) {
