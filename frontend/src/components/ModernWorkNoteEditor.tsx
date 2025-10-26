@@ -16,7 +16,8 @@ import {
   Tooltip,
   Badge,
   Switch,
-  Alert
+  Alert,
+  TreeSelect
 } from 'antd';
 import {
   SaveOutlined,
@@ -27,9 +28,10 @@ import {
   FullscreenOutlined,
   FullscreenExitOutlined,
   FileMarkdownOutlined,
-  CloseOutlined
+  CloseOutlined,
+  FolderOutlined
 } from '@ant-design/icons';
-import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest } from '../services/workNotesService';
+import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest, WorkNoteFolder } from '../services/workNotesService';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -57,6 +59,10 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const autoSaveRef = useRef<NodeJS.Timeout>();
 
+  // 文件夹相关状态
+  const [folders, setFolders] = useState<WorkNoteFolder[]>([]);
+  const [foldersLoading, setFoldersLoading] = useState(false);
+
   // 表单状态
   const [formData, setFormData] = useState({
     title: '',
@@ -65,8 +71,45 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
     tags: [],
     status: 'draft',
     visibility: 'team',
-    type: 'markdown'
+    type: 'markdown',
+    folder_id: undefined as number | undefined
   });
+
+  // 加载文件夹树
+  useEffect(() => {
+    if (visible) {
+      loadFolders();
+    }
+  }, [visible]);
+
+  const loadFolders = async () => {
+    setFoldersLoading(true);
+    try {
+      const allFolders: WorkNoteFolder[] = [];
+
+      // 收集所有三棵树的文件夹
+      const treeTypes: ('private' | 'team' | 'public')[] = ['private', 'team', 'public'];
+
+      for (const treeType of treeTypes) {
+        try {
+          const response = await workNotesService.getFolderTreeByType(treeType, undefined, 10);
+          if (response.folders) {
+            allFolders.push(...response.folders);
+          }
+        } catch (error) {
+          console.error(`Failed to load ${treeType} folders:`, error);
+          // 继续加载其他树
+        }
+      }
+
+      setFolders(allFolders);
+    } catch (error) {
+      console.error('Failed to load folders:', error);
+      message.error('加载文件夹失败');
+    } finally {
+      setFoldersLoading(false);
+    }
+  };
 
   // 初始化表单数据
   useEffect(() => {
@@ -78,7 +121,8 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
         tags: note.tags || [],
         status: note.status || 'draft',
         visibility: note.visibility || 'team',
-        type: note.type || 'markdown'
+        type: note.type || 'markdown',
+        folder_id: note.folder_id
       };
       setFormData(data);
       if (visible) {
@@ -95,7 +139,8 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
         tags: [],
         status: 'draft',
         visibility: 'team',
-        type: 'markdown'
+        type: 'markdown',
+        folder_id: undefined
       };
       setFormData(data);
       if (visible) {
@@ -134,6 +179,19 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
     setWordCount(count);
   }, [formData.content]);
 
+  // 将文件夹转换为TreeSelect数据
+  const buildFolderTreeData = (folders: WorkNoteFolder[], parentId: number | null = null): any[] => {
+    return folders
+      .filter(f => f.parent_id === parentId)
+      .map(folder => ({
+        title: folder.name,
+        value: folder.id,
+        key: folder.id,
+        icon: <FolderOutlined style={{ color: folder.color || '#1890ff' }} />,
+        children: buildFolderTreeData(folders, folder.id)
+      }));
+  };
+
   // 处理表单变化
   const handleFormChange = (changedValues: any, allValues: any) => {
     const newData = {
@@ -161,9 +219,10 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
           description: values.description,
           status: values.status,
           visibility: values.visibility,
+          folder_id: values.folder_id,
           tags
         };
-        
+
         await workNotesService.updateWorkNote(note.id, request);
       } else {
         // 创建新笔记
@@ -174,10 +233,12 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
           type: values.type,
           status: values.status,
           visibility: values.visibility,
+          folder_id: values.folder_id,
           tags,
+          work_note_type: 'general', // 默认类型
           is_template: false
         };
-        
+
         await workNotesService.createWorkNote(request);
       }
       
@@ -368,7 +429,24 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
             </Row>
             
             <Row gutter={16}>
-              <Col span={16}>
+              <Col span={8}>
+                <Form.Item name="folder_id" label="文件夹" style={{ marginBottom: 8 }}>
+                  <TreeSelect
+                    showSearch
+                    style={{ width: '100%' }}
+                    dropdownStyle={{ maxHeight: 400, overflow: 'auto' }}
+                    placeholder="选择文件夹（可选）"
+                    allowClear
+                    treeDefaultExpandAll
+                    loading={foldersLoading}
+                    treeData={buildFolderTreeData(folders)}
+                    filterTreeNode={(input, node) =>
+                      (node.title as string).toLowerCase().includes(input.toLowerCase())
+                    }
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
                 <Form.Item name="description" label="描述" style={{ marginBottom: 8 }}>
                   <Input placeholder="简短描述（可选）" />
                 </Form.Item>
