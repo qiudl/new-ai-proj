@@ -16,9 +16,9 @@ import {
   Tooltip,
   Badge,
   Switch,
-  Alert,
-  TreeSelect
+  Alert
 } from 'antd';
+import TreeSelect from 'antd/es/tree-select';
 import {
   SaveOutlined,
   EyeOutlined,
