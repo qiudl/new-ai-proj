@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
 import {
   Table,
   Button,
@@ -156,6 +156,19 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [retryCount, setRetryCount] = useState(0);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
 
+  // 使用 ref 追踪最新的 state 值，避免闭包陷阱
+  const workNotesRef = useRef<WorkNoteWithTask[]>([]);
+  const lastRefreshTimeRef = useRef<number>(0);
+
+  // 同步 ref 和 state
+  useEffect(() => {
+    workNotesRef.current = workNotes;
+  }, [workNotes]);
+
+  useEffect(() => {
+    lastRefreshTimeRef.current = lastRefreshTime;
+  }, [lastRefreshTime]);
+
   // 统计数据
   const [stats, setStats] = useState<WorkNotesStats>({
     total: 0,
@@ -185,15 +198,22 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [modalVisible, setModalVisible] = useState(false);
   const [quickCreateVisible, setQuickCreateVisible] = useState(false);
 
-  // 计算统计数据
-  const calculateStats = useCallback((notes: WorkNoteWithTask[]): WorkNotesStats => {
-    return {
-      total: notes.length,
-      draft: notes.filter(note => note.status === 'draft').length,
-      published: notes.filter(note => note.status === 'published').length,
-      archived: notes.filter(note => note.status === 'archived').length,
-      associated: notes.filter(note => note.associatedTasks && note.associatedTasks.length > 0).length
-    };
+  // 加载统计数据（从后端API获取真实数据）
+  const loadStats = useCallback(async () => {
+    try {
+      const statsData = await workNotesService.getWorkNoteStats();
+      setStats(statsData);
+    } catch (error) {
+      console.error('Failed to load work note stats:', error);
+      // 如果API失败，使用默认值，不影响主要功能
+      setStats({
+        total: 0,
+        draft: 0,
+        published: 0,
+        archived: 0,
+        associated: 0
+      });
+    }
   }, []);
 
   // 检查是否是ID搜索
@@ -471,7 +491,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     const now = Date.now();
     const cacheTimeout = 5 * 60 * 1000; // 5分钟
 
-    if (!forceRefresh && workNotes.length > 0 && (now - lastRefreshTime) < cacheTimeout) {
+    // 使用 ref 来检查缓存，避免依赖 state 导致循环
+    if (!forceRefresh && workNotesRef.current.length > 0 && (now - lastRefreshTimeRef.current) < cacheTimeout) {
       console.log('使用缓存的工作笔记数据');
       return;
     }
@@ -486,7 +507,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
 
       const data = await workNotesService.listWorkNotes(activeFolderId || undefined);
       clearTimeout(timeoutId);
-      
+
       // 模拟添加关联任务数据
       const notesWithTasks: WorkNoteWithTask[] = data.documents.map(note => ({
         ...note,
@@ -502,18 +523,20 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         categoryIcon: '📝',
         categoryName: '前端开发'
       }));
-      
+
       setWorkNotes(notesWithTasks);
-      setStats(calculateStats(notesWithTasks));
       setLastRefreshTime(now);
       setRetryCount(0); // 重置重试计数
-      
+
+      // 加载统计数据（异步，不阻塞笔记列表显示）
+      loadStats();
+
       console.log(`成功加载 ${notesWithTasks.length} 个工作笔记`);
     } catch (error) {
       console.error('Failed to load work notes:', error);
       const errorMessage = error instanceof Error ? error.message : '加载工作笔记失败';
       setError(errorMessage);
-      
+
       // 自动重试逻辑（最多3次）
       if (retryCount < 3) {
         console.log(`第 ${retryCount + 1} 次重试加载工作笔记...`);
@@ -525,7 +548,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     } finally {
       setLoading(false);
     }
-  }, [activeFolderId, calculateStats, workNotes.length, lastRefreshTime, retryCount]);
+  }, [activeFolderId, loadStats, retryCount]); // 修复：移除workNotes.length和lastRefreshTime避免无限循环
 
   // 初始化加载
   useEffect(() => {
