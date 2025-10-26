@@ -2019,7 +2019,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
                 label="状态"
                 rules={[{ required: true, message: '请选择状态' }]}
               >
-                <Select>
+                <Select getPopupContainer={(trigger) => trigger.parentElement || document.body}>
                   <Option value="draft">草稿</Option>
                   <Option value="published">已发布</Option>
                   <Option value="archived">已归档</Option>
@@ -2032,7 +2032,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
                 label="类型"
                 rules={[{ required: true, message: '请选择类型' }]}
               >
-                <Select>
+                <Select getPopupContainer={(trigger) => trigger.parentElement || document.body}>
                   <Option value="markdown">Markdown</Option>
                   <Option value="html">HTML</Option>
                   <Option value="text">文本</Option>
@@ -2045,7 +2045,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
                 label="可见性"
                 rules={[{ required: true, message: '请选择可见性' }]}
               >
-                <Select>
+                <Select getPopupContainer={(trigger) => trigger.parentElement || document.body}>
                   <Option value="private">私有</Option>
                   <Option value="team">团队</Option>
                   <Option value="public">公开</Option>
@@ -2084,6 +2084,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
               mode="tags"
               placeholder="请输入标签（支持多个）"
               style={{ width: '100%' }}
+              getPopupContainer={(trigger) => trigger.parentElement || document.body}
             />
           </Form.Item>
         </Form>
