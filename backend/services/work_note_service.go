@@ -487,6 +487,7 @@ func (s *WorkNoteService) SearchWorkNotes(ctx context.Context, query string, tag
 // =====================
 
 func (s *WorkNoteService) GetWorkNoteStats(ctx context.Context, userID int) (*models.WorkNoteStats, error) {
+	log.Printf("[DEBUG-SERVICE] GetWorkNoteStats called with userID: %d", userID)
 	stats := &models.WorkNoteStats{
 		NotesByType:     map[models.WorkNoteType]int{},
 		NotesByPriority: map[models.WorkNotePriority]int{},
@@ -494,15 +495,18 @@ func (s *WorkNoteService) GetWorkNoteStats(ctx context.Context, userID int) (*mo
 	}
 	// 总数/置顶/收藏
 	row := s.db.QueryRowContext(ctx, `
-		SELECT 
+		SELECT
 			COUNT(*) AS total_notes,
 			COUNT(CASE WHEN (metadata->>'is_pinned')::boolean = true THEN 1 END) AS pinned_count,
 			COUNT(CASE WHEN (metadata->>'is_bookmarked')::boolean = true THEN 1 END) AS bookmarked_count
 		FROM documents
 		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL`, userID)
 	if err := row.Scan(&stats.TotalNotes, &stats.PinnedCount, &stats.BookmarkedCount); err != nil {
+		log.Printf("[DEBUG-SERVICE] Error scanning stats: %v", err)
 		return nil, fmt.Errorf("failed to get base stats: %w", err)
 	}
+	log.Printf("[DEBUG-SERVICE] Base stats: TotalNotes=%d, PinnedCount=%d, BookmarkedCount=%d",
+		stats.TotalNotes, stats.PinnedCount, stats.BookmarkedCount)
 	// 按类型
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT metadata->>'work_note_type' AS t, COUNT(*)

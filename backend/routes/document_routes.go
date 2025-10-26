@@ -215,12 +215,12 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		workNotes.PUT("/:id", workNotesHandler.UpdateWorkNote)
 		workNotes.DELETE("/:id", workNotesHandler.DeleteWorkNote)
 
-		// 工作笔记特有功能 - 占位符实现
+		// 工作笔记特有功能 - 使用真实handler实现
+		workNotes.GET("/stats", workNotesHandler.GetWorkNoteStats)
+
+		// 占位符实现 - 待开发功能
 		workNotes.POST("/batch", func(c *gin.Context) {
 			c.JSON(200, gin.H{"success": true, "message": "Batch operations coming soon"})
-		})
-		workNotes.GET("/stats", func(c *gin.Context) {
-			c.JSON(200, gin.H{"success": true, "data": map[string]int{"total": 0}})
 		})
 
 		// 工作笔记任务关联功能

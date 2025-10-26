@@ -438,8 +438,11 @@ func (h *WorkNoteHandler) BatchUpdateWorkNotes(c *gin.Context) {
 
 // GetWorkNoteStats 获取工作笔记统计
 func (h *WorkNoteHandler) GetWorkNoteStats(c *gin.Context) {
+	log.Printf("[DEBUG-HANDLER] ==================== GetWorkNoteStats CALLED ====================")
 	userID, exists := c.Get("user_id")
+	log.Printf("[DEBUG-HANDLER] UserID exists: %v, value: %v", exists, userID)
 	if !exists {
+		log.Printf("[DEBUG-HANDLER] No user_id in context, returning unauthorized")
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
@@ -448,7 +451,27 @@ func (h *WorkNoteHandler) GetWorkNoteStats(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get work note stats", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": stats})
+	// DEBUG: 打印stats对象
+	log.Printf("[DEBUG] GetWorkNoteStats - UserID: %v, TotalNotes: %d, PinnedCount: %d, BookmarkedCount: %d",
+		userID, stats.TotalNotes, stats.PinnedCount, stats.BookmarkedCount)
+	log.Printf("[DEBUG] NotesByType: %+v", stats.NotesByType)
+	log.Printf("[DEBUG] NotesByFolder: %+v", stats.NotesByFolder)
+
+	// 为兼容性，同时返回total和total_notes字段
+	response := gin.H{
+		"success": true,
+		"data": gin.H{
+			"total":             stats.TotalNotes, // 兼容字段
+			"total_notes":       stats.TotalNotes,
+			"notes_by_type":     stats.NotesByType,
+			"notes_by_priority":  stats.NotesByPriority,
+			"notes_by_folder":    stats.NotesByFolder,
+			"pinned_count":       stats.PinnedCount,
+			"bookmarked_count":   stats.BookmarkedCount,
+			"recent_activity":    stats.RecentActivity,
+		},
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 // GetRecentNotes 获取最近笔记
