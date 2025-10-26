@@ -1969,10 +1969,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           editForm.resetFields();
         }}
         width={900}
-        centered
-        style={{ top: 20 }}
+        style={{ top: '5vh' }}
         bodyStyle={{
-          maxHeight: 'calc(100vh - 200px)',
+          maxHeight: '65vh',
           overflowY: 'auto',
           padding: '24px'
         }}
