@@ -59,14 +59,15 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
   const [associatedTasks, setAssociatedTasks] = useState<AssociatedTask[]>([]);
   const [showTaskManager, setShowTaskManager] = useState(false);
 
-  if (!note) return null;
-
   // 加载关联任务
   useEffect(() => {
     if (visible && note) {
       loadAssociatedTasks();
     }
   }, [visible, note]);
+
+  // 必须在所有 Hooks 之后再做条件判断
+  if (!note) return null;
 
   const loadAssociatedTasks = async () => {
     try {
