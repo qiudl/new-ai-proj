@@ -47,7 +47,6 @@ import ModernWorkNoteViewer from './ModernWorkNoteViewer';
 import { WORK_NOTE_TYPES, WORK_NOTE_PRIORITIES, getWorkNoteTypeConfig, getWorkNotePriorityConfig } from '../constants/workNoteTypes';
 import WorkNotesStatsCards from './WorkNotesStatsCards';
 import WorkNotesLayout from './WorkNotesLayout';
-import WorkNotesTreeSidebar from './WorkNotesTreeSidebar';
 import WorkNoteFolderTree from './WorkNoteFolderTree';
 import FolderBreadcrumb from './FolderBreadcrumb';
 import FolderDetailDrawer from './FolderDetailDrawer';
@@ -168,10 +167,6 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   // 筛选状态
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedTag, setSelectedTag] = useState<string>('');
-  const [selectedAssociation, setSelectedAssociation] = useState<string>('');
-  const [selectedTimeRange, setSelectedTimeRange] = useState<string>('');
 
   // 对话框状态
   const [modernViewerVisible, setModernViewerVisible] = useState(false);
@@ -278,63 +273,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       filtered = filtered.filter(note => note.type === typeFilter);
     }
 
-    // 分类筛选
-    if (selectedCategory) {
-      filtered = filtered.filter(note => 
-        note.categoryName?.toLowerCase().includes(selectedCategory.toLowerCase()) ||
-        selectedCategory === 'frontend' && note.categoryName?.includes('前端') ||
-        selectedCategory === 'backend' && note.categoryName?.includes('后端') ||
-        selectedCategory === 'ui-design' && note.categoryName?.includes('UI') ||
-        selectedCategory === 'data-analysis' && note.categoryName?.includes('数据')
-      );
-    }
-
-    // 标签筛选
-    if (selectedTag) {
-      filtered = filtered.filter(note => 
-        note.tags?.some(tag => tag.includes(selectedTag))
-      );
-    }
-
-    // 关联状态筛选
-    if (selectedAssociation) {
-      if (selectedAssociation === 'associated') {
-        filtered = filtered.filter(note => note.associatedTasks && note.associatedTasks.length > 0);
-      } else if (selectedAssociation === 'unassociated') {
-        filtered = filtered.filter(note => !note.associatedTasks || note.associatedTasks.length === 0);
-      } else if (selectedAssociation === 'convertible') {
-        // 简单模拟可转换逻辑
-        filtered = filtered.filter(note => note.status === 'published' && (!note.associatedTasks || note.associatedTasks.length === 0));
-      }
-    }
-
-    // 时间范围筛选
-    if (selectedTimeRange) {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const thisWeekStart = new Date(today.getTime() - (today.getDay() * 24 * 60 * 60 * 1000));
-      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      filtered = filtered.filter(note => {
-        const noteDate = new Date(note.updated_at);
-        switch (selectedTimeRange) {
-          case 'today':
-            return noteDate >= today;
-          case 'thisWeek':
-            return noteDate >= thisWeekStart;
-          case 'thisMonth':
-            return noteDate >= thisMonthStart;
-          case 'earlier':
-            return noteDate < thisMonthStart;
-          default:
-            return true;
-        }
-      });
-    }
-
     // 按ID降序排序（默认）
     return filtered.sort((a, b) => b.id - a.id);
-  }, [workNotes, debouncedSearchKeyword, statusFilter, typeFilter, selectedCategory, selectedTag, selectedAssociation, selectedTimeRange]);
+  }, [workNotes, debouncedSearchKeyword, statusFilter, typeFilter]);
 
   // 文件夹选择处理
   const handleFolderSelect = useCallback((folderId: number | null, folder: WorkNoteFolder | null) => {
@@ -560,32 +501,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     setStatusFilter('all');
     setTypeFilter('all');
     setSearchKeyword('');
-    setSelectedCategory('');
-    setSelectedTag('');
-    setSelectedAssociation('');
-    setSelectedTimeRange('');
   }, []);
-
-  // 左侧树状导航事件处理
-  const handleCategorySelect = useCallback((category: string) => {
-    setSelectedCategory(category === selectedCategory ? '' : category);
-  }, [selectedCategory]);
-
-  const handleTagSelect = useCallback((tag: string) => {
-    setSelectedTag(tag === selectedTag ? '' : tag);
-  }, [selectedTag]);
-
-  const handleAssociationSelect = useCallback((type: string) => {
-    setSelectedAssociation(type === selectedAssociation ? '' : type);
-  }, [selectedAssociation]);
-
-  const handleTimeRangeSelect = useCallback((range: string) => {
-    setSelectedTimeRange(range === selectedTimeRange ? '' : range);
-  }, [selectedTimeRange]);
-
-  const handleTreeRefresh = useCallback(() => {
-    loadWorkNotes(true); // 强制刷新
-  }, [loadWorkNotes]);
 
   // 创建工作笔记
   const handleCreate = async (values: any) => {
@@ -1560,19 +1476,6 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
                 showSearch={true}
               />
             </Card>
-
-            {/* 分类标签筛选 */}
-            <WorkNotesTreeSidebar
-              onCategorySelect={handleCategorySelect}
-              onTagSelect={handleTagSelect}
-              onAssociationSelect={handleAssociationSelect}
-              onTimeRangeSelect={handleTimeRangeSelect}
-              onRefresh={handleTreeRefresh}
-              selectedCategory={selectedCategory}
-              selectedTag={selectedTag}
-              selectedAssociation={selectedAssociation}
-              selectedTimeRange={selectedTimeRange}
-            />
           </div>
         }
       >
@@ -1620,7 +1523,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
                 icon={<FilterOutlined />}
                 onClick={resetFilters}
                 style={{ width: '100%' }}
-                disabled={!searchKeyword && statusFilter === 'all' && !selectedCategory && !selectedTag && !selectedAssociation && !selectedTimeRange}
+                disabled={!searchKeyword && statusFilter === 'all' && typeFilter === 'all'}
               >
                 清空筛选
               </Button>
