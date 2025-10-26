@@ -986,6 +986,130 @@ class WorkNotesService {
       throw new Error(response.data.message || 'Failed to move document');
     }
   }
+
+  // ==================== 三棵树API ====================
+
+  /**
+   * 获取三棵树概览
+   */
+  async getTreesOverview(): Promise<TreeOverviewResponse> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<TreeRoot[]>>(
+      `${API_BASE_URL}/work-note-folders/trees/overview`,
+      { headers }
+    );
+
+    return {
+      trees: response.data.data || [],
+      total_notes: 0,
+      total_folders: 0,
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  /**
+   * 获取指定树的文件夹
+   */
+  async getFolderTreeByType(
+    treeType: TreeType,
+    parentId?: number,
+    maxDepth: number = 2
+  ): Promise<FolderTreeResponse> {
+    const headers = await this.getAuthHeaders();
+    const params: any = { max_depth: maxDepth };
+    if (parentId !== undefined) {
+      params.parent_id = parentId;
+    }
+
+    const response = await axios.get<APIResponse<FolderTreeResponse>>(
+      `${API_BASE_URL}/work-note-folders/trees/${treeType}`,
+      { headers, params }
+    );
+
+    return response.data.data!;
+  }
+
+  /**
+   * 在指定树中创建文件夹
+   */
+  async createFolderInTree(
+    treeType: TreeType,
+    request: CreateFolderInTreeRequest
+  ): Promise<WorkNoteFolder> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.post<APIResponse<WorkNoteFolder>>(
+      `${API_BASE_URL}/work-note-folders/trees/${treeType}/folders`,
+      { ...request, tree_type: treeType },
+      { headers }
+    );
+
+    return response.data.data!;
+  }
+
+  /**
+   * 获取树统计信息
+   */
+  async getTreeStats(treeType: TreeType): Promise<TreeStats> {
+    const headers = await this.getAuthHeaders();
+    const response = await axios.get<APIResponse<TreeStats>>(
+      `${API_BASE_URL}/work-note-folders/trees/${treeType}/stats`,
+      { headers }
+    );
+
+    return response.data.data!;
+  }
+}
+
+// ==================== 三棵树类型定义 ====================
+
+export type TreeType = 'private' | 'team' | 'public';
+
+export interface TreeRoot {
+  type: TreeType;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  folder_count: number;
+  note_count: number;
+}
+
+export interface TreeOverviewResponse {
+  trees: TreeRoot[];
+  total_notes: number;
+  total_folders: number;
+  updated_at: string;
+}
+
+export interface FolderTreeResponse {
+  tree_type: TreeType;
+  tree_name: string;
+  tree_icon: string;
+  tree_color: string;
+  folders: WorkNoteFolder[];
+  total_count: number;
+  is_lazy_load?: boolean;
+  parent_id?: number;
+  max_depth?: number;
+}
+
+export interface CreateFolderInTreeRequest {
+  tree_type: TreeType;
+  name: string;
+  description?: string;
+  parent_id?: number;
+  project_id?: number;
+  color?: string;
+  icon?: string;
+}
+
+export interface TreeStats {
+  tree_type: TreeType;
+  folder_count: number;
+  note_count: number;
+  root_folders: number;
+  max_depth: number;
+  last_modified: string;
 }
 
 export const workNotesService = new WorkNotesService();

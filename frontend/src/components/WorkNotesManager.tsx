@@ -51,6 +51,7 @@ import WorkNotesStatsCards from './WorkNotesStatsCards';
 import WorkNotesLayout from './WorkNotesLayout';
 import WorkNotesFilterBar from './WorkNotesFilterBar';
 import WorkNoteFolderTree from './WorkNoteFolderTree';
+import WorkNoteThreeTreesView from './WorkNoteThreeTreesView';
 import FolderBreadcrumb from './FolderBreadcrumb';
 import FolderDetailDrawer from './FolderDetailDrawer';
 import { FolderDialog, DeleteFolderDialog, MoveFolderDialog, FolderFormValues } from './FolderDialogs';
@@ -138,6 +139,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [internalFolderId, setInternalFolderId] = useState<number | null>(null);
   const [currentFolder, setCurrentFolder] = useState<WorkNoteFolder | null>(null);
   const [folders, setFolders] = useState<WorkNoteFolder[]>([]);
+
+  // 三棵树视图开关（默认启用）
+  const [useThreeTreesView, setUseThreeTreesView] = useState<boolean>(true);
 
   // 文件夹操作对话框状态
   const [folderDialogVisible, setFolderDialogVisible] = useState(false);
@@ -1566,26 +1570,47 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
               title={
                 <Space>
                   <BookOutlined />
-                  <span>文件夹</span>
-                  {currentFolder && (
+                  <span>{useThreeTreesView ? '笔记分类' : '文件夹'}</span>
+                  {currentFolder && !useThreeTreesView && (
                     <Tag color="blue">{currentFolder.name}</Tag>
                   )}
                 </Space>
               }
+              extra={
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => setUseThreeTreesView(!useThreeTreesView)}
+                >
+                  {useThreeTreesView ? '传统视图' : '三棵树视图'}
+                </Button>
+              }
               size="small"
               style={{ marginBottom: 12 }}
             >
-              <WorkNoteFolderTree
-                selectedFolderId={activeFolderId}
-                onFolderSelect={handleFolderSelect}
-                onFolderCreate={handleFolderCreate}
-                onFolderEdit={handleFolderEdit}
-                onFolderDelete={handleFolderDelete}
-                onFolderMove={handleFolderMove}
-                onFolderDetail={handleFolderDetail}
-                height="300px"
-                showSearch={true}
-              />
+              {useThreeTreesView ? (
+                <WorkNoteThreeTreesView
+                  selectedFolderId={activeFolderId}
+                  onFolderSelect={handleFolderSelect}
+                  onFolderCreate={handleFolderCreate}
+                  onFolderEdit={handleFolderEdit}
+                  onFolderDelete={handleFolderDelete}
+                  height="400px"
+                  defaultTreeType="private"
+                />
+              ) : (
+                <WorkNoteFolderTree
+                  selectedFolderId={activeFolderId}
+                  onFolderSelect={handleFolderSelect}
+                  onFolderCreate={handleFolderCreate}
+                  onFolderEdit={handleFolderEdit}
+                  onFolderDelete={handleFolderDelete}
+                  onFolderMove={handleFolderMove}
+                  onFolderDetail={handleFolderDetail}
+                  height="300px"
+                  showSearch={true}
+                />
+              )}
             </Card>
           </div>
         }
