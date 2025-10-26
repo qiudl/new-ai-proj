@@ -68,10 +68,11 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
   const debouncedSearchValue = useDebounce(searchValue, 300);
 
   // 加载文件夹树（根目录）
-  const loadRootFolders = async () => {
+  // maxDepth: 加载深度，默认5层（从2层增加到5层以支持拖拽后立即显示）
+  const loadRootFolders = async (maxDepth: number = 5) => {
     setLoading(true);
     try {
-      const data = await workNotesService.getFolderTree(null, 2); // 默认加载2层
+      const data = await workNotesService.getFolderTree(null, maxDepth);
       setFolders(data);
     } catch (error: any) {
       ErrorHandler.showError(error, '加载文件夹失败');
@@ -450,9 +451,17 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
 
         if (dragFolder) {
           try {
+            // 保存当前展开状态
+            const currentExpandedKeys = [...expandedKeys];
+
             await workNotesService.moveFolder(dragFolderId, null);
             message.success(`已将"${dragFolder.name}"移动到根目录`);
-            await loadRootFolders();
+
+            // 刷新文件夹树（加载5层以确保能看到移动后的位置）
+            await loadRootFolders(5);
+
+            // 恢复展开状态
+            setExpandedKeys(currentExpandedKeys);
           } catch (error: any) {
             ErrorHandler.showError(error, '移动文件夹失败');
           }
@@ -472,6 +481,9 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
     }
 
     try {
+      // 保存当前展开状态
+      const currentExpandedKeys = [...expandedKeys];
+
       let targetParentId: number | null = null;
 
       if (dropToGap) {
@@ -491,8 +503,11 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
         message.success(`已将"${dragFolder.name}"移动到"${targetFolder?.name || ''}"`);
       }
 
-      // 刷新文件夹树
-      await loadRootFolders();
+      // 刷新文件夹树（加载5层以确保能看到移动后的位置）
+      await loadRootFolders(5);
+
+      // 恢复展开状态
+      setExpandedKeys(currentExpandedKeys);
     } catch (error: any) {
       ErrorHandler.showError(error, '移动文件夹失败');
     } finally {
