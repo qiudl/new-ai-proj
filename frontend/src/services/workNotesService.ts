@@ -369,7 +369,12 @@ class WorkNotesService {
   }
 
   // 列出工作笔记
-  async listWorkNotes(folderId?: number, page?: number, limit?: number): Promise<WorkNotesListResponse> {
+  async listWorkNotes(
+    folderId?: number,
+    page?: number,
+    limit?: number,
+    visibility?: 'private' | 'team' | 'public'  // 新增visibility过滤参数
+  ): Promise<WorkNotesListResponse> {
     const params = new URLSearchParams();
     if (folderId !== undefined) {
       params.append('folder_id', folderId.toString());
@@ -379,6 +384,10 @@ class WorkNotesService {
     }
     if (limit !== undefined) {
       params.append('limit', limit.toString());
+    }
+    // 添加visibility过滤
+    if (visibility) {
+      params.append('visibility', visibility);
     }
 
     const headers = await this.getAuthHeaders();
@@ -785,11 +794,15 @@ class WorkNotesService {
   }
 
   // 搜索文件夹
-  async searchFolders(query: string): Promise<WorkNoteFolder[]> {
+  async searchFolders(query: string, visibility?: 'private' | 'team' | 'public'): Promise<WorkNoteFolder[]> {
     const headers = await this.getAuthHeaders();
     const params = new URLSearchParams();
     if (query) {
-      params.append('query', query);
+      params.append('q', query);  // 后端使用 'q' 参数
+    }
+    // 添加 visibility 参数以过滤特定树的文件夹
+    if (visibility) {
+      params.append('visibility', visibility);
     }
 
     const response = await axios.get<APIResponse<{ folders: WorkNoteFolder[] }>>(

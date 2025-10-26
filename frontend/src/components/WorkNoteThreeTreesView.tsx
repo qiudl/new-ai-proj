@@ -37,6 +37,7 @@ export interface WorkNoteThreeTreesViewProps {
   onFolderDelete?: (folderId: number) => void;
   onFolderMove?: (folderId: number) => void;
   onFolderDetail?: (folderId: number) => void;
+  onTreeTypeChange?: (treeType: TreeType) => void; // 新增：树类型变化回调
   height?: number | string;
   defaultTreeType?: TreeType;
 }
@@ -59,6 +60,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
   onFolderDelete,
   onFolderMove,
   onFolderDetail,
+  onTreeTypeChange,
   height = 'calc(100vh - 250px)',
   defaultTreeType = 'private',
 }) => {
@@ -182,21 +184,23 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
 
       setLoading(true);
       try {
-        // 搜索会在当前树中进行
-        const results = await workNotesService.searchFolders(debouncedSearchValue);
-        // 过滤出当前树类型的文件夹
-        const visibilityMap: Record<TreeType, string> = {
+        // 搜索当前树类型的文件夹,直接传入 visibility 参数
+        const visibilityMap: Record<TreeType, 'private' | 'team' | 'public'> = {
           private: 'private',
           team: 'team',
           public: 'public',
         };
-        const filteredResults = results.filter(
-          folder => folder.visibility === visibilityMap[activeTreeType]
+
+        // 使用 visibility 参数进行搜索,后端会过滤
+        const results = await workNotesService.searchFolders(
+          debouncedSearchValue,
+          visibilityMap[activeTreeType]
         );
-        setFolders(filteredResults);
+
+        setFolders(results);
 
         // 展开所有搜索结果
-        const allKeys = filteredResults.map(folder => `folder-${folder.id}`);
+        const allKeys = results.map(folder => `folder-${folder.id}`);
         setExpandedKeys(['root', ...allKeys]);
       } catch (error: any) {
         ErrorHandler.showError(error, '搜索文件夹失败');
@@ -339,7 +343,12 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
 
   // 切换树类型
   const handleTreeTypeChange = (treeType: string) => {
-    setActiveTreeType(treeType as TreeType);
+    const newTreeType = treeType as TreeType;
+    setActiveTreeType(newTreeType);
+    // 通知父组件树类型已变化
+    if (onTreeTypeChange) {
+      onTreeTypeChange(newTreeType);
+    }
   };
 
   // 刷新当前树

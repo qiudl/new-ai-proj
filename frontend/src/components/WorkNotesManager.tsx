@@ -41,7 +41,10 @@ import {
   BookOutlined,
   StarOutlined,
   InboxOutlined,
-  UndoOutlined
+  UndoOutlined,
+  LockOutlined,
+  TeamOutlined,
+  GlobalOutlined
 } from '@ant-design/icons';
 import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest, WorkNoteFolder } from '../services/workNotesService';
 import WorkNoteConversionModal from './conversion/WorkNoteConversionModal';
@@ -124,6 +127,9 @@ interface WorkNotesManagerProps {
   onDocumentSelect?: (doc: WorkNote) => void;
 }
 
+// 定义树类型
+type TreeType = 'private' | 'team' | 'public';
+
 const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   selectedFolderId,
   onDocumentSelect
@@ -139,6 +145,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [internalFolderId, setInternalFolderId] = useState<number | null>(null);
   const [currentFolder, setCurrentFolder] = useState<WorkNoteFolder | null>(null);
   const [folders, setFolders] = useState<WorkNoteFolder[]>([]);
+
+  // 当前选中的树类型（用于过滤笔记）
+  const [currentTreeType, setCurrentTreeType] = useState<TreeType>('private');
 
   // 默认使用三棵树视图（已移除传统视图）
   const useThreeTreesView = true;
@@ -552,7 +561,13 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
 
-      const data = await workNotesService.listWorkNotes(activeFolderId || undefined);
+      // 根据当前树类型过滤笔记
+      const data = await workNotesService.listWorkNotes(
+        activeFolderId || undefined,
+        undefined, // page
+        undefined, // limit
+        currentTreeType // 传递当前树类型进行过滤
+      );
       clearTimeout(timeoutId);
 
       // 模拟添加关联任务数据
@@ -595,7 +610,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     } finally {
       setLoading(false);
     }
-  }, [activeFolderId, loadStats, retryCount]); // 修复：移除workNotes.length和lastRefreshTime避免无限循环
+  }, [activeFolderId, loadStats, retryCount, currentTreeType]); // 添加currentTreeType依赖
 
   // 初始化加载
   useEffect(() => {
@@ -1462,9 +1477,46 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         const config = getStatusConfig(status);
         return (
           <Tooltip title={config.text}>
-            <span style={{ 
-              color: config.color, 
+            <span style={{
+              color: config.color,
               fontSize: 16,
+              cursor: 'help'
+            }}>
+              {config.icon}
+            </span>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: '可见性',
+      dataIndex: 'visibility',
+      key: 'visibility',
+      width: isMobile ? 60 : 80,
+      align: 'center' as const,
+      responsive: ['md'],
+      sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) => a.visibility.localeCompare(b.visibility),
+      filters: [
+        { text: '私人', value: 'private' },
+        { text: '团队', value: 'team' },
+        { text: '公开', value: 'public' },
+      ],
+      onFilter: (value: any, record: WorkNoteWithTask) => record.visibility === value,
+      render: (visibility: string) => {
+        const getVisibilityConfig = (visibility: string) => {
+          switch (visibility) {
+            case 'private': return { color: '#1890ff', icon: <LockOutlined />, text: '私人' };
+            case 'team': return { color: '#52c41a', icon: <TeamOutlined />, text: '团队' };
+            case 'public': return { color: '#fa8c16', icon: <GlobalOutlined />, text: '公开' };
+            default: return { color: '#d9d9d9', icon: <LockOutlined />, text: visibility };
+          }
+        };
+        const config = getVisibilityConfig(visibility);
+        return (
+          <Tooltip title={config.text}>
+            <span style={{
+              color: config.color,
+              fontSize: 14,
               cursor: 'help'
             }}>
               {config.icon}
@@ -1584,6 +1636,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
                 onFolderDelete={handleFolderDelete}
                 onFolderMove={handleFolderMove}
                 onFolderDetail={handleFolderDetail}
+                onTreeTypeChange={setCurrentTreeType}
                 height="400px"
                 defaultTreeType="private"
               />
