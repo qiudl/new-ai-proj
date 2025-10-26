@@ -432,9 +432,10 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         await workNotesService.updateFolder(editingFolder.id, values);
         message.success('文件夹更新成功');
       } else {
+        // 使用表单中的parent_id，如果未设置则使用undefined（后端会转换为null）
         await workNotesService.createFolder({
           ...values,
-          parent_id: parentFolderId || null,
+          parent_id: values.parent_id,
         });
         message.success('文件夹创建成功');
       }
@@ -446,7 +447,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       console.error('文件夹操作失败:', error);
       message.error(error.message || '操作失败');
     }
-  }, [editingFolder, parentFolderId, loadFolders]);
+  }, [editingFolder, loadFolders]);
 
   const handleDeleteFolderConfirm = useCallback(async (force: boolean) => {
     if (!deletingFolder) return;
