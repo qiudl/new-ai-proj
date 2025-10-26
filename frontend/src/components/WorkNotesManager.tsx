@@ -421,6 +421,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       for (const treeType of treeTypes) {
         try {
           const response = await workNotesService.getFolderTreeByType(treeType, undefined, 10);
+          console.log(`[WorkNotesManager] Loaded ${treeType} folders:`, response.folders?.length || 0);
           if (response.folders) {
             allFolders.push(...response.folders);
           }
@@ -430,6 +431,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         }
       }
 
+      console.log('[WorkNotesManager] Total folders loaded:', allFolders.length, allFolders);
       setFolders(allFolders);
     } catch (error: any) {
       console.error('加载文件夹列表失败:', error);
@@ -1968,8 +1970,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         }}
         width={900}
         centered
+        style={{ top: 20 }}
         bodyStyle={{
-          maxHeight: '70vh',
+          maxHeight: 'calc(100vh - 200px)',
           overflowY: 'auto',
           padding: '24px'
         }}
@@ -2064,9 +2067,13 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
               placeholder="请选择文件夹"
               treeDefaultExpandAll
               treeData={buildFolderTreeData(folders)}
+              getPopupContainer={(trigger) => trigger.parentElement || document.body}
               filterTreeNode={(input, node) =>
                 (node.title as string).toLowerCase().includes(input.toLowerCase())
               }
+              onDropdownVisibleChange={(open) => {
+                console.log('[TreeSelect] Dropdown visible:', open, 'Folders:', folders.length, 'TreeData:', buildFolderTreeData(folders).length);
+              }}
             />
           </Form.Item>
 
