@@ -361,7 +361,7 @@ type WorkNoteCategoryStats struct {
 	Associations AssociationStats `json:"associations"`
 
 	// 时间范围统计（可选）
-	TimeRanges *TimeRangeStats `json:"time_ranges,omitempty"`
+	TimeRanges *TimeRangeStats `json:"timeRanges,omitempty"`
 }
 
 // CategoryInfo 分类信息（work_note_type统计）
