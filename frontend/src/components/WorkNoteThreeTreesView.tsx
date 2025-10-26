@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Tree, Input, Spin, Empty, message, Badge, Tabs, Card, Statistic, Row, Col } from 'antd';
+import { Tree, Input, Spin, Empty, message, Badge, Tabs, Button, Space } from 'antd';
 import {
   FolderOutlined,
   FolderOpenOutlined,
@@ -9,19 +9,22 @@ import {
   SearchOutlined,
   LoadingOutlined,
   ReloadOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import { ErrorHandler } from '../utils/error';
-import type { DataNode } from 'antd/es/tree';
+import type { DataNode as AntdDataNode } from 'antd/es/tree';
+
+// 扩展DataNode以包含自定义data属性
+interface DataNode extends AntdDataNode {
+  data?: WorkNoteFolder;
+}
 import {
   workNotesService,
   WorkNoteFolder,
   TreeType,
-  TreeRoot,
-  TreeOverviewResponse,
-  FolderTreeResponse,
-  TreeStats,
 } from '../services/workNotesService';
 import { useDebounce } from '../hooks/useDebounce';
+import FolderContextMenu, { FolderAction } from './FolderContextMenu';
 
 const { Search } = Input;
 const { TabPane } = Tabs;
@@ -32,17 +35,20 @@ export interface WorkNoteThreeTreesViewProps {
   onFolderCreate?: (parentId?: number, treeType?: TreeType) => void;
   onFolderEdit?: (folderId: number) => void;
   onFolderDelete?: (folderId: number) => void;
+  onFolderMove?: (folderId: number) => void;
+  onFolderDetail?: (folderId: number) => void;
   height?: number | string;
   defaultTreeType?: TreeType;
 }
 
 /**
- * 三棵树工作笔记文件夹视图组件
+ * 三棵树工作笔记文件夹视图组件（树状结构）
  *
  * 功能：
  * - 三棵独立的文件夹树：Private(私人), Team(团队), Public(公开)
  * - 每棵树独立的权限控制和数据加载
- * - 统一的搜索和交互体验
+ * - 树状结构展示，支持拖拽、右键菜单
+ * - 支持创建子文件夹
  * - 懒加载子文件夹优化性能
  */
 const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
@@ -51,28 +57,30 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
   onFolderCreate,
   onFolderEdit,
   onFolderDelete,
+  onFolderMove,
+  onFolderDetail,
   height = 'calc(100vh - 250px)',
   defaultTreeType = 'private',
 }) => {
   // 当前激活的树类型
   const [activeTreeType, setActiveTreeType] = useState<TreeType>(defaultTreeType);
 
-  // 三棵树的概览数据
-  const [overview, setOverview] = useState<TreeOverviewResponse | null>(null);
-  const [overviewLoading, setOverviewLoading] = useState(false);
-
   // 当前树的文件夹数据
   const [folders, setFolders] = useState<WorkNoteFolder[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // 当前树的统计信息
-  const [treeStats, setTreeStats] = useState<TreeStats | null>(null);
 
   // 搜索和展开状态
   const [searchValue, setSearchValue] = useState('');
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
   const [loadedKeys, setLoadedKeys] = useState<React.Key[]>([]);
+
+  // 右键菜单状态
+  const [contextMenuFolder, setContextMenuFolder] = useState<WorkNoteFolder | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+
+  // 拖拽状态
+  const [draggingKey, setDraggingKey] = useState<React.Key | null>(null);
 
   // 防抖搜索值（300ms延迟）
   const debouncedSearchValue = useDebounce(searchValue, 300);
@@ -102,26 +110,19 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
     return configs[treeType];
   };
 
-  // 加载三棵树概览
-  const loadTreesOverview = useCallback(async () => {
-    setOverviewLoading(true);
-    try {
-      const data = await workNotesService.getTreesOverview();
-      setOverview(data);
-    } catch (error: any) {
-      ErrorHandler.showError(error, '加载树概览失败');
-    } finally {
-      setOverviewLoading(false);
-    }
-  }, []);
-
   // 加载指定树的根文件夹
   const loadTreeFolders = useCallback(async (treeType: TreeType, parentId?: number, maxDepth: number = 2) => {
     setLoading(true);
     try {
       const data = await workNotesService.getFolderTreeByType(treeType, parentId, maxDepth);
-      setFolders(data.folders || []);
-      return data.folders || [];
+      const loadedFolders = data.folders || [];
+
+      if (parentId === undefined) {
+        // 加载根文件夹
+        setFolders(loadedFolders);
+      }
+
+      return loadedFolders;
     } catch (error: any) {
       ErrorHandler.showError(error, `加载${getTreeConfig(treeType).name}失败`);
       return [];
@@ -130,31 +131,15 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
     }
   }, []);
 
-  // 加载树统计信息
-  const loadTreeStats = useCallback(async (treeType: TreeType) => {
-    try {
-      const stats = await workNotesService.getTreeStats(treeType);
-      setTreeStats(stats);
-    } catch (error: any) {
-      ErrorHandler.silent(error);
-    }
-  }, []);
-
-  // 初始化加载概览
-  useEffect(() => {
-    loadTreesOverview();
-  }, [loadTreesOverview]);
-
   // 当切换树时，重新加载数据
   useEffect(() => {
     loadTreeFolders(activeTreeType);
-    loadTreeStats(activeTreeType);
     // 清空搜索
     setSearchValue('');
     // 清空展开状态
     setExpandedKeys([]);
     setLoadedKeys([]);
-  }, [activeTreeType, loadTreeFolders, loadTreeStats]);
+  }, [activeTreeType, loadTreeFolders]);
 
   // 自动展开所有文件夹节点
   useEffect(() => {
@@ -212,7 +197,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
 
         // 展开所有搜索结果
         const allKeys = filteredResults.map(folder => `folder-${folder.id}`);
-        setExpandedKeys(allKeys);
+        setExpandedKeys(['root', ...allKeys]);
       } catch (error: any) {
         ErrorHandler.showError(error, '搜索文件夹失败');
       } finally {
@@ -227,6 +212,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
   const folderToTreeNode = (folder: WorkNoteFolder): DataNode => {
     const key = `folder-${folder.id}`;
     const hasChildren = folder.subfolders_count > 0;
+    const isDragging = draggingKey === key;
 
     return {
       key,
@@ -237,6 +223,8 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
             justifyContent: 'space-between',
             alignItems: 'center',
             width: '100%',
+            opacity: isDragging ? 0.5 : 1,
+            transition: 'opacity 0.2s',
           }}
         >
           <span style={{
@@ -261,9 +249,11 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
           )}
         </div>
       ),
+      icon: <FolderOutlined style={{ color: folder.color || getTreeConfig(activeTreeType).color }} />,
       isLeaf: !hasChildren,
       children: folder.children?.map(folderToTreeNode),
       data: folder,
+      className: isDragging ? 'dragging-node' : '',
     };
   };
 
@@ -280,12 +270,13 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
           </span>
         </div>
       ),
+      icon: config.icon,
       isLeaf: false,
       children: folders.map(folderToTreeNode),
     };
 
     return [rootNode];
-  }, [folders, activeTreeType]);
+  }, [folders, activeTreeType, draggingKey]);
 
   // 处理节点选择
   const handleSelect = (selectedKeys: React.Key[], info: any) => {
@@ -353,72 +344,216 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
   // 刷新当前树
   const handleRefresh = () => {
     loadTreeFolders(activeTreeType);
-    loadTreeStats(activeTreeType);
-    loadTreesOverview();
     message.success('已刷新');
   };
 
-  // 渲染概览统计卡片
-  const renderOverviewCards = () => {
-    if (!overview || !overview.trees) return null;
+  // 处理右键点击
+  const handleRightClick = (info: any) => {
+    const key = info.node.key as string;
 
-    return (
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        {overview.trees.map((tree: TreeRoot) => (
-          <Col span={8} key={tree.type}>
-            <Card
-              size="small"
-              hoverable
-              onClick={() => setActiveTreeType(tree.type)}
-              style={{
-                borderColor: activeTreeType === tree.type ? getTreeConfig(tree.type).color : undefined,
-                borderWidth: activeTreeType === tree.type ? 2 : 1,
-              }}
-            >
-              <Statistic
-                title={
-                  <span>
-                    {tree.icon} {tree.name}
-                  </span>
-                }
-                value={tree.folder_count}
-                suffix="个文件夹"
-                valueStyle={{
-                  fontSize: '18px',
-                  color: getTreeConfig(tree.type).color,
-                }}
-              />
-              <div style={{ marginTop: 8, color: '#8c8c8c', fontSize: '12px' }}>
-                {tree.note_count} 篇笔记
-              </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-    );
+    // 根节点特殊处理：只允许创建根级文件夹
+    if (key === 'root') {
+      setContextMenuFolder(null); // 设置为null表示根节点
+      setContextMenuPosition({ x: info.event.clientX, y: info.event.clientY });
+      return;
+    }
+
+    const folder = info.node.data as WorkNoteFolder;
+    setContextMenuFolder(folder);
+    setContextMenuPosition({ x: info.event.clientX, y: info.event.clientY });
+  };
+
+  // 关闭右键菜单
+  const handleCloseContextMenu = () => {
+    setContextMenuFolder(null);
+    setContextMenuPosition(null);
+  };
+
+  // 处理右键菜单操作
+  const handleContextMenuAction = (action: FolderAction, folder: WorkNoteFolder | null) => {
+    switch (action) {
+      case 'create':
+        if (folder) {
+          // 在文件夹下创建子文件夹
+          onFolderCreate?.(folder.id, activeTreeType);
+        } else {
+          // 在根节点下创建根级文件夹
+          onFolderCreate?.(undefined, activeTreeType);
+        }
+        break;
+      case 'rename':
+        if (folder) {
+          onFolderEdit?.(folder.id);
+        }
+        break;
+      case 'move':
+        if (folder) {
+          onFolderMove?.(folder.id);
+        }
+        break;
+      case 'delete':
+        if (folder) {
+          onFolderDelete?.(folder.id);
+        }
+        break;
+      case 'detail':
+        if (folder) {
+          onFolderDetail?.(folder.id);
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
+  // 查找文件夹（递归）
+  const findFolderById = (folders: WorkNoteFolder[], id: number): WorkNoteFolder | null => {
+    for (const folder of folders) {
+      if (folder.id === id) return folder;
+      if (folder.children) {
+        const found = findFolderById(folder.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // 检查是否是子孙节点（防止循环引用）
+  const isDescendant = (folderId: number, ancestorId: number): boolean => {
+    const folder = findFolderById(folders, folderId);
+    if (!folder || !folder.parent_id) return false;
+    if (folder.parent_id === ancestorId) return true;
+    return isDescendant(folder.parent_id, ancestorId);
+  };
+
+  // 检查是否允许拖拽放置
+  const checkCanDrop = (dragNode: any, dropNode: any, dropPosition: number): boolean => {
+    const dragKey = dragNode.key as string;
+    const dropKey = dropNode.key as string;
+
+    // 不能拖拽到根节点上
+    if (dropKey === 'root' && dropPosition === 0) {
+      return false;
+    }
+
+    // 如果是拖拽到根节点内部（作为根级文件夹），允许
+    if (dropKey === 'root' && dropPosition !== 0) {
+      return true;
+    }
+
+    // 不能拖拽到自身
+    if (dragKey === dropKey) {
+      return false;
+    }
+
+    const dragFolderId = parseInt(dragKey.replace('folder-', ''));
+    const dropFolderId = parseInt(dropKey.replace('folder-', ''));
+
+    // 不能拖拽到自己的子孙节点
+    if (isDescendant(dropFolderId, dragFolderId)) {
+      return false;
+    }
+
+    return true;
+  };
+
+  // 处理拖拽放置
+  const handleDrop = async (info: any) => {
+    const dragKey = info.dragNode.key as string;
+    const dropKey = info.node.key as string;
+    const dropToGap = info.dropToGap;
+
+    // 根节点特殊处理
+    if (dragKey === 'root' || dropKey === 'root') {
+      if (dropKey === 'root' && dropToGap) {
+        // 拖拽到根节点内部，移动到根级
+        const dragFolderId = parseInt(dragKey.replace('folder-', ''));
+        const dragFolder = findFolderById(folders, dragFolderId);
+
+        if (dragFolder) {
+          try {
+            await workNotesService.moveFolder(dragFolderId, null);
+            message.success(`已将"${dragFolder.name}"移动到根目录`);
+            await loadTreeFolders(activeTreeType);
+          } catch (error: any) {
+            ErrorHandler.showError(error, '移动文件夹失败');
+          }
+        }
+      }
+      return;
+    }
+
+    const dragFolderId = parseInt(dragKey.replace('folder-', ''));
+    const dropFolderId = parseInt(dropKey.replace('folder-', ''));
+
+    const dragFolder = findFolderById(folders, dragFolderId);
+    const dropFolder = findFolderById(folders, dropFolderId);
+
+    if (!dragFolder || !dropFolder) {
+      return;
+    }
+
+    try {
+      let targetParentId: number | null = null;
+
+      if (dropToGap) {
+        // 放置到节点之间，与目标节点成为兄弟节点
+        targetParentId = dropFolder.parent_id || null;
+      } else {
+        // 放置到节点内部，成为目标节点的子节点
+        targetParentId = dropFolderId;
+      }
+
+      await workNotesService.moveFolder(dragFolderId, targetParentId);
+
+      if (targetParentId === null) {
+        message.success(`已将"${dragFolder.name}"移动到根目录`);
+      } else {
+        const targetFolder = findFolderById(folders, targetParentId);
+        message.success(`已将"${dragFolder.name}"移动到"${targetFolder?.name || ''}"`);
+      }
+
+      // 刷新文件夹树
+      await loadTreeFolders(activeTreeType);
+    } catch (error: any) {
+      ErrorHandler.showError(error, '移动文件夹失败');
+    } finally {
+      setDraggingKey(null);
+    }
+  };
+
+  // 快速创建根级文件夹
+  const handleQuickCreateRoot = () => {
+    onFolderCreate?.(undefined, activeTreeType);
   };
 
   return (
     <div style={{ height, display: 'flex', flexDirection: 'column' }}>
-      {/* 概览统计卡片 */}
-      {overviewLoading ? (
-        <div style={{ padding: '16px', textAlign: 'center' }}>
-          <Spin size="small" />
-        </div>
-      ) : (
-        renderOverviewCards()
-      )}
-
       {/* Tab切换 */}
       <Tabs
         activeKey={activeTreeType}
         onChange={handleTreeTypeChange}
         tabBarExtraContent={
-          <a onClick={handleRefresh} style={{ fontSize: '12px' }}>
-            <ReloadOutlined /> 刷新
-          </a>
+          <Space size="small">
+            <Button
+              type="text"
+              size="small"
+              icon={<PlusOutlined />}
+              onClick={handleQuickCreateRoot}
+            >
+              新建文件夹
+            </Button>
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={handleRefresh}
+            >
+              刷新
+            </Button>
+          </Space>
         }
-        style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+        style={{ marginBottom: 8 }}
       >
         <TabPane
           tab={
@@ -428,7 +563,6 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
             </span>
           }
           key="private"
-          style={{ height: '100%' }}
         />
         <TabPane
           tab={
@@ -472,7 +606,20 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
         ) : folders.length === 0 && !searchValue ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={`暂无${getTreeConfig(activeTreeType).name}`}
+            description={
+              <span>
+                {`暂无${getTreeConfig(activeTreeType).name}`}
+                <br />
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<PlusOutlined />}
+                  onClick={handleQuickCreateRoot}
+                >
+                  创建第一个文件夹
+                </Button>
+              </span>
+            }
             style={{ marginTop: 40 }}
           />
         ) : folders.length === 0 && searchValue ? (
@@ -494,24 +641,31 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
             defaultExpandedKeys={['root']}
             style={{ background: 'transparent' }}
             blockNode
+            draggable
+            allowDrop={(options) => {
+              return checkCanDrop(options.dragNode, options.dropNode, options.dropPosition);
+            }}
+            onDragStart={(info) => {
+              setDraggingKey(info.node.key);
+            }}
+            onDragEnd={() => {
+              setDraggingKey(null);
+            }}
+            onDrop={handleDrop}
+            onRightClick={handleRightClick}
           />
         )}
       </div>
 
-      {/* 统计信息 */}
-      {treeStats && (
-        <div style={{
-          padding: '12px',
-          borderTop: '1px solid #f0f0f0',
-          background: '#fafafa',
-          fontSize: '12px',
-          color: '#8c8c8c',
-        }}>
-          <Row gutter={8}>
-            <Col span={12}>文件夹: {treeStats.folder_count}</Col>
-            <Col span={12}>笔记: {treeStats.note_count}</Col>
-          </Row>
-        </div>
+      {/* 右键菜单 */}
+      {contextMenuPosition && (
+        <FolderContextMenu
+          folder={contextMenuFolder}
+          position={contextMenuPosition}
+          onAction={handleContextMenuAction}
+          onClose={handleCloseContextMenu}
+          showCreateOnly={contextMenuFolder === null}
+        />
       )}
     </div>
   );

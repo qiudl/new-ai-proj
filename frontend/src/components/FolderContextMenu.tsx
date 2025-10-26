@@ -28,10 +28,13 @@ export interface FolderContextMenuProps {
   onClose: () => void;
 
   /** 菜单操作回调 */
-  onAction: (action: FolderAction, folder: WorkNoteFolder) => void;
+  onAction: (action: FolderAction, folder: WorkNoteFolder | null) => void;
 
   /** 是否显示快捷键提示 */
   showShortcuts?: boolean;
+
+  /** 是否只显示创建选项（用于根节点） */
+  showCreateOnly?: boolean;
 }
 
 /**
@@ -52,8 +55,9 @@ const FolderContextMenuComponent: React.FC<FolderContextMenuProps> = ({
   onClose,
   onAction,
   showShortcuts = true,
+  showCreateOnly = false,
 }) => {
-  if (!folder || !position) {
+  if (!position) {
     return null;
   }
 
@@ -61,6 +65,69 @@ const FolderContextMenuComponent: React.FC<FolderContextMenuProps> = ({
     onAction(action, folder);
     onClose();
   };
+
+  // 根节点只显示创建选项
+  if (showCreateOnly) {
+    const createOnlyItems: MenuProps['items'] = [
+      {
+        key: 'create',
+        icon: <PlusOutlined />,
+        label: (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: 160 }}>
+            <span>新建文件夹</span>
+            {showShortcuts && <span style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>Ctrl+N</span>}
+          </div>
+        ),
+        onClick: () => handleAction('create'),
+      },
+    ];
+
+    return (
+      <>
+        <div
+          style={{
+            position: 'fixed',
+            left: position.x,
+            top: position.y,
+            width: 1,
+            height: 1,
+            pointerEvents: 'none',
+          }}
+        />
+        <Dropdown
+          open={true}
+          menu={{ items: createOnlyItems }}
+          trigger={['contextMenu']}
+          overlayStyle={{
+            position: 'fixed',
+            left: position.x,
+            top: position.y,
+          }}
+        >
+          <div
+            style={{
+              position: 'fixed',
+              left: 0,
+              top: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 999,
+            }}
+            onClick={onClose}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              onClose();
+            }}
+          />
+        </Dropdown>
+      </>
+    );
+  }
+
+  // 文件夹节点显示完整菜单
+  if (!folder) {
+    return null;
+  }
 
   const menuItems: MenuProps['items'] = [
     {
