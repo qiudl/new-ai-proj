@@ -181,11 +181,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [conversionModalVisible, setConversionModalVisible] = useState(false);
   const [currentWorkNote, setCurrentWorkNote] = useState<WorkNote | null>(null);
-  
-  const [form] = Form.useForm();
+
   const [editForm] = Form.useForm();
   const [quickCreateForm] = Form.useForm();
-  const [modalVisible, setModalVisible] = useState(false);
   const [quickCreateVisible, setQuickCreateVisible] = useState(false);
 
   // 使用防抖的搜索关键词
@@ -610,33 +608,6 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     setTimeRangeFilter(null);
     setQuickFilter(null);
   }, []);
-
-  // 创建工作笔记
-  const handleCreate = async (values: any) => {
-    try {
-      const createRequest: CreateWorkNoteRequest = {
-        ...values,
-        folder_id: activeFolderId || undefined,
-        type: values.type || 'markdown',
-        work_note_type: values.work_note_type || 'general',
-        priority: values.priority || 'medium',
-        status: values.status || 'draft',
-        visibility: values.visibility || 'private',
-        is_template: false,
-        is_pinned: values.is_pinned || false,
-        is_bookmarked: values.is_bookmarked || false,
-      };
-
-      await workNotesService.createWorkNote(createRequest);
-      message.success('工作笔记创建成功');
-      setModalVisible(false);
-      form.resetFields();
-      loadWorkNotes();
-    } catch (error) {
-      console.error('Failed to create work note:', error);
-      message.error('创建失败');
-    }
-  };
 
   // 快速创建工作笔记
   const handleQuickCreate = async (values: any) => {
@@ -2063,11 +2034,6 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
             icon={<BookOutlined />}
             tooltip="从模板创建"
             onClick={() => message.info('模板功能即将推出')}
-          />
-          <FloatButton
-            icon={<FileMarkdownOutlined />}
-            tooltip="完整创建"
-            onClick={() => setModalVisible(true)}
           />
         </FloatButton.Group>
       )}
