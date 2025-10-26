@@ -156,19 +156,6 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [retryCount, setRetryCount] = useState(0);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
 
-  // 使用 ref 追踪最新的 state 值，避免闭包陷阱
-  const workNotesRef = useRef<WorkNoteWithTask[]>([]);
-  const lastRefreshTimeRef = useRef<number>(0);
-
-  // 同步 ref 和 state
-  useEffect(() => {
-    workNotesRef.current = workNotes;
-  }, [workNotes]);
-
-  useEffect(() => {
-    lastRefreshTimeRef.current = lastRefreshTime;
-  }, [lastRefreshTime]);
-
   // 统计数据
   const [stats, setStats] = useState<WorkNotesStats>({
     total: 0,
@@ -197,6 +184,10 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [quickCreateForm] = Form.useForm();
   const [modalVisible, setModalVisible] = useState(false);
   const [quickCreateVisible, setQuickCreateVisible] = useState(false);
+
+  // 使用 ref 追踪最新的 state 值，避免闭包陷阱
+  const workNotesRef = useRef<WorkNoteWithTask[]>([]);
+  const lastRefreshTimeRef = useRef<number>(0);
 
   // 加载统计数据（从后端API获取真实数据）
   const loadStats = useCallback(async () => {
@@ -235,12 +226,21 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
 
   // 使用防抖的搜索关键词
   const [debouncedSearchKeyword, setDebouncedSearchKeyword] = useState('');
-  
+
+  // 同步 ref 和 state（必须在所有useState/useRef之后，其他useEffect之前）
+  useEffect(() => {
+    workNotesRef.current = workNotes;
+  }, [workNotes]);
+
+  useEffect(() => {
+    lastRefreshTimeRef.current = lastRefreshTime;
+  }, [lastRefreshTime]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchKeyword(searchKeyword);
     }, 300);
-    
+
     return () => clearTimeout(timer);
   }, [searchKeyword]);
 
