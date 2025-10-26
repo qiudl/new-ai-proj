@@ -1623,7 +1623,17 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
                 清空筛选
               </Button>
             </Col>
-            <Col xs={24} sm={8} md={0} lg={6} xl={10}>
+            <Col xs={12} sm={8} md={6} lg={4} xl={3}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setQuickCreateVisible(true)}
+                style={{ width: '100%' }}
+              >
+                创建笔记
+              </Button>
+            </Col>
+            <Col xs={24} sm={16} md={0} lg={2} xl={7}>
               <div style={{ textAlign: 'right', color: '#8c8c8c', fontSize: 12 }}>
                 显示 {filteredNotes.length} / {workNotes.length} 个笔记
                 {debouncedSearchKeyword && (
