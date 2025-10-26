@@ -26,58 +26,58 @@ const WorkNotesStatsCards: React.FC<WorkNotesStatsCardsProps> = ({
   loading = false
 }) => {
   return (
-    <Row gutter={16} style={{ marginBottom: 24 }}>
+    <Row gutter={12} style={{ marginBottom: 12 }}>
       <Col span={5}>
-        <Card>
+        <Card size="small">
           <Statistic
             title="总笔记数"
             value={stats.total}
             prefix={<FileTextOutlined style={{ color: '#1890ff' }} />}
-            valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
+            valueStyle={{ color: '#1890ff', fontSize: '20px', fontWeight: 'bold' }}
             loading={loading}
           />
         </Card>
       </Col>
       <Col span={5}>
-        <Card>
+        <Card size="small">
           <Statistic
             title="草稿笔记"
             value={stats.draft}
             prefix={<EditOutlined style={{ color: '#fa8c16' }} />}
-            valueStyle={{ color: '#fa8c16', fontSize: '24px', fontWeight: 'bold' }}
+            valueStyle={{ color: '#fa8c16', fontSize: '20px', fontWeight: 'bold' }}
             loading={loading}
           />
         </Card>
       </Col>
       <Col span={5}>
-        <Card>
+        <Card size="small">
           <Statistic
             title="已发布笔记"
             value={stats.published}
             prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-            valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
+            valueStyle={{ color: '#52c41a', fontSize: '20px', fontWeight: 'bold' }}
             loading={loading}
           />
         </Card>
       </Col>
       <Col span={4}>
-        <Card>
+        <Card size="small">
           <Statistic
             title="已归档笔记"
             value={stats.archived}
             prefix={<InboxOutlined style={{ color: '#8c8c8c' }} />}
-            valueStyle={{ color: '#8c8c8c', fontSize: '24px', fontWeight: 'bold' }}
+            valueStyle={{ color: '#8c8c8c', fontSize: '20px', fontWeight: 'bold' }}
             loading={loading}
           />
         </Card>
       </Col>
       <Col span={5}>
-        <Card>
+        <Card size="small">
           <Statistic
             title="关联任务笔记"
             value={stats.associated}
             prefix={<LinkOutlined style={{ color: '#722ed1' }} />}
-            valueStyle={{ color: '#722ed1', fontSize: '24px', fontWeight: 'bold' }}
+            valueStyle={{ color: '#722ed1', fontSize: '20px', fontWeight: 'bold' }}
             loading={loading}
           />
         </Card>

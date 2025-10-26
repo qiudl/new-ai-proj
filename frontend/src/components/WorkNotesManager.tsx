@@ -1521,7 +1521,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   ], [isMobile, filteredNotes, handleView, openEditModal, openConversionModal]);
 
   return (
-    <div style={{ padding: isMobile ? '12px' : '24px' }}>
+    <div style={{ padding: isMobile ? '8px' : '12px' }}>
 
 
       {/* 统计卡片 */}
@@ -1543,7 +1543,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
                 </Space>
               }
               size="small"
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: 12 }}
             >
               <WorkNoteFolderTree
                 selectedFolderId={activeFolderId}
@@ -1574,8 +1574,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         }
       >
         {/* 搜索和筛选区 */}
-        <Card style={{ marginBottom: isMobile ? 16 : 24 }}>
-          <Row gutter={[16, 16]} align="middle" wrap>
+        <Card style={{ marginBottom: isMobile ? 12 : 16 }}>
+          <Row gutter={[12, 12]} align="middle" wrap>
             <Col xs={24} sm={24} md={12} lg={10} xl={8}>
               <Search
                 placeholder="搜索标题、内容或输入#ID搜索..."
@@ -1679,7 +1679,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
 
         {/* 批量操作工具栏 */}
         {selectedRowKeys.length > 0 && (
-          <Card style={{ marginBottom: isMobile ? 16 : 24, borderColor: '#1890ff' }}>
+          <Card style={{ marginBottom: isMobile ? 12 : 16, borderColor: '#1890ff' }}>
             <Row align="middle" justify="space-between">
               <Col>
                 <Space>
@@ -1796,9 +1796,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
                 responsive: true,
                 position: ['topRight', 'bottomRight'],
               }}
-              scroll={{ 
-                x: isMobile ? 600 : 800, 
-                y: isMobile ? 'calc(100vh - 500px)' : 'calc(100vh - 400px)' 
+              scroll={{
+                x: isMobile ? 600 : 800,
+                y: isMobile ? 'calc(100vh - 450px)' : 'calc(100vh - 320px)'
               }}
               locale={{
                 emptyText: (

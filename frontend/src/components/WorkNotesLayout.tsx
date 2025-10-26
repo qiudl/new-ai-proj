@@ -24,14 +24,14 @@ const WorkNotesLayout: React.FC<WorkNotesLayoutProps> = ({
         style={{
           background: '#fafafa',
           borderRight: '1px solid #f0f0f0',
-          padding: '16px',
+          padding: '12px',
           overflow: 'auto'
         }}
       >
         {sidebar}
       </Sider>
       <Layout style={{ background: '#fff' }}>
-        <Content style={{ padding: '16px', overflow: 'auto' }}>
+        <Content style={{ padding: '12px', overflow: 'auto' }}>
           {children}
         </Content>
       </Layout>
