@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Button } from 'antd';
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { workNotesStorage } from '../utils/workNotesStorage';
 
 const { Sider, Content } = Layout;
 
@@ -19,13 +20,12 @@ const WorkNotesLayout: React.FC<WorkNotesLayoutProps> = ({
 }) => {
   // 从 localStorage 读取折叠状态
   const [collapsed, setCollapsed] = useState(() => {
-    const saved = localStorage.getItem('workNotes_folderTreeCollapsed');
-    return saved === 'true';
+    return workNotesStorage.getFolderCollapsed(false);
   });
 
   // 保存折叠状态
   useEffect(() => {
-    localStorage.setItem('workNotes_folderTreeCollapsed', String(collapsed));
+    workNotesStorage.saveFolderCollapsed(collapsed);
   }, [collapsed]);
 
   return (

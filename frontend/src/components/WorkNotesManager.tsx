@@ -58,6 +58,7 @@ import {
   showUndoNotification,
   parseErrorMessage
 } from '../utils/deletionManager';
+import { workNotesStorage } from '../utils/workNotesStorage';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -1306,6 +1307,38 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // 组件初始化时恢复筛选条件
+  useEffect(() => {
+    const savedFilters = workNotesStorage.getFilters();
+    if (savedFilters) {
+      if (savedFilters.statusFilter) setStatusFilter(savedFilters.statusFilter);
+      if (savedFilters.categoryFilter) setCategoryFilter(savedFilters.categoryFilter);
+      if (savedFilters.tagFilter) setTagFilter(savedFilters.tagFilter);
+      if (savedFilters.timeRangeFilter) setTimeRangeFilter(savedFilters.timeRangeFilter);
+      if (savedFilters.quickFilter) setQuickFilter(savedFilters.quickFilter);
+    }
+  }, []);
+
+  // 筛选条件变化时保存
+  useEffect(() => {
+    workNotesStorage.saveFilters({
+      statusFilter,
+      categoryFilter,
+      tagFilter,
+      timeRangeFilter,
+      quickFilter
+    });
+  }, [statusFilter, categoryFilter, tagFilter, timeRangeFilter, quickFilter]);
+
+  // 搜索防抖 - 300ms延迟
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchKeyword(searchKeyword);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchKeyword]);
 
   const isMobile = windowSize.width < 768;
   const isTablet = windowSize.width < 1024;
