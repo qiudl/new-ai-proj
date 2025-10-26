@@ -209,7 +209,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
   }, [debouncedSearchValue, activeTreeType, loadTreeFolders]);
 
   // 将WorkNoteFolder转换为Tree DataNode
-  const folderToTreeNode = (folder: WorkNoteFolder): DataNode => {
+  const folderToTreeNode = useCallback((folder: WorkNoteFolder): DataNode => {
     const key = `folder-${folder.id}`;
     const hasChildren = folder.subfolders_count > 0;
     const isDragging = draggingKey === key;
@@ -218,6 +218,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
       key,
       title: (
         <div
+          key={`title-${folder.id}-${folder.name}`}
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -255,7 +256,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
       data: folder,
       className: isDragging ? 'dragging-node' : '',
     };
-  };
+  }, [draggingKey, activeTreeType]);
 
   // 构建树数据
   const treeData: DataNode[] = useMemo(() => {
@@ -263,7 +264,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
     const rootNode: DataNode = {
       key: 'root',
       title: (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <div key={`root-${activeTreeType}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <span style={{ fontWeight: 500 }}>
             {config.icon}
             <span style={{ marginLeft: 8 }}>{config.name}</span>
@@ -276,7 +277,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
     };
 
     return [rootNode];
-  }, [folders, activeTreeType, draggingKey]);
+  }, [folders, activeTreeType, folderToTreeNode]);
 
   // 处理节点选择
   const handleSelect = (selectedKeys: React.Key[], info: any) => {
