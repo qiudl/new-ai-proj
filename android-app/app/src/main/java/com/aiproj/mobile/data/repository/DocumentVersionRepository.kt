@@ -80,26 +80,34 @@ class DocumentVersionRepository @Inject constructor(
             )
 
             if (response.isSuccessful && response.body() != null) {
-                val data = response.body()!!
+                val apiResp = response.body()!!
+                val data = apiResp.data
+                if (apiResp.success && data != null) {
+                    // 防御式更新本地缓存，避免后端偶发返回 null 字段导致崩溃
+                    try {
+                        if (offset == 0) {
+                            // 首页：清除旧缓存
+                            dao.deleteVersionsByDocumentId(documentId)
+                        }
+                        // 个别记录字段异常（例如后端返回 null 给非空字段）时，忽略该条以保证页面可用
+                        val entities = (data.versions ?: emptyList()).mapNotNull { versionDto ->
+                            runCatching { versionDto.toEntity() }.getOrNull()
+                        }
+                        if (entities.isNotEmpty()) {
+                            dao.insertVersions(entities)
+                        }
+                    } catch (cacheError: Exception) {
+                        // 忽略缓存写入错误，避免影响页面展示
+                    }
 
-                // 防御式更新本地缓存，避免后端偶发返回 null 字段导致崩溃
-                try {
-                    if (offset == 0) {
-                        // 首页：清除旧缓存
-                        dao.deleteVersionsByDocumentId(documentId)
-                    }
-                    // 个别记录字段异常（例如后端返回 null 给非空字段）时，忽略该条以保证页面可用
-                    val entities = (data.versions ?: emptyList()).mapNotNull { versionDto ->
-                        runCatching { versionDto.toEntity() }.getOrNull()
-                    }
-                    if (entities.isNotEmpty()) {
-                        dao.insertVersions(entities)
-                    }
-                } catch (cacheError: Exception) {
-                    // 忽略缓存写入错误，避免影响页面展示
+                    emit(Result.success(data))
+                } else {
+                    val exception = AppException.NetworkException.ServerError(
+                        response.code(),
+                        apiResp.error ?: apiResp.message ?: "获取版本历史失败"
+                    )
+                    emit(Result.failure(exception))
                 }
-
-                emit(Result.success(data))
             } else {
                 val exception = AppException.NetworkException.ServerError(
                     response.code(),
@@ -139,10 +147,20 @@ class DocumentVersionRepository @Inject constructor(
             val response = api.getVersionDetail(projectId, taskId, documentId, versionNumber)
 
             if (response.isSuccessful && response.body() != null) {
-                val data = response.body()!!
-                // 缓存到本地
-                dao.insertVersion(data.toEntity())
-                Result.success(data)
+                val apiResp = response.body()!!
+                val data = apiResp.data
+                if (apiResp.success && data != null) {
+                    // 缓存到本地
+                    dao.insertVersion(data.toEntity())
+                    Result.success(data)
+                } else {
+                    Result.failure(
+                        AppException.NetworkException.ServerError(
+                            response.code(),
+                            apiResp.error ?: apiResp.message ?: "获取版本详情失败"
+                        )
+                    )
+                }
             } else {
                 Result.failure(
                     AppException.NetworkException.ServerError(
@@ -175,12 +193,22 @@ class DocumentVersionRepository @Inject constructor(
             val response = api.restoreVersion(projectId, taskId, documentId, versionNumber)
 
             if (response.isSuccessful && response.body() != null) {
-                val data = response.body()!!
-                // 更新本地缓存
-                dao.insertVersion(data.toEntity())
-                // 清除旧缓存，强制刷新
-                dao.deleteVersionsByDocumentId(documentId)
-                Result.success(data)
+                val apiResp = response.body()!!
+                val data = apiResp.data
+                if (apiResp.success && data != null) {
+                    // 更新本地缓存
+                    dao.insertVersion(data.toEntity())
+                    // 清除旧缓存，强制刷新
+                    dao.deleteVersionsByDocumentId(documentId)
+                    Result.success(data)
+                } else {
+                    Result.failure(
+                        AppException.NetworkException.ServerError(
+                            response.code(),
+                            apiResp.error ?: apiResp.message ?: "恢复版本失败"
+                        )
+                    )
+                }
             } else {
                 Result.failure(
                     AppException.NetworkException.ServerError(
@@ -215,7 +243,17 @@ class DocumentVersionRepository @Inject constructor(
             val response = api.compareVersions(projectId, taskId, documentId, version1, version2)
 
             if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+                val apiResp = response.body()!!
+                if (apiResp.success && apiResp.data != null) {
+                    Result.success(apiResp.data)
+                } else {
+                    Result.failure(
+                        AppException.NetworkException.ServerError(
+                            response.code(),
+                            apiResp.error ?: apiResp.message ?: "对比版本失败"
+                        )
+                    )
+                }
             } else {
                 Result.failure(
                     AppException.NetworkException.ServerError(
@@ -289,10 +327,20 @@ class DocumentVersionRepository @Inject constructor(
             )
 
             if (response.isSuccessful && response.body() != null) {
-                val data = response.body()!!
-                // 更新本地缓存
-                dao.insertVersion(data.toEntity())
-                Result.success(data)
+                val apiResp = response.body()!!
+                val data = apiResp.data
+                if (apiResp.success && data != null) {
+                    // 更新本地缓存
+                    dao.insertVersion(data.toEntity())
+                    Result.success(data)
+                } else {
+                    Result.failure(
+                        AppException.NetworkException.ServerError(
+                            response.code(),
+                            apiResp.error ?: apiResp.message ?: "添加版本标签失败"
+                        )
+                    )
+                }
             } else {
                 Result.failure(
                     AppException.NetworkException.ServerError(
@@ -325,10 +373,20 @@ class DocumentVersionRepository @Inject constructor(
             val response = api.removeVersionTag(projectId, taskId, documentId, versionNumber)
 
             if (response.isSuccessful && response.body() != null) {
-                val data = response.body()!!
-                // 更新本地缓存
-                dao.insertVersion(data.toEntity())
-                Result.success(data)
+                val apiResp = response.body()!!
+                val data = apiResp.data
+                if (apiResp.success && data != null) {
+                    // 更新本地缓存
+                    dao.insertVersion(data.toEntity())
+                    Result.success(data)
+                } else {
+                    Result.failure(
+                        AppException.NetworkException.ServerError(
+                            response.code(),
+                            apiResp.error ?: apiResp.message ?: "移除版本标签失败"
+                        )
+                    )
+                }
             } else {
                 Result.failure(
                     AppException.NetworkException.ServerError(

@@ -146,3 +146,67 @@ data class PaginationInfo(
 data class FolderTreeResponse(
     @SerialName("data") val data: List<WorkNoteFolder>
 )
+
+/**
+ * 标准化响应格式 - 单个文件夹
+ * 对应后端的 StandardResponse 结构
+ */
+@Serializable
+data class StandardFolderResponse(
+    @SerialName("success") val success: Boolean,
+    @SerialName("message") val message: String,
+    @SerialName("data") val data: WorkNoteFolder,
+    @SerialName("timestamp") val timestamp: Long
+)
+
+/**
+ * 标准化响应格式 - 删除操作
+ */
+@Serializable
+data class StandardDeleteResponse(
+    @SerialName("success") val success: Boolean,
+    @SerialName("message") val message: String,
+    @SerialName("data") val data: DeletedFolderInfo? = null,
+    @SerialName("timestamp") val timestamp: Long
+)
+
+/**
+ * 删除文件夹返回的信息
+ */
+@Serializable
+data class DeletedFolderInfo(
+    @SerialName("id") val id: Int,
+    @SerialName("name") val name: String,
+    @SerialName("deleted_at") val deletedAt: String
+)
+
+/**
+ * 搜索文件夹响应
+ */
+@Serializable
+data class SearchFoldersResponse(
+    @SerialName("success") val success: Boolean,
+    @SerialName("message") val message: String,
+    @SerialName("data") val data: SearchFoldersData
+)
+
+/**
+ * 搜索文件夹数据
+ */
+@Serializable
+data class SearchFoldersData(
+    @SerialName("folders") val folders: List<WorkNoteFolder>,
+    @SerialName("pagination") val pagination: SearchPaginationInfo,
+    @SerialName("query") val query: String
+)
+
+/**
+ * 搜索分页信息
+ */
+@Serializable
+data class SearchPaginationInfo(
+    @SerialName("page") val page: Int,
+    @SerialName("limit") val limit: Int,
+    @SerialName("total") val total: Int,
+    @SerialName("pages") val pages: Int
+)

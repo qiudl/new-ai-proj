@@ -1,6 +1,7 @@
 package com.aiproj.mobile.data.models
 
 import com.google.gson.annotations.SerializedName
+import com.google.gson.annotations.JsonAdapter
 
 /**
  * 文档版本 DTO（数据传输对象）
@@ -15,6 +16,7 @@ data class DocumentVersionDto(
     val documentId: Long,
 
     @SerializedName("version_number")
+    @JsonAdapter(LenientIntAdapter::class)
     val versionNumber: Int,
 
     @SerializedName("title")
@@ -33,6 +35,7 @@ data class DocumentVersionDto(
     val createdAt: String? = "",
 
     @SerializedName("content_length")
+    @JsonAdapter(LenientIntAdapter::class)
     val contentLength: Int? = 0,
 
     @SerializedName("change_type")

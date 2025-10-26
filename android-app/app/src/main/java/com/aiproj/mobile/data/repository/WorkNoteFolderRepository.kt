@@ -202,7 +202,12 @@ class WorkNoteFolderRepository @Inject constructor(
             val response = api.getFolder(folderId)
 
             if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+                val standardResponse = response.body()!!
+                if (standardResponse.success) {
+                    Result.success(standardResponse.data)
+                } else {
+                    Result.failure(Exception(standardResponse.message))
+                }
             } else {
                 Result.failure(
                     Exception(
@@ -242,11 +247,17 @@ class WorkNoteFolderRepository @Inject constructor(
             val response = api.createFolder(request)
 
             if (response.isSuccessful && response.body() != null) {
-                val newFolder = response.body()!!
-                Log.d(TAG, "createFolder: Success - created folder id=${newFolder.id}")
-                // 清除缓存
-                clearCache()
-                Result.success(newFolder)
+                val standardResponse = response.body()!!
+                if (standardResponse.success) {
+                    val newFolder = standardResponse.data
+                    Log.d(TAG, "createFolder: Success - created folder id=${newFolder.id}")
+                    // 清除缓存
+                    clearCache()
+                    Result.success(newFolder)
+                } else {
+                    Log.e(TAG, "createFolder: Failed - ${standardResponse.message}")
+                    Result.failure(Exception(standardResponse.message))
+                }
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "创建文件夹失败"
                 Log.e(TAG, "createFolder: Failed - $errorMsg")
@@ -284,10 +295,16 @@ class WorkNoteFolderRepository @Inject constructor(
             val response = api.updateFolder(folderId, request)
 
             if (response.isSuccessful && response.body() != null) {
-                Log.d(TAG, "updateFolder: Success - updated folder id=$folderId")
-                // 清除缓存
-                clearCache()
-                Result.success(response.body()!!)
+                val standardResponse = response.body()!!
+                if (standardResponse.success) {
+                    Log.d(TAG, "updateFolder: Success - updated folder id=$folderId")
+                    // 清除缓存
+                    clearCache()
+                    Result.success(standardResponse.data)
+                } else {
+                    Log.e(TAG, "updateFolder: Failed - ${standardResponse.message}")
+                    Result.failure(Exception(standardResponse.message))
+                }
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "更新文件夹失败"
                 Log.e(TAG, "updateFolder: Failed - $errorMsg")
@@ -309,11 +326,17 @@ class WorkNoteFolderRepository @Inject constructor(
         return try {
             val response = api.deleteFolder(folderId)
 
-            if (response.isSuccessful) {
-                Log.d(TAG, "deleteFolder: Success - deleted folder id=$folderId")
-                // 清除缓存
-                clearCache()
-                Result.success(Unit)
+            if (response.isSuccessful && response.body() != null) {
+                val standardResponse = response.body()!!
+                if (standardResponse.success) {
+                    Log.d(TAG, "deleteFolder: Success - deleted folder id=$folderId")
+                    // 清除缓存
+                    clearCache()
+                    Result.success(Unit)
+                } else {
+                    Log.e(TAG, "deleteFolder: Failed - ${standardResponse.message}")
+                    Result.failure(Exception(standardResponse.message))
+                }
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "删除文件夹失败"
                 Log.e(TAG, "deleteFolder: Failed - $errorMsg")
@@ -343,10 +366,16 @@ class WorkNoteFolderRepository @Inject constructor(
             val response = api.moveFolder(folderId, request)
 
             if (response.isSuccessful && response.body() != null) {
-                Log.d(TAG, "moveFolder: Success - moved folder id=$folderId to parent=$newParentId")
-                // 清除缓存
-                clearCache()
-                Result.success(response.body()!!)
+                val standardResponse = response.body()!!
+                if (standardResponse.success) {
+                    Log.d(TAG, "moveFolder: Success - moved folder id=$folderId to parent=$newParentId")
+                    // 清除缓存
+                    clearCache()
+                    Result.success(standardResponse.data)
+                } else {
+                    Log.e(TAG, "moveFolder: Failed - ${standardResponse.message}")
+                    Result.failure(Exception(standardResponse.message))
+                }
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "移动文件夹失败"
                 Log.e(TAG, "moveFolder: Failed - $errorMsg")
@@ -354,6 +383,52 @@ class WorkNoteFolderRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "moveFolder: Exception - ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 搜索文件夹
+     *
+     * @param query 搜索关键词
+     * @param projectId 项目ID过滤（可选）
+     * @param visibility 可见性过滤（可选）
+     * @param page 页码
+     * @param limit 每页数量
+     */
+    suspend fun searchFolders(
+        query: String,
+        projectId: Int? = null,
+        visibility: String? = null,
+        page: Int = 1,
+        limit: Int = 20
+    ): Result<SearchFoldersData> {
+        Log.d(TAG, "searchFolders: query='$query', projectId=$projectId, page=$page, limit=$limit")
+        return try {
+            val response = api.searchFolders(
+                query = query,
+                projectId = projectId,
+                visibility = visibility,
+                page = page,
+                limit = limit
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                val searchResponse = response.body()!!
+                if (searchResponse.success) {
+                    Log.d(TAG, "searchFolders: Success - found ${searchResponse.data.folders.size} folders")
+                    Result.success(searchResponse.data)
+                } else {
+                    Log.e(TAG, "searchFolders: Failed - ${searchResponse.message}")
+                    Result.failure(Exception(searchResponse.message))
+                }
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "搜索文件夹失败"
+                Log.e(TAG, "searchFolders: Failed - $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "searchFolders: Exception - ${e.message}", e)
             Result.failure(e)
         }
     }

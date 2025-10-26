@@ -82,29 +82,38 @@ interface WorkNoteApi {
     @GET("work-note-folders/{id}")
     suspend fun getFolder(
         @Path("id") id: Int
-    ): Response<WorkNoteFolder>
+    ): Response<StandardFolderResponse>
 
     @POST("work-note-folders")
     suspend fun createFolder(
         @Body request: CreateWorkNoteFolderRequest
-    ): Response<WorkNoteFolder>
+    ): Response<StandardFolderResponse>
 
     @PUT("work-note-folders/{id}")
     suspend fun updateFolder(
         @Path("id") id: Int,
         @Body request: UpdateWorkNoteFolderRequest
-    ): Response<WorkNoteFolder>
+    ): Response<StandardFolderResponse>
 
     @DELETE("work-note-folders/{id}")
     suspend fun deleteFolder(
         @Path("id") id: Int
-    ): Response<Unit>
+    ): Response<StandardDeleteResponse>
 
     @POST("work-note-folders/{id}/move")
     suspend fun moveFolder(
         @Path("id") id: Int,
         @Body request: MoveFolderRequest
-    ): Response<WorkNoteFolder>
+    ): Response<StandardFolderResponse>
+
+    @GET("work-note-folders/search")
+    suspend fun searchFolders(
+        @Query("q") query: String,
+        @Query("project_id") projectId: Int? = null,
+        @Query("visibility") visibility: String? = null,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): Response<SearchFoldersResponse>
 
     // ========== 文档转换 ==========
 

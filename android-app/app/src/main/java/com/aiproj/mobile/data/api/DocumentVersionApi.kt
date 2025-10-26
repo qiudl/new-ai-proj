@@ -37,7 +37,7 @@ interface DocumentVersionApi {
         @Query("limit") limit: Int = 20,
         @Query("offset") offset: Int = 0,
         @Query("include_content") includeContent: Boolean = false
-    ): Response<VersionHistoryResponse>
+    ): Response<com.aiproj.mobile.data.models.ApiResponse<VersionHistoryResponse>>
 
     /**
      * 获取指定版本的详细信息
@@ -54,7 +54,7 @@ interface DocumentVersionApi {
         @Path("taskId") taskId: Long,
         @Path("documentId") documentId: Long,
         @Path("versionNumber") versionNumber: Int
-    ): Response<DocumentVersionDto>
+    ): Response<com.aiproj.mobile.data.models.ApiResponse<DocumentVersionDto>>
 
     /**
      * 恢复文档到指定版本
@@ -71,7 +71,7 @@ interface DocumentVersionApi {
         @Path("taskId") taskId: Long,
         @Path("documentId") documentId: Long,
         @Path("versionNumber") versionNumber: Int
-    ): Response<DocumentVersionDto>
+    ): Response<com.aiproj.mobile.data.models.ApiResponse<DocumentVersionDto>>
 
     /**
      * 对比两个版本的差异
@@ -90,7 +90,7 @@ interface DocumentVersionApi {
         @Path("documentId") documentId: Long,
         @Query("version1") version1: Int,
         @Query("version2") version2: Int
-    ): Response<VersionComparisonResponse>
+    ): Response<com.aiproj.mobile.data.models.ApiResponse<VersionComparisonResponse>>
 
     /**
      * 下载指定版本的文档
@@ -127,7 +127,7 @@ interface DocumentVersionApi {
         @Path("documentId") documentId: Long,
         @Path("versionNumber") versionNumber: Int,
         @Body tag: Map<String, String>
-    ): Response<DocumentVersionDto>
+    ): Response<com.aiproj.mobile.data.models.ApiResponse<DocumentVersionDto>>
 
     /**
      * 移除版本标签
@@ -144,5 +144,5 @@ interface DocumentVersionApi {
         @Path("taskId") taskId: Long,
         @Path("documentId") documentId: Long,
         @Path("versionNumber") versionNumber: Int
-    ): Response<DocumentVersionDto>
+    ): Response<com.aiproj.mobile.data.models.ApiResponse<DocumentVersionDto>>
 }

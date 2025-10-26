@@ -1,6 +1,7 @@
 package com.aiproj.mobile.data.models
 
 import com.google.gson.annotations.SerializedName
+import com.google.gson.annotations.JsonAdapter
 
 /**
  * 文档数据模型
@@ -21,6 +22,7 @@ data class Document(
     val createdBy: Int? = null,
     @SerializedName("updated_by")
     val updatedBy: Int? = null,
+    @JsonAdapter(LenientIntAdapter::class)
     val version: Int = 1
 )
 

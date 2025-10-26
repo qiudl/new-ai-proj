@@ -542,6 +542,45 @@ class NotesViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 搜索文件夹
+     */
+    fun searchFolders(
+        query: String,
+        projectId: Int? = null,
+        visibility: String? = null,
+        page: Int = 1,
+        limit: Int = 20
+    ) {
+        Log.d(TAG, "searchFolders: query='$query'")
+        viewModelScope.launch {
+            _folderLoading.value = true
+            _folderError.value = null
+
+            val result = folderRepository.searchFolders(
+                query = query,
+                projectId = projectId,
+                visibility = visibility,
+                page = page,
+                limit = limit
+            )
+
+            result.fold(
+                onSuccess = { searchData ->
+                    Log.d(TAG, "searchFolders: Success - found ${searchData.folders.size} folders")
+                    // 更新文件夹列表为搜索结果
+                    _folders.value = searchData.folders
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "searchFolders: Failed - ${error.message}", error)
+                    _folderError.value = "搜索文件夹失败: ${error.message}"
+                }
+            )
+
+            _folderLoading.value = false
+        }
+    }
+
     // ========== 笔记操作 ==========
 
     /**
