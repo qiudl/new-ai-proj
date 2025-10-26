@@ -270,7 +270,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
           </span>
         </div>
       ),
-      icon: config.icon,
+      icon: undefined, // 不显示根节点图标，避免重复
       isLeaf: false,
       children: folders.map(folderToTreeNode),
     };
@@ -547,7 +547,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
           tab={
             <span>
               <LockOutlined />
-              私人笔记
+              私人
             </span>
           }
           key="private"
@@ -556,7 +556,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
           tab={
             <span>
               <TeamOutlined />
-              团队笔记
+              团队
             </span>
           }
           key="team"
@@ -565,7 +565,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
           tab={
             <span>
               <GlobalOutlined />
-              公开笔记
+              公开
             </span>
           }
           key="public"
