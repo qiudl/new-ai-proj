@@ -185,6 +185,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [modalVisible, setModalVisible] = useState(false);
   const [quickCreateVisible, setQuickCreateVisible] = useState(false);
 
+  // 使用防抖的搜索关键词
+  const [debouncedSearchKeyword, setDebouncedSearchKeyword] = useState('');
+
   // 使用 ref 追踪最新的 state 值，避免闭包陷阱
   const workNotesRef = useRef<WorkNoteWithTask[]>([]);
   const lastRefreshTimeRef = useRef<number>(0);
@@ -222,10 +225,6 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       return [];
     }
   };
-
-
-  // 使用防抖的搜索关键词
-  const [debouncedSearchKeyword, setDebouncedSearchKeyword] = useState('');
 
   // 同步 ref 和 state（必须在所有useState/useRef之后，其他useEffect之前）
   useEffect(() => {
