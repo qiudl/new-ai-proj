@@ -249,7 +249,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
           )}
         </div>
       ),
-      icon: <FolderOutlined style={{ color: folder.color || getTreeConfig(activeTreeType).color }} />,
+      icon: undefined, // 不显示文件夹图标
       isLeaf: !hasChildren,
       children: folder.children?.map(folderToTreeNode),
       data: folder,
@@ -534,24 +534,12 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
         activeKey={activeTreeType}
         onChange={handleTreeTypeChange}
         tabBarExtraContent={
-          <Space size="small">
-            <Button
-              type="text"
-              size="small"
-              icon={<PlusOutlined />}
-              onClick={handleQuickCreateRoot}
-            >
-              新建文件夹
-            </Button>
-            <Button
-              type="text"
-              size="small"
-              icon={<ReloadOutlined />}
-              onClick={handleRefresh}
-            >
-              刷新
-            </Button>
-          </Space>
+          <Button
+            type="text"
+            size="small"
+            icon={<ReloadOutlined />}
+            onClick={handleRefresh}
+          />
         }
         style={{ marginBottom: 8 }}
       >
