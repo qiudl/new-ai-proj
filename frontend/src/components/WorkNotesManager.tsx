@@ -47,6 +47,7 @@ import ModernWorkNoteViewer from './ModernWorkNoteViewer';
 import { WORK_NOTE_TYPES, WORK_NOTE_PRIORITIES, getWorkNoteTypeConfig, getWorkNotePriorityConfig } from '../constants/workNoteTypes';
 import WorkNotesStatsCards from './WorkNotesStatsCards';
 import WorkNotesLayout from './WorkNotesLayout';
+import WorkNotesFilterBar from './WorkNotesFilterBar';
 import WorkNoteFolderTree from './WorkNoteFolderTree';
 import FolderBreadcrumb from './FolderBreadcrumb';
 import FolderDetailDrawer from './FolderDetailDrawer';
@@ -167,6 +168,10 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   // 筛选状态
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [timeRangeFilter, setTimeRangeFilter] = useState<string | null>(null);
+  const [quickFilter, setQuickFilter] = useState<string | null>(null);
 
   // 对话框状态
   const [modernViewerVisible, setModernViewerVisible] = useState(false);
@@ -273,9 +278,101 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       filtered = filtered.filter(note => note.type === typeFilter);
     }
 
+    // 分类筛选
+    if (categoryFilter) {
+      filtered = filtered.filter(note => note.work_note_type === categoryFilter);
+    }
+
+    // 标签筛选 (包含任一选中标签)
+    if (tagFilter.length > 0) {
+      filtered = filtered.filter(note =>
+        note.tags?.some(tag => tagFilter.includes(tag))
+      );
+    }
+
+    // 时间范围筛选
+    if (timeRangeFilter) {
+      const now = Date.now();
+      filtered = filtered.filter(note => {
+        const createdAt = new Date(note.created_at).getTime();
+        switch (timeRangeFilter) {
+          case 'today':
+            return createdAt >= now - 24 * 60 * 60 * 1000;
+          case 'week':
+            return createdAt >= now - 7 * 24 * 60 * 60 * 1000;
+          case 'month':
+            return createdAt >= now - 30 * 24 * 60 * 60 * 1000;
+          case 'earlier':
+            return createdAt < now - 30 * 24 * 60 * 60 * 1000;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // 快捷筛选
+    if (quickFilter) {
+      const now = Date.now();
+      filtered = filtered.filter(note => {
+        const createdAt = new Date(note.created_at).getTime();
+        switch (quickFilter) {
+          case 'today':
+            return createdAt >= now - 24 * 60 * 60 * 1000;
+          case 'week':
+            return createdAt >= now - 7 * 24 * 60 * 60 * 1000;
+          case 'month':
+            return createdAt >= now - 30 * 24 * 60 * 60 * 1000;
+          case 'associated':
+            return note.associatedTasks && note.associatedTasks.length > 0;
+          case 'unassociated':
+            return !note.associatedTasks || note.associatedTasks.length === 0;
+          default:
+            return true;
+        }
+      });
+    }
+
     // 按ID降序排序（默认）
     return filtered.sort((a, b) => b.id - a.id);
-  }, [workNotes, debouncedSearchKeyword, statusFilter, typeFilter]);
+  }, [workNotes, debouncedSearchKeyword, statusFilter, typeFilter, categoryFilter, tagFilter, timeRangeFilter, quickFilter]);
+
+  // 准备分类数据
+  const categories = useMemo(() => {
+    return Object.keys(WORK_NOTE_TYPES).map(type => {
+      const config = getWorkNoteTypeConfig(type);
+      const count = workNotes.filter(n => n.work_note_type === type).length;
+      return {
+        value: type,
+        label: config.label,
+        icon: config.icon,
+        count
+      };
+    });
+  }, [workNotes]);
+
+  // 准备标签数据
+  const availableTags = useMemo(() => {
+    const tagMap = new Map<string, number>();
+    workNotes.forEach(note => {
+      note.tags?.forEach(tag => {
+        tagMap.set(tag, (tagMap.get(tag) || 0) + 1);
+      });
+    });
+    return Array.from(tagMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [workNotes]);
+
+  // 准备时间范围统计
+  const timeRanges = useMemo(() => {
+    const now = Date.now();
+    return {
+      today: workNotes.filter(n => new Date(n.created_at).getTime() >= now - 24 * 60 * 60 * 1000).length,
+      thisWeek: workNotes.filter(n => new Date(n.created_at).getTime() >= now - 7 * 24 * 60 * 60 * 1000).length,
+      thisMonth: workNotes.filter(n => new Date(n.created_at).getTime() >= now - 30 * 24 * 60 * 60 * 1000).length,
+      earlier: workNotes.filter(n => new Date(n.created_at).getTime() < now - 30 * 24 * 60 * 60 * 1000).length
+    };
+  }, [workNotes]);
 
   // 文件夹选择处理
   const handleFolderSelect = useCallback((folderId: number | null, folder: WorkNoteFolder | null) => {
@@ -501,6 +598,10 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     setStatusFilter('all');
     setTypeFilter('all');
     setSearchKeyword('');
+    setCategoryFilter(null);
+    setTagFilter([]);
+    setTimeRangeFilter(null);
+    setQuickFilter(null);
   }, []);
 
   // 创建工作笔记
@@ -1481,74 +1582,35 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       >
         {/* 搜索和筛选区 */}
         <Card style={{ marginBottom: isMobile ? 12 : 16 }}>
-          <Row gutter={[12, 12]} align="middle" wrap>
-            <Col xs={24} sm={24} md={12} lg={10} xl={8}>
-              <Search
-                placeholder="搜索标题、内容或输入#ID搜索..."
-                value={searchKeyword}
-                onChange={(e) => {
-                  setSearchKeyword(e.target.value);
-                  if (e.target.value.trim()) {
-                    setSearchLoading(true);
-                    setTimeout(() => setSearchLoading(false), 300);
-                  }
-                }}
-                loading={searchLoading}
-                allowClear
-                prefix={<SearchOutlined />}
-                style={{ width: '100%' }}
-                onSearch={() => {
-                  setSearchLoading(true);
-                  setTimeout(() => setSearchLoading(false), 100);
-                }}
-              />
-            </Col>
-            <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-              <Select
-                placeholder="状态筛选"
-                value={statusFilter}
-                onChange={setStatusFilter}
-                allowClear
-                style={{ width: '100%' }}
-                size="middle"
-              >
-                <Option value="all">全部状态</Option>
-                <Option value="draft">草稿</Option>
-                <Option value="published">已发布</Option>
-                <Option value="archived">已归档</Option>
-              </Select>
-            </Col>
-            <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-              <Button
-                icon={<FilterOutlined />}
-                onClick={resetFilters}
-                style={{ width: '100%' }}
-                disabled={!searchKeyword && statusFilter === 'all' && typeFilter === 'all'}
-              >
-                清空筛选
-              </Button>
-            </Col>
-            <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setQuickCreateVisible(true)}
-                style={{ width: '100%' }}
-              >
-                创建笔记
-              </Button>
-            </Col>
-            <Col xs={24} sm={16} md={0} lg={2} xl={7}>
-              <div style={{ textAlign: 'right', color: '#8c8c8c', fontSize: 12 }}>
-                显示 {filteredNotes.length} / {workNotes.length} 个笔记
-                {debouncedSearchKeyword && (
-                  <span style={{ marginLeft: 8, color: '#1890ff' }}>
-                    🔍 "{debouncedSearchKeyword}"
-                  </span>
-                )}
-              </div>
-            </Col>
-          </Row>
+          <WorkNotesFilterBar
+            searchKeyword={searchKeyword}
+            onSearchChange={(value) => {
+              setSearchKeyword(value);
+              if (value.trim()) {
+                setSearchLoading(true);
+                setTimeout(() => setSearchLoading(false), 300);
+              }
+            }}
+            searchLoading={searchLoading}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            categoryFilter={categoryFilter}
+            onCategoryChange={setCategoryFilter}
+            categories={categories}
+            tagFilter={tagFilter}
+            onTagChange={setTagFilter}
+            availableTags={availableTags}
+            timeRangeFilter={timeRangeFilter}
+            onTimeRangeChange={setTimeRangeFilter}
+            timeRanges={timeRanges}
+            quickFilter={quickFilter}
+            onQuickFilterChange={setQuickFilter}
+            onClearFilters={resetFilters}
+            onCreate={() => setQuickCreateVisible(true)}
+            totalCount={workNotes.length}
+            filteredCount={filteredNotes.length}
+            isMobile={isMobile}
+          />
         </Card>
 
         {/* 文件夹面包屑导航 */}
