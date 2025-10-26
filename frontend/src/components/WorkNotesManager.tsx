@@ -591,6 +591,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     try {
       const createRequest: CreateWorkNoteRequest = {
         ...values,
+        folder_id: activeFolderId || undefined,
         type: values.type || 'markdown',
         work_note_type: values.work_note_type || 'general',
         priority: values.priority || 'medium',
@@ -618,6 +619,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       const createRequest: CreateWorkNoteRequest = {
         title: values.title,
         content: values.content || '',
+        folder_id: activeFolderId || undefined,
         type: 'markdown',
         work_note_type: 'general',
         priority: 'medium',
