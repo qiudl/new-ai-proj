@@ -25,12 +25,13 @@ import com.aiproj.mobile.util.DateTimeUtils
 /**
  * 笔记列表项组件（列表视图）
  *
- * 支持优先级颜色条、类型图标、内容预览、标签、关联任务数量等
+ * 支持优先级颜色条、类型图标、内容预览、标签、关联任务数量、文件夹显示等
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NoteListItem(
     note: WorkNote,
+    folderName: String? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -123,6 +124,26 @@ fun NoteListItem(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // 文件夹
+                    if (!folderName.isNullOrBlank()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = folderName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
                     // 时间
                     Text(
                         text = DateTimeUtils.formatTime(note.updatedAt),

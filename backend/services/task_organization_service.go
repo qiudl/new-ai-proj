@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"regexp"
@@ -96,7 +97,7 @@ func (s *TaskOrganizationService) ScanOrphanTasks(projectID int) (*models.Orphan
 		result.Organizable++
 	}
 
-	// 4. 生成预览数据
+	// 4. 生成预览数据并预检查缺失的周汇总
 	currentYear := time.Now().Year()
 	for weekNum, taskIDs := range weekTasksMap {
 		if len(taskIDs) == 0 {
@@ -112,6 +113,23 @@ func (s *TaskOrganizationService) ScanOrphanTasks(projectID int) (*models.Orphan
 			if info.WeekNumber == weekNum {
 				parentID = &id
 				break
+			}
+		}
+
+		// 🔍 预检查：如果周汇总不存在，自动创建
+		if parentID == nil {
+			log.Printf("[TaskOrganization] 🔍 扫描发现缺失的周汇总 - Week %d (%s), 将自动创建",
+				weekNum, weekRange)
+
+			newParentID, err := s.createWeekSummaryTask(projectID, currentYear, weekNum)
+			if err != nil {
+				log.Printf("[TaskOrganization] ⚠️ 预创建周汇总失败 - Week %d, Error: %v",
+					weekNum, err)
+				// 不中断扫描，继续处理其他周
+			} else {
+				parentID = &newParentID
+				log.Printf("[TaskOrganization] ✅ 预创建周汇总成功 - Week %d, ParentID: %d",
+					weekNum, newParentID)
 			}
 		}
 
@@ -330,6 +348,9 @@ func (s *TaskOrganizationService) createWeekSummaryTask(projectID, year, week in
 	title := fmt.Sprintf("Week %d (%s) 周任务汇总", week, weekRange)
 	description := fmt.Sprintf("第%d周（%s）的任务汇总", week, weekRange)
 
+	log.Printf("[TaskOrganization] 开始创建周汇总任务 - ProjectID: %d, Year: %d, Week: %d, Range: %s",
+		projectID, year, week, weekRange)
+
 	// 创建周汇总任务
 	weekTask := &models.Task{
 		ProjectID:          projectID,
@@ -345,8 +366,13 @@ func (s *TaskOrganizationService) createWeekSummaryTask(projectID, year, week in
 
 	createdTask, err := s.db.Tasks().Create(ctx, weekTask)
 	if err != nil {
-		return 0, fmt.Errorf("创建周汇总任务失败: %w", err)
+		log.Printf("[TaskOrganization] ❌ 创建周汇总任务失败 - ProjectID: %d, Week: %d, Error: %v",
+			projectID, week, err)
+		return 0, fmt.Errorf("创建周汇总任务失败 (Week %d, %s): %w", week, weekRange, err)
 	}
+
+	log.Printf("[TaskOrganization] ✅ 成功创建周汇总任务 - TaskID: %d, Title: %s",
+		createdTask.ID, title)
 
 	return createdTask.ID, nil
 }

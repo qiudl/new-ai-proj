@@ -17,7 +17,7 @@ import com.aiproj.mobile.data.models.WorkNoteVisibility
 /**
  * 文件夹树组件
  *
- * 显示完整的文件夹层级结构，支持展开/折叠、选择、长按操作
+ * 按可见性分组显示完整的文件夹层级结构，支持展开/折叠、选择、长按操作
  */
 @Composable
 fun FolderTree(
@@ -30,6 +30,12 @@ fun FolderTree(
     onCreateFolder: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 按可见性分组（只取根级文件夹）
+    val rootFolders = folders.filter { it.parentId == null }
+    val privateFolders = rootFolders.filter { it.visibility == WorkNoteVisibility.PRIVATE }
+    val teamFolders = rootFolders.filter { it.visibility == WorkNoteVisibility.TEAM }
+    val publicFolders = rootFolders.filter { it.visibility == WorkNoteVisibility.PUBLIC }
+
     Column(modifier = modifier.fillMaxWidth()) {
         // 顶部工具栏
         Row(
@@ -116,20 +122,111 @@ fun FolderTree(
                     )
                 }
 
-                // 根级文件夹
-                items(folders.filter { it.parentId == null }) { folder ->
-                    FolderTreeItemRecursive(
-                        folder = folder,
-                        level = 0,
-                        selectedFolderId = selectedFolderId,
-                        expandedFolderIds = expandedFolderIds,
-                        onFolderClick = onFolderClick,
-                        onFolderLongPress = onFolderLongPress,
-                        onExpandFolder = onExpandFolder
-                    )
+                // 私人文件夹分组
+                if (privateFolders.isNotEmpty()) {
+                    item {
+                        FolderGroupHeader(
+                            title = "私人文件夹",
+                            icon = Icons.Default.Lock,
+                            count = privateFolders.size
+                        )
+                    }
+                    items(privateFolders) { folder ->
+                        FolderTreeItemRecursive(
+                            folder = folder,
+                            level = 0,
+                            selectedFolderId = selectedFolderId,
+                            expandedFolderIds = expandedFolderIds,
+                            onFolderClick = onFolderClick,
+                            onFolderLongPress = onFolderLongPress,
+                            onExpandFolder = onExpandFolder
+                        )
+                    }
+                }
+
+                // 团队文件夹分组
+                if (teamFolders.isNotEmpty()) {
+                    item {
+                        FolderGroupHeader(
+                            title = "团队文件夹",
+                            icon = Icons.Default.Group,
+                            count = teamFolders.size
+                        )
+                    }
+                    items(teamFolders) { folder ->
+                        FolderTreeItemRecursive(
+                            folder = folder,
+                            level = 0,
+                            selectedFolderId = selectedFolderId,
+                            expandedFolderIds = expandedFolderIds,
+                            onFolderClick = onFolderClick,
+                            onFolderLongPress = onFolderLongPress,
+                            onExpandFolder = onExpandFolder
+                        )
+                    }
+                }
+
+                // 公开文件夹分组
+                if (publicFolders.isNotEmpty()) {
+                    item {
+                        FolderGroupHeader(
+                            title = "公开文件夹",
+                            icon = Icons.Default.Public,
+                            count = publicFolders.size
+                        )
+                    }
+                    items(publicFolders) { folder ->
+                        FolderTreeItemRecursive(
+                            folder = folder,
+                            level = 0,
+                            selectedFolderId = selectedFolderId,
+                            expandedFolderIds = expandedFolderIds,
+                            onFolderClick = onFolderClick,
+                            onFolderLongPress = onFolderLongPress,
+                            onExpandFolder = onExpandFolder
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+/**
+ * 文件夹分组标题
+ */
+@Composable
+private fun FolderGroupHeader(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    count: Int,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = "($count)",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

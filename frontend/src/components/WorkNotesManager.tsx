@@ -69,6 +69,7 @@ import {
   parseErrorMessage
 } from '../utils/deletionManager';
 import { workNotesStorage } from '../utils/workNotesStorage';
+import { useWorkNotePermissions } from '../hooks/useWorkNotePermissions';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -138,6 +139,13 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   selectedFolderId,
   onDocumentSelect
 }) => {
+  // 权限检查
+  const {
+    canEditNote,
+    canDeleteNote,
+    currentUser
+  } = useWorkNotePermissions();
+
   // 基础状态
   const [workNotes, setWorkNotes] = useState<WorkNoteWithTask[]>([]);
   const [loading, setLoading] = useState(false);
@@ -954,6 +962,26 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     }
 
     const notesToDelete = workNotes.filter(note => selectedRowKeys.includes(note.id));
+
+    // 权限检查：过滤出有删除权限的笔记
+    const notesWithPermission = notesToDelete.filter(note =>
+      canDeleteNote({
+        id: note.id,
+        creatorId: note.creator_id || 0,
+        visibility: note.visibility as 'private' | 'team' | 'public'
+      })
+    );
+
+    if (notesWithPermission.length === 0) {
+      message.error('您没有权限删除选中的笔记');
+      return;
+    }
+
+    if (notesWithPermission.length < notesToDelete.length) {
+      const deniedCount = notesToDelete.length - notesWithPermission.length;
+      message.warning(`有 ${deniedCount} 个笔记因权限不足无法删除`);
+    }
+
     const userInfo = getCurrentUserInfo();
 
     Modal.confirm({
@@ -961,8 +989,13 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       content: (
         <div>
           <div style={{ marginBottom: 12 }}>
-            确定要删除选中的 <strong>{notesToDelete.length}</strong> 个工作笔记吗？
+            确定要删除选中的 <strong>{notesWithPermission.length}</strong> 个工作笔记吗？
           </div>
+          {notesWithPermission.length < notesToDelete.length && (
+            <div style={{ fontSize: 12, color: '#ff4d4f', marginBottom: 8 }}>
+              注意: 有 {notesToDelete.length - notesWithPermission.length} 个笔记因权限不足将被跳过
+            </div>
+          )}
           <div style={{ fontSize: 12, color: '#8c8c8c' }}>
             笔记将在5秒内可撤销，之后将永久删除
           </div>
@@ -972,8 +1005,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       cancelText: '取消',
       okType: 'danger',
       onOk: async () => {
-        // 批量添加到队列
-        const addedNotes = deletionManager.addBatchToQueue(notesToDelete);
+        // 批量添加到队列（只添加有权限的笔记）
+        const addedNotes = deletionManager.addBatchToQueue(notesWithPermission);
         if (addedNotes.length === 0) {
           message.warning('所有笔记都已在删除队列中');
           return;
@@ -1652,54 +1685,70 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       width: isMobile ? 80 : 100,
       fixed: 'right' as const,
       align: 'center' as const,
-      render: (_, record: WorkNoteWithTask) => (
-        <Space size={isMobile ? 2 : 4}>
-          <Tooltip title="查看笔记">
-            <Button
-              type="text"
-              size={isMobile ? 'small' : 'small'}
-              icon={<EyeOutlined />}
-              onClick={() => handleView(record)}
-              style={{ color: '#1890ff', fontSize: isMobile ? 12 : 14 }}
-            />
-          </Tooltip>
-          {!isMobile && (
-            <Tooltip title="编辑笔记">
+      render: (_, record: WorkNoteWithTask) => {
+        // 检查当前笔记的编辑和删除权限
+        const hasEditPermission = canEditNote({
+          id: record.id,
+          creatorId: record.creator_id || 0,
+          visibility: record.visibility as 'private' | 'team' | 'public'
+        });
+        const hasDeletePermission = canDeleteNote({
+          id: record.id,
+          creatorId: record.creator_id || 0,
+          visibility: record.visibility as 'private' | 'team' | 'public'
+        });
+
+        return (
+          <Space size={isMobile ? 2 : 4}>
+            <Tooltip title="查看笔记">
               <Button
                 type="text"
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => openEditModal(record)}
-                style={{ color: '#52c41a' }}
-              />
-            </Tooltip>
-          )}
-          {!isMobile && (
-            <Tooltip title="转换为任务文档">
-              <Button
-                type="text"
-                size="small"
-                icon={<SwapOutlined />}
-                onClick={() => openConversionModal(record)}
-                style={{ color: '#fa8c16' }}
-              />
-            </Tooltip>
-          )}
-          {isMobile && (
-            <Tooltip title="更多操作">
-              <Button
-                type="text"
-                size="small"
-                icon={<span style={{ fontSize: 12 }}>⋯</span>}
+                size={isMobile ? 'small' : 'small'}
+                icon={<EyeOutlined />}
                 onClick={() => handleView(record)}
-                style={{ color: '#8c8c8c' }}
+                style={{ color: '#1890ff', fontSize: isMobile ? 12 : 14 }}
               />
             </Tooltip>
-          )}
-        </Space>
-      ),
+            {!isMobile && (
+              <Tooltip title={hasEditPermission ? "编辑笔记" : "无权限编辑此笔记"}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={hasEditPermission ? <EditOutlined /> : <LockOutlined />}
+                  onClick={() => hasEditPermission && openEditModal(record)}
+                  disabled={!hasEditPermission}
+                  style={{ color: hasEditPermission ? '#52c41a' : '#d9d9d9' }}
+                />
+              </Tooltip>
+            )}
+            {!isMobile && (
+              <Tooltip title={hasEditPermission ? "转换为任务文档" : "无权限转换此笔记"}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={hasEditPermission ? <SwapOutlined /> : <LockOutlined />}
+                  onClick={() => hasEditPermission && openConversionModal(record)}
+                  disabled={!hasEditPermission}
+                  style={{ color: hasEditPermission ? '#fa8c16' : '#d9d9d9' }}
+                />
+              </Tooltip>
+            )}
+            {isMobile && (
+              <Tooltip title="更多操作">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<span style={{ fontSize: 12 }}>⋯</span>}
+                  onClick={() => handleView(record)}
+                  style={{ color: '#8c8c8c' }}
+                />
+              </Tooltip>
+            )}
+          </Space>
+        );
+      },
     },
-  ], [isMobile, filteredNotes, handleView, openEditModal, openConversionModal]);
+  ], [isMobile, filteredNotes, handleView, openEditModal, openConversionModal, canEditNote, canDeleteNote]);
 
   return (
     <div style={{ padding: isMobile ? '8px' : '12px' }}>

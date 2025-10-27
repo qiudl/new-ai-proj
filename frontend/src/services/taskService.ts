@@ -688,6 +688,86 @@ const mergedRaw = { ...(params || {}) } as any;
   }
 
   /**
+   * Update task's project (move task to another project)
+   * Only available for system administrators
+   *
+   * @param projectId - Current project ID
+   * @param taskId - Task ID to update
+   * @param targetProjectId - Target project ID to move to
+   * @returns Updated task
+   */
+  static async updateTaskProject(
+    projectId: number,
+    taskId: number,
+    targetProjectId: number
+  ): Promise<Task> {
+    try {
+      logTaskAction('updateTaskProject', { projectId, taskId, targetProjectId });
+
+      const response: any = await api.put(
+        `/projects/${projectId}/tasks/${taskId}/project`,
+        {
+          target_project_id: targetProjectId
+        }
+      );
+
+      // Handle various response formats similar to updateTask
+      // 1) Standard wrapper { success, data }
+      if (response && typeof response === 'object' && 'success' in response) {
+        if (!response.success) {
+          console.error('TaskService.updateTaskProject - API returned error:', (response as any).error || response);
+          const err: any = new Error((response as any)?.error?.message || (response as any)?.message || 'Failed to update task project');
+          err.status = (response as any)?.error?.status || (response as any)?.code;
+          err.statusCode = err.status;
+          err.data = (response as any)?.error;
+          throw err;
+        }
+        const data = (response as any).data;
+        return (sanitizeFromAPI ? (sanitizeFromAPI(data) as Task) : (data as Task));
+      }
+
+      // 2) Axios interceptor already unwrapped
+      // 2a) Direct Task object
+      if (response && typeof response === 'object' && !Array.isArray(response) && 'id' in response && 'title' in response) {
+        return (sanitizeFromAPI ? (sanitizeFromAPI(response) as Task) : (response as Task));
+      }
+      // 2b) Wrapped in data field
+      if (response && typeof response === 'object' && 'data' in response && response.data) {
+        const maybeTask = (response as any).data;
+        if (maybeTask && typeof maybeTask === 'object' && 'id' in maybeTask && 'title' in maybeTask) {
+          return (sanitizeFromAPI ? (sanitizeFromAPI(maybeTask) as Task) : (maybeTask as Task));
+        }
+      }
+
+      // 3) Unknown format
+      console.warn('TaskService.updateTaskProject: unexpected response shape', response);
+      throw new Error('Failed to update task project');
+
+    } catch (error: any) {
+      logApiError('updateTaskProject', error);
+      console.error('TaskService.updateTaskProject - Error details:', {
+        error: error?.message,
+        status: error?.status,
+        data: error?.data,
+        projectId,
+        taskId,
+        targetProjectId
+      });
+
+      // Normalize AppError for compatibility
+      if (error instanceof AppError) {
+        const normalized: any = new Error(error.message || 'Failed to update task project');
+        normalized.status = error.status;
+        normalized.statusCode = error.status;
+        normalized.data = error.context;
+        throw normalized;
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Delete a task
    */
   static async deleteTask(projectId: number, taskId: number): Promise<void> {

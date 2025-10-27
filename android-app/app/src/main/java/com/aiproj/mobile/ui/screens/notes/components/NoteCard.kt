@@ -22,12 +22,13 @@ import com.aiproj.mobile.util.DateTimeUtils
 /**
  * 笔记卡片组件（网格视图）
  *
- * 紧凑的卡片布局，适合网格展示
+ * 紧凑的卡片布局，适合网格展示，包含文件夹显示
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NoteCard(
     note: WorkNote,
+    folderName: String? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -104,6 +105,28 @@ fun NoteCard(
 
             // 底部信息
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // 文件夹
+                if (!folderName.isNullOrBlank()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = folderName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
                 // 标签
                 if (!note.tags.isNullOrEmpty()) {
                     Text(

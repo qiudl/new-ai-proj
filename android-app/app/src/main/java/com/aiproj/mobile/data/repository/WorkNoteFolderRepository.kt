@@ -99,15 +99,19 @@ class WorkNoteFolderRepository @Inject constructor(
             )
 
             if (response.isSuccessful && response.body() != null) {
-                val folders = response.body()!!.data
-                Log.d(TAG, "getFolderTree: Network success, got ${folders.size} folders")
+                val flatFolders = response.body()!!.data
+                Log.d(TAG, "getFolderTree: Network success, got ${flatFolders.size} folders")
+
+                // 将扁平列表转换为树形结构
+                val treeFolders = buildFolderTree(flatFolders)
+                Log.d(TAG, "getFolderTree: Built tree with ${treeFolders.size} root folders")
 
                 // 更新缓存
-                cachedFolders = folders
+                cachedFolders = treeFolders
                 lastCacheTime = System.currentTimeMillis()
-                saveToCache(folders)
+                saveToCache(treeFolders)
 
-                emit(Result.success(folders))
+                emit(Result.success(treeFolders))
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "获取文件夹树失败"
                 Log.e(TAG, "getFolderTree: Network error - $errorMsg")
@@ -148,6 +152,35 @@ class WorkNoteFolderRepository @Inject constructor(
         } catch (e: Exception) {
             // 缓存失败不影响主流程
         }
+    }
+
+    /**
+     * 将扁平的文件夹列表转换为树形结构
+     *
+     * 后端返回的是带parent_id的扁平列表,需要在客户端构建树形结构
+     * 采用递归方式构建每个节点的children列表
+     */
+    private fun buildFolderTree(flatList: List<WorkNoteFolder>): List<WorkNoteFolder> {
+        if (flatList.isEmpty()) return emptyList()
+
+        // 按parent_id分组
+        val foldersByParentId = flatList.groupBy { it.parentId }
+
+        // 递归构建树节点
+        fun buildNode(folder: WorkNoteFolder): WorkNoteFolder {
+            val childFolders = foldersByParentId[folder.id]?.map { buildNode(it) } ?: emptyList()
+            return if (childFolders.isNotEmpty()) {
+                folder.copy(children = childFolders)
+            } else {
+                folder
+            }
+        }
+
+        // 获取所有根节点(parent_id为null)并递归构建
+        val rootFolders = foldersByParentId[null]?.map { buildNode(it) } ?: emptyList()
+
+        Log.d(TAG, "buildFolderTree: Built ${rootFolders.size} root folders from ${flatList.size} total folders")
+        return rootFolders
     }
 
     /**

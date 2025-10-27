@@ -347,6 +347,7 @@ class NotesViewModel @Inject constructor(
      */
     fun selectFolder(folderId: Int?) {
         _selectedFolderId.value = folderId
+        clearCache()
         loadNotes()
     }
 

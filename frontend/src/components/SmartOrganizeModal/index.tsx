@@ -267,6 +267,19 @@ const SmartOrganizeModal: React.FC<SmartOrganizeModalProps> = ({
           dataIndex: 'message',
           key: 'message',
           ellipsis: true,
+          render: (message: string, record: any) => {
+            // 失败任务显示详细错误信息
+            if (!record.success) {
+              return (
+                <Tooltip title={message}>
+                  <Text type="danger" ellipsis style={{ maxWidth: '300px', display: 'inline-block' }}>
+                    {message}
+                  </Text>
+                </Tooltip>
+              );
+            }
+            return message;
+          },
         },
         {
           title: '父任务ID',
@@ -354,6 +367,34 @@ const SmartOrganizeModal: React.FC<SmartOrganizeModalProps> = ({
                   </Space>
                 }
               >
+                <Alert
+                  message="失败原因汇总"
+                  description={
+                    <div>
+                      {/* 统计各种失败原因 */}
+                      {(() => {
+                        const reasonCounts = failedDetails.reduce((acc, detail) => {
+                          const reason = detail.message || '未知原因';
+                          acc[reason] = (acc[reason] || 0) + 1;
+                          return acc;
+                        }, {} as Record<string, number>);
+
+                        return (
+                          <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
+                            {Object.entries(reasonCounts).map(([reason, count]) => (
+                              <li key={reason}>
+                                <Text strong>{reason}</Text>: {count} 个任务
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      })()}
+                    </div>
+                  }
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                />
                 <Table
                   dataSource={failedDetails}
                   columns={detailColumns}

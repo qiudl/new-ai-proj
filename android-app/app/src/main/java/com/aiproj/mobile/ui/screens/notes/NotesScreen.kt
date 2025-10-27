@@ -206,6 +206,7 @@ fun NotesScreen(
                                 } else {
                                     ShowNotesList(
                                         notes = notes,
+                                        folders = folders,
                                         isGridView = isGridView,
                                         onNoteClick = onNoteClick,
                                         onNoteLongClick = { selectedNote = it }
@@ -545,10 +546,16 @@ fun NotesScreen(
 @Composable
 private fun ShowNotesList(
     notes: List<WorkNote>,
+    folders: List<WorkNoteFolder>,
     isGridView: Boolean,
     onNoteClick: (Int) -> Unit,
     onNoteLongClick: (WorkNote) -> Unit
 ) {
+    // 创建文件夹ID到名称的映射
+    val folderMap = remember(folders) {
+        folders.associateBy { it.id }
+    }
+
     if (isGridView) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
@@ -559,6 +566,7 @@ private fun ShowNotesList(
             items(notes) { note ->
                 NoteCard(
                     note = note,
+                    folderName = note.workNoteFolderId?.let { folderMap[it]?.name },
                     onClick = { onNoteClick(note.id) },
                     onLongClick = { onNoteLongClick(note) }
                 )
@@ -572,6 +580,7 @@ private fun ShowNotesList(
             items(notes) { note ->
                 NoteListItem(
                     note = note,
+                    folderName = note.workNoteFolderId?.let { folderMap[it]?.name },
                     onClick = { onNoteClick(note.id) },
                     onLongClick = { onNoteLongClick(note) }
                 )

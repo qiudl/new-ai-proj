@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aiproj.mobile.data.models.WorkNoteFolder
+import com.aiproj.mobile.data.models.WorkNoteVisibility
 
 /**
  * 文件夹树单项组件
@@ -103,6 +104,28 @@ fun FolderTreeItem(
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     modifier = Modifier.weight(1f)
                 )
+
+                // 可见性图标
+                Icon(
+                    imageVector = when (folder.visibility) {
+                        WorkNoteVisibility.PRIVATE -> Icons.Default.Lock
+                        WorkNoteVisibility.TEAM -> Icons.Default.Group
+                        WorkNoteVisibility.PUBLIC -> Icons.Default.Public
+                    },
+                    contentDescription = when (folder.visibility) {
+                        WorkNoteVisibility.PRIVATE -> "私人"
+                        WorkNoteVisibility.TEAM -> "团队"
+                        WorkNoteVisibility.PUBLIC -> "公开"
+                    },
+                    modifier = Modifier.size(14.dp),
+                    tint = when (folder.visibility) {
+                        WorkNoteVisibility.PRIVATE -> MaterialTheme.colorScheme.tertiary
+                        WorkNoteVisibility.TEAM -> MaterialTheme.colorScheme.secondary
+                        WorkNoteVisibility.PUBLIC -> MaterialTheme.colorScheme.primary
+                    }
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // 笔记数量徽章
                 if ((folder.notesCount ?: 0) > 0) {
