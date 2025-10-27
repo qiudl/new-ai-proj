@@ -7,18 +7,22 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // EnterpriseService provides business logic for managing enterprises
 type EnterpriseService struct {
 	enterpriseRepo database.EnterpriseRepository
+	db             database.DB
 	auditLogger    *AsyncAuditLogger
 }
 
 // NewEnterpriseService creates a new enterprise service
-func NewEnterpriseService(enterpriseRepo database.EnterpriseRepository, auditLogger *AsyncAuditLogger) *EnterpriseService {
+func NewEnterpriseService(enterpriseRepo database.EnterpriseRepository, db database.DB, auditLogger *AsyncAuditLogger) *EnterpriseService {
 	return &EnterpriseService{
 		enterpriseRepo: enterpriseRepo,
+		db:             db,
 		auditLogger:    auditLogger,
 	}
 }
@@ -262,9 +266,37 @@ func (s *EnterpriseService) CreateEnterpriseUser(ctx context.Context, req *model
 		return nil, "", fmt.Errorf("failed to generate password: %w", err)
 	}
 
-	// Create user object
+	// Generate bcrypt hash for the password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(initialPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Step 1: Create system user in users table (for login authentication)
+	// Determine role based on access_level
+	role := "enterprise_user" // Default role
+	if req.AccessLevel >= 4 {
+		role = "enterprise_admin" // Admin role for high access level
+	}
+
+	systemUser := &models.User{
+		Username:     req.Username,
+		Email:        req.Email,
+		PasswordHash: string(passwordHash),
+		UserType:     "enterprise", // Enterprise user type for enterprises table users
+		Role:         role,          // Role based on access level
+		Status:       "active",
+	}
+
+	createdSystemUser, err := s.db.Users().Create(ctx, systemUser)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create system user: %w", err)
+	}
+
+	// Step 2: Create enterprise user object with user_id reference
 	user := &models.EnterpriseUser{
 		EnterpriseID:     req.EnterpriseID,
+		UserID:           &createdSystemUser.ID, // Link to system user
 		Username:         req.Username,
 		Email:            req.Email,
 		Name:             req.Name,
@@ -277,9 +309,11 @@ func (s *EnterpriseService) CreateEnterpriseUser(ctx context.Context, req *model
 		CreatedBy:        &operatorID,
 	}
 
-	// Create user
+	// Create enterprise user
 	createdUser, err := s.enterpriseRepo.CreateUser(ctx, user)
 	if err != nil {
+		// Rollback: Delete the system user if enterprise user creation fails
+		_ = s.db.Users().Delete(ctx, createdSystemUser.ID)
 		return nil, "", fmt.Errorf("failed to create enterprise user: %w", err)
 	}
 
