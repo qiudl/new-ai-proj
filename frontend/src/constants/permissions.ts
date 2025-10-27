@@ -1,152 +1,199 @@
 /**
  * 权限常量定义
- * 
+ *
  * 统一管理所有权限代码，避免硬编码
- * 命名规范: {resource}_{action}
+ *
+ * ⚠️ 重要说明:
+ * - 所有权限代码必须与数据库permissions表中的permission_code字段完全一致
+ * - 数据库使用点号格式: module.resource.action (例如: project.list.read)
+ * - 部分权限使用冒号格式: module:action (例如: project:read)
+ * - 不要在权限代码中使用下划线格式,除非数据库明确使用
+ * - 修改前请先查询数据库: SELECT permission_code FROM permissions WHERE is_active = true
  */
 
 // 系统管理权限
 export const SYSTEM_PERMISSIONS = {
-  ADMIN: 'system_admin',
-  CONFIG: 'system_config',
-  MAINTENANCE: 'system_maintenance'
+  ADMIN: 'system.admin',
+  AUDIT: 'system.audit',
+  CONFIG: 'system.config',
+  SETTINGS_READ: 'system.settings.read',
+  SETTINGS_MANAGE: 'system.settings.manage',
+  AUDIT_LOGS_READ: 'system.audit_logs.read'
 } as const;
 
-// REMOVED: 公司管理权限 (已迁移到ORGANIZATION_PERMISSIONS)
-// 企业管理权限 (替代原company权限)
-
-// DEPRECATED: 向后兼容的公司权限常量 (使用ORGANIZATION_PERMISSIONS代替)
+// 企业/公司管理权限
 export const COMPANY_PERMISSIONS = {
-  ADMIN: 'organization_admin',
-  READ: 'organization_read',
-  CREATE: 'organization_create',
-  UPDATE: 'organization_update',
-  DELETE: 'organization_delete',
-  USER_MANAGEMENT: 'organization_user_management',
-  DEPARTMENT_MANAGEMENT: 'organization_department_management'
+  INFO_READ: 'company.info.read',
+  INFO_UPDATE: 'company.info.update',
+  USERS_READ: 'company.users.read',
+  USERS_CREATE: 'company.users.create',
+  USERS_UPDATE: 'company.users.update',
+  USERS_DELETE: 'company.users.delete',
+  ROLES_MANAGE: 'company.roles.manage'
 } as const;
-export const ENTERPRISE_PERMISSIONS = {
-  ADMIN: 'enterprise_admin',
-  READ: 'enterprise_read', 
-  CREATE: 'enterprise_create',
-  UPDATE: 'enterprise_update',
-  DELETE: 'enterprise_delete',
-  USER_ADMIN: 'enterprise_user_admin'
-} as const;
+
+// 企业权限(别名,向后兼容)
+export const ENTERPRISE_PERMISSIONS = COMPANY_PERMISSIONS;
 
 // 用户管理权限
 export const USER_PERMISSIONS = {
-  ADMIN: 'user_admin',
-  READ: 'user_read',
-  CREATE: 'user_create',
-  UPDATE: 'user_update',
-  DELETE: 'user_delete',
-  PROFILE_READ: 'profile_read',
-  PROFILE_UPDATE: 'profile_update'
+  READ: 'user.read',
+  CREATE: 'user.create',
+  UPDATE: 'user.update',
+  DELETE: 'user.delete'
 } as const;
-// 权限管理权限
+
+// 权限管理权限(暂无数据库对应,保留用于未来扩展)
 export const PERMISSION_PERMISSIONS = {
-  ADMIN: 'permission_admin',
-  READ: 'permission_read',
-  UPDATE: 'permission_update',
-  ROLE_ADMIN: 'role_admin',
-  ROLE_READ: 'role_read',
-  ROLE_CREATE: 'role_create',
-  ROLE_UPDATE: 'role_update',
-  ROLE_DELETE: 'role_delete'
+  ADMIN: 'permission.admin',
+  READ: 'permission.read',
+  UPDATE: 'permission.update',
+  ROLE_ADMIN: 'role.admin',
+  ROLE_READ: 'role.read',
+  ROLE_CREATE: 'role.create',
+  ROLE_UPDATE: 'role.update',
+  ROLE_DELETE: 'role.delete'
 } as const;
 
 // 项目管理权限
 export const PROJECT_PERMISSIONS = {
-  ADMIN: 'project_admin',
-  READ: 'project_read',
-  CREATE: 'project_create',
-  UPDATE: 'project_update',
-  DELETE: 'project_delete',
-  TASK_READ: 'project_task_read',
-  TASK_CREATE: 'project_task_create',
-  TASK_UPDATE: 'project_task_update',
-  TASK_DELETE: 'project_task_delete'
+  // 使用点号格式 (数据库主要格式)
+  LIST_READ: 'project.list.read',        // 查看项目列表
+  DETAIL_READ: 'project.detail.read',    // 查看项目详情
+  CREATE: 'project.create',              // 创建项目
+  UPDATE: 'project.update',              // 编辑项目
+  DELETE: 'project.delete',              // 删除项目
+  MEMBERS_MANAGE: 'project.members.manage', // 管理项目成员
+
+  // 使用冒号格式 (数据库备用格式)
+  READ: 'project:read',                  // 读取项目 (通用权限)
+  LIST: 'project:list',                  // 列出项目
+
+  // 向后兼容(已废弃,请使用上面的格式)
+  /** @deprecated 使用 LIST_READ 代替 */
+  OLD_READ: 'project_read',
+  /** @deprecated 使用 CREATE 代替 */
+  OLD_CREATE: 'project_create'
 } as const;
 
 // 任务管理权限
 export const TASK_PERMISSIONS = {
-  ADMIN: 'task_admin',
-  READ: 'task_read',
-  CREATE: 'task_create',
-  UPDATE: 'task_update',
-  DELETE: 'task_delete',
-  ASSIGN: 'task_assign',
-  STATUS_UPDATE: 'task_status_update'
+  // 使用点号格式 (数据库主要格式)
+  LIST_READ: 'task.list.read',           // 查看任务列表
+  DETAIL_READ: 'task.detail.read',       // 查看任务详情
+  CREATE: 'task.create',                 // 创建任务
+  UPDATE: 'task.update',                 // 编辑任务
+  DELETE: 'task.delete',                 // 删除任务
+  ASSIGN: 'task.assign',                 // 分配任务
+
+  // 使用冒号格式 (数据库备用格式)
+  READ: 'task:read',                     // 读取任务 (通用权限)
+  WRITE: 'task:write',                   // 修改任务
+  STATUS: 'task:status',                 // 更新任务状态
+
+  // 向后兼容(已废弃)
+  /** @deprecated 使用 LIST_READ 或 DETAIL_READ 代替 */
+  OLD_READ: 'task_read',
+  /** @deprecated 使用 CREATE 代替 */
+  OLD_CREATE: 'task_create'
 } as const;
 
 // 文档管理权限
 export const DOCUMENT_PERMISSIONS = {
-  ADMIN: 'document_admin',
-  READ: 'document_read',
-  CREATE: 'document_create',
-  UPDATE: 'document_update',
-  DELETE: 'document_delete',
-  SHARE: 'document_share'
+  READ: 'document:read',                 // 读取文档
+  CREATE: 'document:create',             // 创建文档
+  WRITE: 'document:write',               // 修改文档
+  ATTACH: 'document:attach',             // 关联文档
+
+  // 向后兼容
+  /** @deprecated 使用 READ 代替 */
+  OLD_READ: 'document_read',
+  /** @deprecated 使用 CREATE 代替 */
+  OLD_CREATE: 'document_create'
 } as const;
 
-// 时间追踪权限
+// 时间追踪/计时器权限
 export const TIME_PERMISSIONS = {
-  READ: 'timer_read',
-  CREATE: 'timer_create',
-  UPDATE: 'timer_update',
-  DELETE: 'timer_delete',
-  REPORT_READ: 'time_report_read',
-  ANALYTICS_READ: 'time_analytics_read'
+  MANAGE: 'timer:manage',                // 管理计时器
+  READ: 'timer:manage',                  // 读取计时器 (使用manage权限)
+
+  // 向后兼容
+  /** @deprecated 使用 MANAGE 代替 */
+  OLD_READ: 'timer_read',
+  /** @deprecated 使用 MANAGE 代替 */
+  OLD_CREATE: 'timer_create'
 } as const;
-// 仪表板权限
+
+// 今日任务/Daily Focus权限
+export const DAILY_FOCUS_PERMISSIONS = {
+  MANAGE: 'daily_focus:manage'           // 管理今日任务
+} as const;
+
+// 仪表板权限(暂无数据库对应,保留用于未来扩展)
 export const DASHBOARD_PERMISSIONS = {
-  READ: 'dashboard_read',
-  ADMIN: 'dashboard_admin',
-  INSIGHTS_READ: 'insights_read',
-  INSIGHTS_ADMIN: 'insights_admin'
+  READ: 'dashboard.read',
+  ADMIN: 'dashboard.admin'
 } as const;
 
 // API密钥管理权限
 export const API_KEY_PERMISSIONS = {
-  ADMIN: 'api_key_admin',
-  READ: 'api_key_read',
-  CREATE: 'api_key_create',
-  UPDATE: 'api_key_update',
-  DELETE: 'api_key_delete'
+  ADMIN: 'api.admin',
+  READ: 'api.keys.read',
+  CREATE: 'api.keys.create',
+  UPDATE: 'api.keys.update',
+  DELETE: 'api.keys.delete',
+  LOGS_READ: 'api.logs.read',
+  QUOTA_READ: 'api.quota.read'
 } as const;
 
 // 审计日志权限
 export const AUDIT_PERMISSIONS = {
-  READ: 'audit_read',
-  ADMIN: 'audit_admin'
+  READ: 'system.audit',
+  LOGS_READ: 'system.audit_logs.read'
 } as const;
 
-// 导航管理权限
+// 导航管理权限(暂无数据库对应,保留用于未来扩展)
 export const NAVIGATION_PERMISSIONS = {
-  ADMIN: 'navigation_admin',
-  READ: 'navigation_read',
-  UPDATE: 'navigation_update'
+  ADMIN: 'navigation.admin',
+  READ: 'navigation.read',
+  UPDATE: 'navigation.update'
 } as const;
 
 // 企业组织管理权限
 export const ORGANIZATION_PERMISSIONS = {
-  ADMIN: 'organization_admin',
-  STRUCTURE_READ: 'organization_structure_read',
-  STRUCTURE_MANAGE: 'organization_structure_manage',
-  POSITION_READ: 'position_read',
-  POSITION_MANAGE: 'position_manage',
-  ROLE_READ: 'enterprise_role_read',
-  ROLE_MANAGE: 'enterprise_role_manage',
-  USER_READ: 'enterprise_user_read',
-  USER_MANAGE: 'enterprise_user_manage',
-  USER_INVITE: 'enterprise_user_invite'
+  // 使用company权限(数据库实际存储)
+  INFO_READ: 'company.info.read',
+  INFO_UPDATE: 'company.info.update',
+  USERS_READ: 'company.users.read',
+  USERS_CREATE: 'company.users.create',
+  USERS_UPDATE: 'company.users.update',
+  USERS_DELETE: 'company.users.delete',
+  ROLES_MANAGE: 'company.roles.manage'
+} as const;
+
+// 工作笔记权限
+export const WORK_NOTE_PERMISSIONS = {
+  TEAM_NOTE_CREATE: 'team_work_note_create',
+  TEAM_NOTE_UPDATE: 'team_work_note_update',
+  TEAM_NOTE_DELETE: 'team_work_note_delete',
+  TEAM_FOLDER_CREATE: 'team_work_note_folder_create',
+  TEAM_FOLDER_UPDATE: 'team_work_note_folder_update',
+  TEAM_FOLDER_DELETE: 'team_work_note_folder_delete'
+} as const;
+
+// 财务权限
+export const FINANCE_PERMISSIONS = {
+  CONTRACTS_READ: 'finance.contracts.read',
+  CONTRACTS_MANAGE: 'finance.contracts.manage',
+  REPORTS_READ: 'finance.reports.read'
 } as const;
 
 // 角色常量
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
-  ENTERPRISE_ADMIN: 'enterprise_admin', // 替代原company_admin
+  ADMIN: 'admin',
+  ENTERPRISE_ADMIN: 'enterprise_admin',
+  ENTERPRISE_USER: 'enterprise_user',
   PROJECT_MANAGER: 'project_manager',
   TEAM_LEAD: 'team_lead',
   DEVELOPER: 'developer',
@@ -154,90 +201,93 @@ export const ROLES = {
 } as const;
 
 // 页面路由权限映射
+// 使用数组支持多个权限(OR关系),用户拥有任一权限即可访问
 export const ROUTE_PERMISSIONS = {
-  // 管理类页面 (已移除/companies相关路由，保留enterprises)
-  '/enterprises': [ENTERPRISE_PERMISSIONS.READ],
-  '/enterprises/create': [ENTERPRISE_PERMISSIONS.CREATE],
-  '/user-management': [USER_PERMISSIONS.ADMIN],
-  '/permissions': [PERMISSION_PERMISSIONS.ADMIN],
-  '/enhanced-permissions': [PERMISSION_PERMISSIONS.ADMIN],
+  // 管理类页面
+  '/enterprises': [COMPANY_PERMISSIONS.USERS_READ],
+  '/enterprises/create': [COMPANY_PERMISSIONS.USERS_CREATE],
+  '/user-management': [USER_PERMISSIONS.READ],
+  '/permissions': [SYSTEM_PERMISSIONS.ADMIN],
+  '/enhanced-permissions': [SYSTEM_PERMISSIONS.ADMIN],
   '/ai-config': [SYSTEM_PERMISSIONS.ADMIN],
   '/api-keys': [API_KEY_PERMISSIONS.READ],
-  '/navigation-management': [NAVIGATION_PERMISSIONS.ADMIN],
-  '/audit-logs': [AUDIT_PERMISSIONS.READ],
-  
+  '/navigation-management': [SYSTEM_PERMISSIONS.ADMIN],
+  '/audit-logs': [AUDIT_PERMISSIONS.LOGS_READ],
+
   // 项目类页面
-  '/projects': [PROJECT_PERMISSIONS.READ],
-  '/tasks': [TASK_PERMISSIONS.READ],
-  
+  '/projects': [PROJECT_PERMISSIONS.LIST_READ, PROJECT_PERMISSIONS.READ],
+  '/tasks': [TASK_PERMISSIONS.LIST_READ, TASK_PERMISSIONS.READ],
+
   // 仪表板页面
-  '/dashboard': [DASHBOARD_PERMISSIONS.READ],
-  '/insights': [DASHBOARD_PERMISSIONS.INSIGHTS_READ],
-  '/time-weekly-report': [TIME_PERMISSIONS.REPORT_READ],
-  
-  // 个人功能
-  '/user-profile': [USER_PERMISSIONS.PROFILE_READ],
-  '/personal-timer': [TIME_PERMISSIONS.READ],
-  '/timer-analytics': [TIME_PERMISSIONS.ANALYTICS_READ],
-  
+  '/dashboard': [DAILY_FOCUS_PERMISSIONS.MANAGE],
+
   // 企业组织管理页面
-  '/organization-structure': [ORGANIZATION_PERMISSIONS.STRUCTURE_READ],
-  '/position-management': [ORGANIZATION_PERMISSIONS.POSITION_READ],
-  '/enterprise-roles': [ORGANIZATION_PERMISSIONS.ROLE_READ],
-  '/enterprise-users': [ORGANIZATION_PERMISSIONS.USER_READ]
+  '/organization-structure': [ORGANIZATION_PERMISSIONS.INFO_READ],
+  '/position-management': [ORGANIZATION_PERMISSIONS.INFO_READ],
+  '/enterprise-roles': [ORGANIZATION_PERMISSIONS.ROLES_MANAGE],
+  '/enterprise-users': [ORGANIZATION_PERMISSIONS.USERS_READ]
 } as const;
 
 // 权限组合常量
 export const PERMISSION_GROUPS = {
   ADMIN_PAGES: [
     SYSTEM_PERMISSIONS.ADMIN,
-    ENTERPRISE_PERMISSIONS.ADMIN,
-    USER_PERMISSIONS.ADMIN,
-    PERMISSION_PERMISSIONS.ADMIN
+    COMPANY_PERMISSIONS.ROLES_MANAGE,
+    USER_PERMISSIONS.CREATE
   ],
   PROJECT_MANAGEMENT: [
-    PROJECT_PERMISSIONS.READ,
+    PROJECT_PERMISSIONS.LIST_READ,
+    PROJECT_PERMISSIONS.DETAIL_READ,
     PROJECT_PERMISSIONS.CREATE,
     PROJECT_PERMISSIONS.UPDATE,
-    TASK_PERMISSIONS.READ,
+    TASK_PERMISSIONS.LIST_READ,
+    TASK_PERMISSIONS.DETAIL_READ,
     TASK_PERMISSIONS.CREATE,
     TASK_PERMISSIONS.UPDATE
   ],
   BASIC_USER: [
-    DASHBOARD_PERMISSIONS.READ,
-    USER_PERMISSIONS.PROFILE_READ,
-    TIME_PERMISSIONS.READ,
-    TASK_PERMISSIONS.READ
+    DAILY_FOCUS_PERMISSIONS.MANAGE,
+    TASK_PERMISSIONS.LIST_READ,
+    TASK_PERMISSIONS.DETAIL_READ,
+    PROJECT_PERMISSIONS.LIST_READ,
+    PROJECT_PERMISSIONS.DETAIL_READ
   ]
 } as const;
 
 // 类型定义
 export type SystemPermission = typeof SYSTEM_PERMISSIONS[keyof typeof SYSTEM_PERMISSIONS];
-export type EnterprisePermission = typeof ENTERPRISE_PERMISSIONS[keyof typeof ENTERPRISE_PERMISSIONS];
+export type CompanyPermission = typeof COMPANY_PERMISSIONS[keyof typeof COMPANY_PERMISSIONS];
+export type EnterprisePermission = CompanyPermission; // 别名
 export type UserPermission = typeof USER_PERMISSIONS[keyof typeof USER_PERMISSIONS];
 export type PermissionPermission = typeof PERMISSION_PERMISSIONS[keyof typeof PERMISSION_PERMISSIONS];
 export type ProjectPermission = typeof PROJECT_PERMISSIONS[keyof typeof PROJECT_PERMISSIONS];
 export type TaskPermission = typeof TASK_PERMISSIONS[keyof typeof TASK_PERMISSIONS];
 export type DocumentPermission = typeof DOCUMENT_PERMISSIONS[keyof typeof DOCUMENT_PERMISSIONS];
 export type TimePermission = typeof TIME_PERMISSIONS[keyof typeof TIME_PERMISSIONS];
+export type DailyFocusPermission = typeof DAILY_FOCUS_PERMISSIONS[keyof typeof DAILY_FOCUS_PERMISSIONS];
 export type DashboardPermission = typeof DASHBOARD_PERMISSIONS[keyof typeof DASHBOARD_PERMISSIONS];
 export type APIKeyPermission = typeof API_KEY_PERMISSIONS[keyof typeof API_KEY_PERMISSIONS];
 export type AuditPermission = typeof AUDIT_PERMISSIONS[keyof typeof AUDIT_PERMISSIONS];
 export type NavigationPermission = typeof NAVIGATION_PERMISSIONS[keyof typeof NAVIGATION_PERMISSIONS];
 export type OrganizationPermission = typeof ORGANIZATION_PERMISSIONS[keyof typeof ORGANIZATION_PERMISSIONS];
+export type WorkNotePermission = typeof WORK_NOTE_PERMISSIONS[keyof typeof WORK_NOTE_PERMISSIONS];
+export type FinancePermission = typeof FINANCE_PERMISSIONS[keyof typeof FINANCE_PERMISSIONS];
 export type Role = typeof ROLES[keyof typeof ROLES];
 
-export type AnyPermission = 
+export type AnyPermission =
   | SystemPermission
-  | EnterprisePermission
+  | CompanyPermission
   | UserPermission
   | PermissionPermission
   | ProjectPermission
   | TaskPermission
   | DocumentPermission
   | TimePermission
+  | DailyFocusPermission
   | DashboardPermission
   | APIKeyPermission
   | AuditPermission
   | NavigationPermission
-  | OrganizationPermission;
+  | OrganizationPermission
+  | WorkNotePermission
+  | FinancePermission;

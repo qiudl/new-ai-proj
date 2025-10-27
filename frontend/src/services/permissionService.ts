@@ -256,16 +256,12 @@ export const permissionService = {
         }
       }
 
-      // Normalize permission code (support both underscore and dot formats)
-      // Backend expects underscore format (task_read, project_read, etc.)
-      const normalizedCode = permissionCode.includes('.')
-        ? permissionCode.replace(/\./g, '_')  // Convert task.read → task_read
-        : permissionCode;  // Keep task_read as is
-
-      console.log('[hasPermission] Checking permission:', { original: permissionCode, normalized: normalizedCode, resourceId });
+      // No normalization needed - frontend and database now use same format
+      // Use permission code directly as it comes from constants/permissions.ts
+      console.log('[hasPermission] Checking permission:', { permissionCode, resourceId });
 
       const result = await this.checkUserPermission({
-        permissionCode: normalizedCode,
+        permissionCode: permissionCode,  // Use original code directly
         resourceID: resourceId
       });
 

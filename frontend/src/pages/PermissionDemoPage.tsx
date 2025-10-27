@@ -134,7 +134,7 @@ const PermissionDemoPage: React.FC = () => {
           showView
           showEdit
           showDelete
-          viewPermission={PROJECT_PERMISSIONS.READ}
+          viewPermission={PROJECT_PERMISSIONS.DETAIL_READ}
           editPermission={PROJECT_PERMISSIONS.UPDATE}
           deletePermission={PROJECT_PERMISSIONS.DELETE}
           onView={handleViewProject}
@@ -306,7 +306,7 @@ const PermissionDemoPage: React.FC = () => {
 
           <PermissionButton
             icon={<UserOutlined />}
-            permissions={[USER_PERMISSIONS.CREATE, ENTERPRISE_PERMISSIONS.CREATE]}
+            permissions={[USER_PERMISSIONS.CREATE, ENTERPRISE_PERMISSIONS.USERS_CREATE]}
             requireAll={false}
             fallbackMode="tooltip"
             noPermissionTooltip="需要用户创建或企业创建权限"
@@ -329,8 +329,8 @@ const PermissionDemoPage: React.FC = () => {
       <Card title="权限包装器演示" style={{ marginBottom: '24px' }}>
         <Row gutter={16}>
           <Col span={12}>
-            <PermissionWrapper 
-              permission={PROJECT_PERMISSIONS.READ}
+            <PermissionWrapper
+              permissions={[PROJECT_PERMISSIONS.LIST_READ, PROJECT_PERMISSIONS.READ]}
               fallback={<Alert type="warning" message="您没有权限查看项目信息" showIcon />}
             >
               <Alert type="success" message="您有权限查看项目信息" showIcon />
@@ -486,9 +486,10 @@ const PermissionDemoPage: React.FC = () => {
       <Card title="条件渲染演示" style={{ marginBottom: '24px' }}>
         <Space direction="vertical" style={{ width: '100%' }}>
           {renderWithPermission(
-            PROJECT_PERMISSIONS.ADMIN,
+            [PROJECT_PERMISSIONS.CREATE, PROJECT_PERMISSIONS.UPDATE, PROJECT_PERMISSIONS.DELETE],
             <Alert type="success" message="您是项目管理员，可以看到这条消息" showIcon />,
-            <Alert type="info" message="您不是项目管理员，看到的是这条消息" showIcon />
+            <Alert type="info" message="您不是项目管理员，看到的是这条消息" showIcon />,
+            true // requireAll = true，需要所有权限
           )}
           
           {renderWithPermission(

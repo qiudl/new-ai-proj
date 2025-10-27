@@ -206,25 +206,25 @@ const AppContent: React.FC = () => {
 
                 {/* 今日任务路由 */}
                 <Route path="/today-tasks" element={
-                  <PermissionRoute permission={TASK_PERMISSIONS.READ}>
+                  <PermissionRoute permissions={[TASK_PERMISSIONS.LIST_READ, TASK_PERMISSIONS.READ]}>
                     <TodayTasksDashboard />
                   </PermissionRoute>
                 } />
 
                 <Route path="/today-tasks/detail" element={
-                  <PermissionRoute permission={TASK_PERMISSIONS.READ}>
+                  <PermissionRoute permissions={[TASK_PERMISSIONS.DETAIL_READ, TASK_PERMISSIONS.READ]}>
                     <TodayTasksDetailPage />
                   </PermissionRoute>
                 } />
 
                 <Route path="/projects" element={
-                  <PermissionRoute permission={PROJECT_PERMISSIONS.READ}>
+                  <PermissionRoute permissions={[PROJECT_PERMISSIONS.LIST_READ, PROJECT_PERMISSIONS.READ]}>
                     <ProjectsPage />
                   </PermissionRoute>
                 } />
 
                 <Route path="/projects/:projectId" element={
-                  <PermissionRoute permission={PROJECT_PERMISSIONS.READ}>
+                  <PermissionRoute permissions={[PROJECT_PERMISSIONS.DETAIL_READ, PROJECT_PERMISSIONS.READ]}>
                     <ProjectDetailPage />
                   </PermissionRoute>
                 } />
@@ -271,14 +271,14 @@ const AppContent: React.FC = () => {
 
                 {/* 全部任务（跨项目） */}
                 <Route path="/tasks" element={
-                  <PermissionRoute permission={TASK_PERMISSIONS.READ}>
+                  <PermissionRoute permissions={[TASK_PERMISSIONS.LIST_READ, TASK_PERMISSIONS.READ]}>
                     <TasksPage />
                   </PermissionRoute>
                 } />
 
                 {/* 全局洞察 */}
                 <Route path="/insights" element={
-                  <PermissionRoute permission={DASHBOARD_PERMISSIONS.INSIGHTS_READ}>
+                  <PermissionRoute permission={DASHBOARD_PERMISSIONS.READ}>
                     <InsightsPage />
                   </PermissionRoute>
                 } />
@@ -314,7 +314,7 @@ const AppContent: React.FC = () => {
                 <Route path="/time-analysis" element={<div>时间分析页面暂时不可用</div>} />
 
                 <Route path="/time-weekly-report" element={
-                  <PermissionRoute permission={TIME_PERMISSIONS.REPORT_READ}>
+                  <PermissionRoute permission={TIME_PERMISSIONS.MANAGE}>
                     <TimeWeeklyReportPage />
                   </PermissionRoute>
                 } />
@@ -322,7 +322,7 @@ const AppContent: React.FC = () => {
                 <Route path="/recycle-bin" element={<RecycleBinPage />} />
 
                 <Route path="/audit-logs" element={
-                  <PermissionRoute permission={AUDIT_PERMISSIONS.READ}>
+                  <PermissionRoute permission={AUDIT_PERMISSIONS.LOGS_READ}>
                     <AuditLogPage />
                   </PermissionRoute>
                 } />
@@ -334,7 +334,7 @@ const AppContent: React.FC = () => {
                 } />
 
                 <Route path="/user-profile" element={
-                  <PermissionRoute permission={USER_PERMISSIONS.PROFILE_READ}>
+                  <PermissionRoute permission={USER_PERMISSIONS.READ}>
                     <UserProfilePage />
                   </PermissionRoute>
                 } />
