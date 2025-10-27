@@ -359,9 +359,10 @@ func (s *TaskOrganizationService) createWeekSummaryTask(projectID, year, week in
 		Status:             "in_progress",
 		Priority:           "medium",
 		ParentID:           nil,
-		TimeTrackingMode:   "manual", // 设置时间追踪模式，避免违反数据库约束
-		TimeUnitPreference: "auto",   // 设置默认时间单位偏好
-		WorkHoursPerDay:    8.0,      // 设置默认每日工作时长
+		CustomFields:       models.CustomFields{}, // 初始化为空map，避免JSON格式错误
+		TimeTrackingMode:   "manual",              // 设置时间追踪模式，避免违反数据库约束
+		TimeUnitPreference: "auto",                // 设置默认时间单位偏好
+		WorkHoursPerDay:    8.0,                   // 设置默认每日工作时长
 	}
 
 	createdTask, err := s.db.Tasks().Create(ctx, weekTask)
