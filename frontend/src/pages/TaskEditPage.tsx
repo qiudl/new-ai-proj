@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Card, 
-  Row, 
-  Col, 
-  Button, 
-  Space, 
-  Spin, 
-  message, 
+import {
+  Card,
+  Row,
+  Col,
+  Button,
+  Space,
+  Spin,
+  message,
   Breadcrumb,
   Descriptions,
   Form,
@@ -18,11 +18,12 @@ import {
   Alert,
   Divider,
   Typography,
-  Tabs
+  Tabs,
+  Modal
 } from 'antd';
-import { 
-  SaveOutlined, 
-  ArrowLeftOutlined, 
+import {
+  SaveOutlined,
+  ArrowLeftOutlined,
   UserOutlined,
   CalendarOutlined,
   TagOutlined,
@@ -30,7 +31,8 @@ import {
   BranchesOutlined,
   FileTextOutlined,
   EditOutlined,
-  PlayCircleOutlined
+  PlayCircleOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
@@ -38,6 +40,8 @@ import { projectService } from '../services/projectService';
 import { Task } from '../types/task';
 import { TaskParentSelector } from '../components/TaskParentSelector';
 import TaskDocumentEditor from '../components/TaskDocumentEditor';
+import { isSystemAdmin } from '../utils/permissions';
+import { TokenManager } from '../utils/tokenManager';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -48,7 +52,8 @@ const TaskEditPage: React.FC = () => {
   const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>();
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  
+  const user = TokenManager.getCurrentUser();
+
   // 状态管理
   const [task, setTask] = useState<Task | null>(null);
   const [projectInfo, setProjectInfo] = useState<any>(null);
@@ -58,6 +63,11 @@ const TaskEditPage: React.FC = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [parentTaskChanged, setParentTaskChanged] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
+
+  // 项目选择器相关状态（仅系统管理员可见）
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
 
   // 加载任务数据
   const loadTask = useCallback(async () => {
@@ -83,7 +93,12 @@ const TaskEditPage: React.FC = () => {
       
       if (taskData.status === 'fulfilled') {
         setTask(taskData.value);
-        
+
+        // 初始化项目选择器（系统管理员）
+        if (isSystemAdmin(user)) {
+          setSelectedProjectId(parsedProjectId);
+        }
+
         // 设置表单初始值
         form.setFieldsValue({
           title: taskData.value.title,
@@ -126,6 +141,28 @@ const TaskEditPage: React.FC = () => {
   useEffect(() => {
     loadTask();
   }, [loadTask]);
+
+  // 加载项目列表（仅系统管理员）
+  const loadProjects = useCallback(async () => {
+    if (!isSystemAdmin(user)) return;
+
+    try {
+      setLoadingProjects(true);
+      const response = await projectService.getProjects({ page: 1, page_size: 1000 });
+      setProjects(response.data || []);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+      message.error('加载项目列表失败');
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (isSystemAdmin(user)) {
+      loadProjects();
+    }
+  }, [loadProjects, user]);
 
   // 保存任务基本信息
   const handleSave = useCallback(async () => {
@@ -242,6 +279,72 @@ const TaskEditPage: React.FC = () => {
       setParentTaskChanged(true);
       setHasChanges(true);
     }
+  };
+
+  // 项目变更处理（仅系统管理员）
+  const handleProjectChange = (newProjectId: number) => {
+    if (!task || !projectId) return;
+
+    const currentProjectId = parseInt(projectId);
+    if (newProjectId === currentProjectId) {
+      return;
+    }
+
+    Modal.confirm({
+      title: '确认更改任务所属项目？',
+      icon: <ExclamationCircleOutlined />,
+      content: (
+        <div>
+          <Alert
+            message="警告：此操作将改变任务所属项目"
+            description={
+              <div>
+                <p>• 任务将从当前项目移动到目标项目</p>
+                <p>• 任务的所有子任务也会跟随移动</p>
+                <p>• 此操作不可撤销</p>
+              </div>
+            }
+            type="warning"
+            showIcon
+            style={{ marginTop: '16px' }}
+          />
+        </div>
+      ),
+      okText: '确认更改',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          setSaving(true);
+          const updatedTask = await TaskService.updateTaskProject(
+            currentProjectId,
+            task.id,
+            newProjectId
+          );
+
+          message.success('任务所属项目已更新');
+          setTask(updatedTask);
+          setSelectedProjectId(newProjectId);
+
+          // 重定向到新项目的任务编辑页面
+          setTimeout(() => {
+            navigate(`/projects/${newProjectId}/tasks/${task.id}/edit`);
+          }, 1000);
+        } catch (error: any) {
+          console.error('Error updating task project:', error);
+          const errorMessage = error?.message || '更新失败';
+          message.error(`更新任务所属项目失败: ${errorMessage}`);
+          // 恢复选择
+          setSelectedProjectId(currentProjectId);
+        } finally {
+          setSaving(false);
+        }
+      },
+      onCancel: () => {
+        // 取消时恢复原选择
+        setSelectedProjectId(currentProjectId);
+      }
+    });
   };
 
   // 快捷键处理
@@ -361,6 +464,46 @@ const TaskEditPage: React.FC = () => {
                       layout="vertical"
                       onValuesChange={handleFormChange}
                     >
+                      {/* 项目选择器（仅系统管理员可见） */}
+                      {isSystemAdmin(user) && (
+                        <Alert
+                          message="系统管理员权限"
+                          description={
+                            <div>
+                              <p style={{ marginBottom: '8px' }}>
+                                您可以更改任务所属项目。请注意：
+                              </p>
+                              <Form.Item
+                                label="所属项目"
+                                style={{ marginBottom: 0 }}
+                              >
+                                <Select
+                                  value={selectedProjectId || (projectId ? parseInt(projectId) : undefined)}
+                                  onChange={handleProjectChange}
+                                  loading={loadingProjects}
+                                  placeholder="选择项目"
+                                  showSearch
+                                  optionFilterProp="children"
+                                  filterOption={(input, option) =>
+                                    (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+                                  }
+                                  style={{ width: '100%' }}
+                                >
+                                  {projects.map((proj) => (
+                                    <Option key={proj.id} value={proj.id}>
+                                      {proj.name}
+                                    </Option>
+                                  ))}
+                                </Select>
+                              </Form.Item>
+                            </div>
+                          }
+                          type="info"
+                          showIcon
+                          style={{ marginBottom: '24px' }}
+                        />
+                      )}
+
                       {/* 基本信息 */}
                       <Form.Item
                         name="title"
