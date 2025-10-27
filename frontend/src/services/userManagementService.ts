@@ -22,7 +22,11 @@ class UserManagementService {
       if (params.role) queryParams.append('role', params.role);
       if (params.status) queryParams.append('status', params.status);
       if (params.search) queryParams.append('search', params.search);
-      if (params.company_id) queryParams.append('company_id', params.company_id.toString());
+      // Legacy support: company_id is deprecated, use enterprise_ids instead
+      if (params.company_id) {
+        console.warn('[Deprecated] company_id parameter is deprecated. Please use enterprise_ids instead.');
+        queryParams.append('enterprise_ids', params.company_id.toString());
+      }
       if (params.enterprise_ids && params.enterprise_ids.length > 0) {
         queryParams.append('enterprise_ids', params.enterprise_ids.join(','));
       }
@@ -176,7 +180,11 @@ class UserManagementService {
       if (params.role) queryParams.append('role', params.role);
       if (params.status) queryParams.append('status', params.status);
       if (params.search) queryParams.append('search', params.search);
-      if (params.company_id) queryParams.append('company_id', params.company_id.toString());
+      // Legacy support: company_id is deprecated, use enterprise_ids instead
+      if (params.company_id) {
+        console.warn('[Deprecated] company_id parameter is deprecated. Please use enterprise_ids instead.');
+        queryParams.append('enterprise_ids', params.company_id.toString());
+      }
       if (params.enterprise_ids && params.enterprise_ids.length > 0) {
         queryParams.append('enterprise_ids', params.enterprise_ids.join(','));
       }
