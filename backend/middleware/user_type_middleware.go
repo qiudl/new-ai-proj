@@ -53,11 +53,11 @@ func CompanyAccessMiddleware() gin.HandlerFunc {
 		}
 
 		// 获取用户的企业ID
-		userCompanyID, exists := c.Get("company_id")
+		userEnterpriseID, exists := c.Get("enterprise_id")
 		if !exists {
 			response := models.NewErrorResponse(
 				models.ErrCodeUnauthorized,
-				"Company user must have company association",
+				"Company user must have enterprise association",
 				"Please contact administrator",
 			)
 			c.JSON(http.StatusForbidden, response)
@@ -66,12 +66,12 @@ func CompanyAccessMiddleware() gin.HandlerFunc {
 		}
 
 		// 检查请求中的企业相关参数
-		requestCompanyID := getRequestCompanyID(c)
-		if requestCompanyID != 0 && userCompanyID != requestCompanyID {
+		requestEnterpriseID := getRequestEnterpriseID(c)
+		if requestEnterpriseID != 0 && userEnterpriseID != requestEnterpriseID {
 			response := models.NewErrorResponse(
 				models.ErrCodeAuthorization,
 				"Access denied",
-				"You can only access your own company's data",
+				"You can only access your own enterprise's data",
 			)
 			c.JSON(http.StatusForbidden, response)
 			c.Abort()
@@ -82,26 +82,26 @@ func CompanyAccessMiddleware() gin.HandlerFunc {
 	}
 }
 
-// getRequestCompanyID 从请求中提取企业ID
-func getRequestCompanyID(c *gin.Context) int {
+// getRequestEnterpriseID 从请求中提取企业ID
+func getRequestEnterpriseID(c *gin.Context) int {
 	// 从路径参数中获取企业ID
-	if companyIDStr := c.Param("companyId"); companyIDStr != "" {
-		if companyID, err := strconv.Atoi(companyIDStr); err == nil {
-			return companyID
+	if enterpriseIDStr := c.Param("enterpriseId"); enterpriseIDStr != "" {
+		if enterpriseID, err := strconv.Atoi(enterpriseIDStr); err == nil {
+			return enterpriseID
 		}
 	}
 
 	// 从查询参数中获取企业ID
-	if companyIDStr := c.Query("company_id"); companyIDStr != "" {
-		if companyID, err := strconv.Atoi(companyIDStr); err == nil {
-			return companyID
+	if enterpriseIDStr := c.Query("enterprise_id"); enterpriseIDStr != "" {
+		if enterpriseID, err := strconv.Atoi(enterpriseIDStr); err == nil {
+			return enterpriseID
 		}
 	}
 
 	// 从表单数据中获取企业ID
-	if companyIDStr := c.PostForm("company_id"); companyIDStr != "" {
-		if companyID, err := strconv.Atoi(companyIDStr); err == nil {
-			return companyID
+	if enterpriseIDStr := c.PostForm("enterprise_id"); enterpriseIDStr != "" {
+		if enterpriseID, err := strconv.Atoi(enterpriseIDStr); err == nil {
+			return enterpriseID
 		}
 	}
 
@@ -258,11 +258,11 @@ func CompanyUserPermissionMiddleware() gin.HandlerFunc {
 		}
 
 		// 获取用户的企业ID
-		userCompanyID, exists := c.Get("company_id")
+		userEnterpriseID, exists := c.Get("enterprise_id")
 		if !exists {
 			response := models.NewErrorResponse(
 				models.ErrCodeUnauthorized,
-				"Company user must have company association",
+				"Company user must have enterprise association",
 				"Please contact administrator",
 			)
 			c.JSON(http.StatusForbidden, response)
@@ -270,11 +270,11 @@ func CompanyUserPermissionMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		userCompanyIDInt, ok := userCompanyID.(int)
+		userEnterpriseIDInt, ok := userEnterpriseID.(int)
 		if !ok {
 			response := models.NewErrorResponse(
 				models.ErrCodeInternal,
-				"Invalid company ID format",
+				"Invalid enterprise ID format",
 				"Please contact administrator",
 			)
 			c.JSON(http.StatusInternalServerError, response)
@@ -284,11 +284,11 @@ func CompanyUserPermissionMiddleware() gin.HandlerFunc {
 
 		// 检查项目访问权限（如果路径中包含项目ID）
 		if projectID := getProjectIDFromPath(c); projectID != 0 {
-			if !checkCompanyProjectAccess(userCompanyIDInt, projectID) {
+			if !checkEnterpriseProjectAccess(userEnterpriseIDInt, projectID) {
 				response := models.NewErrorResponse(
 					models.ErrCodeAuthorization,
 					"Access denied",
-					"You can only access projects belonging to your company",
+					"You can only access projects belonging to your enterprise",
 				)
 				c.JSON(http.StatusForbidden, response)
 				c.Abort()
@@ -297,7 +297,7 @@ func CompanyUserPermissionMiddleware() gin.HandlerFunc {
 		}
 
 		// 检查企业用户特定权限
-		if !checkCompanyUserPermissions(c, userCompanyIDInt) {
+		if !checkEnterpriseUserPermissions(c, userEnterpriseIDInt) {
 			response := models.NewErrorResponse(
 				models.ErrCodeAuthorization,
 				"Access denied",
@@ -326,16 +326,16 @@ func getProjectIDFromPath(c *gin.Context) int {
 	return 0
 }
 
-// checkCompanyProjectAccess 检查企业是否有访问特定项目的权限
-func checkCompanyProjectAccess(companyID, projectID int) bool {
+// checkEnterpriseProjectAccess 检查企业是否有访问特定项目的权限
+func checkEnterpriseProjectAccess(enterpriseID, projectID int) bool {
 	// TODO: 实现实际的数据库查询
 	// 这里应该查询项目是否属于该企业
 	// 临时实现：总是返回true，实际应该查询数据库
 	return true
 }
 
-// checkCompanyUserPermissions 检查企业用户的特定权限
-func checkCompanyUserPermissions(c *gin.Context, companyID int) bool {
+// checkEnterpriseUserPermissions 检查企业用户的特定权限
+func checkEnterpriseUserPermissions(c *gin.Context, enterpriseID int) bool {
 	// 检查企业用户是否有执行当前操作的权限
 	method := c.Request.Method
 	path := c.Request.URL.Path

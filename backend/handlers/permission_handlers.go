@@ -27,15 +27,15 @@ func NewPermissionHandler(permissionRepo database.PermissionRepository, db datab
 func (h *PermissionHandler) GetRoles(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// Optional company filter
-	var companyID *int
-	if companyIDStr := c.Query("company_id"); companyIDStr != "" {
-		if id, err := strconv.Atoi(companyIDStr); err == nil {
-			companyID = &id
+	// Optional enterprise filter
+	var enterpriseID *int
+	if enterpriseIDStr := c.Query("enterprise_id"); enterpriseIDStr != "" {
+		if id, err := strconv.Atoi(enterpriseIDStr); err == nil {
+			enterpriseID = &id
 		}
 	}
 
-	roles, err := h.permissionRepo.GetRoles(ctx, companyID)
+	roles, err := h.permissionRepo.GetRoles(ctx, enterpriseID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get roles"})
 		return
@@ -333,26 +333,45 @@ func (h *PermissionHandler) CheckUserPermission(c *gin.Context) {
 		}
 	}
 
-	// Try to get company_user_id from context if available
-	if companyUserIDInterface, ok := c.Get("company_user_id"); ok {
-		if companyUserID, ok2 := companyUserIDInterface.(int); ok2 {
-			result, err := h.permissionRepo.CheckUserPermission(ctx, companyUserID, permCode, req.ResourceID)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permission"})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{
-				"success": true,
-				"data":    result,
-			})
-			return
+	// Try to get company_user_id or enterprise_user_id from context
+	var userID int
+	var found bool
+
+	// Try enterprise_user_id first
+	if euIDInterface, ok := c.Get("enterprise_user_id"); ok {
+		if euID, ok2 := euIDInterface.(int); ok2 {
+			userID = euID
+			found = true
 		}
 	}
 
-	// Fallback: no company_user_id in context; deny with informative reason
+	// Fallback to company_user_id
+	if !found {
+		if cuIDInterface, ok := c.Get("company_user_id"); ok {
+			if cuID, ok2 := cuIDInterface.(int); ok2 {
+				userID = cuID
+				found = true
+			}
+		}
+	}
+
+	if found {
+		result, err := h.permissionRepo.CheckUserPermission(ctx, userID, permCode, req.ResourceID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permission"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    result,
+		})
+		return
+	}
+
+	// Fallback: no user ID in context; deny with informative reason
 	result := models.PermissionResult{
 		HasPermission: false,
-		Reason:        "Permission system not initialized for this user (no company_user_id in context)",
+		Reason:        "Permission system not initialized for this user (no company_user_id or enterprise_user_id in context)",
 		Source:        "fallback",
 	}
 	c.JSON(http.StatusOK, gin.H{

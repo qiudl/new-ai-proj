@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"ai-project-backend/constants"
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"context"
@@ -288,6 +289,15 @@ func (m *RolePermissionMiddleware) getRoleContext(ctx context.Context, c *gin.Co
 		}
 	}
 
+	// 添加基础权限（所有认证用户都拥有）
+	// 基础权限包括：Dashboard访问、个人中心、工作笔记、计时器、个人统计等
+	basePerms := constants.GetBasePermissions()
+	for _, basePerm := range basePerms {
+		if !contains(roleCtx.Permissions, basePerm) {
+			roleCtx.Permissions = append(roleCtx.Permissions, basePerm)
+		}
+	}
+
 	// 缓存结果
 	if m.cache != nil {
 		m.cache.Set(cacheKey, roleCtx, m.cacheTTL)
@@ -376,8 +386,11 @@ func (m *RolePermissionMiddleware) validateAdditionalRequirements(roleCtx *RoleC
 		for _, requiredPerm := range req.RequiredPermissions {
 			hasPermission := false
 
-			// 检查精确匹配
-			if contains(roleCtx.Permissions, requiredPerm) {
+			// 优先检查基础权限（直接放行，无需查数据库）
+			if constants.IsBasePermission(requiredPerm) {
+				hasPermission = true
+			} else if contains(roleCtx.Permissions, requiredPerm) {
+				// 检查精确匹配
 				hasPermission = true
 			} else if !req.StrictPermissionMode {
 				// 检查通配符匹配
@@ -674,6 +687,14 @@ func (m *RolePermissionMiddleware) WarmUpCache(ctx context.Context, companyUserI
 
 		for _, perm := range userPermissions.EffectivePermissions {
 			roleCtx.Permissions = append(roleCtx.Permissions, perm.PermissionCode)
+		}
+
+		// 添加基础权限（所有认证用户都拥有）
+		basePerms := constants.GetBasePermissions()
+		for _, basePerm := range basePerms {
+			if !contains(roleCtx.Permissions, basePerm) {
+				roleCtx.Permissions = append(roleCtx.Permissions, basePerm)
+			}
 		}
 
 		m.cache.Set(cacheKey, roleCtx, m.cacheTTL)

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { permissionService, UserPermissionSummary, PermissionResult } from '../services/permissionService';
+import { isBasePermission, BASE_PERMISSIONS_ARRAY } from '../constants/permissions';
 
 interface UsePermissionsOptions {
   userId?: number;
@@ -42,8 +43,14 @@ export const usePermissions = (options: UsePermissionsOptions = {}) => {
 
   // Check single permission
   const checkPermission = useCallback(async (permission: string, resourceId?: number): Promise<boolean> => {
+    // 基础权限直接返回true，无需查询后端
+    // 这些权限在后端中间件中自动添加，前端也应视为"总是可用"
+    if (isBasePermission(permission)) {
+      return true;
+    }
+
     const checkKey = `${permission}-${resourceId || 'global'}`;
-    
+
     // Update loading state
     setPermissionChecks(prev => new Map(prev.set(checkKey, {
       permission,
@@ -123,18 +130,31 @@ export const usePermissions = (options: UsePermissionsOptions = {}) => {
   }, [hasRole]);
 
   // Get effective permissions as a set for quick lookup
+  // 自动包含基础权限
   const getEffectivePermissions = useCallback((): Set<string> => {
-    if (!userPermissions || !userPermissions.effectivePermissions) return new Set();
-    
-    return new Set(
+    const permissions = new Set<string>();
+
+    // 添加基础权限（所有认证用户都拥有）
+    BASE_PERMISSIONS_ARRAY.forEach(perm => permissions.add(perm));
+
+    // 添加用户的其他权限
+    if (userPermissions?.effectivePermissions) {
       userPermissions.effectivePermissions
         .filter(permission => permission.isGranted)
-        .map(permission => permission.permissionCode)
-    );
+        .forEach(permission => permissions.add(permission.permissionCode));
+    }
+
+    return permissions;
   }, [userPermissions]);
 
   // Check if user has permission from effective permissions (client-side only)
+  // 基础权限自动返回true
   const hasEffectivePermission = useCallback((permission: string): boolean => {
+    // 基础权限直接返回true
+    if (isBasePermission(permission)) {
+      return true;
+    }
+
     const effectivePermissions = getEffectivePermissions();
     return effectivePermissions.has(permission);
   }, [getEffectivePermissions]);

@@ -47,6 +47,7 @@ func NewDepartmentRepository(db *sql.DB) *DepartmentRepository {
 }
 
 // GetAllByCompany 获取指定企业的所有部门（树形结构）- 保持向后兼容
+// Deprecated: Use GetAllByEnterprise instead. This method is kept for backward compatibility only.
 func (r *DepartmentRepository) GetAllByCompany(companyID int) ([]Department, error) {
 	return r.GetAllByEnterprise(companyID)
 }
@@ -451,6 +452,7 @@ func (r *DepartmentRepository) updateHierarchy(dept *Department, enterpriseID in
 }
 
 // GetStatsByCompany 获取指定企业的部门统计信息 - 保持向后兼容
+// Deprecated: Use GetStatsByEnterprise instead. This method is kept for backward compatibility only.
 func (r *DepartmentRepository) GetStatsByCompany(companyID int) (map[string]interface{}, error) {
 	return r.GetStatsByEnterprise(companyID)
 }
