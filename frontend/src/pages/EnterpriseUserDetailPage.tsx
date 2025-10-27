@@ -48,6 +48,7 @@ import {
 } from '@ant-design/icons';
 import { EnterpriseUser, Enterprise } from '../services/enterpriseService';
 import enterpriseService from '../services/enterpriseService';
+import enterpriseUserService from '../services/enterpriseUserService';
 import { formatDistance } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -82,54 +83,16 @@ const EnterpriseUserDetailPage: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [projects, setProjects] = useState<UserProject[]>([]);
+  const [userStats, setUserStats] = useState<{
+    online_hours: number;
+    project_count: number;
+    completed_task_count: number;
+  }>({
+    online_hours: 0,
+    project_count: 0,
+    completed_task_count: 0
+  });
   const [form] = Form.useForm();
-
-  // 模拟数据
-  const mockActivities: UserActivity[] = [
-    {
-      id: 1,
-      type: 'login',
-      title: '用户登录',
-      description: '从 192.168.1.100 登录系统',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-      status: 'success'
-    },
-    {
-      id: 2,
-      type: 'project',
-      title: '项目协作',
-      description: '参与项目 "企业管理系统优化" 讨论',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-      status: 'success'
-    },
-    {
-      id: 3,
-      type: 'task',
-      title: '任务完成',
-      description: '完成任务 "用户权限配置"',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-      status: 'success'
-    }
-  ];
-
-  const mockProjects: UserProject[] = [
-    {
-      id: 1,
-      name: '企业管理系统优化',
-      role: '开发工程师',
-      status: 'active',
-      progress: 75,
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString()
-    },
-    {
-      id: 2,
-      name: '数据分析平台',
-      role: '技术负责人',
-      status: 'completed',
-      progress: 100,
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString()
-    }
-  ];
 
   useEffect(() => {
     loadUserData();
@@ -142,18 +105,28 @@ const EnterpriseUserDetailPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // 并行加载企业和用户数据
-      const [enterpriseResult, userResult] = await Promise.all([
-        enterpriseService.getEnterprise(Number(enterpriseId)),
-        enterpriseService.getEnterpriseUser(Number(enterpriseId), Number(userId))
+      const entId = Number(enterpriseId);
+      const usrId = Number(userId);
+
+      // 并行加载所有数据
+      const [enterpriseResult, userResult, statsResult, projectsResult, activitiesResult] = await Promise.all([
+        enterpriseService.getEnterprise(entId),
+        enterpriseService.getEnterpriseUser(entId, usrId),
+        enterpriseUserService.getEnterpriseUserStats(entId, usrId),
+        enterpriseUserService.getEnterpriseUserProjects(entId, usrId),
+        enterpriseUserService.getEnterpriseUserActivities(entId, usrId, { page: 1, page_size: 10 })
       ]);
 
       setEnterprise(enterpriseResult.data || enterpriseResult);
       setUser(userResult.data || userResult);
-      
-      // 模拟加载活动和项目数据
-      setActivities(mockActivities);
-      setProjects(mockProjects);
+      setUserStats({
+        online_hours: statsResult.online_hours || 0,
+        project_count: statsResult.project_count || 0,
+        completed_task_count: statsResult.completed_task_count || 0
+      });
+      // 确保projects和activities是数组
+      setProjects(Array.isArray(projectsResult) ? projectsResult : []);
+      setActivities(Array.isArray(activitiesResult) ? activitiesResult : []);
 
     } catch (err: any) {
       console.error('Error loading user data:', err);
@@ -385,7 +358,7 @@ const EnterpriseUserDetailPage: React.FC = () => {
           <Card>
             <Statistic
               title="在线时长"
-              value={24}
+              value={userStats.online_hours}
               suffix="小时"
               prefix={<ClockCircleOutlined style={{ color: '#1890ff' }} />}
               valueStyle={{ color: '#1890ff' }}
@@ -396,7 +369,7 @@ const EnterpriseUserDetailPage: React.FC = () => {
           <Card>
             <Statistic
               title="参与项目"
-              value={projects.length}
+              value={userStats.project_count}
               suffix="个"
               prefix={<ProjectOutlined style={{ color: '#52c41a' }} />}
               valueStyle={{ color: '#52c41a' }}
@@ -407,7 +380,7 @@ const EnterpriseUserDetailPage: React.FC = () => {
           <Card>
             <Statistic
               title="完成任务"
-              value={156}
+              value={userStats.completed_task_count}
               suffix="个"
               prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />}
               valueStyle={{ color: '#722ed1' }}
@@ -580,7 +553,11 @@ const EnterpriseUserDetailPage: React.FC = () => {
                 <Button block icon={<EditOutlined />} onClick={handleEdit}>
                   编辑用户信息
                 </Button>
-                <Button block icon={<SafetyOutlined />}>
+                <Button
+                  block
+                  icon={<SafetyOutlined />}
+                  onClick={() => message.info('权限管理功能开发中')}
+                >
                   管理权限
                 </Button>
                 <Button block icon={<CalendarOutlined />}>
@@ -590,7 +567,20 @@ const EnterpriseUserDetailPage: React.FC = () => {
                 <Popconfirm
                   title="确定要重置密码吗？"
                   description="将为用户生成新的临时密码"
-                  onConfirm={() => message.info('重置密码功能需要在后端实现')}
+                  onConfirm={async () => {
+                    try {
+                      const result = await enterpriseUserService.resetEnterpriseUserPassword(
+                        Number(enterpriseId),
+                        Number(userId)
+                      );
+                      Modal.success({
+                        title: '密码重置成功',
+                        content: `临时密码: ${result.temporaryPassword}`,
+                      });
+                    } catch (error) {
+                      message.error('重置密码失败');
+                    }
+                  }}
                 >
                   <Button block type="dashed">
                     重置密码

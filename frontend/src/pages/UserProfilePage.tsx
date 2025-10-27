@@ -15,12 +15,15 @@ import {
   Avatar,
   Tag
 } from 'antd';
-import { 
-  UserOutlined, 
-  MailOutlined, 
-  LockOutlined, 
+import {
+  UserOutlined,
+  MailOutlined,
+  LockOutlined,
   SaveOutlined,
-  EditOutlined 
+  EditOutlined,
+  BankOutlined,
+  SafetyOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import { userService } from '../services/userService';
 import { User, UserProfileUpdateRequest, PasswordChangeRequest } from '../types/user';
@@ -155,6 +158,129 @@ const UserProfilePage: React.FC = () => {
               <div>
                 <strong>最后更新：</strong>
                 {new Date(user.updated_at).toLocaleDateString()}
+              </div>
+            </div>
+          </Card>
+
+          {/* Organization Info Card */}
+          <Card
+            title={
+              <span>
+                <BankOutlined style={{ marginRight: '8px' }} />
+                组织信息
+              </span>
+            }
+            style={{ marginTop: '16px' }}
+          >
+            <div style={{ fontSize: '14px' }}>
+              {user.user_type === 'company' && (
+                <>
+                  <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                    <Text type="secondary">用户类型：</Text>
+                    <Tag color="blue">企业用户</Tag>
+                  </div>
+                  {user.enterprise_id && (
+                    <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">企业ID：</Text>
+                      <Text strong>#{user.enterprise_id}</Text>
+                    </div>
+                  )}
+                  {user.contact_person_name && (
+                    <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">联系人：</Text>
+                      <Text>{user.contact_person_name}</Text>
+                    </div>
+                  )}
+                  {user.contact_phone && (
+                    <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">联系电话：</Text>
+                      <Text>{user.contact_phone}</Text>
+                    </div>
+                  )}
+                  {user.department_title && (
+                    <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">部门：</Text>
+                      <Text>{user.department_title}</Text>
+                    </div>
+                  )}
+                  {user.is_primary_contact !== undefined && (
+                    <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">主要联系人：</Text>
+                      <Tag color={user.is_primary_contact ? 'green' : 'default'}>
+                        {user.is_primary_contact ? '是' : '否'}
+                      </Tag>
+                    </div>
+                  )}
+                </>
+              )}
+              {user.user_type === 'system' && (
+                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <TeamOutlined style={{ fontSize: '32px', color: '#bfbfbf', marginBottom: '8px' }} />
+                  <div>
+                    <Text type="secondary">系统用户</Text>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Permissions Info Card */}
+          <Card
+            title={
+              <span>
+                <SafetyOutlined style={{ marginRight: '8px' }} />
+                权限信息
+              </span>
+            }
+            style={{ marginTop: '16px' }}
+          >
+            <div style={{ fontSize: '14px' }}>
+              <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                <Text type="secondary">用户角色：</Text>
+                <Tag color={user.role === 'admin' ? 'red' : user.role === 'user' ? 'blue' : 'default'}>
+                  {user.role === 'admin' ? '管理员' : user.role === 'user' ? '普通用户' : user.role}
+                </Tag>
+              </div>
+              <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                <Text type="secondary">账户状态：</Text>
+                <Tag color={user.status === 'active' ? 'green' : user.status === 'inactive' ? 'orange' : 'red'}>
+                  {user.status === 'active' ? '活跃' : user.status === 'inactive' ? '未激活' : '已暂停'}
+                </Tag>
+              </div>
+              {user.last_login_at && (
+                <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                  <Text type="secondary">最后登录：</Text>
+                  <Text>{new Date(user.last_login_at).toLocaleString()}</Text>
+                </div>
+              )}
+              {user.account_expires_at && (
+                <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                  <Text type="secondary">账户过期：</Text>
+                  <Text type={new Date(user.account_expires_at) < new Date() ? 'danger' : 'secondary'}>
+                    {new Date(user.account_expires_at).toLocaleDateString()}
+                  </Text>
+                </div>
+              )}
+              <Divider style={{ margin: '12px 0' }} />
+              <div style={{ color: '#8c8c8c', fontSize: '12px' }}>
+                <div>
+                  <strong>权限说明：</strong>
+                </div>
+                <ul style={{ paddingLeft: '20px', marginTop: '8px', marginBottom: 0 }}>
+                  {user.role === 'admin' ? (
+                    <>
+                      <li>拥有系统所有权限</li>
+                      <li>可以管理用户和组织</li>
+                      <li>可以配置系统设置</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>可以查看和编辑自己的数据</li>
+                      <li>可以参与分配的项目</li>
+                      <li>受组织权限控制</li>
+                    </>
+                  )}
+                </ul>
               </div>
             </div>
           </Card>

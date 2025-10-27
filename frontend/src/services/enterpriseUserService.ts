@@ -377,7 +377,7 @@ class EnterpriseUserService {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await api.post(`${this.API_BASE_URL}/import`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -391,6 +391,142 @@ class EnterpriseUserService {
       return result;
     } catch (error) {
       console.error('❌ 批量导入用户失败:', error);
+      throw error;
+    }
+  }
+
+  // ========== 企业用户中心页面专用API ==========
+
+  /**
+   * 获取企业用户参与的项目列表
+   * 用于用户中心的"参与项目"标签页
+   */
+  async getEnterpriseUserProjects(enterpriseId: number, userId: number): Promise<{
+    id: number;
+    name: string;
+    role: string;
+    status: 'active' | 'completed' | 'paused';
+    progress: number;
+    created_at: string;
+  }[]> {
+    try {
+      const response = await api.get(`/enterprises/${enterpriseId}/users/${userId}/projects`);
+      const result = this.handleApiResponse<any[]>(response);
+      return result;
+    } catch (error) {
+      console.error('❌ 获取企业用户项目列表失败:', error);
+      // 返回空数组，避免页面崩溃
+      return [];
+    }
+  }
+
+  /**
+   * 获取企业用户个人统计信息
+   * 包括在线时长、参与项目数、完成任务数等
+   */
+  async getEnterpriseUserStats(enterpriseId: number, userId: number): Promise<{
+    online_hours: number;
+    project_count: number;
+    completed_task_count: number;
+    last_login_at: string | null;
+  }> {
+    try {
+      const response = await api.get(`/enterprises/${enterpriseId}/users/${userId}/stats`);
+      const result = this.handleApiResponse<any>(response);
+      return result;
+    } catch (error) {
+      console.error('❌ 获取企业用户统计信息失败:', error);
+      // 返回默认值
+      return {
+        online_hours: 0,
+        project_count: 0,
+        completed_task_count: 0,
+        last_login_at: null
+      };
+    }
+  }
+
+  /**
+   * 获取企业用户活动记录
+   * 包括登录、操作历史等
+   */
+  async getEnterpriseUserActivities(
+    enterpriseId: number,
+    userId: number,
+    params?: { page?: number; page_size?: number }
+  ): Promise<{
+    id: number;
+    type: 'login' | 'project' | 'task' | 'system';
+    title: string;
+    description: string;
+    timestamp: string;
+    status?: 'success' | 'warning' | 'error';
+  }[]> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
+
+      const url = `/enterprises/${enterpriseId}/users/${userId}/activities${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      const response = await api.get(url);
+      const result = this.handleApiResponse<any[]>(response);
+      return result;
+    } catch (error) {
+      console.error('❌ 获取企业用户活动记录失败:', error);
+      // 返回空数组
+      return [];
+    }
+  }
+
+  /**
+   * 获取企业用户权限详情
+   */
+  async getEnterpriseUserPermissions(enterpriseId: number, userId: number): Promise<{
+    role_id: number;
+    role_name: string;
+    permissions: string[];
+    custom_permissions?: string[];
+  }> {
+    try {
+      const response = await api.get(`/enterprises/${enterpriseId}/users/${userId}/permissions`);
+      const result = this.handleApiResponse<any>(response);
+      return result;
+    } catch (error) {
+      console.error('❌ 获取企业用户权限失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 更新企业用户权限
+   */
+  async updateEnterpriseUserPermissions(
+    enterpriseId: number,
+    userId: number,
+    permissions: {
+      role_id?: number;
+      custom_permissions?: string[];
+    }
+  ): Promise<void> {
+    try {
+      await api.put(`/enterprises/${enterpriseId}/users/${userId}/permissions`, permissions);
+    } catch (error) {
+      console.error('❌ 更新企业用户权限失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 重置企业用户密码
+   * 返回临时密码
+   */
+  async resetEnterpriseUserPassword(enterpriseId: number, userId: number): Promise<{ temporaryPassword: string }> {
+    try {
+      const response = await api.post(`/enterprises/${enterpriseId}/users/${userId}/reset-password`);
+      const result = this.handleApiResponse<{ temporaryPassword: string }>(response);
+      return result;
+    } catch (error) {
+      console.error('❌ 重置企业用户密码失败:', error);
       throw error;
     }
   }
