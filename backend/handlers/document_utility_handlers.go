@@ -162,7 +162,6 @@ func (h *DocumentUtilityHandler) ValidateDocumentAssociation(c *gin.Context) {
 	var req struct {
 		DocumentID int `json:"document_id" validate:"required"`
 		ProjectID  int `json:"project_id,omitempty"`
-		CustomerID int `json:"customer_id,omitempty"`
 		TaskID     int `json:"task_id,omitempty"`
 	}
 
@@ -179,8 +178,8 @@ func (h *DocumentUtilityHandler) ValidateDocumentAssociation(c *gin.Context) {
 	}
 
 	// Validate that at least one association is provided
-	if req.ProjectID == 0 && req.CustomerID == 0 && req.TaskID == 0 {
-		response := models.NewErrorResponse(models.ErrCodeBadRequest, "At least one association (project, customer, or task) is required", nil)
+	if req.ProjectID == 0 && req.TaskID == 0 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "At least one association (project or task) is required", nil)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
@@ -205,22 +204,6 @@ func (h *DocumentUtilityHandler) ValidateDocumentAssociation(c *gin.Context) {
 			associations["project"] = map[string]interface{}{
 				"valid": true,
 				"name":  project.Name,
-			}
-		}
-	}
-
-	// Validate customer association
-	if req.CustomerID > 0 {
-		customer, err := h.db.Customers().GetByID(c.Request.Context(), req.CustomerID)
-		if err != nil {
-			associations["customer"] = map[string]interface{}{
-				"valid": false,
-				"error": "Customer not found",
-			}
-		} else {
-			associations["customer"] = map[string]interface{}{
-				"valid": true,
-				"name":  customer.Name,
 			}
 		}
 	}

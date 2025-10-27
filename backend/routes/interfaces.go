@@ -112,9 +112,6 @@ type ApplicationInterface interface {
 	GetUserProfileHandler() *handlers.UserProfileHandler
 	GetUserManagementHandler() *handlers.UserManagementHandler
 
-	// 公司管理处理器
-	GetCompanyHandler() *handlers.CompanyHandler
-
 	// 企业管理处理器
 	GetEnterpriseHandler() *handlers.EnterpriseHandler
 

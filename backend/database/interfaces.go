@@ -34,12 +34,6 @@ type UserRepository interface {
 	UpdateProfile(ctx context.Context, userID int, username, email string) (*models.User, error)
 	UpdatePassword(ctx context.Context, userID int, passwordHash string) error
 
-	// Enterprise user management
-	ListCompanyUsersWithPagination(ctx context.Context, params *models.CompanyUserListParams) ([]*models.EnterpriseUserResponse, int, error)
-	GetPrimaryContactByCompanyID(ctx context.Context, companyID int) (*models.User, error)
-	GetCompanyUserStatistics(ctx context.Context) (*models.CompanyUserStats, error)
-	GetExpiringAccounts(ctx context.Context, days int) ([]*models.User, error)
-
 	// Timer management
 	GetUsersTimingTask(ctx context.Context, taskID int) ([]models.User, error)
 }
@@ -108,33 +102,6 @@ type TaskRepository interface {
 
 	// Title uniqueness check
 	CheckTitleUnique(ctx context.Context, projectID int, title string, excludeTaskID int) (bool, *int, error)
-}
-
-// CustomerRepository defines the interface for customer database operations
-type CustomerRepository interface {
-	Create(ctx context.Context, customer *models.Customer) (*models.Customer, error)
-	GetByID(ctx context.Context, id int) (*models.Customer, error)
-	List(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Customer, int, error)
-	Update(ctx context.Context, customer *models.Customer) (*models.Customer, error)
-	Delete(ctx context.Context, id int) error
-
-	// Customer user associations
-	AssociateUser(ctx context.Context, customerUser *models.CustomerUser) (*models.CustomerUser, error)
-	DisassociateUser(ctx context.Context, customerID, userID int) error
-	GetCustomerUsers(ctx context.Context, customerID int) ([]*models.CustomerUser, error)
-	GetUserCustomers(ctx context.Context, userID int) ([]*models.Customer, error)
-	UpdateUserRole(ctx context.Context, customerID, userID int, role string, permissions models.CustomFields) error
-
-	// Customer contacts
-	CreateContact(ctx context.Context, contact *models.CustomerContact) (*models.CustomerContact, error)
-	GetContacts(ctx context.Context, customerID int, limit, offset int) ([]*models.CustomerContact, int, error)
-	UpdateContact(ctx context.Context, contact *models.CustomerContact) (*models.CustomerContact, error)
-	DeleteContact(ctx context.Context, id int) error
-
-	// Statistics and reports
-	GetCustomerStats(ctx context.Context) (map[string]interface{}, error)
-	GetCustomersByStatus(ctx context.Context, status string) ([]*models.Customer, error)
-	GetUpcomingContacts(ctx context.Context, userID int, days int) ([]*models.CustomerContact, error)
 }
 
 // APIKeyRepository defines the interface for API key operations
@@ -213,29 +180,6 @@ type SystemRepository interface {
 	// Legacy audit log operations (deprecated - use enhanced methods above)
 	GetAuditLogs(ctx context.Context, limit, offset int) ([]*models.AuditLog, int, error)
 	LogAction(ctx context.Context, userID *int, action, entityType string, entityID int, entityData interface{}, ipAddress, userAgent string) error
-}
-
-// CompanyRepository defines the interface for company operations (new enterprise model)
-type CompanyRepository interface {
-	// Company operations
-	Create(ctx context.Context, company *models.Company) (*models.Company, error)
-	GetByID(ctx context.Context, id int) (*models.Company, error)
-	// GetByIDIncludeDeleted retrieves a company by ID including soft-deleted rows
-	GetByIDIncludeDeleted(ctx context.Context, id int) (*models.Company, error)
-	List(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Company, int, error)
-	Update(ctx context.Context, company *models.Company) (*models.Company, error)
-	Delete(ctx context.Context, id int) error
-	GetStats(ctx context.Context) (*models.CompanyStats, error)
-
-	// Company User operations
-	CreateUser(ctx context.Context, user *models.CompanyUser) (*models.CompanyUser, error)
-	GetUsers(ctx context.Context, companyID int) ([]*models.CompanyUser, error)
-	UpdateUser(ctx context.Context, user *models.CompanyUser) (*models.CompanyUser, error)
-	DeleteUser(ctx context.Context, userID int) error
-
-	// Company Contact operations
-	CreateContact(ctx context.Context, contact *models.CompanyContact) (*models.CompanyContact, error)
-	GetContacts(ctx context.Context, companyID int, limit, offset int) ([]*models.CompanyContact, int, error)
 }
 
 // EnterpriseRepository defines the interface for enterprise operations (new system)
@@ -581,8 +525,6 @@ type DB interface {
 	Users() UserRepository
 	Projects() ProjectRepository
 	Tasks() TaskRepository
-	Customers() CustomerRepository     // Deprecated, use Companies instead
-	Companies() CompanyRepository      // New enterprise customer model
 	Enterprises() EnterpriseRepository // Pure enterprise system
 	Permissions() PermissionRepository // Enterprise permission management
 	// PermissionApprovals() PermissionApprovalRepository // Temporarily disabled
@@ -628,8 +570,6 @@ type Tx interface {
 	Users() UserRepository
 	Projects() ProjectRepository
 	Tasks() TaskRepository
-	Customers() CustomerRepository
-	Companies() CompanyRepository
 	Enterprises() EnterpriseRepository
 	Permissions() PermissionRepository
 	// PermissionApprovals() PermissionApprovalRepository // Temporarily disabled

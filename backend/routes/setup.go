@@ -85,9 +85,6 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册角色模板路由
 	RegisterRoleTemplateRoutes(authorized, app)
 
-	// 注册公司管理路由
-	RegisterCompanyRoutes(authorized, app)
-
 	// 注册企业管理路由
 	RegisterEnterpriseRoutes(authorized, app)
 

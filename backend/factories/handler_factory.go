@@ -64,8 +64,6 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.AnalyticsHandler = handlers.NewAnalyticsHandler(f.db)
 
 	// 基础处理器
-	allHandlers.CustomerHandler = handlers.NewCustomerHandler(f.db, f.logger, f.validate)
-	allHandlers.CompanyHandler = handlers.NewCompanyHandler(f.db, f.logger, f.validate)
 	allHandlers.ProjectHandler = handlers.NewProjectHandler(f.db, f.logger, f.validate)
 	allHandlers.PermissionHandler = handlers.NewPermissionHandler(f.db.Permissions(), f.db)
 	
@@ -118,15 +116,6 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// 用户统计处理器
 	userStatsRepo := database.NewUserStatsRepository(f.db)
 	allHandlers.UserStatsHandler = handlers.NewUserStatsHandler(userStatsRepo)
-
-	// 公司用户处理器
-	serviceManager := services.NewServiceManager(f.db)
-	allHandlers.CompanyUserHandler = handlers.NewCompanyUserHandler(
-		f.db.Users(),
-		f.db.Companies(),
-		serviceManager.AsyncLogger(),
-		f.validate,
-	)
 
 	// 任务文档处理器 - 基础路径配置
 	docsBasePath := "./docs" // 可以通过配置文件配置

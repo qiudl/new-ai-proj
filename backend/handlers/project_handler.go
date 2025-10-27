@@ -43,7 +43,6 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 	}
 	
 	// 如果不是模拟状态，获取当前用户的企业ID（用于企业数据隔离）
-	var companyIDPtr *int
 	var queryUserID int = userID // Default: use actual userID for filtering
 
 	if enterpriseIDPtr == nil && userRole != nil {
@@ -52,16 +51,20 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 		// Admin and super_admin users can see all projects (no data isolation)
 		if roleStr == "admin" || roleStr == "super_admin" {
 			queryUserID = 0 // Set to 0 to skip user-based filtering in repository
-		} else if roleStr == "company_admin" || roleStr == "company_user" {
-			companyID, err := h.getUserCompanyID(uint(userID), roleStr)
+			log.Printf("[GetProjects] User %d (role=%s) can see ALL projects", userID, roleStr)
+		} else if roleStr == "enterprise_admin" || roleStr == "enterprise_user" ||
+		          roleStr == "company_admin" || roleStr == "company_user" {
+			// ✅ 使用新的getUserEnterpriseID方法（支持enterprise和company体系）
+			enterpriseID, err := h.getUserEnterpriseID(uint(userID), roleStr)
 			if err != nil {
-				log.Printf("Error getting user company ID: %v", err)
+				log.Printf("[GetProjects] Error getting user enterprise ID: %v", err)
 				c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取用户企业信息失败", nil))
 				return
 			}
-			if companyID > 0 {
-				companyIDInt := int(companyID)
-				companyIDPtr = &companyIDInt
+			if enterpriseID > 0 {
+				enterpriseIDInt := int(enterpriseID)
+				enterpriseIDPtr = &enterpriseIDInt
+				log.Printf("[GetProjects] User %d (role=%s) filtered by enterprise_id=%d", userID, roleStr, enterpriseID)
 			}
 		}
 	}
@@ -83,7 +86,8 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	projectsWithCompany, total, err := h.db.Projects().GetPaginatedWithCompany(c.Request.Context(), queryUserID, offset, pageSize, search, status, sortBy, sortOrder, companyIDPtr, enterpriseIDPtr)
+	// ✅ 只使用enterpriseIDPtr进行数据隔离（废弃companyIDPtr）
+	projectsWithCompany, total, err := h.db.Projects().GetPaginatedWithCompany(c.Request.Context(), queryUserID, offset, pageSize, search, status, sortBy, sortOrder, nil, enterpriseIDPtr)
 	if err != nil {
 		log.Printf("Error getting projects: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目列表失败", nil))
@@ -560,29 +564,57 @@ func (h *ProjectHandler) RestoreProject(c *gin.Context) {
 }
 
 // getUserCompanyID 获取用户关联的企业ID
-func (h *ProjectHandler) getUserCompanyID(userID uint, role string) (uint, error) {
+// getUserEnterpriseID 获取用户的企业ID（支持新旧体系）
+// 优先使用enterprise体系（user_type='enterprise'），向后兼容company体系（user_type='company'）
+func (h *ProjectHandler) getUserEnterpriseID(userID uint, role string) (uint, error) {
+	// ✅ 新体系：enterprise_admin 和 enterprise_user（优先使用）
+	if role == "enterprise_admin" || role == "enterprise_user" {
+		// 从enterprise_users表获取enterprise_id
+		exec := h.db.(*database.PostgresDB).GetDB().(*sql.DB)
+		var enterpriseID int
+		err := exec.QueryRow("SELECT enterprise_id FROM enterprise_users WHERE user_id = $1 AND deleted_at IS NULL", userID).Scan(&enterpriseID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				log.Printf("[getUserEnterpriseID] User %d with role %s not found in enterprise_users table", userID, role)
+				return 0, nil
+			}
+			return 0, fmt.Errorf("failed to get enterprise_id for user %d: %w", userID, err)
+		}
+		log.Printf("[getUserEnterpriseID] User %d (role=%s) -> enterprise_id=%d", userID, role, enterpriseID)
+		return uint(enterpriseID), nil
+	}
+
+	// ⚠️ 向后兼容：支持旧的company体系（将来移除）
 	if role == "company_admin" {
-		// 企业管理员：从 users 表直接获取 company_id
+		// 从users表直接获取company_id
 		user, err := h.db.Users().GetByID(context.Background(), int(userID))
 		if err != nil {
 			return 0, err
 		}
 		if user.CompanyID != nil {
+			log.Printf("[getUserEnterpriseID] User %d (role=%s) using legacy company_id=%d", userID, role, *user.CompanyID)
 			return uint(*user.CompanyID), nil
 		}
 	}
-	
+
 	if role == "company_user" {
-		// 企业普通用户：从 company_users 表获取 customer_id
-		// 这需要通过数据库原生查询实现，因为repository可能没有对应方法
+		// 从company_users表获取customer_id
 		exec := h.db.(*database.PostgresDB).GetDB().(*sql.DB)
 		var customerID int
 		err := exec.QueryRow("SELECT customer_id FROM company_users WHERE user_id = $1", userID).Scan(&customerID)
 		if err != nil {
 			return 0, err
 		}
+		log.Printf("[getUserEnterpriseID] User %d (role=%s) using legacy customer_id=%d", userID, role, customerID)
 		return uint(customerID), nil
 	}
-	
+
 	return 0, nil
+}
+
+// getUserCompanyID DEPRECATED: 使用getUserEnterpriseID替代
+// 保留此方法用于向后兼容，将在下一个版本移除
+func (h *ProjectHandler) getUserCompanyID(userID uint, role string) (uint, error) {
+	log.Printf("[DEPRECATED] getUserCompanyID called, please use getUserEnterpriseID instead")
+	return h.getUserEnterpriseID(userID, role)
 }

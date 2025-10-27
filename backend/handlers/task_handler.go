@@ -143,24 +143,6 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	userID := c.GetInt("user_id")
 	userRole, _ := c.Get("user_role")
 	
-	// 获取当前用户的企业ID（用于企业数据隔离）
-	var companyIDPtr *int
-	if userRole != nil {
-		roleStr := userRole.(string)
-		if roleStr == "company_admin" || roleStr == "company_user" {
-			companyID, err := h.getUserCompanyID(uint(userID), roleStr)
-			if err != nil {
-				log.Printf("Error getting user company ID: %v", err)
-				c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取用户企业信息失败", nil))
-				return
-			}
-			if companyID > 0 {
-				companyIDInt := int(companyID)
-				companyIDPtr = &companyIDInt
-			}
-		}
-	}
-
 	// Parse pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
@@ -200,10 +182,38 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 			taskIDPtr = &v
 		}
 	}
+
+	// ✅ 企业数据隔离：优先使用query参数，如果没有则根据用户角色自动获取
 	var enterpriseIDPtr *int
 	if enterpriseIDParam != "" {
+		// 1. 如果query参数指定了enterprise_id，使用它
 		if v, err := strconv.Atoi(enterpriseIDParam); err == nil {
 			enterpriseIDPtr = &v
+			log.Printf("[GetAllTasks] Using enterprise_id from query parameter: %d", v)
+		}
+	} else if userRole != nil {
+		// 2. 如果没有query参数，根据用户角色自动获取enterprise_id
+		roleStr := userRole.(string)
+
+		// Admin和super_admin可以看到所有任务
+		if roleStr != "admin" && roleStr != "super_admin" {
+			if roleStr == "enterprise_admin" || roleStr == "enterprise_user" ||
+			   roleStr == "company_admin" || roleStr == "company_user" {
+				// ✅ 使用新的getUserEnterpriseID方法（支持enterprise和company体系）
+				enterpriseID, err := h.getUserEnterpriseID(uint(userID), roleStr)
+				if err != nil {
+					log.Printf("[GetAllTasks] Error getting user enterprise ID: %v", err)
+					c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取用户企业信息失败", nil))
+					return
+				}
+				if enterpriseID > 0 {
+					enterpriseIDInt := int(enterpriseID)
+					enterpriseIDPtr = &enterpriseIDInt
+					log.Printf("[GetAllTasks] User %d (role=%s) filtered by enterprise_id=%d", userID, roleStr, enterpriseID)
+				}
+			}
+		} else {
+			log.Printf("[GetAllTasks] User %d (role=%s) can see ALL tasks", userID, roleStr)
 		}
 	}
 
@@ -234,8 +244,8 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 		Assignee:     assigneePtr,
 		ProjectID:    projectPtr,
 		TaskID:       taskIDPtr,
-		CompanyID:    companyIDPtr, // 企业数据隔离 (旧系统)
-		EnterpriseID: enterpriseIDPtr, // 企业数据隔离 (新系统)
+		CompanyID:    nil, // ❌ 废弃旧系统的company_id过滤
+		EnterpriseID: enterpriseIDPtr, // ✅ 使用新系统的enterprise_id过滤
 		OnlyRoots:    onlyRoots,
 		WorkDate:     workDate,
 		SortBy:       sortBy,
@@ -2119,31 +2129,63 @@ func parseDateTimeFlexible(dateStr string) (time.Time, error) {
 }
 
 // getUserCompanyID 获取用户关联的企业ID
-func (h *TaskHandler) getUserCompanyID(userID uint, role string) (uint, error) {
-	if role == "company_admin" {
-		// 企业管理员：从 users 表直接获取 company_id
-		user, err := h.db.Users().GetByID(context.Background(), int(userID))
-		if err != nil {
-			log.Printf("[getUserCompanyID] Error getting user %d: %v", userID, err)
-			return 0, err
-		}
-		if user.CompanyID != nil {
-			return uint(*user.CompanyID), nil
-		}
-	}
-
-	if role == "company_user" {
-		// 企业普通用户：从 company_users 表获取 customer_id
-		// 这需要通过数据库原生查询实现，因为repository可能没有对应方法
+// getUserEnterpriseID 获取用户的企业ID（支持新旧体系）
+// 优先使用enterprise体系（user_type='enterprise'），向后兼容company体系（user_type='company'）
+func (h *TaskHandler) getUserEnterpriseID(userID uint, role string) (uint, error) {
+	// ✅ 新体系：enterprise_admin 和 enterprise_user（优先使用）
+	if role == "enterprise_admin" || role == "enterprise_user" {
+		// 从enterprise_users表获取enterprise_id
 		postgresDB, ok := h.db.(*database.PostgresDB)
 		if !ok {
-			log.Printf("[getUserCompanyID] Failed to cast db to PostgresDB")
+			log.Printf("[getUserEnterpriseID] Failed to cast db to PostgresDB")
 			return 0, fmt.Errorf("database type assertion failed")
 		}
 
 		exec, ok := postgresDB.GetDB().(*sql.DB)
 		if !ok {
-			log.Printf("[getUserCompanyID] Failed to cast GetDB to *sql.DB")
+			log.Printf("[getUserEnterpriseID] Failed to cast GetDB to *sql.DB")
+			return 0, fmt.Errorf("database connection type assertion failed")
+		}
+
+		var enterpriseID int
+		err := exec.QueryRow("SELECT enterprise_id FROM enterprise_users WHERE user_id = $1 AND deleted_at IS NULL", userID).Scan(&enterpriseID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				log.Printf("[getUserEnterpriseID] User %d with role %s not found in enterprise_users table", userID, role)
+				return 0, nil
+			}
+			log.Printf("[getUserEnterpriseID] Error querying enterprise_users for user %d: %v", userID, err)
+			return 0, fmt.Errorf("failed to get enterprise_id for user %d: %w", userID, err)
+		}
+		log.Printf("[getUserEnterpriseID] User %d (role=%s) -> enterprise_id=%d", userID, role, enterpriseID)
+		return uint(enterpriseID), nil
+	}
+
+	// ⚠️ 向后兼容：支持旧的company体系（将来移除）
+	if role == "company_admin" {
+		// 从users表直接获取company_id
+		user, err := h.db.Users().GetByID(context.Background(), int(userID))
+		if err != nil {
+			log.Printf("[getUserEnterpriseID] Error getting user %d: %v", userID, err)
+			return 0, err
+		}
+		if user.CompanyID != nil {
+			log.Printf("[getUserEnterpriseID] User %d (role=%s) using legacy company_id=%d", userID, role, *user.CompanyID)
+			return uint(*user.CompanyID), nil
+		}
+	}
+
+	if role == "company_user" {
+		// 从company_users表获取customer_id
+		postgresDB, ok := h.db.(*database.PostgresDB)
+		if !ok {
+			log.Printf("[getUserEnterpriseID] Failed to cast db to PostgresDB")
+			return 0, fmt.Errorf("database type assertion failed")
+		}
+
+		exec, ok := postgresDB.GetDB().(*sql.DB)
+		if !ok {
+			log.Printf("[getUserEnterpriseID] Failed to cast GetDB to *sql.DB")
 			return 0, fmt.Errorf("database connection type assertion failed")
 		}
 
@@ -2151,16 +2193,24 @@ func (h *TaskHandler) getUserCompanyID(userID uint, role string) (uint, error) {
 		err := exec.QueryRow("SELECT customer_id FROM company_users WHERE user_id = $1", userID).Scan(&customerID)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				log.Printf("[getUserCompanyID] No company_users record for user %d", userID)
+				log.Printf("[getUserEnterpriseID] No company_users record for user %d", userID)
 				return 0, nil
 			}
-			log.Printf("[getUserCompanyID] Error querying company_users for user %d: %v", userID, err)
+			log.Printf("[getUserEnterpriseID] Error querying company_users for user %d: %v", userID, err)
 			return 0, err
 		}
+		log.Printf("[getUserEnterpriseID] User %d (role=%s) using legacy customer_id=%d", userID, role, customerID)
 		return uint(customerID), nil
 	}
 
 	return 0, nil
+}
+
+// getUserCompanyID DEPRECATED: 使用getUserEnterpriseID替代
+// 保留此方法用于向后兼容，将在下一个版本移除
+func (h *TaskHandler) getUserCompanyID(userID uint, role string) (uint, error) {
+	log.Printf("[DEPRECATED] getUserCompanyID called, please use getUserEnterpriseID instead")
+	return h.getUserEnterpriseID(userID, role)
 }
 
 // validateTaskNotArchived checks if a task is archived and returns appropriate error response
