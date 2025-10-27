@@ -19,6 +19,15 @@ type WorkNoteTaskRelation struct {
 	DeletedAt    *time.Time `json:"deleted_at"`
 }
 
+// AssociatedTask 关联的任务详情（用于前端显示）
+type AssociatedTask struct {
+	ID          int    `json:"id"`
+	Title       string `json:"title"`
+	Status      string `json:"status"`
+	ProjectID   int    `json:"project_id"`
+	ProjectName string `json:"project_name"`
+}
+
 // WorkNoteTaskRelationService 工作笔记任务关联服务
 type WorkNoteTaskRelationService struct {
 	db *sql.DB
@@ -124,8 +133,50 @@ func (s *WorkNoteTaskRelationService) GetWorkNotesByTask(ctx context.Context, ta
 	return relations, nil
 }
 
-// GetTasksByWorkNote 获取工作笔记关联的任务
-func (s *WorkNoteTaskRelationService) GetTasksByWorkNote(ctx context.Context, workNoteID int) ([]WorkNoteTaskRelation, error) {
+// GetTasksByWorkNote 获取工作笔记关联的任务（返回任务详情）
+func (s *WorkNoteTaskRelationService) GetTasksByWorkNote(ctx context.Context, workNoteID int) ([]AssociatedTask, error) {
+	query := `
+		SELECT
+			t.id,
+			t.title,
+			t.status,
+			t.project_id,
+			COALESCE(p.name, '') as project_name
+		FROM work_note_task_relations r
+		INNER JOIN tasks t ON r.task_id = t.id
+		LEFT JOIN projects p ON t.project_id = p.id
+		WHERE r.work_note_id = $1
+			AND r.deleted_at IS NULL
+			AND t.deleted_at IS NULL
+		ORDER BY r.created_at DESC`
+
+	rows, err := s.db.QueryContext(ctx, query, workNoteID)
+	if err != nil {
+		return nil, fmt.Errorf("获取工作笔记任务失败: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []AssociatedTask
+	for rows.Next() {
+		var task AssociatedTask
+		err := rows.Scan(
+			&task.ID,
+			&task.Title,
+			&task.Status,
+			&task.ProjectID,
+			&task.ProjectName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描任务记录失败: %w", err)
+		}
+		tasks = append(tasks, task)
+	}
+
+	return tasks, nil
+}
+
+// GetTasksByWorkNoteRaw 获取工作笔记关联的任务（返回关联记录）
+func (s *WorkNoteTaskRelationService) GetTasksByWorkNoteRaw(ctx context.Context, workNoteID int) ([]WorkNoteTaskRelation, error) {
 	query := `
 		SELECT r.id, r.work_note_id, r.task_id, r.relation_type, r.created_by, r.created_at, r.updated_at, r.deleted_at
 		FROM work_note_task_relations r

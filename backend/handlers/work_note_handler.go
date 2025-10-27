@@ -1339,7 +1339,7 @@ func (h *WorkNoteHandler) GetWorkNoteTaskRelations(c *gin.Context) {
 		return
 	}
 
-	relations, err := h.relationService.GetTasksByWorkNote(c.Request.Context(), workNoteID)
+	tasks, err := h.relationService.GetTasksByWorkNote(c.Request.Context(), workNoteID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -1348,12 +1348,14 @@ func (h *WorkNoteHandler) GetWorkNoteTaskRelations(c *gin.Context) {
 		return
 	}
 
+	// 匹配前端期望的响应格式: data.tasks
 	c.JSON(http.StatusOK, gin.H{
-		"success":     true,
-		"work_note_id": workNoteID,
-		"relations":   relations,
-		"total":       len(relations),
-		"message":     fmt.Sprintf("工作笔记 %d 关联了 %d 个任务", workNoteID, len(relations)),
+		"success": true,
+		"data": gin.H{
+			"tasks": tasks,
+		},
+		"total":   len(tasks),
+		"message": fmt.Sprintf("工作笔记 %d 关联了 %d 个任务", workNoteID, len(tasks)),
 	})
 }
 
