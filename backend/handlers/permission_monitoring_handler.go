@@ -68,12 +68,12 @@ func (h *PermissionMonitoringHandler) GetPermissionStats(c *gin.Context) {
 func (h *PermissionMonitoringHandler) CheckUserPermission(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// Get company user ID from path parameter
-	userIDStr := c.Param("company_user_id")
+	// Get user ID from path parameter
+	userIDStr := c.Param("user_id")
 	companyUserID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid company user ID",
+			"error": "Invalid user ID",
 		})
 		return
 	}
@@ -162,12 +162,12 @@ func (h *PermissionMonitoringHandler) CheckBatchPermissions(c *gin.Context) {
 func (h *PermissionMonitoringHandler) GetUserPermissionProfile(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// Get company user ID from path parameter
-	userIDStr := c.Param("company_user_id")
+	// Get user ID from path parameter
+	userIDStr := c.Param("user_id")
 	companyUserID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid company user ID",
+			"error": "Invalid user ID",
 		})
 		return
 	}
@@ -189,12 +189,12 @@ func (h *PermissionMonitoringHandler) GetUserPermissionProfile(c *gin.Context) {
 func (h *PermissionMonitoringHandler) GetPermissionRecommendations(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// Get company user ID from path parameter
-	userIDStr := c.Param("company_user_id")
+	// Get user ID from path parameter
+	userIDStr := c.Param("user_id")
 	companyUserID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid company user ID",
+			"error": "Invalid user ID",
 		})
 		return
 	}
@@ -210,7 +210,7 @@ func (h *PermissionMonitoringHandler) GetPermissionRecommendations(c *gin.Contex
 	}
 
 	response := gin.H{
-		"company_user_id": companyUserID,
+		"user_id":         companyUserID,
 		"recommendations": recommendations,
 		"generated_at":    time.Now(),
 	}
@@ -222,12 +222,12 @@ func (h *PermissionMonitoringHandler) GetPermissionRecommendations(c *gin.Contex
 func (h *PermissionMonitoringHandler) PrewarmUserCache(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// Get company user ID from path parameter
-	userIDStr := c.Param("company_user_id")
+	// Get user ID from path parameter
+	userIDStr := c.Param("user_id")
 	companyUserID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid company user ID",
+			"error": "Invalid user ID",
 		})
 		return
 	}
@@ -243,9 +243,9 @@ func (h *PermissionMonitoringHandler) PrewarmUserCache(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"message":         "Cache prewarming completed",
-		"company_user_id": companyUserID,
-		"prewarmed_at":    time.Now(),
+		"message":      "Cache prewarming completed",
+		"user_id":      companyUserID,
+		"prewarmed_at": time.Now(),
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -255,12 +255,12 @@ func (h *PermissionMonitoringHandler) PrewarmUserCache(c *gin.Context) {
 func (h *PermissionMonitoringHandler) InvalidateUserCache(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// Get company user ID from path parameter
-	userIDStr := c.Param("company_user_id")
+	// Get user ID from path parameter
+	userIDStr := c.Param("user_id")
 	companyUserID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid company user ID",
+			"error": "Invalid user ID",
 		})
 		return
 	}
@@ -276,9 +276,9 @@ func (h *PermissionMonitoringHandler) InvalidateUserCache(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"message":         "User cache invalidated",
-		"company_user_id": companyUserID,
-		"invalidated_at":  time.Now(),
+		"message":        "User cache invalidated",
+		"user_id":        companyUserID,
+		"invalidated_at": time.Now(),
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -319,12 +319,12 @@ func (h *PermissionMonitoringHandler) GetCacheStats(c *gin.Context) {
 func (h *PermissionMonitoringHandler) ValidatePredictionAccuracy(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// Get company user ID from path parameter
-	userIDStr := c.Param("company_user_id")
+	// Get user ID from path parameter
+	userIDStr := c.Param("user_id")
 	companyUserID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid company user ID",
+			"error": "Invalid user ID",
 		})
 		return
 	}
@@ -345,7 +345,7 @@ func (h *PermissionMonitoringHandler) ValidatePredictionAccuracy(c *gin.Context)
 	accuracy := h.predictor.ValidatePredictionAccuracy(ctx, companyUserID, request.ActualPermissions)
 
 	response := gin.H{
-		"company_user_id":          companyUserID,
+		"user_id":                  companyUserID,
 		"accuracy_score":           accuracy,
 		"actual_permissions_count": len(request.ActualPermissions),
 		"validated_at":             time.Now(),
@@ -418,9 +418,9 @@ func (h *PermissionMonitoringHandler) TestPermissionMiddleware(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"company_user_id": request.CompanyUserID,
-		"test_results":    results,
-		"tested_at":       time.Now(),
+		"user_id":      request.CompanyUserID,
+		"test_results": results,
+		"tested_at":    time.Now(),
 	}
 
 	c.JSON(http.StatusOK, response)
