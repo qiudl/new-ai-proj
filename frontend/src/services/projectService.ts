@@ -70,16 +70,6 @@ class ProjectService {
     return this.request<PaginatedResponse<Project>>(endpoint);
   }
 
-  async getProjectsByCompany(companyId: number): Promise<Project[]> {
-    const queryParams = new URLSearchParams();
-    queryParams.append('company_id', companyId.toString());
-    queryParams.append('page_size', '100'); // 获取足够多的项目
-    
-    const response = await this.request<PaginatedResponse<Project>>(`/projects?${queryParams}`);
-    // Response structure: response = { data: [...], pagination: {...} }
-    // We need the data array from the paginated response
-    return Array.isArray(response.data) ? response.data : [];
-  }
 
   async getProject(id: number): Promise<Project> {
     return this.request<Project>(`/projects/${id}`);
@@ -92,8 +82,6 @@ class ProjectService {
       name: project.name?.trim(),
       description: project.description?.trim(),
       enterprise_id: project.enterprise_id,
-      company_id: project.company_id,
-      company_ids: project.company_ids,
       user_ids: project.user_ids,
       status: project.status,
       priority: project.priority,
@@ -128,8 +116,6 @@ class ProjectService {
       name: project.name?.trim(),
       description: project.description?.trim(),
       enterprise_id: project.enterprise_id,
-      company_id: project.company_id,
-      company_ids: project.company_ids,
       user_ids: project.user_ids,
       status: project.status,
       priority: project.priority,

@@ -58,8 +58,8 @@ export interface PermissionResult {
 
 export const permissionService = {
   // Role Management
-  async getRoles(companyId?: number) {
-    const params = companyId ? { company_id: companyId } : {};
+  async getRoles(enterpriseId?: number) {
+    const params = enterpriseId ? { enterprise_id: enterpriseId } : {};
     const response = await api.get('/permissions/roles', { params });
     return response;
   },
@@ -159,38 +159,11 @@ export const permissionService = {
     return response;
   },
 
-  // Company User Permission Management (through company service) - 向后兼容
-  async getCompanyUserPermissions(companyId: number, userId: number): Promise<{ permissions: UserPermissionSummary }> {
-    const response = await api.get(`/companies/${companyId}/users/${userId}/permissions`);
-    return (response as any).data;
-  },
 
-  async updateCompanyUserPermissions(companyId: number, userId: number, permissionData: {
-    roleId?: number;
-    customPermissions?: Record<string, boolean>;
-    projectPermissions?: any[];
-  }) {
-    const response = await api.put(`/companies/${companyId}/users/${userId}/permissions`, permissionData);
-    return response;
-  },
-
-  async assignUserRole(companyId: number, userId: number, roleId: number) {
-    const response = await api.post(`/companies/${companyId}/users/${userId}/role`, {
-      role_id: roleId
-    });
-    return response;
-  },
-
-  // Enterprise User Permission Management (新企业系统)
+  // Enterprise User Permission Management (企业系统)
   async getEnterpriseUserPermissions(enterpriseId: number, userId: number): Promise<{ permissions: UserPermissionSummary }> {
-    try {
-      const response = await api.get(`/enterprises/${enterpriseId}/users/${userId}/permissions`);
-      return (response as any).data;
-    } catch (error) {
-      console.warn('⚠️ 新企业权限系统不可用，回退到旧系统:', error);
-      // 回退到旧的公司权限系统
-      return await this.getCompanyUserPermissions(enterpriseId, userId);
-    }
+    const response = await api.get(`/enterprises/${enterpriseId}/users/${userId}/permissions`);
+    return (response as any).data;
   },
 
   async updateEnterpriseUserPermissions(enterpriseId: number, userId: number, permissionData: {
@@ -198,27 +171,15 @@ export const permissionService = {
     customPermissions?: Record<string, boolean>;
     projectPermissions?: any[];
   }) {
-    try {
-      const response = await api.put(`/enterprises/${enterpriseId}/users/${userId}/permissions`, permissionData);
-      return response;
-    } catch (error) {
-      console.warn('⚠️ 新企业权限系统不可用，回退到旧系统:', error);
-      // 回退到旧的公司权限系统
-      return await this.updateCompanyUserPermissions(enterpriseId, userId, permissionData);
-    }
+    const response = await api.put(`/enterprises/${enterpriseId}/users/${userId}/permissions`, permissionData);
+    return response;
   },
 
   async assignEnterpriseUserRole(enterpriseId: number, userId: number, roleId: number) {
-    try {
-      const response = await api.post(`/enterprises/${enterpriseId}/users/${userId}/role`, {
-        role_id: roleId
-      });
-      return response;
-    } catch (error) {
-      console.warn('⚠️ 新企业角色系统不可用，回退到旧系统:', error);
-      // 回退到旧的公司角色系统
-      return await this.assignUserRole(enterpriseId, userId, roleId);
-    }
+    const response = await api.post(`/enterprises/${enterpriseId}/users/${userId}/role`, {
+      role_id: roleId
+    });
+    return response;
   },
 
   // 企业角色管理

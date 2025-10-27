@@ -3,7 +3,7 @@ import api from './api';
 // 部门数据类型定义
 export interface Department {
   id: number;
-  company_id: number;
+  enterprise_id: number;
   name: string;
   parent_id?: number;
   manager_id?: number;
@@ -62,16 +62,16 @@ export interface PaginatedResponse<T> {
 
 class OrganizationService {
   private readonly API_BASE_URL = '/organization';
-  private companyId: number = 2; // 默认企业ID，后续可从用户上下文获取
+  private enterpriseId: number = 2; // 默认企业ID，后续可从用户上下文获取
 
   // 设置当前企业ID
-  setCompanyId(companyId: number): void {
-    this.companyId = companyId;
+  setEnterpriseId(enterpriseId: number): void {
+    this.enterpriseId = enterpriseId;
   }
 
   // 获取当前企业ID
-  getCompanyId(): number {
-    return this.companyId;
+  getEnterpriseId(): number {
+    return this.enterpriseId;
   }
 
   // 统一的 API 响应处理函数
@@ -114,13 +114,13 @@ class OrganizationService {
   }
 
   // 获取部门列表（树形结构）
-  async getDepartments(companyId?: number): Promise<Department[]> {
+  async getDepartments(enterpriseId?: number): Promise<Department[]> {
     try {
-      const cid = companyId || this.companyId;
-      console.log('🔍 获取部门列表 - 企业ID:', cid);
-      
+      const eid = enterpriseId || this.enterpriseId;
+      console.log('🔍 获取部门列表 - 企业ID:', eid);
+
       const raw = await api.get(`${this.API_BASE_URL}/departments`, {
-        params: { company_id: cid }
+        params: { enterprise_id: eid }
       });
       
       // 兼容 axios 响应拦截器已解包的返回值或原始响应结构
@@ -150,11 +150,11 @@ class OrganizationService {
   }
 
   // 获取单个部门详情
-  async getDepartment(id: number, companyId?: number): Promise<Department> {
+  async getDepartment(id: number, enterpriseId?: number): Promise<Department> {
     try {
-      const cid = companyId || this.companyId;
+      const eid = enterpriseId || this.enterpriseId;
       const raw = await api.get(`${this.API_BASE_URL}/departments/${id}`, {
-        params: { company_id: cid }
+        params: { enterprise_id: eid }
       });
       const result: any = (raw && typeof raw === 'object' && 'data' in raw) ? (raw as any).data : raw;
       return result as Department;
@@ -165,12 +165,12 @@ class OrganizationService {
   }
 
   // 创建部门
-  async createDepartment(department: CreateDepartmentRequest, companyId?: number): Promise<Department> {
+  async createDepartment(department: CreateDepartmentRequest, enterpriseId?: number): Promise<Department> {
     try {
-      const cid = companyId || this.companyId;
-      console.log('➕ 创建部门请求:', { department, companyId: cid });
-      
-      const raw = await api.post(`${this.API_BASE_URL}/departments?company_id=${cid}`, department);
+      const eid = enterpriseId || this.enterpriseId;
+      console.log('➕ 创建部门请求:', { department, enterpriseId: eid });
+
+      const raw = await api.post(`${this.API_BASE_URL}/departments?enterprise_id=${eid}`, department);
       
       console.log('✅ 部门创建响应:', raw);
       
@@ -190,10 +190,10 @@ class OrganizationService {
   }
 
   // 更新部门
-  async updateDepartment(id: number, department: UpdateDepartmentRequest, companyId?: number): Promise<Department> {
+  async updateDepartment(id: number, department: UpdateDepartmentRequest, enterpriseId?: number): Promise<Department> {
     try {
-      const cid = companyId || this.companyId;
-      const raw = await api.put(`${this.API_BASE_URL}/departments/${id}?company_id=${cid}`, department);
+      const eid = enterpriseId || this.enterpriseId;
+      const raw = await api.put(`${this.API_BASE_URL}/departments/${id}?enterprise_id=${eid}`, department);
       const result: any = (raw && typeof raw === 'object' && 'data' in raw) ? (raw as any).data : raw;
       return result as Department;
     } catch (error) {
@@ -203,10 +203,10 @@ class OrganizationService {
   }
 
   // 删除部门
-  async deleteDepartment(id: number, companyId?: number): Promise<void> {
+  async deleteDepartment(id: number, enterpriseId?: number): Promise<void> {
     try {
-      const cid = companyId || this.companyId;
-      await api.delete(`${this.API_BASE_URL}/departments/${id}?company_id=${cid}`);
+      const eid = enterpriseId || this.enterpriseId;
+      await api.delete(`${this.API_BASE_URL}/departments/${id}?enterprise_id=${eid}`);
     } catch (error) {
       console.error('❌ 删除部门失败:', error);
       throw error;
@@ -242,16 +242,16 @@ class OrganizationService {
   }
 
   // 获取部门统计信息
-  async getDepartmentStats(companyId?: number): Promise<{
+  async getDepartmentStats(enterpriseId?: number): Promise<{
     totalDepartments: number;
     totalEmployees: number;
     maxLevel: number;
     activeDepartments: number;
   }> {
     try {
-      const cid = companyId || this.companyId;
+      const eid = enterpriseId || this.enterpriseId;
       const raw = await api.get(`${this.API_BASE_URL}/stats`, {
-        params: { company_id: cid }
+        params: { enterprise_id: eid }
       });
       
       let result: any = (raw && typeof raw === 'object' && 'data' in raw) ? (raw as any).data : raw;

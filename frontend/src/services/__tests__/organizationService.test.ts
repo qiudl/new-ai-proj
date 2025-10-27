@@ -22,8 +22,8 @@ describe('organizationService response parsing', () => {
 
   test('getDepartments handles direct array response', async () => {
     const departments = [
-      { id: 1, company_id: 2, name: 'A', level: 0, employee_count: 0, status: 'active', created_at: '', updated_at: '' },
-      { id: 2, company_id: 2, name: 'B', level: 0, employee_count: 0, status: 'active', created_at: '', updated_at: '' },
+      { id: 1, enterprise_id: 2, name: 'A', level: 0, employee_count: 0, status: 'active', created_at: '', updated_at: '' },
+      { id: 2, enterprise_id: 2, name: 'B', level: 0, employee_count: 0, status: 'active', created_at: '', updated_at: '' },
     ];
     mockedGet.mockResolvedValueOnce(departments);
 
@@ -34,7 +34,7 @@ describe('organizationService response parsing', () => {
 
   test('getDepartments handles {response: [...]} wrapper', async () => {
     const departments = [
-      { id: 10, company_id: 2, name: 'Root', level: 0, employee_count: 0, status: 'active', created_at: '', updated_at: '' },
+      { id: 10, enterprise_id: 2, name: 'Root', level: 0, employee_count: 0, status: 'active', created_at: '', updated_at: '' },
     ];
     mockedGet.mockResolvedValueOnce({ response: departments });
 
@@ -45,7 +45,7 @@ describe('organizationService response parsing', () => {
 
   test('getDepartments handles {success:true,data:[...]} wrapper', async () => {
     const departments = [
-      { id: 20, company_id: 2, name: 'Root2', level: 0, employee_count: 0, status: 'active', created_at: '', updated_at: '' },
+      { id: 20, enterprise_id: 2, name: 'Root2', level: 0, employee_count: 0, status: 'active', created_at: '', updated_at: '' },
     ];
     mockedGet.mockResolvedValueOnce({ success: true, data: departments });
 

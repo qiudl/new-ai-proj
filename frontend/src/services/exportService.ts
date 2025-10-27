@@ -21,7 +21,6 @@ export interface ExportData {
   selectedWeek: Dayjs;
   tasks: Task[];
   projects?: Project[];
-  customers?: any[];
   stats: {
     totalTasks: number;
     completedTasks: number;
@@ -32,7 +31,6 @@ export interface ExportData {
   };
   filters: {
     selectedProject?: number;
-    selectedCustomer?: number;
     selectedStatus: string;
     searchText: string;
   };
