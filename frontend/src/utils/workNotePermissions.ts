@@ -18,6 +18,7 @@ export interface UserInfo {
   id: number;
   userType?: string;
   role?: string;
+  isEnterpriseAdmin?: boolean;  // 是否为企业管理员（后端is_enterprise_admin函数判断）
 }
 
 /**
@@ -45,6 +46,23 @@ export interface FolderInfo {
  */
 export function isSystemAdmin(user: UserInfo): boolean {
   return user.userType === 'system' && user.role === 'admin';
+}
+
+/**
+ * 检查用户是否为企业管理员
+ * 企业管理员由后端is_enterprise_admin()函数判断
+ * 规则：access_level >= 4 OR can_make_decisions = true
+ *
+ * P0修复：使用登录响应中的is_enterprise_admin字段
+ */
+export function isEnterpriseAdmin(user: UserInfo): boolean {
+  // 优先使用后端返回的is_enterprise_admin字段
+  if (user.isEnterpriseAdmin !== undefined) {
+    return user.isEnterpriseAdmin;
+  }
+
+  // Fallback: 系统管理员总是企业管理员
+  return isSystemAdmin(user);
 }
 
 /**
@@ -215,12 +233,11 @@ export function canCommentNote(user: UserInfo, note: WorkNoteInfo): boolean {
  *
  * 规则:
  * - 私有目录: 所有登录用户可以创建
- * - 团队目录: 仅企业管理员可以创建 (前端保守检查为system admin，实际由后端判断enterprise_admin)
+ * - 团队目录: 仅企业管理员可以创建（使用后端is_enterprise_admin判断）
  * - 公开目录: 只有系统管理员可以创建
  *
- * 注意：Team文件夹的实际权限由后端 is_enterprise_admin() 函数判断
- * 前端采用保守策略，仅对 system admin 显示创建按钮
- * 企业管理员（非system admin）可能需要通过API直接操作
+ * P0修复：Team文件夹权限使用is_enterprise_admin字段判断
+ * 企业管理员（access_level >= 4 OR can_make_decisions = true）现在可以看到创建按钮
  */
 export function canCreateFolder(user: UserInfo, treeType: 'private' | 'team' | 'public'): boolean {
   if (!user || !user.id) {
@@ -231,8 +248,8 @@ export function canCreateFolder(user: UserInfo, treeType: 'private' | 'team' | '
     case 'private':
       return true;
     case 'team':
-      // 保守策略：仅system admin可见UI，实际权限由后端enterprise_admin判断
-      return isSystemAdmin(user);
+      // P0修复：使用isEnterpriseAdmin判断，而非isSystemAdmin
+      return isEnterpriseAdmin(user);
     case 'public':
       return isSystemAdmin(user);
     default:
@@ -245,8 +262,10 @@ export function canCreateFolder(user: UserInfo, treeType: 'private' | 'team' | '
  *
  * 规则:
  * - 私有目录: 只有创建者可以编辑
- * - 团队目录: 仅企业管理员可以编辑 (前端保守检查为system admin，实际由后端判断enterprise_admin)
+ * - 团队目录: 仅企业管理员可以编辑（使用后端is_enterprise_admin判断）
  * - 公开目录: 只有系统管理员可以编辑
+ *
+ * P0修复：Team文件夹权限使用is_enterprise_admin字段判断
  */
 export function canEditFolder(user: UserInfo, folder: FolderInfo): boolean {
   if (!user || !user.id) {
@@ -257,8 +276,8 @@ export function canEditFolder(user: UserInfo, folder: FolderInfo): boolean {
     case 'private':
       return isFolderCreator(user, folder);
     case 'team':
-      // 保守策略：仅system admin可见UI，实际权限由后端enterprise_admin判断
-      return isSystemAdmin(user);
+      // P0修复：使用isEnterpriseAdmin判断，而非isSystemAdmin
+      return isEnterpriseAdmin(user);
     case 'public':
       return isSystemAdmin(user);
     default:
@@ -271,8 +290,10 @@ export function canEditFolder(user: UserInfo, folder: FolderInfo): boolean {
  *
  * 规则:
  * - 私有目录: 只有创建者可以删除
- * - 团队目录: 仅企业管理员可以删除 (前端保守检查为system admin，实际由后端判断enterprise_admin)
+ * - 团队目录: 仅企业管理员可以删除（使用后端is_enterprise_admin判断）
  * - 公开目录: 只有系统管理员可以删除
+ *
+ * P0修复：Team文件夹权限使用is_enterprise_admin字段判断
  */
 export function canDeleteFolder(user: UserInfo, folder: FolderInfo): boolean {
   if (!user || !user.id) {
@@ -283,8 +304,8 @@ export function canDeleteFolder(user: UserInfo, folder: FolderInfo): boolean {
     case 'private':
       return isFolderCreator(user, folder);
     case 'team':
-      // 保守策略：仅system admin可见UI，实际权限由后端enterprise_admin判断
-      return isSystemAdmin(user);
+      // P0修复：使用isEnterpriseAdmin判断，而非isSystemAdmin
+      return isEnterpriseAdmin(user);
     case 'public':
       return isSystemAdmin(user);
     default:
@@ -297,8 +318,10 @@ export function canDeleteFolder(user: UserInfo, folder: FolderInfo): boolean {
  *
  * 规则:
  * - 私有目录: 只有创建者可以移动
- * - 团队目录: 仅企业管理员可以移动 (前端保守检查为system admin，实际由后端判断enterprise_admin)
+ * - 团队目录: 仅企业管理员可以移动（使用后端is_enterprise_admin判断）
  * - 公开目录: 只有系统管理员可以移动
+ *
+ * P0修复：Team文件夹权限使用is_enterprise_admin字段判断
  */
 export function canMoveFolder(user: UserInfo, folder: FolderInfo): boolean {
   if (!user || !user.id) {
@@ -309,8 +332,8 @@ export function canMoveFolder(user: UserInfo, folder: FolderInfo): boolean {
     case 'private':
       return isFolderCreator(user, folder);
     case 'team':
-      // 保守策略：仅system admin可见UI，实际权限由后端enterprise_admin判断
-      return isSystemAdmin(user);
+      // P0修复：使用isEnterpriseAdmin判断，而非isSystemAdmin
+      return isEnterpriseAdmin(user);
     case 'public':
       return isSystemAdmin(user);
     default:
@@ -319,10 +342,26 @@ export function canMoveFolder(user: UserInfo, folder: FolderInfo): boolean {
 }
 
 /**
- * 从JWT token中获取当前用户信息
+ * 从localStorage获取当前用户信息
+ *
+ * P0修复：优先从currentUser读取完整用户信息（包含is_enterprise_admin字段）
+ * Fallback到从JWT token payload解析基本信息
  */
 export function getCurrentUser(): UserInfo | null {
   try {
+    // P0修复：优先从localStorage的currentUser读取完整用户信息
+    const currentUserStr = localStorage.getItem('currentUser');
+    if (currentUserStr) {
+      const currentUser = JSON.parse(currentUserStr);
+      return {
+        id: currentUser.id,
+        userType: currentUser.user_type || currentUser.userType,
+        role: currentUser.role,
+        isEnterpriseAdmin: currentUser.is_enterprise_admin  // P0修复：使用后端返回的字段
+      };
+    }
+
+    // Fallback: 从JWT token解析基本信息
     const token = localStorage.getItem('token');
     if (!token) {
       return null;
@@ -333,10 +372,11 @@ export function getCurrentUser(): UserInfo | null {
     return {
       id: payload.user_id || payload.userId || 0,
       userType: payload.user_type || payload.userType,
-      role: payload.role
+      role: payload.role,
+      isEnterpriseAdmin: undefined  // token payload中没有此字段
     };
   } catch (error) {
-    console.error('[workNotePermissions] Failed to parse user from token:', error);
+    console.error('[workNotePermissions] Failed to parse user info:', error);
     return null;
   }
 }

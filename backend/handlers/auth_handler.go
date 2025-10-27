@@ -40,11 +40,12 @@ type LoginRequest struct {
 
 // JWTLoginResponse represents the JWT login response structure
 type JWTLoginResponse struct {
-	AccessToken  string      `json:"access_token"`
-	RefreshToken string      `json:"refresh_token"`
-	TokenType    string      `json:"token_type"`
-	ExpiresIn    int64       `json:"expires_in"`
-	User         models.User `json:"user"`
+	AccessToken        string      `json:"access_token"`
+	RefreshToken       string      `json:"refresh_token"`
+	TokenType          string      `json:"token_type"`
+	ExpiresIn          int64       `json:"expires_in"`
+	User               models.User `json:"user"`
+	IsEnterpriseAdmin  bool        `json:"is_enterprise_admin"`  // 是否为企业管理员
 }
 
 // Login godoc
@@ -99,12 +100,25 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	log.Printf("[DEBUG] TokenPair: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d",
 		tokenPair.AccessToken, tokenPair.RefreshToken, tokenPair.TokenType, tokenPair.ExpiresIn)
 
+	// Check if user is enterprise admin (P0 fix: frontend permission display)
+	isEnterpriseAdmin := false
+	var adminCheckErr error
+	query := `SELECT is_enterprise_admin($1)`
+	adminCheckErr = h.db.QueryRow(query, user.ID).Scan(&isEnterpriseAdmin)
+	if adminCheckErr != nil {
+		log.Printf("[WARN] Failed to check enterprise admin status for user %d: %v", user.ID, adminCheckErr)
+		// 不阻断登录流程，默认为false
+		isEnterpriseAdmin = false
+	}
+	log.Printf("[DEBUG] User %d (%s) is_enterprise_admin: %v", user.ID, user.Username, isEnterpriseAdmin)
+
 	response := JWTLoginResponse{
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
-		TokenType:    tokenPair.TokenType,
-		ExpiresIn:    tokenPair.ExpiresIn,
-		User:         *user,
+		AccessToken:       tokenPair.AccessToken,
+		RefreshToken:      tokenPair.RefreshToken,
+		TokenType:         tokenPair.TokenType,
+		ExpiresIn:         tokenPair.ExpiresIn,
+		User:              *user,
+		IsEnterpriseAdmin: isEnterpriseAdmin,
 	}
 
 	// Debug: Print the JWTLoginResponse structure
@@ -186,12 +200,25 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 	log.Printf("[DEBUG] DevLogin TokenPair: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d",
 		tokenPair.AccessToken, tokenPair.RefreshToken, tokenPair.TokenType, tokenPair.ExpiresIn)
 
+	// Check if user is enterprise admin (P0 fix: frontend permission display)
+	isEnterpriseAdmin := false
+	var adminCheckErr error
+	query := `SELECT is_enterprise_admin($1)`
+	adminCheckErr = h.db.QueryRow(query, user.ID).Scan(&isEnterpriseAdmin)
+	if adminCheckErr != nil {
+		log.Printf("[WARN] Failed to check enterprise admin status for dev user %d: %v", user.ID, adminCheckErr)
+		// 不阻断登录流程，默认为false
+		isEnterpriseAdmin = false
+	}
+	log.Printf("[DEBUG] Dev User %d (%s) is_enterprise_admin: %v", user.ID, user.Username, isEnterpriseAdmin)
+
 	response := JWTLoginResponse{
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
-		TokenType:    tokenPair.TokenType,
-		ExpiresIn:    tokenPair.ExpiresIn,
-		User:         *user,
+		AccessToken:       tokenPair.AccessToken,
+		RefreshToken:      tokenPair.RefreshToken,
+		TokenType:         tokenPair.TokenType,
+		ExpiresIn:         tokenPair.ExpiresIn,
+		User:              *user,
+		IsEnterpriseAdmin: isEnterpriseAdmin,
 	}
 
 	// Debug: Print the DevLogin JWTLoginResponse structure
