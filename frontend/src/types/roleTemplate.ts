@@ -96,7 +96,7 @@ export interface RoleTemplateUsage {
     id: number;
     role_code: string;
     role_name: string;
-    company_id: number;
+    enterprise_id: number;
   };
   applied_by_user?: {
     id: number;
