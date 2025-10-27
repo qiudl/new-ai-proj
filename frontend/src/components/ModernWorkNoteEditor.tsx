@@ -32,6 +32,8 @@ import {
   FolderOutlined
 } from '@ant-design/icons';
 import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest, WorkNoteFolder } from '../services/workNotesService';
+import { useWorkNotePermissions } from '../hooks/useWorkNotePermissions';
+import { WorkNoteInfo } from '../utils/workNotePermissions';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -63,6 +65,16 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
   const [folders, setFolders] = useState<WorkNoteFolder[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(false);
 
+  // 权限检查
+  const {
+    isSystemAdmin,
+    canEditNote,
+    canDeleteNote,
+    canPublishNote,
+    canCreateNote,
+    currentUser
+  } = useWorkNotePermissions();
+
   // 表单状态
   const [formData, setFormData] = useState({
     title: '',
@@ -74,6 +86,23 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
     type: 'markdown',
     folder_id: undefined as number | undefined
   });
+
+  // 计算当前笔记的权限状态
+  const notePermissions = note ? {
+    canEdit: canEditNote({
+      id: note.id,
+      creatorId: note.creator_id || 0,
+      visibility: note.visibility as 'private' | 'team' | 'public'
+    }),
+    canPublish: canPublishNote({
+      id: note.id,
+      creatorId: note.creator_id || 0,
+      visibility: note.visibility as 'private' | 'team' | 'public'
+    })
+  } : {
+    canEdit: true,
+    canPublish: true
+  };
 
   // 加载文件夹树
   useEffect(() => {
@@ -207,10 +236,30 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
   const handleSave = async (isAutoSave = false) => {
     try {
       setSaving(true);
-      
+
       const values = form.getFieldsValue();
       const tags = values.tags ? values.tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag) : [];
-      
+
+      // 权限检查
+      if (note) {
+        // 编辑现有笔记：检查编辑权限
+        if (!notePermissions.canEdit) {
+          message.error('您没有权限编辑此笔记');
+          return;
+        }
+      } else {
+        // 创建新笔记：检查创建权限
+        const visibility = values.visibility as 'private' | 'team' | 'public';
+        if (!canCreateNote(visibility)) {
+          if (visibility === 'public') {
+            message.error('只有系统管理员可以创建公开笔记');
+          } else {
+            message.error('您没有权限创建此类型的笔记');
+          }
+          return;
+        }
+      }
+
       if (note) {
         // 更新现有笔记
         const request: UpdateWorkNoteRequest = {
@@ -241,14 +290,14 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
 
         await workNotesService.createWorkNote(request);
       }
-      
+
       if (!isAutoSave) {
         message.success(note ? '笔记更新成功' : '笔记创建成功');
         onSave(values);
       } else {
         message.success('自动保存成功', 1);
       }
-      
+
       setUnsavedChanges(false);
     } catch (error: any) {
       message.error(error.message || '保存失败');
@@ -259,6 +308,22 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
 
   // 发布笔记
   const handlePublish = async () => {
+    // 权限检查
+    if (note && !notePermissions.canPublish) {
+      message.error('您没有权限发布此笔记');
+      return;
+    }
+
+    const visibility = form.getFieldValue('visibility') as 'private' | 'team' | 'public';
+    if (!note && !canCreateNote(visibility)) {
+      if (visibility === 'public') {
+        message.error('只有系统管理员可以发布公开笔记');
+      } else {
+        message.error('您没有权限发布此类型的笔记');
+      }
+      return;
+    }
+
     form.setFieldValue('status', 'published');
     setFormData(prev => ({ ...prev, status: 'published' }));
     await handleSave();
@@ -368,36 +433,53 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
             >
               预览
             </Button>
-            <Button
-              type="primary"
-              icon={<SaveOutlined />}
-              onClick={() => handleSave()}
-              loading={saving}
-            >
-              保存
-            </Button>
-            {formData.status === 'draft' && (
+            <Tooltip title={note && !notePermissions.canEdit ? "您没有权限编辑此笔记" : undefined}>
               <Button
                 type="primary"
-                icon={<SendOutlined />}
-                onClick={handlePublish}
+                icon={<SaveOutlined />}
+                onClick={() => handleSave()}
                 loading={saving}
-                style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                disabled={note && !notePermissions.canEdit}
               >
-                发布
+                保存
               </Button>
+            </Tooltip>
+            {formData.status === 'draft' && (
+              <Tooltip title={note && !notePermissions.canPublish ? "您没有权限发布此笔记" : undefined}>
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  onClick={handlePublish}
+                  loading={saving}
+                  disabled={note && !notePermissions.canPublish}
+                  style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                >
+                  发布
+                </Button>
+              </Tooltip>
             )}
           </Space>
         </div>
       }
     >
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {/* 权限提示 */}
+        {note && !notePermissions.canEdit && (
+          <Alert
+            message="只读模式"
+            description="您没有权限编辑此笔记。这可能是因为：1) 您不是笔记的创建者（私有笔记），或 2) 您不是系统管理员（公开笔记）。"
+            type="warning"
+            showIcon
+            style={{ margin: 16, marginBottom: 0 }}
+          />
+        )}
+
         {/* 将单一 Form 包裹设置 + 编辑区域，避免多实例或未绑定警告 */}
         <Form
           form={form}
           layout="vertical"
           onValuesChange={handleFormChange}
-          
+
           style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
           {/* 设置区域 */}
@@ -405,12 +487,15 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item name="title" label="标题" style={{ marginBottom: 8 }}>
-                  <Input placeholder="请输入笔记标题" />
+                  <Input
+                    placeholder="请输入笔记标题"
+                    disabled={note && !notePermissions.canEdit}
+                  />
                 </Form.Item>
               </Col>
               <Col span={6}>
                 <Form.Item name="status" label="状态" style={{ marginBottom: 8 }}>
-                  <Select>
+                  <Select disabled={note && !notePermissions.canEdit}>
                     <Option value="draft">草稿</Option>
                     <Option value="published">发布</Option>
                     <Option value="archived">归档</Option>
@@ -418,11 +503,18 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
                 </Form.Item>
               </Col>
               <Col span={6}>
-                <Form.Item name="visibility" label="可见性" style={{ marginBottom: 8 }}>
-                  <Select>
+                <Form.Item
+                  name="visibility"
+                  label="可见性"
+                  style={{ marginBottom: 8 }}
+                  tooltip={!isSystemAdmin ? "公开笔记只能由系统管理员创建" : undefined}
+                >
+                  <Select disabled={note && !notePermissions.canEdit}>
                     <Option value="private">私有</Option>
                     <Option value="team">团队</Option>
-                    <Option value="public">公开</Option>
+                    <Option value="public" disabled={!isSystemAdmin}>
+                      公开 {!isSystemAdmin && '(仅管理员)'}
+                    </Option>
                   </Select>
                 </Form.Item>
               </Col>
@@ -439,6 +531,7 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
                     allowClear
                     treeDefaultExpandAll
                     loading={foldersLoading}
+                    disabled={note && !notePermissions.canEdit}
                     treeData={buildFolderTreeData(folders)}
                     filterTreeNode={(input, node) =>
                       (node.title as string).toLowerCase().includes(input.toLowerCase())
@@ -448,12 +541,18 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
               </Col>
               <Col span={8}>
                 <Form.Item name="description" label="描述" style={{ marginBottom: 8 }}>
-                  <Input placeholder="简短描述（可选）" />
+                  <Input
+                    placeholder="简短描述（可选）"
+                    disabled={note && !notePermissions.canEdit}
+                  />
                 </Form.Item>
               </Col>
               <Col span={8}>
                 <Form.Item name="tags" label="标签" style={{ marginBottom: 8 }}>
-                  <Input placeholder="标签，用逗号分隔" />
+                  <Input
+                    placeholder="标签，用逗号分隔"
+                    disabled={note && !notePermissions.canEdit}
+                  />
                 </Form.Item>
               </Col>
             </Row>
@@ -466,8 +565,9 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
             ) : (
               <Form.Item name="content" style={{ marginBottom: 0 }}>
                 <TextArea
-                  placeholder="开始写作..."
-                  style={{ 
+                  placeholder={note && !notePermissions.canEdit ? "只读模式" : "开始写作..."}
+                  disabled={note && !notePermissions.canEdit}
+                  style={{
                     minHeight: fullscreen ? 'calc(100vh - 300px)' : '400px',
                     fontFamily: 'monospace',
                     fontSize: 14,

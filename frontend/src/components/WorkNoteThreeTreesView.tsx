@@ -25,6 +25,7 @@ import {
 } from '../services/workNotesService';
 import { useDebounce } from '../hooks/useDebounce';
 import FolderContextMenu, { FolderAction } from './FolderContextMenu';
+import { useWorkNotePermissions } from '../hooks/useWorkNotePermissions';
 
 const { Search } = Input;
 const { TabPane } = Tabs;
@@ -64,6 +65,9 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
   height = 'calc(100vh - 250px)',
   defaultTreeType = 'private',
 }) => {
+  // 权限检查
+  const { canCreateFolder, isSystemAdmin } = useWorkNotePermissions();
+
   // 当前激活的树类型
   const [activeTreeType, setActiveTreeType] = useState<TreeType>(defaultTreeType);
 
@@ -608,14 +612,24 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
               <span>
                 {`暂无${getTreeConfig(activeTreeType).name}`}
                 <br />
-                <Button
-                  type="link"
-                  size="small"
-                  icon={<PlusOutlined />}
-                  onClick={handleQuickCreateRoot}
-                >
-                  创建第一个文件夹
-                </Button>
+                {canCreateFolder(activeTreeType) ? (
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    onClick={handleQuickCreateRoot}
+                  >
+                    创建第一个文件夹
+                  </Button>
+                ) : (
+                  <span style={{ color: '#999', fontSize: 12 }}>
+                    {activeTreeType === 'public'
+                      ? '只有系统管理员可以创建公开文件夹'
+                      : activeTreeType === 'team'
+                      ? '只有系统管理员可以创建团队文件夹'
+                      : '您没有权限创建文件夹'}
+                  </span>
+                )}
               </span>
             }
             style={{ marginTop: 40 }}

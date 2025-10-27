@@ -7,8 +7,10 @@ import {
   InfoCircleOutlined,
   DragOutlined,
   FolderOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import { WorkNoteFolder } from '../services/workNotesService';
+import { useWorkNotePermissions } from '../hooks/useWorkNotePermissions';
 
 export type FolderAction =
   | 'create'      // 新建子文件夹
@@ -57,6 +59,15 @@ const FolderContextMenuComponent: React.FC<FolderContextMenuProps> = ({
   showShortcuts = true,
   showCreateOnly = false,
 }) => {
+  // 权限检查
+  const {
+    isSystemAdmin,
+    canCreateFolder,
+    canEditFolder,
+    canDeleteFolder,
+    canMoveFolder
+  } = useWorkNotePermissions();
+
   if (!position) {
     return null;
   }
@@ -129,39 +140,54 @@ const FolderContextMenuComponent: React.FC<FolderContextMenuProps> = ({
     return null;
   }
 
+  // 计算当前文件夹的权限
+  const folderInfo = {
+    id: folder.id,
+    creatorId: folder.owner_id,
+    treeType: folder.visibility as 'private' | 'team' | 'public'
+  };
+
+  const hasEditPermission = canEditFolder(folderInfo);
+  const hasDeletePermission = canDeleteFolder(folderInfo);
+  const hasMovePermission = canMoveFolder(folderInfo);
+  const hasCreatePermission = canCreateFolder(folder.visibility as 'private' | 'team' | 'public');
+
   const menuItems: MenuProps['items'] = [
     {
       key: 'create',
-      icon: <PlusOutlined />,
+      icon: hasCreatePermission ? <PlusOutlined /> : <LockOutlined />,
       label: (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: 160 }}>
-          <span>新建子文件夹</span>
-          {showShortcuts && <span style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>Ctrl+N</span>}
+          <span>{hasCreatePermission ? '新建子文件夹' : '新建子文件夹 (无权限)'}</span>
+          {showShortcuts && hasCreatePermission && <span style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>Ctrl+N</span>}
         </div>
       ),
-      onClick: () => handleAction('create'),
+      disabled: !hasCreatePermission,
+      onClick: () => hasCreatePermission && handleAction('create'),
     },
     {
       key: 'rename',
-      icon: <EditOutlined />,
+      icon: hasEditPermission ? <EditOutlined /> : <LockOutlined />,
       label: (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>重命名</span>
-          {showShortcuts && <span style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>F2</span>}
+          <span>{hasEditPermission ? '重命名' : '重命名 (无权限)'}</span>
+          {showShortcuts && hasEditPermission && <span style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>F2</span>}
         </div>
       ),
-      onClick: () => handleAction('rename'),
+      disabled: !hasEditPermission,
+      onClick: () => hasEditPermission && handleAction('rename'),
     },
     {
       key: 'move',
-      icon: <DragOutlined />,
+      icon: hasMovePermission ? <DragOutlined /> : <LockOutlined />,
       label: (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>移动</span>
-          {showShortcuts && <span style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>Ctrl+M</span>}
+          <span>{hasMovePermission ? '移动' : '移动 (无权限)'}</span>
+          {showShortcuts && hasMovePermission && <span style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>Ctrl+M</span>}
         </div>
       ),
-      onClick: () => handleAction('move'),
+      disabled: !hasMovePermission,
+      onClick: () => hasMovePermission && handleAction('move'),
     },
     { type: 'divider' },
     {
@@ -173,15 +199,16 @@ const FolderContextMenuComponent: React.FC<FolderContextMenuProps> = ({
     { type: 'divider' },
     {
       key: 'delete',
-      icon: <DeleteOutlined />,
+      icon: hasDeletePermission ? <DeleteOutlined /> : <LockOutlined />,
       label: (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>删除</span>
-          {showShortcuts && <span style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>Delete</span>}
+          <span>{hasDeletePermission ? '删除' : '删除 (无权限)'}</span>
+          {showShortcuts && hasDeletePermission && <span style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>Delete</span>}
         </div>
       ),
-      danger: true,
-      onClick: () => handleAction('delete'),
+      danger: hasDeletePermission,
+      disabled: !hasDeletePermission,
+      onClick: () => hasDeletePermission && handleAction('delete'),
     },
   ];
 
