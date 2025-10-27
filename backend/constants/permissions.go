@@ -151,3 +151,36 @@ func GetBasePermissionsByCategory(category string) []string {
 	copy(result, perms)
 	return result
 }
+
+// EnterpriseUserBasePermissions 企业用户基础权限
+// 企业用户除了拥有所有基础权限外，还应该拥有项目和任务的基础查看权限
+var EnterpriseUserBasePermissions = []string{
+	// 项目权限
+	"project.read",      // 查看项目
+	"project.list.read", // 查看项目列表
+	"enterprise.project.read", // 企业项目查看
+
+	// 任务权限
+	"task.read",      // 查看任务
+	"task.list.read", // 查看任务列表
+	"enterprise.task.read", // 企业任务查看
+}
+
+// GetEnterpriseUserPermissions 获取企业用户的所有权限
+// 包括基础权限 + 企业用户特有权限
+func GetEnterpriseUserPermissions() []string {
+	allPerms := make([]string, 0, len(BasePermissions)+len(EnterpriseUserBasePermissions))
+	allPerms = append(allPerms, BasePermissions...)
+	allPerms = append(allPerms, EnterpriseUserBasePermissions...)
+	return allPerms
+}
+
+// IsEnterpriseUserPermission 判断是否为企业用户基础权限
+func IsEnterpriseUserPermission(permission string) bool {
+	for _, perm := range EnterpriseUserBasePermissions {
+		if perm == permission {
+			return true
+		}
+	}
+	return false
+}

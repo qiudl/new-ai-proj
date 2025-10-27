@@ -298,6 +298,19 @@ func (m *RolePermissionMiddleware) getRoleContext(ctx context.Context, c *gin.Co
 		}
 	}
 
+	// 为企业用户添加企业基础权限（项目和任务查看）
+	// 检查用户类型，如果是enterprise类型，添加企业用户基础权限
+	if userType, exists := c.Get("user_type"); exists {
+		if ut, ok := userType.(string); ok && ut == "enterprise" {
+			enterprisePerms := constants.EnterpriseUserBasePermissions
+			for _, entPerm := range enterprisePerms {
+				if !contains(roleCtx.Permissions, entPerm) {
+					roleCtx.Permissions = append(roleCtx.Permissions, entPerm)
+				}
+			}
+		}
+	}
+
 	// 缓存结果
 	if m.cache != nil {
 		m.cache.Set(cacheKey, roleCtx, m.cacheTTL)
