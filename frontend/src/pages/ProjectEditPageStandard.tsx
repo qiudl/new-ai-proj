@@ -1488,11 +1488,21 @@ const ProjectEditPageNew: React.FC = () => {
                         <Button
                           type="dashed"
                           icon={<PlusOutlined />}
-                          
+                          disabled={selectedEnterprise ? false : selectedCompanies.length === 0}
                           onClick={() => {
-                            if (selectedCompanies.length === 1) {
-                              handleAddUserForCompany(selectedCompanies[0]);
-                            } else {
+                            // 优先使用新架构的企业选择
+                            if (selectedEnterprise) {
+                              // 跳转到企业用户管理页面
+                              window.open(`/enterprises/${selectedEnterprise}/users`, '_blank');
+                              message.info('请在企业用户管理页面添加用户，添加后刷新本页面即可选择新用户');
+                            } else if (selectedCompanies.length === 1) {
+                              // 传统模式：单个企业
+                              window.open(`/enterprises/${selectedCompanies[0]}/users`, '_blank');
+                              message.info('请在企业用户管理页面添加用户，添加后刷新本页面即可选择新用户');
+                            } else if (selectedCompanies.length > 1) {
+                              // 传统模式：多个企业，弹窗选择
+                              let selectedCompanyId: number | null = null;
+
                               Modal.confirm({
                                 title: '选择企业',
                                 content: (
@@ -1502,25 +1512,33 @@ const ProjectEditPageNew: React.FC = () => {
                                       style={{ width: '100%' }}
                                       placeholder="选择企业"
                                       onChange={(companyId) => {
-                                        Modal.destroyAll();
-                                        handleAddUserForCompany(companyId);
+                                        selectedCompanyId = companyId;
                                       }}
                                     >
                                       {selectedCompanies.map(companyId => {
-                                        const company = Array.isArray(companies) 
+                                        const company = Array.isArray(companies)
                                           ? companies.find(c => c.id === companyId)
                                           : null;
                                         return (
                                           <Option key={companyId} value={companyId}>
-                                            {company?.companyName}
+                                            {company?.companyName || `企业${companyId}`}
                                           </Option>
                                         );
                                       })}
                                     </Select>
                                   </div>
                                 ),
-                                okText: '取消',
-                                cancelButtonProps: { style: { display: 'none' } }
+                                okText: '前往添加',
+                                cancelText: '取消',
+                                onOk: () => {
+                                  if (selectedCompanyId) {
+                                    window.open(`/enterprises/${selectedCompanyId}/users`, '_blank');
+                                    message.info('请在企业用户管理页面添加用户，添加后刷新本页面即可选择新用户');
+                                  } else {
+                                    message.warning('请先选择一个企业');
+                                    return Promise.reject();
+                                  }
+                                }
                               });
                             }
                           }}
@@ -1538,9 +1556,9 @@ const ProjectEditPageNew: React.FC = () => {
                         <div>
                           所选择的企业中还没有用户，您可以：
                           <br />
-                          1. 点击上方"添加企业用户"按钮为企业添加用户
+                          1. 点击下方"立即添加"按钮跳转到企业用户管理页面添加用户
                           <br />
-                          2. 或者先去企业详情页管理企业用户
+                          2. 添加用户后，返回本页面刷新即可选择新添加的用户
                         </div>
                       }
                       type="warning"
@@ -1549,13 +1567,17 @@ const ProjectEditPageNew: React.FC = () => {
                       action={
                         <Button
                           type="primary"
-                          
                           icon={<PlusOutlined />}
                           onClick={() => {
-                            if (selectedCompanies.length === 1) {
-                              handleAddUserForCompany(selectedCompanies[0]);
+                            // 优先使用新架构的企业选择
+                            if (selectedEnterprise) {
+                              window.open(`/enterprises/${selectedEnterprise}/users`, '_blank');
+                              message.info('请在企业用户管理页面添加用户，添加后刷新本页面即可选择新用户');
+                            } else if (selectedCompanies.length === 1) {
+                              window.open(`/enterprises/${selectedCompanies[0]}/users`, '_blank');
+                              message.info('请在企业用户管理页面添加用户，添加后刷新本页面即可选择新用户');
                             } else {
-                              message.info('请先选择单个企业再添加用户');
+                              message.warning('请先选择企业');
                             }
                           }}
                         >
