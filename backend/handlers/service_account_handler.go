@@ -93,11 +93,14 @@ func (h *ServiceAccountHandler) GenerateServiceToken(c *gin.Context) {
 	}
 
 	// 生成长效Token Pair（使用更长的有效期）
+	// 服务账号通常不需要enterprise信息，传nil
 	tokenPair, err := h.tokenService.GenerateTokenPair(
 		user.ID,
 		user.Username,
 		user.Role,
 		user.UserType,
+		nil, // service account没有enterprise_user_id
+		nil, // service account没有enterprise_id
 	)
 	if err != nil {
 		log.Printf("[SERVICE_ACCOUNT] Failed to generate token pair: %v", err)

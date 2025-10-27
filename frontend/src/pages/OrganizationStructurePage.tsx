@@ -55,7 +55,7 @@ const OrganizationStructurePage: React.FC = () => {
   
   // 使用当前用户的企业ID，如果是企业用户的话，否则使用默认企业ID
   const currentUser = getCurrentUser();
-  const selectedCompanyId = currentUser?.company_id || 2;
+  const selectedEnterpriseId = currentUser?.enterprise_id || 2;
   const [departmentStats, setDepartmentStats] = useState({
     totalDepartments: 0,
     totalEmployees: 0,
@@ -80,8 +80,8 @@ const OrganizationStructurePage: React.FC = () => {
         console.log('✅ Enterprise API返回扁平数据:', flatData.length, '个，转换为树形数据:', departmentsData);
       } else {
         // 使用旧的Company API作为兜底
-        console.log('🔄 使用Company API加载部门，企业ID:', selectedCompanyId);
-        const result = await organizationService.getDepartments(selectedCompanyId);
+        console.log('🔄 使用Company API加载部门，企业ID:', selectedEnterpriseId);
+        const result = await organizationService.getDepartments(selectedEnterpriseId);
         departmentsData = Array.isArray(result) ? result : [];
         console.log('✅ Company API返回树形数据:', departmentsData);
       }
@@ -153,7 +153,7 @@ const OrganizationStructurePage: React.FC = () => {
         setDepartmentStats(stats);
       } else {
         // 使用旧的Company API
-        const stats = await organizationService.getDepartmentStats(selectedCompanyId);
+        const stats = await organizationService.getDepartmentStats(selectedEnterpriseId);
         
         if (stats && typeof stats === 'object') {
           setDepartmentStats({
@@ -246,7 +246,7 @@ const OrganizationStructurePage: React.FC = () => {
     };
     
     initializeAuth();
-  }, [selectedCompanyId, enterpriseIdNum]);
+  }, [selectedEnterpriseId, enterpriseIdNum]);
 
 
   // 处理部门选择
@@ -385,7 +385,7 @@ const OrganizationStructurePage: React.FC = () => {
             description: values.description,
             status: values.status
           };
-          await organizationService.updateDepartment(editingDepartment.id, updateData, selectedCompanyId);
+          await organizationService.updateDepartment(editingDepartment.id, updateData, selectedEnterpriseId);
           message.success('部门更新成功');
         }
       } else {
@@ -408,7 +408,7 @@ const OrganizationStructurePage: React.FC = () => {
             description: values.description,
             status: values.status || 'active'
           };
-          await organizationService.createDepartment(createData, selectedCompanyId);
+          await organizationService.createDepartment(createData, selectedEnterpriseId);
           message.success('部门创建成功');
         }
       }
@@ -442,7 +442,7 @@ const OrganizationStructurePage: React.FC = () => {
             await enterpriseService.deleteEnterpriseDepartment(enterpriseIdNum, department.id);
           } else {
             // 使用Company API删除部门
-            await organizationService.deleteDepartment(department.id, selectedCompanyId);
+            await organizationService.deleteDepartment(department.id, selectedEnterpriseId);
           }
           message.success('部门删除成功');
           loadDepartments();

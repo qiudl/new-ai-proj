@@ -48,10 +48,8 @@ interface User {
   display_name: string;
   is_active: boolean;
   user_type: 'system' | 'enterprise';
-  company_id?: number; // Legacy field
-  enterprise_id?: number; // New enterprise system field
-  company_name?: string; // Legacy field
-  enterprise_name?: string; // New enterprise name field
+  enterprise_id?: number;
+  enterprise_name?: string;
   created_at: string;
 }
 

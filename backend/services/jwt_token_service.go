@@ -96,11 +96,11 @@ func NewJWTTokenService(config *JWTServiceConfig, logger *log.Logger) *JWTTokenS
 }
 
 // GenerateTokenPair 生成令牌对
-func (s *JWTTokenService) GenerateTokenPair(userID int, username, role, userType string) (*TokenPair, error) {
+func (s *JWTTokenService) GenerateTokenPair(userID int, username, role, userType string, enterpriseUserID *int, enterpriseID *int) (*TokenPair, error) {
 	now := time.Now()
 
 	// 生成访问令牌
-	accessToken, err := s.jwtManager.GenerateToken(userID, username, role, userType)
+	accessToken, err := s.jwtManager.GenerateToken(userID, username, role, userType, enterpriseUserID, enterpriseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %v", err)
 	}
@@ -165,12 +165,15 @@ func (s *JWTTokenService) RefreshTokens(refreshTokenString string) (*TokenPair, 
 		s.addToBlacklist(refreshClaims.JTI, refreshClaims.ExpiresAt.Time, "token_refreshed")
 	}
 
-	// 生成新的令牌对
+	// 生成新的令牌对 (注意: refresh token没有enterprise信息,需要从数据库重新查询)
+	// TODO: 未来可以考虑在refresh token中也存储enterprise信息
 	newTokenPair, err := s.GenerateTokenPair(
 		refreshClaims.UserID,
 		refreshClaims.Username,
 		refreshClaims.Role,
 		refreshClaims.UserType,
+		nil, // 刷新时暂不包含enterprise_user_id
+		nil, // 刷新时暂不包含enterprise_id
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate new token pair: %v", err)

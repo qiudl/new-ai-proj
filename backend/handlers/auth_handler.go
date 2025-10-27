@@ -88,8 +88,31 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Query enterprise info for enterprise users
+	var enterpriseUserID *int
+	var enterpriseID *int
+	if user.UserType == "enterprise" {
+		var euID, eID int
+		query := `
+			SELECT eu.id, eu.enterprise_id
+			FROM enterprise_users eu
+			WHERE eu.user_id = $1 AND eu.deleted_at IS NULL
+			LIMIT 1
+		`
+		err := h.db.QueryRow(query, user.ID).Scan(&euID, &eID)
+		if err != nil {
+			log.Printf("[WARN] Failed to query enterprise info for user %d: %v", user.ID, err)
+			// 不阻断登录,但记录警告
+		} else {
+			enterpriseUserID = &euID
+			enterpriseID = &eID
+			log.Printf("[DEBUG] User %d (%s) enterprise_user_id=%d, enterprise_id=%d",
+				user.ID, user.Username, euID, eID)
+		}
+	}
+
 	// Generate JWT token pair
-	tokenPair, err := h.tokenService.GenerateTokenPair(user.ID, user.Username, user.Role, user.UserType)
+	tokenPair, err := h.tokenService.GenerateTokenPair(user.ID, user.Username, user.Role, user.UserType, enterpriseUserID, enterpriseID)
 	if err != nil {
 		log.Printf("Error generating JWT token pair: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("INTERNAL_ERROR", "登录失败", nil))
@@ -188,8 +211,30 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 		}
 	}
 
+	// Query enterprise info for enterprise users
+	var enterpriseUserID *int
+	var enterpriseID *int
+	if user.UserType == "enterprise" {
+		var euID, eID int
+		query := `
+			SELECT eu.id, eu.enterprise_id
+			FROM enterprise_users eu
+			WHERE eu.user_id = $1 AND eu.deleted_at IS NULL
+			LIMIT 1
+		`
+		err := h.db.QueryRow(query, user.ID).Scan(&euID, &eID)
+		if err != nil {
+			log.Printf("[WARN] DevLogin: Failed to query enterprise info for user %d: %v", user.ID, err)
+		} else {
+			enterpriseUserID = &euID
+			enterpriseID = &eID
+			log.Printf("[DEBUG] DevLogin: User %d (%s) enterprise_user_id=%d, enterprise_id=%d",
+				user.ID, user.Username, euID, eID)
+		}
+	}
+
 	// Generate JWT token pair without password verification (development only)
-	tokenPair, err := h.tokenService.GenerateTokenPair(user.ID, user.Username, user.Role, user.UserType)
+	tokenPair, err := h.tokenService.GenerateTokenPair(user.ID, user.Username, user.Role, user.UserType, enterpriseUserID, enterpriseID)
 	if err != nil {
 		log.Printf("Error generating JWT token pair for dev login: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("INTERNAL_ERROR", "登录失败", nil))

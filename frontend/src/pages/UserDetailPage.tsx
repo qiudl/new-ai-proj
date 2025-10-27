@@ -400,9 +400,9 @@ const UserDetailPage: React.FC = () => {
                 <>
                   <Row gutter={16}>
                     <Col span={8}>
-                      <Statistic 
-                        title="企业ID" 
-                        value={user.enterprise_id || user.company_id || '-'} 
+                      <Statistic
+                        title="企业ID"
+                        value={user.enterprise_id || '-'}
                         prefix={<BankOutlined />}
                       />
                     </Col>

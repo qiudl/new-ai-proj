@@ -12,10 +12,12 @@ import (
 
 // JWTClaims represents the JWT claims
 type JWTClaims struct {
-	UserID   int    `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
-	UserType string `json:"user_type"`
+	UserID           int    `json:"user_id"`
+	Username         string `json:"username"`
+	Role             string `json:"role"`
+	UserType         string `json:"user_type"`
+	EnterpriseUserID *int   `json:"enterprise_user_id,omitempty"` // 企业用户ID (对于enterprise类型用户)
+	EnterpriseID     *int   `json:"enterprise_id,omitempty"`      // 企业ID (对于enterprise类型用户)
 	jwt.RegisteredClaims
 }
 
@@ -34,7 +36,8 @@ func NewJWTManager(secretKey string, expiration time.Duration) *JWTManager {
 }
 
 // GenerateToken generates a new JWT token
-func (m *JWTManager) GenerateToken(userID int, username, role, userType string) (string, error) {
+// For backward compatibility, enterprise fields are optional
+func (m *JWTManager) GenerateToken(userID int, username, role, userType string, enterpriseUserID *int, enterpriseID *int) (string, error) {
 	// Generate a unique JWT ID
 	jti, err := generateJTI()
 	if err != nil {
@@ -42,10 +45,12 @@ func (m *JWTManager) GenerateToken(userID int, username, role, userType string) 
 	}
 
 	claims := &JWTClaims{
-		UserID:   userID,
-		Username: username,
-		Role:     role,
-		UserType: userType,
+		UserID:           userID,
+		Username:         username,
+		Role:             role,
+		UserType:         userType,
+		EnterpriseUserID: enterpriseUserID,
+		EnterpriseID:     enterpriseID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti, // JWT ID
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.expiration)),
@@ -60,12 +65,14 @@ func (m *JWTManager) GenerateToken(userID int, username, role, userType string) 
 }
 
 // GenerateTokenWithJTI generates a new JWT token with specified JTI
-func (m *JWTManager) GenerateTokenWithJTI(userID int, username, role, userType, jti string) (string, error) {
+func (m *JWTManager) GenerateTokenWithJTI(userID int, username, role, userType, jti string, enterpriseUserID *int, enterpriseID *int) (string, error) {
 	claims := &JWTClaims{
-		UserID:   userID,
-		Username: username,
-		Role:     role,
-		UserType: userType,
+		UserID:           userID,
+		Username:         username,
+		Role:             role,
+		UserType:         userType,
+		EnterpriseUserID: enterpriseUserID,
+		EnterpriseID:     enterpriseID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.expiration)),
@@ -128,8 +135,8 @@ func (m *JWTManager) RefreshToken(tokenString string) (string, error) {
 		return "", err
 	}
 
-	// Generate new token with the same user info but new JTI
-	return m.GenerateToken(claims.UserID, claims.Username, claims.Role, claims.UserType)
+	// Generate new token with the same user info (including enterprise info) but new JTI
+	return m.GenerateToken(claims.UserID, claims.Username, claims.Role, claims.UserType, claims.EnterpriseUserID, claims.EnterpriseID)
 }
 
 // ExtractTokenInfo extracts basic token information without full validation

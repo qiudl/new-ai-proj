@@ -81,7 +81,7 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
   // 根据用户信息获取企业
   const getUserEnterprise = async (user: User): Promise<Enterprise | null> => {
     try {
-      const enterpriseId = user.enterprise_id || user.company_id;
+      const enterpriseId = user.enterprise_id;
       if (!enterpriseId) {
         return null;
       }

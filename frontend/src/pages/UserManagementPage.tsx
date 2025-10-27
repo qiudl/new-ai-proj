@@ -497,7 +497,7 @@ const UserManagementPage: React.FC = () => {
       username: user.username,
       email: user.email,
       user_type: user.user_type,
-      company_id: user.company_id,
+      enterprise_id: user.enterprise_id,
       role: user.role,
       status: user.status,
       profile: user.profile
@@ -585,22 +585,22 @@ const UserManagementPage: React.FC = () => {
     company_dept: {
       title: '企业/部门',
       key: 'company_dept',
-      dataIndex: 'company_id',
+      dataIndex: 'enterprise_id',
       width: 140,
       sorter: true,
-      sortOrder: sortField === 'company_id' ? sortOrder : null,
+      sortOrder: sortField === 'enterprise_id' ? sortOrder : null,
       render: (_, user) => {
         // 优先使用新的企业系统数据
-        const companyInfo = user.user_type === 'company' && user.company_id ? 
+        const companyInfo = user.user_type === 'company' && user.enterprise_id ? 
           (() => {
             // 先从 enterprises 中查找
-            const enterprise = enterprises.find(e => e.id === user.company_id);
+            const enterprise = enterprises.find(e => e.id === user.enterprise_id);
             if (enterprise) {
               return enterprise.name;
             }
             // 再从 companies 中查找（向后兼容）
-            const company = companies.find(c => c.id === user.company_id);
-            return company ? company.name : `企业${user.company_id}`;
+            const company = companies.find(c => c.id === user.enterprise_id);
+            return company ? company.name : `企业${user.enterprise_id}`;
           })() : 
           (user.user_type === 'system' ? '系统用户' : '未关联');
         
@@ -1183,7 +1183,7 @@ const UserManagementPage: React.FC = () => {
               const userType = getFieldValue('user_type');
               return userType === 'company' ? (
                 <Form.Item
-                  name="company_id"
+                  name="enterprise_id"
                   label="所属企业"
                   rules={[{ required: true, message: '请选择所属企业' }]}
                 >
@@ -1193,13 +1193,13 @@ const UserManagementPage: React.FC = () => {
                       // 保持兼容性，同时支持新旧字段
                       if (createModalVisible) {
                         createForm.setFieldsValue({
-                          company_id: value,
+                          enterprise_id: value,
                           enterprise_id: value
                         });
                       }
                       if (editModalVisible) {
                         editForm.setFieldsValue({
-                          company_id: value,
+                          enterprise_id: value,
                           enterprise_id: value
                         });
                       }
@@ -1361,7 +1361,7 @@ const UserManagementPage: React.FC = () => {
               const userType = getFieldValue('user_type');
               return userType === 'company' ? (
                 <Form.Item
-                  name="company_id"
+                  name="enterprise_id"
                   label="所属企业"
                   rules={[{ required: true, message: '请选择所属企业' }]}
                 >
@@ -1371,13 +1371,13 @@ const UserManagementPage: React.FC = () => {
                       // 保持兼容性，同时支持新旧字段
                       if (createModalVisible) {
                         createForm.setFieldsValue({
-                          company_id: value,
+                          enterprise_id: value,
                           enterprise_id: value
                         });
                       }
                       if (editModalVisible) {
                         editForm.setFieldsValue({
-                          company_id: value,
+                          enterprise_id: value,
                           enterprise_id: value
                         });
                       }
