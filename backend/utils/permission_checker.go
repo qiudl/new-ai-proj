@@ -184,3 +184,113 @@ func CheckFolderTreePermission(c *gin.Context, treeType string, creatorID int64,
 	}
 	return nil
 }
+
+// =====================================
+// 工作笔记评论权限检查函数
+// =====================================
+
+// CanCommentNote 检查是否可以评论笔记
+// visibility: "private", "team", "public"
+// creatorID: 笔记创建者ID
+//
+// 权限规则：
+// - Private: 只有创建者可以评论（可以给自己的笔记添加评论/备注）
+// - Team: 所有登录用户可以评论
+// - Public: 所有登录用户可以评论
+func CanCommentNote(c *gin.Context, visibility string, creatorID int64) error {
+	userID, exists := GetUserID(c)
+	if !exists {
+		return errors.New("请先登录")
+	}
+
+	switch visibility {
+	case "private":
+		// 私有笔记只有创建者可以评论
+		if userID != creatorID {
+			return errors.New("只有笔记创建者可以评论私有笔记")
+		}
+	case "team":
+		// 团队笔记所有登录用户可以评论
+		// TODO: 未来可以实现团队成员验证
+		// 当前允许所有登录用户评论
+	case "public":
+		// 公开笔记所有登录用户可以评论
+		if !CanCommentPublicNote(c) {
+			return errors.New("请先登录")
+		}
+	default:
+		return errors.New("无效的可见性设置")
+	}
+	return nil
+}
+
+// CanDeleteNoteComment 检查是否可以删除笔记评论
+// commentAuthorID: 评论作者ID
+//
+// 权限规则：
+// - 系统管理员可以删除任何评论（用于内容审核）
+// - 评论作者可以删除自己的评论
+func CanDeleteNoteComment(c *gin.Context, commentAuthorID int64) bool {
+	userID, exists := GetUserID(c)
+	if !exists {
+		return false
+	}
+
+	// 系统管理员可以删除任何评论
+	if IsSystemAdmin(c) {
+		return true
+	}
+
+	// 评论作者可以删除自己的评论
+	return userID == commentAuthorID
+}
+
+// CanEditNoteComment 检查是否可以编辑笔记评论
+// commentAuthorID: 评论作者ID
+//
+// 权限规则：
+// - 只有评论作者可以编辑自己的评论
+// - 系统管理员也不能编辑他人的评论（保护评论完整性）
+func CanEditNoteComment(c *gin.Context, commentAuthorID int64) bool {
+	userID, exists := GetUserID(c)
+	if !exists {
+		return false
+	}
+
+	// 只有评论作者可以编辑自己的评论
+	return userID == commentAuthorID
+}
+
+// CheckNoteCommentPermission 检查笔记评论的综合权限
+// operation: "view", "create", "edit", "delete"
+// noteVisibility: 笔记的可见性 "private", "team", "public"
+// noteCreatorID: 笔记创建者ID
+// commentAuthorID: 评论作者ID（仅用于edit和delete操作）
+func CheckNoteCommentPermission(c *gin.Context, operation string, noteVisibility string, noteCreatorID int64, commentAuthorID int64) error {
+	switch operation {
+	case "view":
+		// 查看评论的权限与查看笔记的权限一致
+		return CheckNoteVisibilityPermission(c, noteVisibility, noteCreatorID)
+
+	case "create":
+		// 创建评论需要检查评论权限
+		return CanCommentNote(c, noteVisibility, noteCreatorID)
+
+	case "edit":
+		// 编辑评论需要是评论作者
+		if !CanEditNoteComment(c, commentAuthorID) {
+			return errors.New("只有评论作者可以编辑评论")
+		}
+		return nil
+
+	case "delete":
+		// 删除评论需要是评论作者或系统管理员
+		if !CanDeleteNoteComment(c, commentAuthorID) {
+			return errors.New("无权删除此评论")
+		}
+		return nil
+
+	default:
+		return errors.New("无效的操作类型")
+	}
+}
