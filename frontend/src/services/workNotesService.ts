@@ -563,18 +563,10 @@ class WorkNotesService {
 
       return response.data.data.tasks || [];
     } catch (error: any) {
-      // 静默记录错误，返回模拟数据作为降级处理
+      // 静默记录错误，返回空数组
+      console.warn(`[workNotesService] Failed to get associated tasks for note ${noteId}:`, error.message);
       ErrorHandler.silent(error);
-
-      return Math.random() > 0.6 ? [
-        {
-          id: Math.floor(Math.random() * 1000),
-          title: '示例任务',
-          status: 'in_progress',
-          project_id: 1,
-          project_name: '示例项目'
-        }
-      ] : [];
+      return [];
     }
   }
 

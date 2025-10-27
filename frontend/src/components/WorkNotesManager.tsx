@@ -46,11 +46,13 @@ import {
   LockOutlined,
   TeamOutlined,
   GlobalOutlined,
-  FolderOutlined
+  FolderOutlined,
+  LinkOutlined
 } from '@ant-design/icons';
 import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest, WorkNoteFolder } from '../services/workNotesService';
 import WorkNoteConversionModal from './conversion/WorkNoteConversionModal';
 import ModernWorkNoteViewer from './ModernWorkNoteViewer';
+import TaskAssociationManager from './TaskAssociationManager';
 import { WORK_NOTE_TYPES, WORK_NOTE_PRIORITIES, getWorkNoteTypeConfig, getWorkNotePriorityConfig } from '../constants/workNoteTypes';
 import WorkNotesStatsCards from './WorkNotesStatsCards';
 import WorkNotesLayout from './WorkNotesLayout';
@@ -195,7 +197,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [modernViewerVisible, setModernViewerVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [conversionModalVisible, setConversionModalVisible] = useState(false);
+  const [associationModalVisible, setAssociationModalVisible] = useState(false);
   const [currentWorkNote, setCurrentWorkNote] = useState<WorkNote | null>(null);
+  const [currentNoteIdForAssociation, setCurrentNoteIdForAssociation] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [editForm] = Form.useForm();
@@ -602,20 +606,11 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       );
       clearTimeout(timeoutId);
 
-      // 模拟添加关联任务数据
+      // 转换为WorkNoteWithTask格式，关联任务采用懒加载（用户点击时才加载）
       const notesWithTasks: WorkNoteWithTask[] = data.documents.map(note => ({
         ...note,
-        associatedTasks: Math.random() > 0.6 ? [
-          {
-            id: Math.floor(Math.random() * 1000),
-            title: '示例任务',
-            status: 'in_progress',
-            project_id: 1,
-            project_name: '示例项目'
-          }
-        ] : undefined,
+        associatedTasks: undefined, // 懒加载，点击时获取
         categoryIcon: '📝'
-        // Removed hardcoded categoryName: '前端开发'
       }));
 
       setWorkNotes(notesWithTasks);
@@ -936,6 +931,18 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const handleConversionSuccess = (result: any) => {
     message.success('转换成功！任务文档已创建');
     setConversionModalVisible(false);
+    loadWorkNotes();
+  };
+
+  // 打开任务关联管理对话框
+  const openAssociationModal = (noteId: number) => {
+    setCurrentNoteIdForAssociation(noteId);
+    setAssociationModalVisible(true);
+  };
+
+  // 关联变更回调
+  const handleAssociationChange = () => {
+    // 刷新笔记列表以更新关联状态
     loadWorkNotes();
   };
 
@@ -1490,15 +1497,26 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         const hasAssociation = record.associatedTasks && record.associatedTasks.length > 0;
         return (
           <div style={{ textAlign: 'center' }}>
-            {hasAssociation ? (
-              <Tooltip title={`已关联 ${record.associatedTasks!.length} 个任务`}>
-                <Badge count={record.associatedTasks!.length} style={{ backgroundColor: '#52c41a' }}>
-                  🔗
-                </Badge>
-              </Tooltip>
-            ) : (
-              <span style={{ color: '#d9d9d9', fontSize: 16 }}>○</span>
-            )}
+            <Tooltip title="点击管理关联任务">
+              <Button
+                type="text"
+                size="small"
+                icon={<LinkOutlined />}
+                onClick={() => openAssociationModal(record.id)}
+                style={{
+                  color: hasAssociation ? '#52c41a' : '#d9d9d9',
+                  fontSize: 14
+                }}
+              >
+                {hasAssociation && (
+                  <Badge
+                    count={record.associatedTasks!.length}
+                    style={{ backgroundColor: '#52c41a', fontSize: 10 }}
+                    offset={[10, -5]}
+                  />
+                )}
+              </Button>
+            </Tooltip>
           </div>
         );
       },
@@ -2124,6 +2142,19 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         }}
         onConversionSuccess={handleConversionSuccess}
       />
+
+      {/* 任务关联管理对话框 */}
+      {currentNoteIdForAssociation && (
+        <TaskAssociationManager
+          visible={associationModalVisible}
+          noteId={currentNoteIdForAssociation}
+          onClose={() => {
+            setAssociationModalVisible(false);
+            setCurrentNoteIdForAssociation(null);
+          }}
+          onAssociationChange={handleAssociationChange}
+        />
+      )}
 
       {/* 快速创建对话框 */}
       <Modal
