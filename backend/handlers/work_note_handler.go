@@ -30,6 +30,7 @@ type WorkNoteHandler struct {
 	jwtManager              *utils.JWTManager
 	documentRouter          *services.DocumentRouter
 	db                      database.DB // 添加数据库连接
+	permissionService       *services.WorkNotePermissionService
 }
 
 // NewWorkNoteHandler 创建工作笔记处理器
@@ -47,11 +48,12 @@ func NewWorkNoteHandler(workNoteService services.WorkNoteServiceInterface, jwtMa
 	}
 
 	return &WorkNoteHandler{
-		workNoteService: workNoteService,
-		relationService: relationService,
-		jwtManager:      jwtManager,
-		documentRouter:  nil, // 将在需要时注入
-		db:              db,
+		workNoteService:   workNoteService,
+		relationService:   relationService,
+		jwtManager:        jwtManager,
+		documentRouter:    nil, // 将在需要时注入
+		db:                db,
+		permissionService: services.NewWorkNotePermissionService(db),
 	}
 }
 
@@ -80,6 +82,7 @@ func NewWorkNoteHandlerFromDB(db database.DB) *WorkNoteHandler {
 // @Success 201 {object} models.WorkNote
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/work-notes [post]
 func (h *WorkNoteHandler) CreateWorkNote(c *gin.Context) {
@@ -93,6 +96,46 @@ func (h *WorkNoteHandler) CreateWorkNote(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
+		return
+	}
+
+	// 权限检查：根据笔记可见性类型进行权限检查
+	log.Printf("[CREATE WORK NOTE] Checking visibility: req.Visibility=%v", req.Visibility)
+
+	switch req.Visibility {
+	case models.VisibilityPublic:
+		// Public笔记：需要public权限
+		log.Printf("[CREATE WORK NOTE] Visibility is public, checking permissions...")
+		if err := utils.CheckPublicNotePermission(c, "create"); err != nil {
+			log.Printf("[CREATE WORK NOTE] Public permission check failed: %v", err)
+			c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "Permission denied", err.Error()))
+			return
+		}
+		log.Printf("[CREATE WORK NOTE] Public permission check passed")
+
+	case models.VisibilityTeam:
+		// Team笔记：需要是活跃企业成员
+		log.Printf("[CREATE WORK NOTE] Visibility is team, checking enterprise member permissions...")
+		canCreate, err := h.permissionService.CanCreateTeamNote(userID.(int))
+		if err != nil {
+			log.Printf("[CREATE WORK NOTE] Team permission check error: %v", err)
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to check permissions", err.Error()))
+			return
+		}
+		if !canCreate {
+			log.Printf("[CREATE WORK NOTE] Team permission check failed: user is not an active enterprise member")
+			c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "Permission denied", "Only active enterprise members can create team notes"))
+			return
+		}
+		log.Printf("[CREATE WORK NOTE] Team permission check passed")
+
+	case models.VisibilityPrivate:
+		// Private笔记：任何认证用户都可以创建
+		log.Printf("[CREATE WORK NOTE] Visibility is private, no additional permission check needed")
+
+	default:
+		log.Printf("[CREATE WORK NOTE] Unknown visibility type: %v", req.Visibility)
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid visibility type", fmt.Sprintf("Unknown visibility: %s", req.Visibility)))
 		return
 	}
 
@@ -358,6 +401,7 @@ func (h *WorkNoteHandler) GetWorkNote(c *gin.Context) {
 // @Success 200 {object} models.WorkNote
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/v1/work-notes/{id} [put]
@@ -378,6 +422,29 @@ func (h *WorkNoteHandler) UpdateWorkNote(c *gin.Context) {
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
+	}
+
+	// ✅ 获取原笔记信息用于权限检查
+	existingNote, err := h.workNoteService.GetWorkNote(c.Request.Context(), noteID, userID.(int))
+	if err != nil {
+		if err.Error() == "document not found" || strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "Work note not found", "The requested work note does not exist or you don't have permission to access it"))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get work note", err.Error()))
+		return
+	}
+
+	// ✅ 权限检查：编辑公开笔记
+	// 如果原笔记是公开的，或者要修改为公开，都需要系统管理员权限
+	isCurrentlyPublic := existingNote.Visibility == models.VisibilityPublic
+	isChangingToPublic := req.Visibility != nil && *req.Visibility == models.VisibilityPublic
+
+	if isCurrentlyPublic || isChangingToPublic {
+		if err := utils.CheckPublicNotePermission(c, "edit"); err != nil {
+			c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "Permission denied", err.Error()))
+			return
+		}
 	}
 
 	workNote, err := h.workNoteService.UpdateWorkNote(c.Request.Context(), noteID, req, userID.(int))
@@ -410,6 +477,26 @@ func (h *WorkNoteHandler) DeleteWorkNote(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
+
+	// ✅ 获取笔记信息用于权限检查
+	existingNote, err := h.workNoteService.GetWorkNote(c.Request.Context(), noteID, userID.(int))
+	if err != nil {
+		if err.Error() == "document not found" || strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "Work note not found", "The requested work note does not exist or you don't have permission to access it"))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get work note", err.Error()))
+		return
+	}
+
+	// ✅ 权限检查：删除公开笔记
+	if existingNote.Visibility == models.VisibilityPublic {
+		if err := utils.CheckPublicNotePermission(c, "delete"); err != nil {
+			c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "Permission denied", err.Error()))
+			return
+		}
+	}
+
 	if err := h.workNoteService.DeleteWorkNote(c.Request.Context(), noteID, userID.(int)); err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to delete work note", err.Error()))
 		return

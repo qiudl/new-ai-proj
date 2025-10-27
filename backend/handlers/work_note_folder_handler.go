@@ -7,6 +7,7 @@ import (
 	// "database/sql" // Temporarily unused
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"ai-project-backend/services"
 	"fmt"
 	"log"
 	"net/http"
@@ -112,13 +113,15 @@ func (h *WorkNoteFolderHandler) paginatedResponse(c *gin.Context, message string
 
 // WorkNoteFolderHandler 工作笔记文件夹处理器
 type WorkNoteFolderHandler struct {
-	db database.DB
+	db                database.DB
+	permissionService *services.WorkNotePermissionService
 }
 
 // NewWorkNoteFolderHandler 创建工作笔记文件夹处理器
 func NewWorkNoteFolderHandler(db database.DB) *WorkNoteFolderHandler {
 	return &WorkNoteFolderHandler{
-		db: db,
+		db:                db,
+		permissionService: services.NewWorkNotePermissionService(db),
 	}
 }
 
@@ -150,15 +153,6 @@ func (h *WorkNoteFolderHandler) CreateWorkNoteFolder(c *gin.Context) {
 		return
 	}
 
-	// 检查创建权限
-	if !h.checkWorkNoteFolderPermission(userID.(int), nil, "work_note_folder.create") {
-		h.errorResponse(c, http.StatusForbidden, ErrCodePermissionDenied,
-			"You don't have permission to create folders", map[string]interface{}{
-				"requiredPermission": "work_note_folder.create",
-			})
-		return
-	}
-
 	// 检查父文件夹存在性和权限
 	if req.ParentID != nil {
 		if !h.checkFolderExists(*req.ParentID) {
@@ -169,7 +163,18 @@ func (h *WorkNoteFolderHandler) CreateWorkNoteFolder(c *gin.Context) {
 			return
 		}
 
-		if !h.checkFolderOwnershipOrPermission(userID.(int), *req.ParentID, "work_note_folder.content.manage") {
+		// 使用新的权限检查服务检查父文件夹的创建权限
+		hasPermission, err := h.permissionService.CheckParentFolderPermission(userID.(int), *req.ParentID)
+		if err != nil {
+			log.Printf("[CreateWorkNoteFolder] Permission check error: %v", err)
+			h.errorResponse(c, http.StatusInternalServerError, ErrCodeInternalError,
+				"Failed to check permissions", map[string]interface{}{
+					"error": err.Error(),
+				})
+			return
+		}
+
+		if !hasPermission {
 			h.errorResponse(c, http.StatusForbidden, ErrCodePermissionDenied,
 				"You don't have permission to create folders in this parent", map[string]interface{}{
 					"parentId": *req.ParentID,
@@ -181,6 +186,45 @@ func (h *WorkNoteFolderHandler) CreateWorkNoteFolder(c *gin.Context) {
 		if h.wouldCreateCycle(*req.ParentID, 0) {
 			h.errorResponse(c, http.StatusBadRequest, ErrCodeCyclicReference,
 				"Creating folder would create a circular reference", nil)
+			return
+		}
+	} else {
+		// 创建根级文件夹：根据visibility类型检查权限
+		switch req.Visibility {
+		case "private":
+			// Private树：任何用户都可以创建自己的根文件夹
+			// 无需额外权限检查
+		case "team":
+			// Team树：需要是企业管理员
+			hasPermission, err := h.permissionService.IsEnterpriseAdmin(userID.(int))
+			if err != nil {
+				log.Printf("[CreateWorkNoteFolder] Permission check error: %v", err)
+				h.errorResponse(c, http.StatusInternalServerError, ErrCodeInternalError,
+					"Failed to check permissions", map[string]interface{}{
+						"error": err.Error(),
+					})
+				return
+			}
+
+			if !hasPermission {
+				h.errorResponse(c, http.StatusForbidden, ErrCodePermissionDenied,
+					"You don't have permission to create team folders. Only enterprise administrators can create team folders.", map[string]interface{}{
+						"requiredRole": "enterprise_admin",
+					})
+				return
+			}
+		case "public":
+			// Public树：只有super admin
+			if userID.(int) != 1 {
+				h.errorResponse(c, http.StatusForbidden, ErrCodePermissionDenied,
+					"Only super administrators can create public folders", nil)
+				return
+			}
+		default:
+			h.errorResponse(c, http.StatusBadRequest, ErrCodeInvalidRequest,
+				"Invalid visibility type", map[string]interface{}{
+					"visibility": req.Visibility,
+				})
 			return
 		}
 	}
@@ -408,8 +452,19 @@ func (h *WorkNoteFolderHandler) UpdateWorkNoteFolder(c *gin.Context) {
 		return
 	}
 
-	// 检查权限
-	if !h.checkFolderOwnershipOrPermission(userID.(int), folderID, "work_note_folder.update") {
+	// 使用新的权限检查服务检查更新权限
+	hasPermission, err := h.permissionService.CheckFolderPermission(userID.(int), &folderID, "update")
+	if err != nil {
+		log.Printf("[UpdateWorkNoteFolder] Permission check error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to check permissions",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	if !hasPermission {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
 			"message": "Permission denied",
@@ -555,19 +610,9 @@ func (h *WorkNoteFolderHandler) DeleteWorkNoteFolder(c *gin.Context) {
 		return
 	}
 
-	// 检查删除权限
-	if !h.checkFolderOwnershipOrPermission(userID.(int), folderID, "work_note_folder.delete") {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"message": "Permission denied",
-			"error":   "You don't have permission to delete this folder",
-		})
-		return
-	}
-
 	// 验证文件夹是否存在
 	checkQuery := `
-		SELECT id, owner_id, name FROM work_note_folders 
+		SELECT id, owner_id, name FROM work_note_folders
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 	var existingOwnerID int
@@ -581,11 +626,22 @@ func (h *WorkNoteFolderHandler) DeleteWorkNoteFolder(c *gin.Context) {
 		return
 	}
 
-	// 检查权限（只允许拥有者删除）
-	if existingOwnerID != userID.(int) {
+	// 使用新的权限检查服务检查删除权限
+	hasPermission, err := h.permissionService.CheckFolderPermission(userID.(int), &folderID, "delete")
+	if err != nil {
+		log.Printf("[DeleteWorkNoteFolder] Permission check error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to check permissions",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	if !hasPermission {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
-			"message": "Permission denied: You can only delete your own folders",
+			"message": "Permission denied: You don't have permission to delete this folder",
 		})
 		return
 	}

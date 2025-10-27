@@ -213,13 +213,24 @@ func (h *WorkNoteFolderTreeHandler) CreateFolderInTree(c *gin.Context) {
 		return
 	}
 
-	// 检查权限
-	permission := models.GetTreePermission(userID.(int), treeType)
+	// ✅ 检查权限（使用新的权限函数，支持公开树权限控制）
+	userType, _ := c.Get("user_type")
+	userRole, _ := c.Get("user_role")
+
+	var userTypeStr, userRoleStr string
+	if userType != nil {
+		userTypeStr = userType.(string)
+	}
+	if userRole != nil {
+		userRoleStr = userRole.(string)
+	}
+
+	permission := models.GetTreePermissionWithUserType(userID.(int), userTypeStr, userRoleStr, treeType)
 	if !permission.CanCreate {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
 			"message": "Permission denied",
-			"error":   "You don't have permission to create folders in this tree",
+			"error":   permission.Reason,
 		})
 		return
 	}

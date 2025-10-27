@@ -182,6 +182,8 @@ type TreePermissionCheck struct {
 }
 
 // GetTreePermission 获取用户对指定树的权限
+// 注意：公开树的管理权限现在需要传入user_type来判断是否为系统管理员
+// 此函数已废弃，请使用 GetTreePermissionWithContext
 func GetTreePermission(userID int, treeType FolderTreeType) TreePermissionCheck {
 	permission := TreePermissionCheck{
 		TreeType: treeType,
@@ -205,12 +207,55 @@ func GetTreePermission(userID int, treeType FolderTreeType) TreePermissionCheck 
 		permission.Reason = "team member"
 
 	case TreeTypePublic:
-		// 公开树：所有人可查看，有权限的用户可创建
+		// 公开树：所有人可查看，但管理权限受限
+		// ⚠️ 警告：此函数无法判断系统管理员权限，请使用 GetTreePermissionWithUserType
 		permission.CanView = true
-		permission.CanCreate = true // TODO: 检查创建权限
+		permission.CanCreate = false // 需要系统管理员权限
+		permission.CanEdit = false   // 需要系统管理员权限
+		permission.CanDelete = false // 需要系统管理员权限
+		permission.Reason = "public tree requires admin permission for management"
+	}
+
+	return permission
+}
+
+// GetTreePermissionWithUserType 获取用户对指定树的权限（带用户类型和角色）
+func GetTreePermissionWithUserType(userID int, userType, userRole string, treeType FolderTreeType) TreePermissionCheck {
+	permission := TreePermissionCheck{
+		TreeType: treeType,
+	}
+
+	// 检查是否为系统管理员
+	isSystemAdmin := (userType == "system" && userRole == "admin")
+
+	switch treeType {
+	case TreeTypePrivate:
+		// 私人树：所有用户对自己的私人树有完全权限
+		permission.CanView = true
+		permission.CanCreate = true
 		permission.CanEdit = true
 		permission.CanDelete = true
-		permission.Reason = "public access"
+		permission.Reason = "owner of private tree"
+
+	case TreeTypeTeam:
+		// 团队树：需要检查团队成员身份（这里简化处理）
+		permission.CanView = true
+		permission.CanCreate = true // TODO: 检查是否为团队管理员
+		permission.CanEdit = true
+		permission.CanDelete = true
+		permission.Reason = "team member"
+
+	case TreeTypePublic:
+		// 公开树：所有人可查看，只有系统管理员可以管理
+		permission.CanView = true
+		permission.CanCreate = isSystemAdmin
+		permission.CanEdit = isSystemAdmin
+		permission.CanDelete = isSystemAdmin
+		if isSystemAdmin {
+			permission.Reason = "system admin has full access to public tree"
+		} else {
+			permission.Reason = "public tree is read-only for non-admin users"
+		}
 	}
 
 	return permission
