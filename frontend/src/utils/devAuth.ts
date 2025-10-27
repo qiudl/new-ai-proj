@@ -47,8 +47,8 @@ export const getDevAuthToken = async (): Promise<string | null> => {
         email: data.data.user.email,
         role: data.data.user.role,
         user_type: data.data.user.user_type,
-        // 如果是企业用户，添加company_id
-        company_id: data.data.user.user_type === 'company' ? 2 : undefined,
+        // 如果是企业用户，添加enterprise_id
+        enterprise_id: data.data.user.user_type === 'company' ? 2 : undefined,
         status: 'active',
         profile: {
           name: data.data.user.username,

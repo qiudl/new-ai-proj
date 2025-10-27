@@ -55,7 +55,7 @@ export const isCompanyUser = (user: User | null): boolean => {
  * @returns 是否有有效的企业ID
  */
 export const hasValidCompanyId = (user: User | null): boolean => {
-  return isCompanyUser(user) && typeof user?.company_id === 'number' && user.company_id > 0;
+  return isCompanyUser(user) && typeof user?.enterprise_id === 'number' && user.enterprise_id > 0;
 };
 
 /**
@@ -117,7 +117,7 @@ export const shouldShowCompanyInfo = (user: User | null): boolean => {
     return false;
   }
   
-  // 企业用户需要有有效的company_id
+  // 企业用户需要有有效的enterprise_id
   return hasValidCompanyId(user);
 };
 

@@ -27,7 +27,7 @@ export const DEV_USERS: Record<string, User> = {
     username: 'company_admin',
     email: 'admin@company.com',
     user_type: 'company',
-    company_id: 2, // 测试科技有限公司
+    enterprise_id: 2, // 测试科技有限公司
     role: 'company_admin',
     status: 'active',
     profile: {
@@ -43,7 +43,7 @@ export const DEV_USERS: Record<string, User> = {
     username: 'company_user',
     email: 'user@company.com',
     user_type: 'company',
-    company_id: 2, // 测试科技有限公司
+    enterprise_id: 2, // 测试科技有限公司
     role: 'company_user',
     status: 'active',
     profile: {
