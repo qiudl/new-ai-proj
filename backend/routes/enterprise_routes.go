@@ -32,5 +32,13 @@ func RegisterEnterpriseRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 		// 企业项目管理
 		enterprises.GET("/:id/projects", app.GetEnterpriseHandler().GetEnterpriseProjects)
 		enterprises.POST("/:id/projects", app.GetEnterpriseHandler().CreateProjectForEnterprise)
+
+		// 企业用户中心功能
+		enterprises.GET("/:id/users/:userId/projects", app.GetEnterpriseHandler().GetEnterpriseUserProjects)
+		enterprises.GET("/:id/users/:userId/stats", app.GetEnterpriseHandler().GetEnterpriseUserStats)
+		enterprises.GET("/:id/users/:userId/activities", app.GetEnterpriseHandler().GetEnterpriseUserActivities)
+		enterprises.GET("/:id/users/:userId/permissions", app.GetEnterpriseHandler().GetEnterpriseUserPermissions)
+		enterprises.PUT("/:id/users/:userId/permissions", app.GetEnterpriseHandler().UpdateEnterpriseUserPermissions)
+		enterprises.POST("/:id/users/:userId/reset-password", app.GetEnterpriseHandler().ResetEnterpriseUserPassword)
 	}
 }

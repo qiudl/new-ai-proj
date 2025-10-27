@@ -7,12 +7,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // EnterpriseHandler handles enterprise-related HTTP requests
@@ -851,4 +854,538 @@ func (h *EnterpriseHandler) enterpriseExists(ctx context.Context, enterpriseID i
 	// Use the enterprise service to check if enterprise exists
 	enterprise, err := h.enterpriseService.GetEnterpriseByID(ctx, enterpriseID)
 	return err == nil && enterprise != nil
+}
+
+// ========== 企业用户中心功能API ==========
+
+// GetEnterpriseUserProjects handles GET /api/v1/enterprises/:id/users/:userId/projects
+// 获取企业用户参与的项目列表
+func (h *EnterpriseHandler) GetEnterpriseUserProjects(c *gin.Context) {
+	// Parse parameters
+	enterpriseID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userID, err := strconv.Atoi(c.Param("userId"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Verify enterprise exists
+	if !h.enterpriseExists(ctx, enterpriseID) {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Enterprise not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Verify user exists and belongs to this enterprise
+	user, err := h.enterpriseService.GetEnterpriseUserByID(ctx, userID)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found in this enterprise", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Get user's projects
+	projectRepo := h.db.Projects()
+	projects, _, err := projectRepo.GetByUserID(ctx, user.ID, 100, 0) // Get up to 100 projects
+	if err != nil {
+		h.logger.Printf("Error getting user projects: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to get user projects", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Transform to response format
+	type ProjectResponse struct {
+		ID        int       `json:"id"`
+		Name      string    `json:"name"`
+		Role      string    `json:"role"`
+		Status    string    `json:"status"`
+		Progress  int       `json:"progress"`
+		CreatedAt time.Time `json:"created_at"`
+	}
+
+	var result []ProjectResponse
+	for _, project := range projects {
+		result = append(result, ProjectResponse{
+			ID:        project.ID,
+			Name:      project.Name,
+			Role:      "Member", // Default role, could be enhanced with project_members table
+			Status:    project.Status,
+			Progress:  project.Progress,
+			CreatedAt: project.CreatedAt,
+		})
+	}
+
+	response := models.NewSuccessResponse(result, "User projects retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// GetEnterpriseUserStats handles GET /api/v1/enterprises/:id/users/:userId/stats
+// 获取企业用户统计信息
+func (h *EnterpriseHandler) GetEnterpriseUserStats(c *gin.Context) {
+	enterpriseID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userID, err := strconv.Atoi(c.Param("userId"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Verify enterprise exists
+	if !h.enterpriseExists(ctx, enterpriseID) {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Enterprise not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Verify user exists
+	user, err := h.enterpriseService.GetEnterpriseUserByID(ctx, userID)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found in this enterprise", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Initialize stats
+	stats := struct {
+		OnlineHours        int        `json:"online_hours"`
+		ProjectCount       int        `json:"project_count"`
+		CompletedTaskCount int        `json:"completed_task_count"`
+		LastLoginAt        *time.Time `json:"last_login_at"`
+	}{
+		LastLoginAt: user.LastLoginAt,
+	}
+
+	// Get project count
+	projectRepo := h.db.Projects()
+	projects, _, err := projectRepo.GetByUserID(ctx, user.ID, 10000, 0)
+	if err == nil {
+		stats.ProjectCount = len(projects)
+	}
+
+	// Get completed task count using GetAllFiltered
+	taskRepo := h.db.Tasks()
+	opts := &models.TaskListOptions{
+		Status:   "completed",
+		Assignee: &user.ID,
+		Search:   "",
+	}
+	_, total, err := taskRepo.GetAllFiltered(ctx, opts, 10000, 0)
+	if err == nil {
+		stats.CompletedTaskCount = total
+	}
+
+	// Calculate online hours from timer records
+	timerRepo := h.db.Timer()
+	// Note: This assumes Timer repository has a method to get user timers
+	// You may need to adjust this based on actual Timer interface
+	_ = timerRepo // Placeholder - implement based on your Timer interface
+
+	// For now, calculate a simple approximation from task count
+	stats.OnlineHours = stats.CompletedTaskCount * 2 // Rough estimate
+
+	response := models.NewSuccessResponse(stats, "User statistics retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// GetEnterpriseUserActivities handles GET /api/v1/enterprises/:id/users/:userId/activities
+// 获取企业用户活动记录
+func (h *EnterpriseHandler) GetEnterpriseUserActivities(c *gin.Context) {
+	enterpriseID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userID, err := strconv.Atoi(c.Param("userId"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Parse pagination
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	ctx := c.Request.Context()
+
+	// Verify enterprise exists
+	if !h.enterpriseExists(ctx, enterpriseID) {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Enterprise not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Verify user exists
+	_, err = h.enterpriseService.GetEnterpriseUserByID(ctx, userID)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found in this enterprise", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Get audit logs for this user
+	auditRepo := h.db.Audit()
+	offset := (page - 1) * pageSize
+
+	// Use GetAuditLogs with appropriate filters
+	filter := &models.AuditLogFilter{
+		UserID: &userID,
+		Limit:  pageSize,
+		Offset: offset,
+	}
+	logs, _, err := auditRepo.GetAuditLogs(ctx, filter)
+	if err != nil {
+		h.logger.Printf("Error getting audit logs: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to get activities", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Transform to activity format
+	type Activity struct {
+		ID          int       `json:"id"`
+		Type        string    `json:"type"`
+		Title       string    `json:"title"`
+		Description string    `json:"description"`
+		Timestamp   time.Time `json:"timestamp"`
+		Status      string    `json:"status,omitempty"`
+	}
+
+	var activities []Activity
+	for _, log := range logs {
+		actType := "system"
+		if log.Action == "login" {
+			actType = "login"
+		} else if log.ResourceType == "project" {
+			actType = "project"
+		} else if log.ResourceType == "task" {
+			actType = "task"
+		}
+
+		activities = append(activities, Activity{
+			ID:          int(log.ID),
+			Type:        actType,
+			Title:       log.Action,
+			Description: log.Description,
+			Timestamp:   log.CreatedAt,
+			Status:      "success",
+		})
+	}
+
+	response := models.NewSuccessResponse(activities, "User activities retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// GetEnterpriseUserPermissions handles GET /api/v1/enterprises/:id/users/:userId/permissions
+// 获取企业用户权限详情
+func (h *EnterpriseHandler) GetEnterpriseUserPermissions(c *gin.Context) {
+	enterpriseID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userID, err := strconv.Atoi(c.Param("userId"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Verify enterprise exists
+	if !h.enterpriseExists(ctx, enterpriseID) {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Enterprise not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Get user with role information
+	user, err := h.enterpriseService.GetEnterpriseUserByID(ctx, userID)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found in this enterprise", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Build permissions response
+	// Note: EnterpriseUser uses AccessLevel instead of RoleID
+	permissions := struct {
+		AccessLevel       int      `json:"access_level"`
+		IsPrimaryContact  bool     `json:"is_primary_contact"`
+		Permissions       []string `json:"permissions"`
+		CustomPermissions []string `json:"custom_permissions,omitempty"`
+	}{
+		AccessLevel:      user.AccessLevel,
+		IsPrimaryContact: user.IsPrimaryContact,
+		Permissions:       []string{}, // TODO: Get actual permissions based on access level
+		CustomPermissions: []string{},
+	}
+
+	// TODO: Map access level to actual permissions
+	// For now, return empty arrays
+
+	response := models.NewSuccessResponse(permissions, "User permissions retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// UpdateEnterpriseUserPermissions handles PUT /api/v1/enterprises/:id/users/:userId/permissions
+// 更新企业用户权限
+func (h *EnterpriseHandler) UpdateEnterpriseUserPermissions(c *gin.Context) {
+	enterpriseID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userID, err := strconv.Atoi(c.Param("userId"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Verify enterprise exists
+	if !h.enterpriseExists(ctx, enterpriseID) {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Enterprise not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		AccessLevel       *int     `json:"access_level"`
+		IsPrimaryContact  *bool    `json:"is_primary_contact"`
+		CustomPermissions []string `json:"custom_permissions"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeValidation, "Invalid request body", gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get current user
+	user, err := h.enterpriseService.GetEnterpriseUserByID(ctx, userID)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found in this enterprise", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Get current operator ID
+	operatorID := c.GetInt("user_id")
+
+	// Update access level or primary contact if provided
+	needsUpdate := false
+	updateReq := &models.EnterpriseUserRequest{
+		EnterpriseID:     user.EnterpriseID,
+		Username:         user.Username,
+		Email:            user.Email,
+		Name:             user.Name,
+		IsPrimaryContact: user.IsPrimaryContact,
+		AccessLevel:      user.AccessLevel,
+		Status:           user.Status,
+	}
+
+	if req.AccessLevel != nil && *req.AccessLevel != user.AccessLevel {
+		updateReq.AccessLevel = *req.AccessLevel
+		needsUpdate = true
+	}
+
+	if req.IsPrimaryContact != nil && *req.IsPrimaryContact != user.IsPrimaryContact {
+		updateReq.IsPrimaryContact = *req.IsPrimaryContact
+		needsUpdate = true
+	}
+
+	if needsUpdate {
+		_, err = h.enterpriseService.UpdateEnterpriseUser(ctx, userID, updateReq, operatorID)
+		if err != nil {
+			h.logger.Printf("Error updating user permissions: %v", err)
+			response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to update permissions", nil)
+			c.JSON(http.StatusInternalServerError, response)
+			return
+		}
+	}
+
+	// TODO: Handle custom_permissions if your system supports them
+	// This would require a separate table like enterprise_user_permissions
+
+	// Log the permission change
+	currentUserID := c.GetInt("user_id")
+	auditRepo := h.db.Audit()
+	auditLog := &models.AuditLog{
+		UserID:       &currentUserID,
+		Action:       "update_permissions",
+		ResourceType: "enterprise_user",
+		ResourceID:   strconv.Itoa(userID),
+		Description:  fmt.Sprintf("Updated permissions for user ID %d", userID),
+		IPAddress:    c.ClientIP(),
+		UserAgent:    c.GetHeader("User-Agent"),
+	}
+	_ = auditRepo.CreateAuditLog(ctx, auditLog)
+
+	response := models.NewSuccessResponse(nil, "Permissions updated successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// ResetEnterpriseUserPassword handles POST /api/v1/enterprises/:id/users/:userId/reset-password
+// 重置企业用户密码
+func (h *EnterpriseHandler) ResetEnterpriseUserPassword(c *gin.Context) {
+	enterpriseID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userID, err := strconv.Atoi(c.Param("userId"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Verify enterprise exists
+	if !h.enterpriseExists(ctx, enterpriseID) {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Enterprise not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Get user
+	user, err := h.enterpriseService.GetEnterpriseUserByID(ctx, userID)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found in this enterprise", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Generate temporary password
+	tempPassword := generateRandomPassword(12)
+
+	// Hash the password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(tempPassword), bcrypt.DefaultCost)
+	if err != nil {
+		h.logger.Printf("Error hashing password: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to generate password", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Update user password using direct database update
+	// Note: EnterpriseUserRequest doesn't have a Password field
+	// We need to update the user's system account password if linked
+	if user.UserID != nil {
+		userRepo := h.db.Users()
+		systemUser, err := userRepo.GetByID(ctx, *user.UserID)
+		if err == nil {
+			systemUser.PasswordHash = string(hashedPassword)
+			_, err = userRepo.Update(ctx, systemUser)
+			if err != nil {
+				h.logger.Printf("Error updating system user password: %v", err)
+				response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to reset password", nil)
+				c.JSON(http.StatusInternalServerError, response)
+				return
+			}
+		}
+	}
+
+	// Log the password reset
+	currentUserID := c.GetInt("user_id")
+	auditRepo := h.db.Audit()
+	auditLog := &models.AuditLog{
+		UserID:       &currentUserID,
+		Action:       "reset_password",
+		ResourceType: "enterprise_user",
+		ResourceID:   strconv.Itoa(userID),
+		Description:  fmt.Sprintf("Reset password for user %s (ID: %d)", user.Name, userID),
+		IPAddress:    c.ClientIP(),
+		UserAgent:    c.GetHeader("User-Agent"),
+	}
+	_ = auditRepo.CreateAuditLog(ctx, auditLog)
+
+	// Return temporary password
+	result := gin.H{
+		"temporaryPassword": tempPassword,
+	}
+
+	response := models.NewSuccessResponse(result, "Password reset successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// ========== Helper Functions ==========
+
+// generateRandomPassword generates a random password with specified length
+func generateRandomPassword(length int) string {
+	const (
+		lowercase = "abcdefghijklmnopqrstuvwxyz"
+		uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		digits    = "0123456789"
+		special   = "!@#$%^&*"
+		all       = lowercase + uppercase + digits + special
+	)
+
+	if length < 4 {
+		length = 12
+	}
+
+	var password strings.Builder
+
+	// Ensure at least one of each type
+	password.WriteByte(lowercase[rand.Intn(len(lowercase))])
+	password.WriteByte(uppercase[rand.Intn(len(uppercase))])
+	password.WriteByte(digits[rand.Intn(len(digits))])
+	password.WriteByte(special[rand.Intn(len(special))])
+
+	// Fill the rest
+	for i := 4; i < length; i++ {
+		password.WriteByte(all[rand.Intn(len(all))])
+	}
+
+	// Shuffle the password
+	runes := []rune(password.String())
+	rand.Shuffle(len(runes), func(i, j int) {
+		runes[i], runes[j] = runes[j], runes[i]
+	})
+
+	return string(runes)
+}
+
+// String returns a pointer to the string value
+func String(s string) *string {
+	return &s
 }

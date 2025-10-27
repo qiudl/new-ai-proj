@@ -44,9 +44,10 @@ type Enterprise struct {
 type EnterpriseUser struct {
 	ID           int     `json:"id" db:"id"`
 	EnterpriseID int     `json:"enterprise_id" db:"enterprise_id" validate:"required"`
+	UserID       *int    `json:"user_id,omitempty" db:"user_id"` // Reference to system user for login
 	Username     string  `json:"username" db:"username" validate:"required,min=3,max=50"`
 	Email        string `json:"email" db:"email" validate:"required,email"`
-	
+
 	// Personal information
 	Name         string  `json:"name" db:"name" validate:"required,min=1,max=100"`
 	Phone        *string `json:"phone" db:"phone"`

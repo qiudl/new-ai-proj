@@ -559,15 +559,16 @@ func (r *PostgresEnterpriseRepository) GetEnterpriseStatistics(ctx context.Conte
 func (r *PostgresEnterpriseRepository) CreateUser(ctx context.Context, user *models.EnterpriseUser) (*models.EnterpriseUser, error) {
 	query := `
 		INSERT INTO enterprise_users (
-			enterprise_id, username, email, name, phone, position,
+			enterprise_id, user_id, username, email, name, phone, position,
 			is_primary_contact, access_level, status, bio, created_by
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 		) RETURNING id, created_at, updated_at`
 
 	exec := r.getExecer()
 	err := exec.QueryRowContext(ctx, query,
 		user.EnterpriseID,
+		user.UserID,
 		user.Username,
 		user.Email,
 		user.Name,

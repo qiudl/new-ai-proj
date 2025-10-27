@@ -123,7 +123,7 @@ func NewApplication() (*Application, error) {
 	// Initialize Enterprise Service and Handler
 	auditService := services.NewAuditService(db)
 	auditLogger := services.NewAsyncAuditLogger(auditService, 10, 30*time.Second)
-	enterpriseService := services.NewEnterpriseService(db.Enterprises(), auditLogger)
+	enterpriseService := services.NewEnterpriseService(db.Enterprises(), db, auditLogger)
 	enterpriseHandler := handlers.NewEnterpriseHandler(enterpriseService, db, logger, validate)
 
 	// Initialize Project Handler
