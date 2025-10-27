@@ -44,40 +44,40 @@ func NewOrganizationHandler(db database.DB) *OrganizationHandler {
 
 // GetDepartments 获取部门列表（树形结构）
 func (h *OrganizationHandler) GetDepartments(c *gin.Context) {
-	// 先从用户上下文获取company_id，如果没有则使用查询参数
-	var companyID int
-	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
-		if cid, ok := contextCompanyID.(int); ok {
-			companyID = cid
+	// 先从用户上下文获取enterprise_id，如果没有则使用查询参数
+	var enterpriseID int
+	if contextEnterpriseID, exists := c.Get("enterprise_id"); exists && contextEnterpriseID != nil {
+		if eid, ok := contextEnterpriseID.(int); ok {
+			enterpriseID = eid
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID in context",
+				"error":   "Invalid enterprise ID in context",
 			})
 			return
 		}
 	} else {
-		// 如果上下文中没有company_id，则使用查询参数
-		companyIDStr := c.Query("company_id")
-		if companyIDStr == "" {
+		// 如果上下文中没有enterprise_id，则使用查询参数
+		enterpriseIDStr := c.Query("enterprise_id")
+		if enterpriseIDStr == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Company ID is required",
+				"error":   "Enterprise ID is required",
 			})
 			return
 		}
 		var err error
-		companyID, err = strconv.Atoi(companyIDStr)
+		enterpriseID, err = strconv.Atoi(enterpriseIDStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID",
+				"error":   "Invalid enterprise ID",
 			})
 			return
 		}
 	}
 
-	departments, err := h.deptRepo.GetAllByCompany(companyID)
+	departments, err := h.deptRepo.GetAllByEnterprise(enterpriseID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -105,40 +105,40 @@ func (h *OrganizationHandler) GetDepartment(c *gin.Context) {
 		return
 	}
 
-	// 先从用户上下文获取company_id，如果没有则使用查询参数
-	var companyID int
-	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
-		if cid, ok := contextCompanyID.(int); ok {
-			companyID = cid
+	// 先从用户上下文获取enterprise_id，如果没有则使用查询参数
+	var enterpriseID int
+	if contextEnterpriseID, exists := c.Get("enterprise_id"); exists && contextEnterpriseID != nil {
+		if eid, ok := contextEnterpriseID.(int); ok {
+			enterpriseID = eid
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID in context",
+				"error":   "Invalid enterprise ID in context",
 			})
 			return
 		}
 	} else {
-		// 如果上下文中没有company_id，则使用查询参数
-		companyIDStr := c.Query("company_id")
-		if companyIDStr == "" {
+		// 如果上下文中没有enterprise_id，则使用查询参数
+		enterpriseIDStr := c.Query("enterprise_id")
+		if enterpriseIDStr == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Company ID is required",
+				"error":   "Enterprise ID is required",
 			})
 			return
 		}
 		var err error
-		companyID, err = strconv.Atoi(companyIDStr)
+		enterpriseID, err = strconv.Atoi(enterpriseIDStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID",
+				"error":   "Invalid enterprise ID",
 			})
 			return
 		}
 	}
 
-	department, err := h.deptRepo.GetByID(id, companyID)
+	department, err := h.deptRepo.GetByIDEnterprise(id, enterpriseID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -172,34 +172,34 @@ func (h *OrganizationHandler) CreateDepartment(c *gin.Context) {
 		return
 	}
 
-	// 先从用户上下文获取company_id，如果没有则使用查询参数
-	var companyID int
-	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
-		if cid, ok := contextCompanyID.(int); ok {
-			companyID = cid
+	// 先从用户上下文获取enterprise_id，如果没有则使用查询参数
+	var enterpriseID int
+	if contextEnterpriseID, exists := c.Get("enterprise_id"); exists && contextEnterpriseID != nil {
+		if eid, ok := contextEnterpriseID.(int); ok {
+			enterpriseID = eid
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID in context",
+				"error":   "Invalid enterprise ID in context",
 			})
 			return
 		}
 	} else {
-		// 如果上下文中没有company_id，则使用查询参数
-		companyIDStr := c.Query("company_id")
-		if companyIDStr == "" {
+		// 如果上下文中没有enterprise_id，则使用查询参数
+		enterpriseIDStr := c.Query("enterprise_id")
+		if enterpriseIDStr == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Company ID is required",
+				"error":   "Enterprise ID is required",
 			})
 			return
 		}
 		var err error
-		companyID, err = strconv.Atoi(companyIDStr)
+		enterpriseID, err = strconv.Atoi(enterpriseIDStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID",
+				"error":   "Invalid enterprise ID",
 			})
 			return
 		}
@@ -207,7 +207,7 @@ func (h *OrganizationHandler) CreateDepartment(c *gin.Context) {
 
 	// 创建部门对象
 	department := &database.Department{
-		CompanyID:      companyID,
+		EnterpriseID:   enterpriseID,
 		Name:           req.Name,
 		ParentIDPtr:    req.ParentID,
 		ManagerIDPtr:   req.ManagerID,
@@ -277,41 +277,41 @@ func (h *OrganizationHandler) UpdateDepartment(c *gin.Context) {
 		updates["status"] = *req.Status
 	}
 
-	// 先从用户上下文获取company_id，如果没有则使用查询参数
-	var companyID int
-	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
-		if cid, ok := contextCompanyID.(int); ok {
-			companyID = cid
+	// 先从用户上下文获取enterprise_id，如果没有则使用查询参数
+	var enterpriseID int
+	if contextEnterpriseID, exists := c.Get("enterprise_id"); exists && contextEnterpriseID != nil {
+		if eid, ok := contextEnterpriseID.(int); ok {
+			enterpriseID = eid
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID in context",
+				"error":   "Invalid enterprise ID in context",
 			})
 			return
 		}
 	} else {
-		// 如果上下文中没有company_id，则使用查询参数
-		companyIDStr := c.Query("company_id")
-		if companyIDStr == "" {
+		// 如果上下文中没有enterprise_id，则使用查询参数
+		enterpriseIDStr := c.Query("enterprise_id")
+		if enterpriseIDStr == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Company ID is required",
+				"error":   "Enterprise ID is required",
 			})
 			return
 		}
 		var err error
-		companyID, err = strconv.Atoi(companyIDStr)
+		enterpriseID, err = strconv.Atoi(enterpriseIDStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID",
+				"error":   "Invalid enterprise ID",
 			})
 			return
 		}
 	}
 
 	// 更新数据库
-	updatedDept, err := h.deptRepo.Update(id, companyID, updates)
+	updatedDept, err := h.deptRepo.UpdateEnterprise(id, enterpriseID, updates)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -340,41 +340,41 @@ func (h *OrganizationHandler) DeleteDepartment(c *gin.Context) {
 		return
 	}
 
-	// 先从用户上下文获取company_id，如果没有则使用查询参数
-	var companyID int
-	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
-		if cid, ok := contextCompanyID.(int); ok {
-			companyID = cid
+	// 先从用户上下文获取enterprise_id，如果没有则使用查询参数
+	var enterpriseID int
+	if contextEnterpriseID, exists := c.Get("enterprise_id"); exists && contextEnterpriseID != nil {
+		if eid, ok := contextEnterpriseID.(int); ok {
+			enterpriseID = eid
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID in context",
+				"error":   "Invalid enterprise ID in context",
 			})
 			return
 		}
 	} else {
-		// 如果上下文中没有company_id，则使用查询参数
-		companyIDStr := c.Query("company_id")
-		if companyIDStr == "" {
+		// 如果上下文中没有enterprise_id，则使用查询参数
+		enterpriseIDStr := c.Query("enterprise_id")
+		if enterpriseIDStr == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Company ID is required",
+				"error":   "Enterprise ID is required",
 			})
 			return
 		}
 		var err error
-		companyID, err = strconv.Atoi(companyIDStr)
+		enterpriseID, err = strconv.Atoi(enterpriseIDStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID",
+				"error":   "Invalid enterprise ID",
 			})
 			return
 		}
 	}
 
 	// 删除部门
-	err = h.deptRepo.Delete(id, companyID)
+	err = h.deptRepo.DeleteEnterprise(id, enterpriseID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -449,40 +449,40 @@ func (h *OrganizationHandler) GetAvailableManagers(c *gin.Context) {
 
 // GetOrganizationStats 获取组织统计信息
 func (h *OrganizationHandler) GetOrganizationStats(c *gin.Context) {
-	// 先从用户上下文获取company_id，如果没有则使用查询参数
-	var companyID int
-	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
-		if cid, ok := contextCompanyID.(int); ok {
-			companyID = cid
+	// 先从用户上下文获取enterprise_id，如果没有则使用查询参数
+	var enterpriseID int
+	if contextEnterpriseID, exists := c.Get("enterprise_id"); exists && contextEnterpriseID != nil {
+		if eid, ok := contextEnterpriseID.(int); ok {
+			enterpriseID = eid
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID in context",
+				"error":   "Invalid enterprise ID in context",
 			})
 			return
 		}
 	} else {
-		// 如果上下文中没有company_id，则使用查询参数
-		companyIDStr := c.Query("company_id")
-		if companyIDStr == "" {
+		// 如果上下文中没有enterprise_id，则使用查询参数
+		enterpriseIDStr := c.Query("enterprise_id")
+		if enterpriseIDStr == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Company ID is required",
+				"error":   "Enterprise ID is required",
 			})
 			return
 		}
 		var err error
-		companyID, err = strconv.Atoi(companyIDStr)
+		enterpriseID, err = strconv.Atoi(enterpriseIDStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error":   "Invalid company ID",
+				"error":   "Invalid enterprise ID",
 			})
 			return
 		}
 	}
 
-	stats, err := h.deptRepo.GetStatsByCompany(companyID)
+	stats, err := h.deptRepo.GetStatsByEnterprise(enterpriseID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
