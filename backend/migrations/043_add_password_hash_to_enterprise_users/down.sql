@@ -1,4 +1,4 @@
--- 042_add_password_hash_to_enterprise_users/down.sql
+-- 043_add_password_hash_to_enterprise_users/down.sql
 -- 回滚：移除enterprise_users表的password_hash字段
 
 BEGIN;

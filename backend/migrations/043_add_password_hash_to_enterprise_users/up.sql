@@ -1,4 +1,4 @@
--- 042_add_password_hash_to_enterprise_users/up.sql
+-- 043_add_password_hash_to_enterprise_users/up.sql
 -- 为enterprise_users表添加password_hash字段以支持密码重置功能
 -- 作者: Claude Code AI
 -- 创建时间: 2025-10-27
