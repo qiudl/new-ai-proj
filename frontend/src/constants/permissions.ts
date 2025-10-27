@@ -129,10 +129,128 @@ export const DAILY_FOCUS_PERMISSIONS = {
   MANAGE: 'daily_focus:manage'           // 管理今日任务
 } as const;
 
-// 仪表板权限(暂无数据库对应,保留用于未来扩展)
+// 仪表板权限
 export const DASHBOARD_PERMISSIONS = {
   READ: 'dashboard.read',
   ADMIN: 'dashboard.admin'
+} as const;
+
+// ============================================================================
+// 基础权限 (Base Permissions)
+// ============================================================================
+// 所有认证用户默认拥有的核心功能权限，无需显式分配
+// 这些权限在后端中间件中自动添加，前端也应将其视为"总是可用"
+//
+// 设计理念:
+// 1. 简化用户体验 - 新用户无需配置即可使用基本功能
+// 2. 数据隔离 - 虽然开放功能权限，但严格限制只能访问自己的数据
+// 3. 向后兼容 - 不影响现有的权限系统和角色配置
+// ============================================================================
+
+export const BASE_PERMISSIONS = {
+  // Dashboard - 首页访问
+  DASHBOARD_READ: 'dashboard.read',
+
+  // Profile - 个人中心
+  PROFILE_READ: 'profile.read',
+  PROFILE_UPDATE: 'profile.update',
+  PASSWORD_CHANGE: 'password.change',
+
+  // Work Notes - 工作笔记（个人笔记）
+  WORK_NOTE_CREATE: 'work_note.create',
+  WORK_NOTE_READ: 'work_note.read',
+  WORK_NOTE_UPDATE: 'work_note.update',
+  WORK_NOTE_DELETE: 'work_note.delete',
+
+  // Timer - 计时器
+  TIMER_START: 'timer.start',
+  TIMER_STOP: 'timer.stop',
+  TIMER_VIEW: 'timer.view',
+
+  // Statistics - 个人统计
+  STATS_VIEW_OWN: 'stats.view.own'
+} as const;
+
+// 基础权限数组（用于批量检查）
+export const BASE_PERMISSIONS_ARRAY = [
+  BASE_PERMISSIONS.DASHBOARD_READ,
+  BASE_PERMISSIONS.PROFILE_READ,
+  BASE_PERMISSIONS.PROFILE_UPDATE,
+  BASE_PERMISSIONS.PASSWORD_CHANGE,
+  BASE_PERMISSIONS.WORK_NOTE_CREATE,
+  BASE_PERMISSIONS.WORK_NOTE_READ,
+  BASE_PERMISSIONS.WORK_NOTE_UPDATE,
+  BASE_PERMISSIONS.WORK_NOTE_DELETE,
+  BASE_PERMISSIONS.TIMER_START,
+  BASE_PERMISSIONS.TIMER_STOP,
+  BASE_PERMISSIONS.TIMER_VIEW,
+  BASE_PERMISSIONS.STATS_VIEW_OWN
+] as const;
+
+// 基础权限集合（用于O(1)查询）
+export const BASE_PERMISSIONS_SET: Set<string> = new Set(BASE_PERMISSIONS_ARRAY);
+
+// 判断是否为基础权限
+export function isBasePermission(permission: string): boolean {
+  return BASE_PERMISSIONS_SET.has(permission);
+}
+
+// 基础权限描述（用于UI展示）
+export const BASE_PERMISSION_DESCRIPTIONS: Record<string, string> = {
+  [BASE_PERMISSIONS.DASHBOARD_READ]: '查看Dashboard首页，包括任务概览、统计图表等',
+  [BASE_PERMISSIONS.PROFILE_READ]: '查看个人信息、头像、联系方式等个人资料',
+  [BASE_PERMISSIONS.PROFILE_UPDATE]: '更新个人资料，包括姓名、头像、联系方式等',
+  [BASE_PERMISSIONS.PASSWORD_CHANGE]: '修改登录密码',
+  [BASE_PERMISSIONS.WORK_NOTE_CREATE]: '创建个人工作笔记',
+  [BASE_PERMISSIONS.WORK_NOTE_READ]: '查看自己创建的工作笔记',
+  [BASE_PERMISSIONS.WORK_NOTE_UPDATE]: '编辑自己的工作笔记内容',
+  [BASE_PERMISSIONS.WORK_NOTE_DELETE]: '删除自己的工作笔记',
+  [BASE_PERMISSIONS.TIMER_START]: '启动任务计时器',
+  [BASE_PERMISSIONS.TIMER_STOP]: '停止任务计时器',
+  [BASE_PERMISSIONS.TIMER_VIEW]: '查看自己的计时记录',
+  [BASE_PERMISSIONS.STATS_VIEW_OWN]: '查看个人工作统计信息，如任务完成数、工时统计等'
+};
+
+// 基础权限分类（用于UI分组显示）
+export const BASE_PERMISSION_CATEGORIES = {
+  dashboard: {
+    name: 'Dashboard',
+    description: 'Dashboard首页相关权限',
+    permissions: [BASE_PERMISSIONS.DASHBOARD_READ]
+  },
+  profile: {
+    name: '个人中心',
+    description: '个人资料和账户管理相关权限',
+    permissions: [
+      BASE_PERMISSIONS.PROFILE_READ,
+      BASE_PERMISSIONS.PROFILE_UPDATE,
+      BASE_PERMISSIONS.PASSWORD_CHANGE
+    ]
+  },
+  work_note: {
+    name: '工作笔记',
+    description: '个人工作笔记管理相关权限',
+    permissions: [
+      BASE_PERMISSIONS.WORK_NOTE_CREATE,
+      BASE_PERMISSIONS.WORK_NOTE_READ,
+      BASE_PERMISSIONS.WORK_NOTE_UPDATE,
+      BASE_PERMISSIONS.WORK_NOTE_DELETE
+    ]
+  },
+  timer: {
+    name: '计时器',
+    description: '任务计时器相关权限',
+    permissions: [
+      BASE_PERMISSIONS.TIMER_START,
+      BASE_PERMISSIONS.TIMER_STOP,
+      BASE_PERMISSIONS.TIMER_VIEW
+    ]
+  },
+  statistics: {
+    name: '个人统计',
+    description: '个人数据统计相关权限',
+    permissions: [BASE_PERMISSIONS.STATS_VIEW_OWN]
+  }
 } as const;
 
 // API密钥管理权限
@@ -218,8 +336,8 @@ export const ROUTE_PERMISSIONS = {
   '/projects': [PROJECT_PERMISSIONS.LIST_READ, PROJECT_PERMISSIONS.READ],
   '/tasks': [TASK_PERMISSIONS.LIST_READ, TASK_PERMISSIONS.READ],
 
-  // 仪表板页面
-  '/dashboard': [DAILY_FOCUS_PERMISSIONS.MANAGE],
+  // 仪表板页面（基础权限 - 所有认证用户都可访问）
+  '/dashboard': [BASE_PERMISSIONS.DASHBOARD_READ],
 
   // 企业组织管理页面
   '/organization-structure': [ORGANIZATION_PERMISSIONS.INFO_READ],
@@ -266,6 +384,7 @@ export type DocumentPermission = typeof DOCUMENT_PERMISSIONS[keyof typeof DOCUME
 export type TimePermission = typeof TIME_PERMISSIONS[keyof typeof TIME_PERMISSIONS];
 export type DailyFocusPermission = typeof DAILY_FOCUS_PERMISSIONS[keyof typeof DAILY_FOCUS_PERMISSIONS];
 export type DashboardPermission = typeof DASHBOARD_PERMISSIONS[keyof typeof DASHBOARD_PERMISSIONS];
+export type BasePermission = typeof BASE_PERMISSIONS[keyof typeof BASE_PERMISSIONS];
 export type APIKeyPermission = typeof API_KEY_PERMISSIONS[keyof typeof API_KEY_PERMISSIONS];
 export type AuditPermission = typeof AUDIT_PERMISSIONS[keyof typeof AUDIT_PERMISSIONS];
 export type NavigationPermission = typeof NAVIGATION_PERMISSIONS[keyof typeof NAVIGATION_PERMISSIONS];
@@ -285,6 +404,7 @@ export type AnyPermission =
   | TimePermission
   | DailyFocusPermission
   | DashboardPermission
+  | BasePermission
   | APIKeyPermission
   | AuditPermission
   | NavigationPermission
