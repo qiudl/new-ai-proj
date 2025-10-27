@@ -4,9 +4,6 @@ export interface Project {
   description?: string;
   owner_id: number;
   project_number?: string; // 项目编号，格式如 "P101", "P102"
-  company_id?: number; // 主客户ID（保持向后兼容）
-  company_name?: string; // 主客户名称（保持向后兼容）
-  companies?: ProjectCompany[]; // 多客户关联
   enterprise_id?: number; // 企业ID（新架构）
   enterprise_name?: string; // 企业名称（新架构）
   status?: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
@@ -24,8 +21,6 @@ export interface ProjectRequest {
   project_number?: string; // 项目编号
   name: string;
   description?: string;
-  company_id?: number; // 主客户ID（保持向后兼容）
-  company_ids?: number[]; // 多客户ID列表
   enterprise_id?: number; // 企业ID（新架构）
   user_ids?: number[]; // 项目用户ID列表
   status?: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
@@ -74,58 +69,6 @@ export interface ProjectActivity {
   metadata?: Record<string, any>; // 额外的活动数据
 }
 
-// 导入客户类型（使用现有的Company类型但适配字段名）
-export interface Company {
-  id: number;
-  companyName: string; // 与company.ts保持一致
-  name?: string; // 兼容性字段
-  companyCode?: string;
-  industry?: string;
-  address?: string;
-  mainPhone?: string;
-  mainEmail?: string;
-  website?: string; // 添加网站字段
-  status?: 'active' | 'inactive' | 'potential' | 'suspended';
-  priority?: 'high' | 'medium' | 'low'; // 添加优先级字段
-  // 添加文本转换字段
-  companyTypeText?: string;
-  statusText?: string;
-  priorityText?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// 项目客户关联接口
-export interface ProjectCompany {
-  id: number;
-  project_id: number;
-  company_id: number;
-  company: Company;
-  role?: string; // 在项目中的角色（如“主客户”、“合作伙伴”等）
-  is_primary?: boolean; // 是否为主客户
-  created_at: string;
-}
-
-// 客户用户接口（适配现有类型）
-export interface CompanyUser {
-  id: number;
-  customerId: number; // 与company.ts保持一致
-  company_id?: number; // 兼容性字段
-  name: string;
-  user_name?: string; // 兼容性字段
-  email?: string;
-  phone?: string;
-  position?: string;
-  department?: string;
-  avatar?: string;
-  role?: 'primary_contact' | 'technical_contact' | 'decision_maker' | 'finance_contact' | 'normal';
-  status?: 'active' | 'inactive' | 'left';
-  is_active?: boolean; // 兼容性字段
-  createdAt: string;
-  updatedAt: string;
-  created_at?: string; // 兼容性字段
-  updated_at?: string; // 兼容性字段
-}
 
 // 项目详情接口（包含完整信息）
 export interface ProjectDetail extends Project {

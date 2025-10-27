@@ -47,7 +47,7 @@ import dayjs from 'dayjs';
 import { projectService } from '../services/projectService';
 // import companyService from '../services/companyService'; // Removed - company service no longer exists
 import enterpriseService from '../services/enterpriseService';
-import { Project, ProjectRequest, Company } from '../types/project';
+import { Project, ProjectRequest } from '../types/project';
 // import { Company, CompanyUser } from '../types/company'; // Removed - company types no longer exist - using Company from project.ts now
 import { Enterprise, EnterpriseUser } from '../types/enterprise';
 import { useEnterprise } from '../contexts/EnterpriseContext';
@@ -58,7 +58,14 @@ const { TextArea } = Input;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-// ✅ 临时类型定义：CompanyUser (向后兼容旧的公司用户系统)
+// ✅ 临时类型定义：Company和CompanyUser (向后兼容旧的公司用户系统，待后续删除)
+interface Company {
+  id: number;
+  companyName: string;
+  name?: string;
+  companyCode?: string;
+}
+
 interface CompanyUser {
   id: number;
   customerId: number;
@@ -281,15 +288,6 @@ const ProjectEditPageNew: React.FC = () => {
           console.log('   项目数据中的enterprise_id:', projectData.enterprise_id);
           console.log('   当前selectedEnterprise:', selectedEnterprise);
         }
-      } else if (projectData.companies) {
-        // 兼容旧的多客户架构
-        const companyIds = projectData.companies.map(pc => pc.company_id);
-        setSelectedCompanies(companyIds);
-        form.setFieldsValue({ company_ids: companyIds });
-      } else if (projectData.company_id) {
-        // 兼容旧的单客户架构
-        setSelectedCompanies([projectData.company_id]);
-        form.setFieldsValue({ company_ids: [projectData.company_id] });
       }
 
       // 设置选中的用户（如果项目详情包含用户信息）

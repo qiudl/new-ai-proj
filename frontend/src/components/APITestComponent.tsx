@@ -7,7 +7,6 @@ import React, { useState } from 'react';
 import { Card, Button, Space, Typography, Alert, Divider, Tag, message } from 'antd';
 import { ExperimentOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { projectService } from '../services/projectService';
-import { customerService } from '../services/customerService';
 import { documentVersionService } from '../services/documentVersionService';
 
 const { Title, Text, Paragraph } = Typography;
@@ -15,11 +14,9 @@ const { Title, Text, Paragraph } = Typography;
 const APITestComponent: React.FC = () => {
   const [testResults, setTestResults] = useState<{
     projects: { status: 'pending' | 'success' | 'error'; data?: any; error?: string };
-    customers: { status: 'pending' | 'success' | 'error'; data?: any; error?: string };
     versions: { status: 'pending' | 'success' | 'error'; data?: any; error?: string };
   }>({
     projects: { status: 'pending' },
-    customers: { status: 'pending' },
     versions: { status: 'pending' }
   });
 
@@ -43,25 +40,6 @@ const APITestComponent: React.FC = () => {
     }
   };
 
-  const testCustomersAPI = async () => {
-    setTestResults(prev => ({ ...prev, customers: { status: 'pending' } }));
-    
-    try {
-      const customers = await customerService.getCustomersForDocumentMetadata();
-      setTestResults(prev => ({ 
-        ...prev, 
-        customers: { status: 'success', data: customers.slice(0, 3) } 
-      }));
-      message.success('客户API测试成功');
-    } catch (error) {
-      console.error('客户API测试失败:', error);
-      setTestResults(prev => ({ 
-        ...prev, 
-        customers: { status: 'error', error: (error as Error).message || '未知错误' } 
-      }));
-      message.error('客户API测试失败');
-    }
-  };
 
   const testVersionsAPI = async () => {
     setTestResults(prev => ({ ...prev, versions: { status: 'pending' } }));
@@ -85,9 +63,8 @@ const APITestComponent: React.FC = () => {
 
   const runAllTests = async () => {
     await testProjectsAPI();
-    await testCustomersAPI();
     await testVersionsAPI();
-    };
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -141,9 +118,6 @@ const APITestComponent: React.FC = () => {
             <Button onClick={testProjectsAPI}>
               测试项目API
             </Button>
-            <Button onClick={testCustomersAPI}>
-              测试客户API
-            </Button>
             <Button onClick={testVersionsAPI}>
               测试版本历史API
             </Button>
@@ -179,38 +153,6 @@ const APITestComponent: React.FC = () => {
             <Alert
               message="项目API调用失败"
               description={testResults.projects.error}
-              type="error"
-            />
-          )}
-        </Card>
-
-        {/* 客户API测试结果 */}
-        <Card  title={
-          <Space>
-            {getStatusIcon(testResults.customers.status)}
-            <span>客户API测试</span>
-            {getStatusTag(testResults.customers.status)}
-          </Space>
-        }>
-          {testResults.customers.status === 'success' && testResults.customers.data && (
-            <div>
-              <Text strong>成功加载 {testResults.customers.data.length} 个客户:</Text>
-              <ul>
-                {testResults.customers.data.map((customer: any) => (
-                  <li key={customer.id}>
-                    <Text>{customer.name}</Text>
-                    {customer.description && (
-                      <Text type="secondary"> - {customer.description}</Text>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {testResults.customers.status === 'error' && (
-            <Alert
-              message="客户API调用失败"
-              description={testResults.customers.error}
               type="error"
             />
           )}

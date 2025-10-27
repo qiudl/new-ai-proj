@@ -37,7 +37,7 @@ import {
   type ExportOptions,
 } from '../services/exportService';
 import { Task } from '../types/task';
-import { Project, Company } from '../types/project';
+import { Project } from '../types/project';
 
 // 类型定义
 interface StatItem {
@@ -56,7 +56,6 @@ export interface ExportModalProps {
     selectedWeek: Dayjs;
     tasks: Task[];
     projects?: Project[];
-    customers?: Company[];
     stats: {
       totalTasks: number;
       completedTasks: number;
@@ -67,7 +66,6 @@ export interface ExportModalProps {
     };
     filters: {
       selectedProject?: number;
-      selectedCustomer?: number;
       selectedStatus: string;
       searchText: string;
     };

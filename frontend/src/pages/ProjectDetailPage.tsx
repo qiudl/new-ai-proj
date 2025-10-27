@@ -212,7 +212,7 @@ const ProjectDetailPage: React.FC = () => {
             </Card>
           </Col>
           {/* 企业信息 */}
-          {project?.company_id ? (
+          {project?.enterprise_id ? (
             <Col xs={24}>
               <Card 
                 title={
@@ -233,7 +233,7 @@ const ProjectDetailPage: React.FC = () => {
                     <Button 
                       type="link" 
                       icon={<EditOutlined />}
-                      onClick={() => navigate(`/enterprises/${project.company_id}/edit`)}
+                      onClick={() => navigate(`/enterprises/${project.enterprise_id}/edit`)}
                     >
                       编辑企业信息
                     </Button>
@@ -256,7 +256,7 @@ const ProjectDetailPage: React.FC = () => {
                               {enterpriseInfo?.status === 'suspended' && '（已暂停）'}
                             </Text>
                             <br />
-                            <Text type="secondary" style={{ fontSize: '12px' }}>企业ID: #{project.company_id}</Text>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>企业ID: #{project.enterprise_id}</Text>
                           </div>
                         </Space>
                         
@@ -499,8 +499,8 @@ const ProjectDetailPage: React.FC = () => {
       setProject(projectDetail);
       
       // 如果项目有关联企业，获取完整的企业信息
-      // 注意：数据迁移后，项目API返回的是enterprise_id而不是company_id
-      const enterpriseId = projectDetail.enterprise_id || projectDetail.company_id;
+      // 数据迁移后，项目API返回enterprise_id
+      const enterpriseId = projectDetail.enterprise_id;
       if (enterpriseId) {
         try {
           const enterprise = await enterpriseService.getEnterprise(enterpriseId);
@@ -654,7 +654,7 @@ const ProjectDetailPage: React.FC = () => {
                   {project.name}
                 </Title>
                 {/* 企业信息展示 */}
-                {project.company_id && (
+                {project.enterprise_id && (
                   <Card 
                      
                     style={{ 
