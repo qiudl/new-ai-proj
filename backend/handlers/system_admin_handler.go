@@ -2,10 +2,14 @@ package handlers
 
 import (
 	"ai-project-backend/database"
+	"ai-project-backend/models"
 	"ai-project-backend/services"
 	"database/sql"
+	"fmt"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -14,6 +18,7 @@ import (
 // SystemAdminHandler handles HTTP requests for system administrator management
 type SystemAdminHandler struct {
 	systemAdminService *services.SystemAdminService
+	db                 database.DB
 	validator          *validator.Validate
 }
 
@@ -23,6 +28,12 @@ func NewSystemAdminHandler(db *sql.DB) *SystemAdminHandler {
 		systemAdminService: services.NewSystemAdminService(db),
 		validator:          validator.New(),
 	}
+}
+
+// SetDB sets the database.DB interface for handler operations
+// This is needed for accessing Tasks and Projects repositories
+func (h *SystemAdminHandler) SetDB(db database.DB) {
+	h.db = db
 }
 
 // GrantSystemAdmin grants system administrator privileges to a user
@@ -476,5 +487,281 @@ func (h *SystemAdminHandler) GetAuditLogs(c *gin.Context) {
 			"limit":  filters.Limit,
 			"offset": filters.Offset,
 		},
+	})
+}
+
+// UpdateTaskProject updates the project_id of a task (System Admin Only)
+// @Summary Update task project
+// @Description Change the project that a task belongs to (System administrators only)
+// @Tags system-admin,tasks
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param taskId path int true "Task ID"
+// @Param request body models.UpdateTaskProjectRequest true "Update task project request"
+// @Success 200 {object} models.APIResponse "Task project updated successfully"
+// @Failure 400 {object} models.APIResponse "Bad request"
+// @Failure 401 {object} models.APIResponse "Unauthorized"
+// @Failure 403 {object} models.APIResponse "Forbidden - System admin only"
+// @Failure 404 {object} models.APIResponse "Task or project not found"
+// @Failure 500 {object} models.APIResponse "Internal server error"
+// @Router /admin/tasks/{taskId}/project [put]
+func (h *SystemAdminHandler) UpdateTaskProject(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// Step 1: Parse task ID from URL parameter
+	taskID, err := strconv.Atoi(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "invalid_task_id",
+				"message": "任务ID必须是有效的数字",
+				"details": err.Error(),
+			},
+		})
+		return
+	}
+
+	// Step 2: Parse and validate request body
+	var req struct {
+		NewProjectID int     `json:"new_project_id" binding:"required"`
+		Reason       *string `json:"reason"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "invalid_request",
+				"message": "请求格式不正确",
+				"details": err.Error(),
+			},
+		})
+		return
+	}
+
+	// Step 3: Check if database interface is available
+	if h.db == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "internal_error",
+				"message": "数据库接口未初始化",
+			},
+		})
+		return
+	}
+
+	// Step 3.1: Begin database transaction for data consistency
+	// All database operations (read and write) are wrapped in transaction
+	tx, err := h.db.BeginTx(ctx)
+	if err != nil {
+		log.Printf("[ERROR] Failed to begin transaction: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "transaction_error",
+				"message": "无法开始数据库事务",
+				"details": err.Error(),
+			},
+		})
+		return
+	}
+
+	// Ensure transaction is rolled back on error (Rollback after Commit is safe no-op)
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			log.Printf("[ERROR] Panic in UpdateTaskProject, rolled back transaction: %v", p)
+			panic(p) // re-throw panic after rollback
+		}
+	}()
+
+	// Step 4: Get current task information (within transaction for read consistency)
+	currentTask, err := tx.Tasks().GetByID(ctx, taskID)
+	if err != nil {
+		_ = tx.Rollback()
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"error": gin.H{
+					"code":    "task_not_found",
+					"message": "任务不存在",
+					"task_id": taskID,
+				},
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "database_error",
+				"message": "查询任务失败",
+				"details": err.Error(),
+			},
+		})
+		return
+	}
+
+	// Step 5: Validate target project exists (within transaction)
+	targetProject, err := tx.Projects().GetByID(ctx, req.NewProjectID)
+	if err != nil {
+		_ = tx.Rollback()
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error": gin.H{
+					"code":       "project_not_found",
+					"message":    "目标项目不存在",
+					"project_id": req.NewProjectID,
+				},
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "database_error",
+				"message": "查询项目失败",
+				"details": err.Error(),
+			},
+		})
+		return
+	}
+
+	// Step 6: Record old project ID and get old project name for audit log
+	oldProjectID := currentTask.ProjectID
+
+	// Get old project information for audit log
+	oldProject, err := tx.Projects().GetByID(ctx, oldProjectID)
+	if err != nil {
+		_ = tx.Rollback()
+		log.Printf("[ERROR] Failed to query old project (id=%d): %v", oldProjectID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "database_error",
+				"message": "查询原项目信息失败",
+				"details": err.Error(),
+			},
+		})
+		return
+	}
+	oldProjectName := oldProject.Name
+
+	// Check if project is actually changing
+	if oldProjectID == req.NewProjectID {
+		_ = tx.Rollback() // No changes needed, rollback transaction
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"task_id":        taskID,
+				"old_project_id": oldProjectID,
+				"new_project_id": req.NewProjectID,
+				"message":        "任务已在目标项目中",
+			},
+		})
+		return
+	}
+
+	// Step 7: Update task project_id within transaction
+	currentTask.ProjectID = req.NewProjectID
+	_, err = tx.Tasks().Update(ctx, currentTask)
+	if err != nil {
+		_ = tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "update_failed",
+				"message": "更新任务项目失败",
+				"details": err.Error(),
+			},
+		})
+		return
+	}
+
+	// Step 7.1: Create persistent audit log entry within same transaction
+	// Get user information from context (set by auth middleware)
+	userID, _ := c.Get("user_id")
+	username, _ := c.Get("username")
+	userRole, _ := c.Get("user_role")
+
+	// Prepare audit log details
+	auditDescription := fmt.Sprintf("任务 #%d '%s' 从项目 #%d '%s' 移动到项目 #%d '%s'",
+		taskID, currentTask.Title, oldProjectID, oldProjectName, req.NewProjectID, targetProject.Name)
+
+	if req.Reason != nil && *req.Reason != "" {
+		auditDescription += fmt.Sprintf(" (原因: %s)", *req.Reason)
+	}
+
+	// Create audit log entry
+	auditLog := &models.AuditLog{
+		Timestamp:    time.Now(),
+		UserID:       userID.(*int),
+		UserName:     username.(string),
+		UserRole:     userRole.(string),
+		Action:       "task_project_change",
+		ResourceType: "task",
+		ResourceID:   fmt.Sprintf("%d", taskID),
+		ResourceName: currentTask.Title,
+		Description:  auditDescription,
+		IPAddress:    c.ClientIP(),
+		UserAgent:    c.GetHeader("User-Agent"),
+		RequestID:    c.GetString("request_id"),
+		Status:       "success",
+		Changes: map[string]interface{}{
+			"old_project_id":   oldProjectID,
+			"old_project_name": oldProjectName,
+			"new_project_id":   req.NewProjectID,
+			"new_project_name": targetProject.Name,
+			"task_id":          taskID,
+			"task_title":       currentTask.Title,
+			"reason":           req.Reason,
+		},
+	}
+
+	// Write audit log to database within transaction
+	err = tx.Audit().CreateAuditLog(ctx, auditLog)
+	if err != nil {
+		_ = tx.Rollback()
+		log.Printf("[ERROR] Failed to create audit log: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "audit_log_failed",
+				"message": "创建审计日志失败",
+				"details": err.Error(),
+			},
+		})
+		return
+	}
+
+	log.Printf("[AUDIT] Successfully created audit log for task_project_change: task_id=%d, user=%s", taskID, username)
+
+	// Step 8: Commit transaction (includes task update AND audit log)
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "commit_failed",
+				"message": "提交事务失败",
+				"details": err.Error(),
+			},
+		})
+		return
+	}
+	// Step 9: Return success response with comprehensive information
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"task_id":          taskID,
+			"task_title":       currentTask.Title,
+			"old_project_id":   oldProjectID,
+			"new_project_id":   req.NewProjectID,
+			"new_project_name": targetProject.Name,
+			"updated_at":       currentTask.UpdatedAt,
+		},
+		"message": "任务项目已成功更新",
 	})
 }
