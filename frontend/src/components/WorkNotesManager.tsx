@@ -614,8 +614,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
             project_name: '示例项目'
           }
         ] : undefined,
-        categoryIcon: '📝',
-        categoryName: '前端开发'
+        categoryIcon: '📝'
+        // Removed hardcoded categoryName: '前端开发'
       }));
 
       setWorkNotes(notesWithTasks);
@@ -1444,11 +1444,10 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           {!isMobile && (
             <div style={{ fontSize: 11, color: '#8c8c8c', lineHeight: 1.4 }}>
               <Space size={4} wrap>
-                <span>{record.categoryName}</span>
                 {record.associatedTasks && record.associatedTasks.length > 0 && (
                   <span>🔗{record.associatedTasks.length}个任务</span>
                 )}
-                {record.tags && record.tags.length > 0 && 
+                {record.tags && record.tags.length > 0 &&
                   record.tags.slice(0, 2).map(tag => (
                     <span key={tag} style={{ color: '#52c41a' }}>#{tag}</span>
                   ))
@@ -1574,6 +1573,31 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
             }}>
               {config.icon}
             </span>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: '所属文件夹',
+      dataIndex: 'folder_id',
+      key: 'folder',
+      width: 120,
+      align: 'left' as const,
+      responsive: ['lg'],
+      render: (folder_id: number | null | undefined, record: WorkNoteWithTask) => {
+        if (!folder_id) {
+          return <Text type="secondary" style={{ fontSize: 12 }}>未分类</Text>;
+        }
+        const folder = folders.find(f => f.id === folder_id);
+        if (!folder) {
+          return <Text type="secondary" style={{ fontSize: 12 }}>-</Text>;
+        }
+        return (
+          <Tooltip title={folder.name}>
+            <Space size={4} style={{ fontSize: 12 }}>
+              <FolderOutlined style={{ color: folder.color || '#1890ff', fontSize: 12 }} />
+              <Text ellipsis style={{ maxWidth: 80, fontSize: 12 }}>{folder.name}</Text>
+            </Space>
           </Tooltip>
         );
       },
