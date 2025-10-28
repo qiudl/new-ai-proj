@@ -1347,6 +1347,113 @@ func (h *EnterpriseHandler) ResetEnterpriseUserPassword(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// RemoveEnterpriseUser godoc
+// @Summary 从企业移除用户
+// @Description 系统管理员从指定企业中移除用户(软删除),不能移除主要联系人
+// @Description 此操作会记录审计日志,被移除的用户仍可通过回收站恢复
+// @Tags System - Enterprise Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param enterprise_id path int true "企业ID"
+// @Param user_id path int true "用户ID"
+// @Success 200 {object} map[string]interface{} "移除成功,返回用户信息"
+// @Failure 400 {object} map[string]interface{} "请求参数错误 - 无效ID/用户不属于企业/不能移除主要联系人"
+// @Failure 401 {object} map[string]interface{} "未认证 - Token缺失或无效"
+// @Failure 403 {object} map[string]interface{} "权限不足 - 需要system.enterprise.manage_users权限"
+// @Failure 404 {object} map[string]interface{} "资源不存在 - 企业或用户不存在"
+// @Failure 500 {object} map[string]interface{} "服务器错误 - 数据库操作失败"
+// @Router /system/enterprises/{enterprise_id}/users/{user_id} [delete]
+func (h *EnterpriseHandler) RemoveEnterpriseUser(c *gin.Context) {
+	ctx := context.WithValue(c.Request.Context(), "gin_context", c)
+
+	// Get enterprise ID from path (adapted from :enterprise_id to :id)
+	enterpriseIDStr := c.Param("id")
+	enterpriseID, err := strconv.Atoi(enterpriseIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get user ID from path (set by adapter as "userId")
+	userIDStr := c.Param("userId")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Verify the enterprise exists
+	_, err = h.db.Enterprises().GetByID(ctx, enterpriseID)
+	if err != nil {
+		h.logger.Printf("Error getting enterprise %d: %v", enterpriseID, err)
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Enterprise not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Verify the user exists and belongs to this enterprise
+	user, err := h.db.Enterprises().GetUserByID(ctx, userID)
+	if err != nil {
+		h.logger.Printf("Error getting enterprise user %d: %v", userID, err)
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Verify the user belongs to the specified enterprise
+	if user.EnterpriseID != enterpriseID {
+		h.logger.Printf("User %d does not belong to enterprise %d (belongs to %d)", userID, enterpriseID, user.EnterpriseID)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "User does not belong to this enterprise", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Check if user is the primary contact (optional - may want to prevent deletion)
+	if user.IsPrimaryContact {
+		h.logger.Printf("Attempted to remove primary contact user %d from enterprise %d", userID, enterpriseID)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Cannot remove primary contact. Please assign a new primary contact first.", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Perform soft delete
+	err = h.db.Enterprises().DeleteUser(ctx, userID)
+	if err != nil {
+		h.logger.Printf("Error deleting enterprise user %d: %v", userID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to remove user from enterprise", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Log the removal action
+	currentUserID := c.GetInt("user_id")
+	auditRepo := h.db.Audit()
+	auditLog := &models.AuditLog{
+		UserID:       &currentUserID,
+		Action:       "remove_enterprise_user",
+		ResourceType: "enterprise_user",
+		ResourceID:   strconv.Itoa(userID),
+		Description:  fmt.Sprintf("Removed user %s (ID: %d) from enterprise %d", user.Name, userID, enterpriseID),
+		IPAddress:    c.ClientIP(),
+		UserAgent:    c.GetHeader("User-Agent"),
+	}
+	_ = auditRepo.CreateAuditLog(ctx, auditLog)
+
+	// Return success response
+	result := gin.H{
+		"user_id":       userID,
+		"enterprise_id": enterpriseID,
+		"username":      user.Username,
+		"name":          user.Name,
+	}
+
+	response := models.NewSuccessResponse(result, "User removed from enterprise successfully")
+	c.JSON(http.StatusOK, response)
+}
+
 // ========== Helper Functions ==========
 
 // generateRandomPassword generates a random password with specified length

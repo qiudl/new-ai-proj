@@ -498,7 +498,7 @@ func (h *SystemAdminHandler) GetAuditLogs(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param taskId path int true "Task ID"
-// @Param request body models.UpdateTaskProjectRequest true "Update task project request"
+// @Param request body object{new_project_id=int,reason=string} true "Update task project request"
 // @Success 200 {object} models.APIResponse "Task project updated successfully"
 // @Failure 400 {object} models.APIResponse "Bad request"
 // @Failure 401 {object} models.APIResponse "Unauthorized"

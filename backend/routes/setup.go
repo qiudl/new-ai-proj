@@ -86,7 +86,8 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	RegisterRoleTemplateRoutes(authorized, app)
 
 	// 注册企业管理路由
-	RegisterEnterpriseRoutes(authorized, app)
+	// TEMPORARILY DISABLED: Conflicts with RBAC v2 enterprise routes (:id vs :enterprise_id)
+	// RegisterEnterpriseRoutes(authorized, app)
 
 	// 注册企业模拟管理路由（系统管理员功能）
 	RegisterImpersonationRoutes(authorized, app)
@@ -171,6 +172,17 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
 	// 注册文档健康检查
 	RegisterDocumentHealthRoute(router, app)
+
+	// ==========================================
+	// RBAC v2 路由注册 (System Domain + Enterprise Domain)
+	// ==========================================
+	authMiddleware := middleware.AuthMiddleware(app.GetJWTManager(), app.GetDB())
+
+	// 注册系统域路由 (System Domain - 系统管理员使用)
+	RegisterSystemRoutesV2(router, authMiddleware, app)
+
+	// 注册企业域路由 (Enterprise Domain - 企业用户使用)
+	RegisterEnterpriseRoutesV2(router, authMiddleware, app)
 }
 
 // corsMiddleware CORS中间件

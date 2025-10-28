@@ -6,6 +6,7 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/factories"
 	"ai-project-backend/handlers"
+	"ai-project-backend/middleware"
 	"ai-project-backend/security"
 	"ai-project-backend/services"
 	"ai-project-backend/utils"
@@ -41,6 +42,10 @@ type Application struct {
 	redisClient         *redis.Client
 	aiCacheService      *cache.AICacheService
 	aiRateLimiter       *security.RedisRateLimiter
+	// RBAC v2 Services
+	permissionServiceV2  services.PermissionServiceV2
+	identityProvider     services.IdentityProvider
+	permissionMiddleware *middleware.PermissionMiddlewareV2
 	// Legacy individual handlers for compatibility
 	authHandler              *handlers.AuthHandler              // Auth handler instance
 	serviceAccountHandler    *handlers.ServiceAccountHandler    // Service account handler instance
@@ -59,6 +64,12 @@ type Application struct {
 	mcpWorktreeHandler       *handlers.MCPWorktreeHandler       // MCP Worktree handler instance (Phase 5)
 	monitoringHandler        *handlers.WorktreeMonitoringHandler // Worktree monitoring handler instance (Phase 6)
 	systemAdminHandler       *handlers.SystemAdminHandler       // System admin handler instance
+	// RBAC v2 Handlers
+	systemUserHandler        *handlers.SystemUserHandler        // System user handler instance (RBAC v2)
+	systemRoleHandler        *handlers.SystemRoleHandler        // System role handler instance (RBAC v2)
+	systemPermissionHandler  *handlers.SystemPermissionHandler  // System permission handler instance (RBAC v2)
+	enterpriseUserHandler    *handlers.EnterpriseUserHandler    // Enterprise user handler instance (RBAC v2)
+	enterpriseRoleHandler    *handlers.EnterpriseRoleHandler    // Enterprise role handler instance (RBAC v2)
 	mirrorWritable           bool
 }
 
@@ -195,6 +206,40 @@ func NewApplication() (*Application, error) {
 		logger.Println("⚠️  AI Rate Limiter disabled (Redis not available)")
 	}
 
+	// Initialize RBAC v2 Services
+	sqlDB, ok := db.GetDB().(*sql.DB)
+	if !ok {
+		return nil, fmt.Errorf("failed to get *sql.DB for RBAC v2 initialization")
+	}
+
+	// Initialize RBAC v2 Repositories
+	systemRoleRepo := database.NewSystemRoleRepository(sqlDB)
+	enterpriseRoleRepo := database.NewEnterpriseRoleRepository(sqlDB)
+
+	// Initialize PermissionServiceV2
+	permissionServiceV2 := services.NewPermissionServiceV2(&services.PermissionServiceV2Config{
+		DB:                 sqlDB,
+		Cache:              redisClient, // Can be nil if Redis not available
+		CacheTTL:           15 * time.Minute,
+		SystemRoleRepo:     systemRoleRepo,
+		EnterpriseRoleRepo: enterpriseRoleRepo,
+	})
+
+	// Initialize IdentityProvider
+	identityProvider := services.NewIdentityProvider(&services.IdentityProviderConfig{
+		DB:       sqlDB,
+		Cache:    redisClient, // Can be nil if Redis not available
+		CacheTTL: 15 * time.Minute,
+	})
+
+	// Initialize PermissionMiddlewareV2
+	permissionMiddleware := middleware.NewPermissionMiddlewareV2(
+		permissionServiceV2,
+		identityProvider,
+	)
+
+	logger.Println("✅ RBAC v2 permission system initialized")
+
 	// Initialize Task Handler (after cache service is ready for intelligent cache invalidation)
 	taskHandler := handlers.NewTaskHandler(db, aiCacheService, logger, validate)
 
@@ -241,8 +286,17 @@ func NewApplication() (*Application, error) {
 	monitoringHandler := handlers.NewWorktreeMonitoringHandler(monitoringService)
 
 	// Initialize System Admin Handler
-	sqlDB, _ := db.GetDB().(*sql.DB)
+	// Note: sqlDB already declared in RBAC v2 initialization section
 	systemAdminHandler := handlers.NewSystemAdminHandler(sqlDB)
+
+	// Initialize RBAC v2 Handlers
+	systemUserHandler := handlers.NewSystemUserHandler(sqlDB, identityProvider)
+	systemRoleHandler := handlers.NewSystemRoleHandler(sqlDB, systemRoleRepo, identityProvider)
+	systemPermissionHandler := handlers.NewSystemPermissionHandler(sqlDB, identityProvider)
+	enterpriseUserHandler := handlers.NewEnterpriseUserHandler(sqlDB, identityProvider, enterpriseRoleRepo)
+	enterpriseRoleHandler := handlers.NewEnterpriseRoleHandler(sqlDB, enterpriseRoleRepo, identityProvider)
+
+	logger.Println("✅ RBAC v2 handlers initialized (SystemUserHandler, SystemRoleHandler, SystemPermissionHandler, EnterpriseUserHandler, EnterpriseRoleHandler)")
 
 	// Initialize WebSocket Hub (temporarily disabled)
 	// wsHub := ws.NewHub(logger)
@@ -273,6 +327,10 @@ func NewApplication() (*Application, error) {
 		redisClient:     redisClient,
 		aiCacheService:  aiCacheService,
 		aiRateLimiter:   aiRateLimiter,
+		// RBAC v2 Services
+		permissionServiceV2:  permissionServiceV2,
+		identityProvider:     identityProvider,
+		permissionMiddleware: permissionMiddleware,
 		// Legacy individual handlers for compatibility
 		authHandler:           authHandler,
 		serviceAccountHandler: serviceAccountHandler,
@@ -291,6 +349,12 @@ func NewApplication() (*Application, error) {
 		mcpWorktreeHandler:       mcpWorktreeHandler, // Phase 5
 		monitoringHandler:        monitoringHandler,  // Phase 6
 		systemAdminHandler:       systemAdminHandler, // System admin handler
+		// RBAC v2 Handlers
+		systemUserHandler:        systemUserHandler,        // System user handler (RBAC v2)
+		systemRoleHandler:        systemRoleHandler,        // System role handler (RBAC v2)
+		systemPermissionHandler:  systemPermissionHandler,  // System permission handler (RBAC v2)
+		enterpriseUserHandler:    enterpriseUserHandler,    // Enterprise user handler (RBAC v2)
+		enterpriseRoleHandler:    enterpriseRoleHandler,    // Enterprise role handler (RBAC v2)
 	}
 
 	// Perform startup permission/volume checks
@@ -879,3 +943,43 @@ func (app *Application) GetProgressPusher() *services.ProgressPusher {
 	return nil // Temporarily disabled
 }
 */
+
+// GetPermissionMiddlewareV2 returns the RBAC v2 permission middleware
+func (app *Application) GetPermissionMiddlewareV2() *middleware.PermissionMiddlewareV2 {
+	return app.permissionMiddleware
+}
+
+// GetPermissionServiceV2 returns the RBAC v2 permission service
+func (app *Application) GetPermissionServiceV2() services.PermissionServiceV2 {
+	return app.permissionServiceV2
+}
+
+// GetIdentityProvider returns the identity provider
+func (app *Application) GetIdentityProvider() services.IdentityProvider {
+	return app.identityProvider
+}
+
+// GetSystemUserHandler returns the system user handler (RBAC v2)
+func (app *Application) GetSystemUserHandler() *handlers.SystemUserHandler {
+	return app.systemUserHandler
+}
+
+// GetSystemRoleHandler returns the system role handler (RBAC v2)
+func (app *Application) GetSystemRoleHandler() *handlers.SystemRoleHandler {
+	return app.systemRoleHandler
+}
+
+// GetSystemPermissionHandler returns the system permission handler (RBAC v2)
+func (app *Application) GetSystemPermissionHandler() *handlers.SystemPermissionHandler {
+	return app.systemPermissionHandler
+}
+
+// GetEnterpriseUserHandler returns the enterprise user handler (RBAC v2)
+func (app *Application) GetEnterpriseUserHandler() *handlers.EnterpriseUserHandler {
+	return app.enterpriseUserHandler
+}
+
+// GetEnterpriseRoleHandler returns the enterprise role handler (RBAC v2)
+func (app *Application) GetEnterpriseRoleHandler() *handlers.EnterpriseRoleHandler {
+	return app.enterpriseRoleHandler
+}

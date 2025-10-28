@@ -18,7 +18,6 @@ require (
 	github.com/prometheus/client_golang v1.20.5
 	github.com/stretchr/testify v1.9.0
 	github.com/swaggo/swag v1.16.6
-	github.com/yanyiwu/gojieba v1.4.6
 	golang.org/x/crypto v0.40.0
 	golang.org/x/oauth2 v0.23.0
 	golang.org/x/time v0.13.0

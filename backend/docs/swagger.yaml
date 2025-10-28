@@ -1,11 +1,97 @@
 basePath: /api/v1
 definitions:
+  handlers.BatchGenerateDescriptionsRequest:
+    properties:
+      model:
+        type: string
+      options:
+        $ref: '#/definitions/services.GenerateDescriptionOptions'
+      task_ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - model
+    - task_ids
+    type: object
+  handlers.GenerateDescriptionRequest:
+    properties:
+      model:
+        type: string
+      options:
+        $ref: '#/definitions/services.GenerateDescriptionOptions'
+    required:
+    - model
+    type: object
+  handlers.GenerateDocumentRequest:
+    properties:
+      custom_prompt:
+        type: string
+      document_type:
+        type: string
+      model:
+        type: string
+      options:
+        $ref: '#/definitions/services.DocumentGenOptions'
+      task_id:
+        type: integer
+    required:
+    - document_type
+    - model
+    - task_id
+    type: object
+  handlers.GenerateDocumentResponse:
+    properties:
+      document:
+        $ref: '#/definitions/services.DocumentData'
+      generated_at:
+        type: string
+      model_used:
+        type: string
+    type: object
+  handlers.GenerateServiceTokenRequest:
+    properties:
+      api_key:
+        type: string
+      username:
+        type: string
+    required:
+    - api_key
+    - username
+    type: object
+  handlers.GenerateServiceTokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+      user:
+        properties:
+          email:
+            type: string
+          id:
+            type: integer
+          role:
+            type: string
+          user_type:
+            type: string
+          username:
+            type: string
+        type: object
+    type: object
   handlers.JWTLoginResponse:
     properties:
       access_token:
         type: string
       expires_in:
         type: integer
+      is_enterprise_admin:
+        description: 是否为企业管理员
+        type: boolean
       refresh_token:
         type: string
       token_type:
@@ -40,6 +126,16 @@ definitions:
     required:
     - entityType
     - id
+    type: object
+  handlers.UpdateTaskDescriptionRequest:
+    properties:
+      description:
+        type: string
+      mode:
+        description: replace | append
+        type: string
+    required:
+    - description
     type: object
   models.APIError:
     properties:
@@ -416,6 +512,15 @@ definitions:
     - from_date
     - to_date
     type: object
+  models.CommentUser:
+    properties:
+      avatar:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   models.ConversionOptions:
     properties:
       convert_format:
@@ -507,6 +612,15 @@ definitions:
         type: string
     required:
     - task_id
+    type: object
+  models.CreateTaskCommentRequest:
+    properties:
+      content:
+        maxLength: 2000
+        minLength: 1
+        type: string
+    required:
+    - content
     type: object
   models.CreateWorkNoteRequest:
     properties:
@@ -944,6 +1058,19 @@ definitions:
       title:
         type: string
     type: object
+  models.ListTaskCommentsResponse:
+    properties:
+      comments:
+        items:
+          $ref: '#/definitions/models.TaskComment'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
   models.MetadataJSON:
     additionalProperties: true
     type: object
@@ -957,6 +1084,71 @@ definitions:
         type: integer
       target_project_id:
         minimum: 1
+        type: integer
+    type: object
+  models.OrganizeDetail:
+    properties:
+      message:
+        description: 消息
+        type: string
+      parent_id:
+        description: 父任务ID
+        type: integer
+      success:
+        description: 是否成功
+        type: boolean
+      task_id:
+        description: 任务ID
+        type: integer
+      task_title:
+        description: 任务标题
+        type: string
+    type: object
+  models.OrganizeRequest:
+    properties:
+      auto_create_weeks:
+        description: 是否自动创建周汇总任务
+        type: boolean
+      task_ids:
+        description: 要组织的任务ID列表
+        items:
+          type: integer
+        type: array
+    required:
+    - task_ids
+    type: object
+  models.OrganizeResult:
+    properties:
+      details:
+        description: 详细结果
+        items:
+          $ref: '#/definitions/models.OrganizeDetail'
+        type: array
+      failed:
+        description: 失败数量
+        type: integer
+      organized:
+        description: 成功组织数量
+        type: integer
+      skipped:
+        description: 跳过数量
+        type: integer
+    type: object
+  models.OrphanScanResult:
+    properties:
+      archived:
+        description: 已归档任务数
+        type: integer
+      organizable:
+        description: 可组织任务数
+        type: integer
+      preview:
+        description: 预览数据
+        items:
+          $ref: '#/definitions/models.WeekPreview'
+        type: array
+      total_orphans:
+        description: 孤立任务总数
         type: integer
     type: object
   models.PaginatedResponse:
@@ -1110,9 +1302,15 @@ definitions:
         type: string
       archived_by:
         type: integer
+      assignee:
+        allOf:
+        - $ref: '#/definitions/models.User'
+        description: Added for user info, not stored in tasks table
       assignee_id:
         type: integer
       children_count:
+        type: integer
+      completed_children_count:
         type: integer
       created_at:
         description: Timestamps
@@ -1155,6 +1353,9 @@ definitions:
         type: string
       project_id:
         type: integer
+      project_name:
+        description: Added for JOIN queries
+        type: string
       sort_order:
         type: integer
       start_datetime:
@@ -1207,6 +1408,57 @@ definitions:
     - project_id
     - status
     - title
+    type: object
+  models.TaskBrief:
+    properties:
+      id:
+        description: 任务ID
+        type: integer
+      status:
+        description: 任务状态
+        type: string
+      title:
+        description: 任务标题
+        type: string
+    type: object
+  models.TaskComment:
+    properties:
+      can_delete:
+        type: boolean
+      content:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
+        type: integer
+      id:
+        type: integer
+      status:
+        description: active, deleted
+        type: string
+      task_id:
+        type: integer
+      updated_at:
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/models.CommentUser'
+        description: 关联字段（不存储在数据库）
+      user_id:
+        type: integer
+    type: object
+  models.TaskCommentStats:
+    properties:
+      last_comment_at:
+        type: string
+      participants:
+        type: integer
+      task_id:
+        type: integer
+      total_comments:
+        type: integer
     type: object
   models.TaskDependencyGraph:
     properties:
@@ -1366,6 +1618,10 @@ definitions:
         type: string
       archived_by:
         type: integer
+      assignee:
+        allOf:
+        - $ref: '#/definitions/models.User'
+        description: Added for user info, not stored in tasks table
       assignee_id:
         type: integer
       blocked_by:
@@ -1377,6 +1633,8 @@ definitions:
           $ref: '#/definitions/models.TaskRelationship'
         type: array
       children_count:
+        type: integer
+      completed_children_count:
         type: integer
       created_at:
         description: Timestamps
@@ -1426,6 +1684,9 @@ definitions:
         type: string
       project_id:
         type: integer
+      project_name:
+        description: Added for JOIN queries
+        type: string
       related_tasks:
         items:
           $ref: '#/definitions/models.TaskRelationship'
@@ -1656,6 +1917,31 @@ definitions:
     - VisibilityPrivate
     - VisibilityTeam
     - VisibilityPublic
+  models.WeekPreview:
+    properties:
+      parent_id:
+        description: 父任务ID (null表示需要创建)
+        type: integer
+      task_count:
+        description: 任务数量
+        type: integer
+      task_ids:
+        description: 任务ID列表
+        items:
+          type: integer
+        type: array
+      tasks:
+        description: 任务详情列表
+        items:
+          $ref: '#/definitions/models.TaskBrief'
+        type: array
+      week_number:
+        description: ISO周次
+        type: integer
+      week_range:
+        description: 日期范围 (MM/DD-MM/DD)
+        type: string
+    type: object
   models.WorkNote:
     properties:
       archived:
@@ -1673,6 +1959,12 @@ definitions:
       deleted_at:
         type: string
       description:
+        type: string
+      display_id:
+        description: 对外展示的格式化ID (如 DOC-10001)
+        type: string
+      doc_type_prefix:
+        description: 文档类型前缀 (DOC/NOTE/API/SPEC/FILE)
         type: string
       file_size:
         type: integer
@@ -1809,6 +2101,12 @@ definitions:
       deleted_at:
         type: string
       description:
+        type: string
+      display_id:
+        description: 对外展示的格式化ID (如 DOC-10001)
+        type: string
+      doc_type_prefix:
+        description: 文档类型前缀 (DOC/NOTE/API/SPEC/FILE)
         type: string
       file_size:
         type: integer
@@ -1953,11 +2251,45 @@ definitions:
     - WorkNoteTypeLog
     - WorkNoteTypeReference
     - WorkNoteTypeTemplate
+  services.DocumentData:
+    properties:
+      content:
+        type: string
+      metadata:
+        $ref: '#/definitions/services.DocumentMetadata'
+      title:
+        type: string
+    type: object
+  services.DocumentGenOptions:
+    properties:
+      include_code_examples:
+        type: boolean
+      include_subtasks:
+        type: boolean
+      language:
+        description: '"zh" or "en"'
+        type: string
+    type: object
+  services.DocumentMetadata:
+    properties:
+      estimated_reading_time:
+        description: 分钟
+        type: integer
+      sections:
+        items:
+          type: string
+        type: array
+      word_count:
+        type: integer
+    type: object
   services.DocumentVersionInfo:
     properties:
       changes_summary:
         type: string
       checksum:
+        type: string
+      content:
+        description: 版本内容（可选，根据include_content参数）
         type: string
       created_at:
         type: string
@@ -1987,6 +2319,85 @@ definitions:
       title:
         type: string
       version_number:
+        type: integer
+    type: object
+  services.GenerateDescriptionOptions:
+    properties:
+      custom_prompt:
+        description: 用户自定义Prompt
+        type: string
+      include_context:
+        description: 是否包含上下文（父任务、子任务等）
+        type: boolean
+      length:
+        description: short | medium | long
+        type: string
+      max_tokens:
+        description: 最大token数
+        type: integer
+      mode:
+        description: replace | append | suggest
+        type: string
+      stream:
+        description: 是否流式返回
+        type: boolean
+      style:
+        description: brief | detailed | technical
+        type: string
+    type: object
+  services.GrantScopedAdminRequest:
+    properties:
+      admin_level:
+        type: integer
+      notes:
+        type: string
+      operator_user_id:
+        type: integer
+      operator_username:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      project_ids:
+        items:
+          type: string
+        type: array
+      scope_type:
+        description: '"global" or "projects"'
+        type: string
+      system_role_id:
+        type: integer
+      target_user_id:
+        type: integer
+    type: object
+  services.GrantSystemAdminRequest:
+    properties:
+      admin_level:
+        type: integer
+      admin_scopes:
+        additionalProperties: true
+        type: object
+      notes:
+        type: string
+      operator_user_id:
+        type: integer
+      operator_username:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      project_ids:
+        items:
+          type: string
+        type: array
+      scope_type:
+        description: '"global" or "scoped"'
+        type: string
+      system_role_id:
+        type: integer
+      target_user_id:
         type: integer
     type: object
   services.PrefixSearchResponse:
@@ -2102,6 +2513,17 @@ definitions:
         type: number
       updated_at:
         type: string
+    type: object
+  services.RevokeSystemAdminRequest:
+    properties:
+      operator_user_id:
+        type: integer
+      operator_username:
+        type: string
+      reason:
+        type: string
+      target_user_id:
+        type: integer
     type: object
   services.SearchResponse:
     properties:
@@ -2228,6 +2650,319 @@ info:
   title: AI Project Backend API
   version: "1.0"
 paths:
+  /admin/tasks/{taskId}/project:
+    put:
+      consumes:
+      - application/json
+      description: Change the project that a task belongs to (System administrators
+        only)
+      parameters:
+      - description: Task ID
+        in: path
+        name: taskId
+        required: true
+        type: integer
+      - description: Update task project request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            new_project_id:
+              type: integer
+            reason:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task project updated successfully
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden - System admin only
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Task or project not found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update task project
+      tags:
+      - system-admin
+      - tasks
+  /api/tasks/{id}/comments:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定任务的评论列表（分页）
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ListTaskCommentsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取任务评论列表
+      tags:
+      - TaskComments
+    post:
+      consumes:
+      - application/json
+      description: 为指定任务添加评论
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 评论内容
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateTaskCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TaskComment'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建任务评论
+      tags:
+      - TaskComments
+  /api/tasks/{id}/comments/{commentId}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的评论（仅作者或管理员可删除）
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 评论ID
+        in: path
+        name: commentId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除评论
+      tags:
+      - TaskComments
+  /api/tasks/{id}/comments/stats:
+    get:
+      consumes:
+      - application/json
+      description: 获取任务的评论数量、参与人数等统计信息
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TaskCommentStats'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取任务评论统计
+      tags:
+      - TaskComments
+  /api/v1/ai/document-templates:
+    get:
+      description: 获取所有可用的文档生成模板
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取文档模板
+      tags:
+      - AI
+  /api/v1/ai/document-types:
+    get:
+      description: 获取所有支持的文档类型及其说明
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取文档类型信息
+      tags:
+      - AI
+  /api/v1/ai/generate-document:
+    post:
+      consumes:
+      - application/json
+      description: 使用AI为指定任务生成技术文档
+      parameters:
+      - description: 生成文档请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GenerateDocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GenerateDocumentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 生成文档
+      tags:
+      - AI
+  /api/v1/ai/save-document:
+    post:
+      consumes:
+      - application/json
+      description: 将AI生成的文档保存为任务文档
+      parameters:
+      - description: 保存文档请求
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 保存文档到任务
+      tags:
+      - AI
   /api/v1/api-keys:
     get:
       description: Get a paginated list of API keys with optional filtering
@@ -2934,6 +3669,680 @@ paths:
       summary: Compare document versions
       tags:
       - Document Versions
+  /api/v1/enterprises/{enterprise_id}/permissions:
+    get:
+      consumes:
+      - application/json
+      description: 获取企业域所有可用权限列表,支持按资源过滤
+      parameters:
+      - description: 企业ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: 资源类型过滤 (e.g., project, task, document)
+        in: query
+        name: resource
+        type: string
+      - default: true
+        description: 是否仅显示活跃权限
+        in: query
+        name: is_active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 权限列表
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: 无权限
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 列出企业可用权限
+      tags:
+      - 企业权限管理
+  /api/v1/enterprises/{enterprise_id}/roles:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of all roles in the enterprise
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Search by role name or code
+        in: query
+        name: search
+        type: string
+      - description: Filter by active status
+        in: query
+        name: is_active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of enterprise roles
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request - Invalid enterprise ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Insufficient permissions
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List enterprise roles
+      tags:
+      - enterprise-roles
+    post:
+      consumes:
+      - application/json
+      description: Create a new role within the enterprise
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: Create role request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Role created successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Role already exists
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create enterprise role
+      tags:
+      - enterprise-roles
+  /api/v1/enterprises/{enterprise_id}/roles/{role_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a role (built-in roles cannot be deleted)
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: Role ID
+        in: path
+        name: role_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Cannot delete built-in roles or roles in use
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete enterprise role
+      tags:
+      - enterprise-roles
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific role including permissions
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: Role ID
+        in: path
+        name: role_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role details with permissions
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get enterprise role
+      tags:
+      - enterprise-roles
+    put:
+      consumes:
+      - application/json
+      description: Update role name, description, or active status
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: Role ID
+        in: path
+        name: role_id
+        required: true
+        type: integer
+      - description: Update role request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Cannot update built-in roles
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update enterprise role
+      tags:
+      - enterprise-roles
+  /api/v1/enterprises/{enterprise_id}/roles/{role_id}/permissions:
+    post:
+      consumes:
+      - application/json
+      description: Assign or update permissions for an enterprise role
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: Role ID
+        in: path
+        name: role_id
+        required: true
+        type: integer
+      - description: Assign permissions request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permissions assigned successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Assign permissions to role
+      tags:
+      - enterprise-roles
+  /api/v1/enterprises/{enterprise_id}/users:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of all users in the enterprise
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Search by username or email
+        in: query
+        name: search
+        type: string
+      - description: Filter by status (active/inactive)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of enterprise users
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request - Invalid enterprise ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Insufficient permissions
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List enterprise users
+      tags:
+      - enterprise-users
+    post:
+      consumes:
+      - application/json
+      description: Invite a new user to join the enterprise or add existing user
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: Invite user request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User invited successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: User already in enterprise
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Invite user to enterprise
+      tags:
+      - enterprise-users
+  /api/v1/enterprises/{enterprise_id}/users/{user_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a user's access to the enterprise
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User removed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove user from enterprise
+      tags:
+      - enterprise-users
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific user in the enterprise
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Enterprise user details with roles
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get enterprise user
+      tags:
+      - enterprise-users
+  /api/v1/enterprises/{enterprise_id}/users/{user_id}/roles:
+    put:
+      consumes:
+      - application/json
+      description: Update the roles assigned to a user within the enterprise
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: Update roles request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Roles updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update enterprise user roles
+      tags:
+      - enterprise-users
   /api/v1/mcp/generate-document-from-template:
     post:
       consumes:
@@ -3634,6 +5043,80 @@ paths:
       summary: Recompute progress
       tags:
       - Progress
+  /api/v1/projects/{projectId}/tasks/organize-to-weeks:
+    post:
+      consumes:
+      - application/json
+      description: 将指定的任务批量组织到对应的周汇总任务下
+      parameters:
+      - description: 项目ID
+        in: path
+        name: projectId
+        required: true
+        type: integer
+      - description: 组织请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OrganizeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.OrganizeResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      summary: 批量组织任务到周汇总
+      tags:
+      - Task Organization
+  /api/v1/projects/{projectId}/tasks/scan-orphans:
+    post:
+      consumes:
+      - application/json
+      description: 扫描项目中没有父任务的孤立任务，并按周次进行分组预览
+      parameters:
+      - description: 项目ID
+        in: path
+        name: projectId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.OrphanScanResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      summary: 扫描孤立任务
+      tags:
+      - Task Organization
   /api/v1/search:
     get:
       consumes:
@@ -4158,6 +5641,920 @@ paths:
       summary: Find similar content
       tags:
       - Search
+  /api/v1/system/admins:
+    get:
+      description: Get list of all active system administrators
+      parameters:
+      - description: Minimum admin level
+        in: query
+        name: min_level
+        type: integer
+      - description: Maximum admin level
+        in: query
+        name: max_level
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List system admins
+      tags:
+      - system-admin
+  /api/v1/system/admins/{id}/accessible-projects:
+    get:
+      description: Get list of projects that an admin can access
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get accessible projects
+      tags:
+      - system-admin
+  /api/v1/system/admins/audit-logs:
+    get:
+      description: Get audit logs for system admin operations
+      parameters:
+      - description: Filter by target user ID
+        in: query
+        name: target_user_id
+        type: integer
+      - description: Filter by operator user ID
+        in: query
+        name: operator_user_id
+        type: integer
+      - description: Limit (default 20)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get audit logs
+      tags:
+      - system-admin
+  /api/v1/system/admins/check:
+    get:
+      description: Check if the current authenticated user is a system administrator
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Check current user
+      tags:
+      - system-admin
+  /api/v1/system/admins/grant:
+    post:
+      consumes:
+      - application/json
+      description: Grant system administrator privileges to a user
+      parameters:
+      - description: Grant request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/services.GrantSystemAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Grant system admin
+      tags:
+      - system-admin
+  /api/v1/system/admins/grant-scoped:
+    post:
+      consumes:
+      - application/json
+      description: Grant system admin privileges with specific project scope
+      parameters:
+      - description: Grant scoped request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/services.GrantScopedAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Grant scoped admin
+      tags:
+      - system-admin
+  /api/v1/system/admins/revoke:
+    post:
+      consumes:
+      - application/json
+      description: Revoke system administrator privileges from a user
+      parameters:
+      - description: Revoke request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/services.RevokeSystemAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Revoke system admin
+      tags:
+      - system-admin
+  /api/v1/system/permissions:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有系统级权限列表,支持按资源和活跃状态过滤
+      parameters:
+      - description: 资源类型过滤 (e.g., user, role, enterprise)
+        in: query
+        name: resource
+        type: string
+      - default: true
+        description: 是否仅显示活跃权限
+        in: query
+        name: is_active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 权限列表
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: 无权限
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 列出所有系统权限
+      tags:
+      - 系统权限管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的系统级权限定义
+      parameters:
+      - description: 权限信息
+        in: body
+        name: permission
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: 无权限
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: 权限代码已存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建系统权限
+      tags:
+      - 系统权限管理
+  /api/v1/system/roles:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all system roles with pagination
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Search by role name or code
+        in: query
+        name: search
+        type: string
+      - description: Filter by active status
+        in: query
+        name: is_active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of system roles
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - System admin only
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List system roles
+      tags:
+      - system-roles
+    post:
+      consumes:
+      - application/json
+      description: Create a new system role with specified permissions
+      parameters:
+      - description: Create system role request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created system role
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Role already exists
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create system role
+      tags:
+      - system-roles
+  /api/v1/system/roles/{role_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a system role (built-in roles cannot be deleted)
+      parameters:
+      - description: Role ID
+        in: path
+        name: role_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Cannot delete built-in roles or roles in use
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete system role
+      tags:
+      - system-roles
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific system role including
+        permissions
+      parameters:
+      - description: Role ID
+        in: path
+        name: role_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: System role details with permissions
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get system role
+      tags:
+      - system-roles
+    put:
+      consumes:
+      - application/json
+      description: Update system role name, description, or active status
+      parameters:
+      - description: Role ID
+        in: path
+        name: role_id
+        required: true
+        type: integer
+      - description: Update system role request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated system role
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Cannot update built-in roles
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update system role
+      tags:
+      - system-roles
+  /api/v1/system/roles/{role_id}/permissions:
+    post:
+      consumes:
+      - application/json
+      description: Assign or update permissions for a system role
+      parameters:
+      - description: Role ID
+        in: path
+        name: role_id
+        required: true
+        type: integer
+      - description: Assign permissions request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permissions assigned successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Assign permissions to role
+      tags:
+      - system-roles
+  /api/v1/system/users:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of all system users
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Search by username or email
+        in: query
+        name: search
+        type: string
+      - description: Filter by status (active/inactive)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of system users
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - System admin only
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List system users
+      tags:
+      - system-users
+    post:
+      consumes:
+      - application/json
+      description: Create a new system user with specified roles
+      parameters:
+      - description: Create system user request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created system user
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: User already exists
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create system user
+      tags:
+      - system-users
+  /api/v1/system/users/{user_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific system user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: System user details
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get system user
+      tags:
+      - system-users
+  /api/v1/system/users/{user_id}/roles:
+    put:
+      consumes:
+      - application/json
+      description: Update the roles assigned to a system user
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: Update roles request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Roles updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update system user roles
+      tags:
+      - system-users
+  /api/v1/system/users/{user_id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Update the status of a system user (active/inactive/suspended)
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: Update status request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Status updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update system user status
+      tags:
+      - system-users
   /api/v1/task-dependency-graph:
     get:
       description: Generate dependency graph data for task visualization
@@ -4318,6 +6715,132 @@ paths:
       summary: Bulk create relationships
       tags:
       - task-relationships
+  /api/v1/tasks/{id}/ai/description-suggestions:
+    get:
+      description: 基于任务上下文提供多个描述建议
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: AI模型
+        in: query
+        name: model
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取描述建议
+      tags:
+      - AI
+  /api/v1/tasks/{id}/ai/generate-description:
+    post:
+      consumes:
+      - application/json
+      description: 使用AI为指定任务生成详细描述
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 生成描述请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GenerateDescriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 生成任务描述
+      tags:
+      - AI
+  /api/v1/tasks/{id}/ai/update-description:
+    post:
+      consumes:
+      - application/json
+      description: 将AI生成的描述保存到任务
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新描述请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateTaskDescriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 更新任务描述
+      tags:
+      - AI
   /api/v1/tasks/{task_id}/relationships:
     get:
       description: Get all relationships for a specific task
@@ -4467,6 +6990,39 @@ paths:
       tags:
       - work-notes
       - tasks
+  /api/v1/tasks/ai/batch-generate-descriptions:
+    post:
+      consumes:
+      - application/json
+      description: 为多个任务批量生成描述
+      parameters:
+      - description: 批量生成描述请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BatchGenerateDescriptionsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 批量生成任务描述
+      tags:
+      - AI
   /api/v1/work-notes:
     get:
       consumes:
@@ -4577,6 +7133,10 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -4650,6 +7210,10 @@ paths:
             $ref: '#/definitions/models.ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/models.ErrorResponse'
         "404":
@@ -4869,6 +7433,84 @@ paths:
       summary: User login
       tags:
       - Authentication
+  /auth/service-api-key:
+    post:
+      consumes:
+      - application/json
+      description: Create a new API key for service account (admin only)
+      parameters:
+      - description: API Key creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.APIKeyCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API Key created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.APIKeyCreateResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Create API key for service account
+      tags:
+      - ServiceAccount
+  /auth/service-token:
+    post:
+      consumes:
+      - application/json
+      description: Generate JWT token pair for service account using API Key
+      parameters:
+      - description: API Key credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GenerateServiceTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token generated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.GenerateServiceTokenResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Generate service account token
+      tags:
+      - ServiceAccount
   /daily-focus-tasks:
     get:
       consumes:
@@ -5288,6 +7930,107 @@ paths:
       summary: Bulk reorder tasks
       tags:
       - Tasks
+  /projects/{id}/tasks/check-title:
+    get:
+      consumes:
+      - application/json
+      description: Check if a task title is unique within a project (for real-time
+        validation)
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Task title to check
+        in: query
+        name: title
+        required: true
+        type: string
+      - description: Task ID to exclude from check (for edit mode)
+        in: query
+        name: exclude_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Title uniqueness check result
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Check if task title is unique
+      tags:
+      - Tasks
+  /system/enterprises/{enterprise_id}/users/{user_id}:
+    delete:
+      consumes:
+      - application/json
+      description: |-
+        系统管理员从指定企业中移除用户(软删除),不能移除主要联系人
+        此操作会记录审计日志,被移除的用户仍可通过回收站恢复
+      parameters:
+      - description: 企业ID
+        in: path
+        name: enterprise_id
+        required: true
+        type: integer
+      - description: 用户ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 移除成功,返回用户信息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误 - 无效ID/用户不属于企业/不能移除主要联系人
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证 - Token缺失或无效
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: 权限不足 - 需要system.enterprise.manage_users权限
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 资源不存在 - 企业或用户不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误 - 数据库操作失败
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 从企业移除用户
+      tags:
+      - System - Enterprise Management
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

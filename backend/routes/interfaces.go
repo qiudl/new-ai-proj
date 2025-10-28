@@ -4,6 +4,8 @@ import (
 	"ai-project-backend/config"
 	"ai-project-backend/database"
 	"ai-project-backend/handlers"
+	"ai-project-backend/middleware"
+	"ai-project-backend/services"
 	"ai-project-backend/utils"
 	"github.com/gin-gonic/gin"
 )
@@ -234,4 +236,16 @@ type ApplicationInterface interface {
 
 	// Worktree监控处理器 (Phase 6)
 	GetMonitoringHandler() *handlers.WorktreeMonitoringHandler
+
+	// RBAC v2 Services
+	GetPermissionMiddlewareV2() *middleware.PermissionMiddlewareV2
+	GetPermissionServiceV2() services.PermissionServiceV2
+	GetIdentityProvider() services.IdentityProvider
+
+	// RBAC v2 Handlers
+	GetSystemUserHandler() *handlers.SystemUserHandler
+	GetSystemRoleHandler() *handlers.SystemRoleHandler
+	GetSystemPermissionHandler() *handlers.SystemPermissionHandler
+	GetEnterpriseUserHandler() *handlers.EnterpriseUserHandler
+	GetEnterpriseRoleHandler() *handlers.EnterpriseRoleHandler
 }

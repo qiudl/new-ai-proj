@@ -2611,7 +2611,7 @@ func (h *TaskHandler) BulkUnarchiveTasks(c *gin.Context) {
 // @Param			id			path		int		true	"Project ID"
 // @Param			title		query		string	true	"Task title to check"
 // @Param			exclude_id	query		int		false	"Task ID to exclude from check (for edit mode)"
-// @Success		200			{object}	models.SuccessResponse	"Title uniqueness check result"
+// @Success		200			{object}	models.APIResponse	"Title uniqueness check result"
 // @Failure		400			{object}	models.ErrorResponse	"Bad request"
 // @Failure		401			{object}	models.ErrorResponse	"Unauthorized"
 // @Failure		500			{object}	models.ErrorResponse	"Internal server error"

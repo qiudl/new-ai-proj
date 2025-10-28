@@ -186,8 +186,8 @@ func (h *ServiceAccountHandler) validateAPIKeyFromDatabase(apiKey, username stri
 // @Tags			ServiceAccount
 // @Accept			json
 // @Produce		json
-// @Param			request	body		CreateAPIKeyRequest	true	"API Key creation request"
-// @Success		200		{object}	models.APIResponse{data=CreateAPIKeyResponse}	"API Key created successfully"
+// @Param			request	body		models.APIKeyCreateRequest	true	"API Key creation request"
+// @Success		200		{object}	models.APIResponse{data=models.APIKeyCreateResponse}	"API Key created successfully"
 // @Failure		400		{object}	models.ErrorResponse	"Bad request"
 // @Failure		401		{object}	models.ErrorResponse	"Unauthorized"
 // @Failure		500		{object}	models.ErrorResponse	"Internal server error"

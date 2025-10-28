@@ -26,9 +26,9 @@ func NewTaskOrganizationHandler(service *services.TaskOrganizationService) *Task
 // @Accept json
 // @Produce json
 // @Param projectId path int true "项目ID"
-// @Success 200 {object} models.Response{data=models.OrphanScanResult}
-// @Failure 400 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=models.OrphanScanResult}
+// @Failure 400 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/projects/{projectId}/tasks/scan-orphans [post]
 func (h *TaskOrganizationHandler) ScanOrphanTasks(c *gin.Context) {
 	// 解析项目ID
@@ -66,9 +66,9 @@ func (h *TaskOrganizationHandler) ScanOrphanTasks(c *gin.Context) {
 // @Produce json
 // @Param projectId path int true "项目ID"
 // @Param request body models.OrganizeRequest true "组织请求"
-// @Success 200 {object} models.Response{data=models.OrganizeResult}
-// @Failure 400 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=models.OrganizeResult}
+// @Failure 400 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/projects/{projectId}/tasks/organize-to-weeks [post]
 func (h *TaskOrganizationHandler) OrganizeTasksToWeeks(c *gin.Context) {
 	// 解析项目ID
