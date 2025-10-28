@@ -105,6 +105,8 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 
 	// 文档直接查询路由（通过文档ID）
 	mcp.GET("/documents/:documentId", getDocumentByID(app))
+	// 文档内容追加路由（新增）
+	mcp.POST("/documents/append", appendToDocument(app))
 
 	// 工作笔记相关路由
 	mcp.POST("/create-work-note", createWorkNote(workNoteHandler))
@@ -1462,6 +1464,159 @@ func createSiblingTask(app ApplicationInterface) gin.HandlerFunc {
 			"id":     newTaskID,
 			"title":  req.Title,
 			"status": status,
+		}))
+	}
+}
+
+// appendToDocument MCP专用：追加内容到现有文档
+// @Summary 追加内容到文档
+// @Description 向指定的文档追加内容，支持版本控制和并发安全
+// @Tags MCP
+// @Accept json
+// @Produce json
+// @Param request body object{taskId=int,documentId=int,content=string,projectId=int} true "追加请求"
+// @Success 200 {object} object{success=bool,message=string,data=object}
+// @Failure 400 {object} object{success=bool,message=string,error=string}
+// @Failure 403 {object} object{success=bool,message=string,error=string}
+// @Failure 404 {object} object{success=bool,message=string,error=string}
+// @Failure 409 {object} object{success=bool,message=string,error=string}
+// @Failure 500 {object} object{success=bool,message=string,error=string}
+// @Router /api/v1/mcp/documents/append [post]
+func appendToDocument(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			TaskID     int    `json:"taskId" binding:"required"`
+			DocumentID int    `json:"documentId" binding:"required"`
+			Content    string `json:"content" binding:"required"`
+			ProjectID  *int   `json:"projectId,omitempty"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, standardErrorResponse("Invalid request body", err))
+			return
+		}
+
+		// 验证必填字段
+		if err := validateRequest(map[string]interface{}{
+			"taskId":     req.TaskID,
+			"documentId": req.DocumentID,
+			"content":    req.Content,
+		}); err != nil {
+			c.JSON(http.StatusBadRequest, standardErrorResponse("Validation failed", err))
+			return
+		}
+
+		// 获取用户ID（支持多种类型）
+		userIDValue, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, standardErrorResponse("User not authenticated", nil))
+			return
+		}
+
+		// 尝试从不同类型中提取userID
+		userID := 0
+		switch v := userIDValue.(type) {
+		case int:
+			userID = v
+		case uint:
+			userID = int(v)
+		case int64:
+			userID = int(v)
+		case float64:
+			userID = int(v)
+		default:
+			c.JSON(http.StatusUnauthorized, standardErrorResponse("Invalid user ID type", nil))
+			return
+		}
+
+		if userID == 0 {
+			c.JSON(http.StatusUnauthorized, standardErrorResponse("User not authenticated", nil))
+			return
+		}
+
+		// 获取数据库连接
+		sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
+			return
+		}
+
+		// Step 1: 验证文档存在且属于该任务
+		var docProjectID int
+		var docOwnerID int
+		err := sqlDB.QueryRow(`
+			SELECT d.project_id, d.owner_id
+			FROM documents d
+			INNER JOIN task_documents td ON d.id = td.document_id
+			WHERE d.id = $1 AND td.task_id = $2
+			AND d.deleted_at IS NULL AND td.deleted_at IS NULL
+		`, req.DocumentID, req.TaskID).Scan(&docProjectID, &docOwnerID)
+
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, standardErrorResponse(
+				"Document not found or not associated with this task", nil))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse(
+				"Failed to verify document", err))
+			return
+		}
+
+		// Step 2: 权限检查 (简化版：允许文档所有者或system admin)
+		// TODO: 可以集成更复杂的权限检查
+		var isSystemAdmin bool
+		sqlDB.QueryRow(`
+			SELECT user_type = 'system' AND role = 'admin'
+			FROM users WHERE id = $1
+		`, userID).Scan(&isSystemAdmin)
+
+		if !isSystemAdmin && docOwnerID != userID {
+			// 检查是否同企业用户
+			var sameEnterprise bool
+			sqlDB.QueryRow(`
+				SELECT EXISTS(
+					SELECT 1 FROM users u1, users u2
+					WHERE u1.id = $1 AND u2.id = $2
+					AND u1.enterprise_id IS NOT NULL
+					AND u1.enterprise_id = u2.enterprise_id
+				)
+			`, userID, docOwnerID).Scan(&sameEnterprise)
+
+			if !sameEnterprise {
+				c.JSON(http.StatusForbidden, standardErrorResponse(
+					"You don't have permission to modify this document", nil))
+				return
+			}
+		}
+
+		// Step 3: 调用Repository的AppendContent方法
+		docRepo := app.GetDB().Documents()
+		updatedDoc, err := docRepo.AppendContent(c.Request.Context(), req.DocumentID, req.Content, userID)
+
+		if err != nil {
+			// 检查是否是并发冲突
+			if strings.Contains(err.Error(), "版本冲突") {
+				c.JSON(http.StatusConflict, standardErrorResponse(
+					"Document version conflict. Please retry.", err))
+				return
+			}
+			c.JSON(http.StatusInternalServerError, standardErrorResponse(
+				"Failed to append content to document", err))
+			return
+		}
+
+		// Step 4: 返回成功响应
+		c.JSON(http.StatusOK, standardSuccessResponse("Content appended successfully", gin.H{
+			"document": gin.H{
+				"id":             updatedDoc.ID,
+				"title":          updatedDoc.Title,
+				"content_length": len(*updatedDoc.Content),
+				"version":        updatedDoc.Version,
+				"updated_at":     updatedDoc.UpdatedAt,
+				"task_id":        req.TaskID,
+				"project_id":     docProjectID,
+			},
 		}))
 	}
 }

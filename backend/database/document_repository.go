@@ -29,6 +29,9 @@ type DocumentRepositoryNew interface {
 	// 版本控制方法
 	GetVersions(ctx context.Context, documentID int) ([]*models.DocumentVersion, error)
 	CreateVersion(ctx context.Context, documentID int, createdBy int) (*models.DocumentVersion, error)
+
+	// 内容追加方法
+	AppendContent(ctx context.Context, documentID int, appendContent string, userID int) (*models.Document, error)
 }
 
 // documentRepository 文档仓库实现
@@ -728,6 +731,72 @@ func (r *documentRepository) detectTitleChange(oldTitle, newTitle string) string
 	}
 
 	return fmt.Sprintf("📝 标题:「%s」→「%s」", oldDisplay, newDisplay)
+}
+
+// AppendContent 向文档追加内容
+// 此方法会：
+// 1. 验证文档存在性
+// 2. 在追加前创建版本快照
+// 3. 追加内容到documents表
+// 4. 更新version和updated_at
+func (r *documentRepository) AppendContent(ctx context.Context, documentID int, appendContent string, userID int) (*models.Document, error) {
+	// Step 1: 获取当前文档状态
+	oldDoc, err := r.GetByID(ctx, documentID)
+	if err != nil {
+		return nil, fmt.Errorf("获取文档失败: %w", err)
+	}
+
+	// Step 2: 准备新内容（原内容 + 分隔符 + 追加内容）
+	oldContent := ""
+	if oldDoc.Content != nil {
+		oldContent = *oldDoc.Content
+	}
+
+	// 使用双换行作为分隔符
+	separator := "\n\n"
+	newContent := oldContent + separator + appendContent
+
+	// Step 3: 在追加前创建版本快照（保存旧内容）
+	versionExists, _ := r.versionSnapshotExists(ctx, documentID, oldDoc.Version)
+	if !versionExists {
+		_, versionErr := r.createVersionSnapshot(ctx, documentID, oldDoc, userID, oldDoc.Title, newContent)
+		if versionErr != nil {
+			fmt.Printf("[WARNING] Failed to create version snapshot for document %d: %v\n", documentID, versionErr)
+		} else {
+			fmt.Printf("[INFO] Created version snapshot v%d for document %d before appending\n", oldDoc.Version, documentID)
+		}
+	}
+
+	// Step 4: 执行内容追加（使用乐观锁）
+	query := `
+		UPDATE documents
+		SET
+			content = content || $1,
+			version = version + 1,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE
+			id = $2
+			AND deleted_at IS NULL
+			AND version = $3
+		RETURNING version, updated_at`
+
+	var newVersion int
+	var updatedAt time.Time
+
+	err = r.db.QueryRowContext(ctx, query, separator+appendContent, documentID, oldDoc.Version).Scan(&newVersion, &updatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// 可能是并发冲突或文档已删除
+			return nil, fmt.Errorf("文档不存在、已删除或版本冲突（可能被其他操作修改）")
+		}
+		return nil, fmt.Errorf("追加文档内容失败: %w", err)
+	}
+
+	fmt.Printf("[INFO] Successfully appended content to document %d (v%d -> v%d, added %d chars)\n",
+		documentID, oldDoc.Version, newVersion, len(appendContent))
+
+	// Step 5: 返回更新后的文档
+	return r.GetByID(ctx, documentID)
 }
 
 // 辅助函数

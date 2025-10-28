@@ -167,3 +167,8 @@ func (a *DocumentRepositoryAdapter) GetGlobalDocumentCount(ctx context.Context) 
 func (a *DocumentRepositoryAdapter) GetTaskDocuments(ctx context.Context, taskID int) ([]*models.Document, error) {
 	return a.newRepo.GetTaskDocuments(ctx, taskID)
 }
+
+// AppendContent 向文档追加内容 (for MCP)
+func (a *DocumentRepositoryAdapter) AppendContent(ctx context.Context, documentID int, appendContent string, userID int) (*models.Document, error) {
+	return a.newRepo.AppendContent(ctx, documentID, appendContent, userID)
+}

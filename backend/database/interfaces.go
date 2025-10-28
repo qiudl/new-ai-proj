@@ -275,6 +275,9 @@ type DocumentRepository interface {
 
 	// Task document methods
 	GetTaskDocuments(ctx context.Context, taskID int) ([]*models.Document, error)
+
+	// Document content append (for MCP)
+	AppendContent(ctx context.Context, documentID int, appendContent string, userID int) (*models.Document, error)
 }
 
 // DocumentFolderRepository defines the interface for document folder database operations
