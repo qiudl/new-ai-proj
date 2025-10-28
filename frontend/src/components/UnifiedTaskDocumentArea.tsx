@@ -2074,23 +2074,32 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         extra={
           showToolbar && (
             <Space>
-              {/* 创建AI文档按钮 */}
-              <Tooltip title="使用AI生成文档">
+              {/* 新建文档按钮 - 主要入口 */}
+              <Tooltip title="新建文档">
                 <Button
                   type="primary"
-                  icon={<RobotOutlined />}
-                  onClick={() => setAiDocDialogVisible(true)}
-                  style={{
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    borderColor: 'transparent',
-                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
-                  }}
+                  icon={<PlusOutlined />}
+                  onClick={() => handleQuickCreateDocument('markdown')}
                 >
-                  创建AI文档
+                  新建文档
                 </Button>
               </Tooltip>
 
-              {/* 仅保留刷新按钮 */}
+              {/* 创建AI文档按钮 */}
+              <Tooltip title="使用AI生成文档">
+                <Button
+                  icon={<RobotOutlined />}
+                  onClick={() => setAiDocDialogVisible(true)}
+                  style={{
+                    borderColor: '#722ed1',
+                    color: '#722ed1'
+                  }}
+                >
+                  AI文档
+                </Button>
+              </Tooltip>
+
+              {/* 刷新按钮 */}
               <Tooltip title="刷新">
                 <Button
                   icon={<SyncOutlined />}
