@@ -155,15 +155,28 @@ func GetBasePermissionsByCategory(category string) []string {
 // EnterpriseUserBasePermissions 企业用户基础权限
 // 企业用户除了拥有所有基础权限外，还应该拥有项目和任务的基础查看权限
 var EnterpriseUserBasePermissions = []string{
-	// 项目权限
-	"project.read",      // 查看项目
-	"project.list.read", // 查看项目列表
+	// 项目权限 - 所有可能的读取权限变体
+	"project.read",         // 查看项目
+	"project:read",         // 查看项目（冒号格式）
+	"project.list.read",    // 查看项目列表
+	"project.detail.read",  // 查看项目详情
 	"enterprise.project.read", // 企业项目查看
 
-	// 任务权限
-	"task.read",      // 查看任务
-	"task.list.read", // 查看任务列表
+	// 任务权限 - 所有可能的读取权限变体
+	"task.read",           // 查看任务
+	"task:read",           // 查看任务（冒号格式）
+	"task.list.read",      // 查看任务列表
+	"task.detail.read",    // 查看任务详情
 	"enterprise.task.read", // 企业任务查看
+
+	// 项目和任务的创建/编辑权限（企业用户常用功能）
+	"project.create",      // 创建项目
+	"project.update",      // 编辑项目
+	"task.create",         // 创建任务
+	"task:create",         // 创建任务（冒号格式）
+	"task.update",         // 编辑任务
+	"task:write",          // 修改任务（冒号格式）
+	"task.assign",         // 分配任务
 }
 
 // GetEnterpriseUserPermissions 获取企业用户的所有权限
