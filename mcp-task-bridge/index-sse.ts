@@ -210,6 +210,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
           required: ['taskId', 'content']
         }
+      },
+      {
+        name: 'append-document-content',
+        description: '向现有文档追加内容，支持无限次追加突破字数限制',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: { type: 'number', description: '任务ID' },
+            documentId: { type: 'number', description: '文档ID' },
+            content: { type: 'string', description: '要追加的内容(Markdown格式)' },
+            projectId: { type: 'number', description: '项目ID（可选，默认为1）' }
+          },
+          required: ['taskId', 'documentId', 'content']
+        }
       }
     ],
   };
@@ -260,6 +274,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           params.content,
           params.projectId || 1,
           params.title
+        );
+        break;
+      case 'append-document-content':
+        result = await taskServer.appendDocumentContent(
+          params.taskId,
+          params.documentId,
+          params.content,
+          params.projectId
         );
         break;
       default:

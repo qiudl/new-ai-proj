@@ -527,4 +527,42 @@ export class DocumentService extends BaseClient {
       };
     }
   }
+
+  // 向文档追加内容（MCP专用接口）
+  // @requiresPermission('update_document')
+  async appendDocumentContent(taskId: number, documentId: number, content: string, projectId?: number): Promise<ApiResponse> {
+    try {
+      const payload: any = {
+        taskId: taskId,
+        documentId: documentId,
+        content: content
+      };
+
+      if (projectId && projectId !== 1) {
+        payload.projectId = projectId;
+      }
+
+      const response = await this.makeRequest('POST', '/mcp/documents/append', payload);
+
+      if (response.success) {
+        const document = response.data?.document || response.data;
+        return {
+          success: true,
+          task_id: taskId,
+          document_id: documentId,
+          version: document?.version,
+          content_length: document?.content_length,
+          append_length: content.length,
+          message: `✅ 文档内容已追加 - 版本: ${document?.version}, 新增: ${content.length} 字符, 总长度: ${document?.content_length} 字符`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `追加文档内容失败: ${error.message || error}`
+      };
+    }
+  }
 }

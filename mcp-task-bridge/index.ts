@@ -293,24 +293,50 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {
-            taskId: { 
-              type: 'number', 
-              description: '任务ID' 
+            taskId: {
+              type: 'number',
+              description: '任务ID'
             },
-            content: { 
-              type: 'string', 
-              description: '文档内容（Markdown格式）' 
+            content: {
+              type: 'string',
+              description: '文档内容（Markdown格式）'
             },
             title: {
               type: 'string',
               description: '文档标题（可选，默认根据任务标题生成）'
             },
-            projectId: { 
-              type: 'number', 
-              description: '项目ID（可选，默认使用任务所在项目）' 
+            projectId: {
+              type: 'number',
+              description: '项目ID（可选，默认使用任务所在项目）'
             }
           },
           required: ['taskId', 'content']
+        }
+      },
+      {
+        name: 'append-document-content',
+        description: '向现有文档追加内容，支持无限次追加突破字数限制（使用乐观锁保证并发安全）',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: {
+              type: 'number',
+              description: '任务ID'
+            },
+            documentId: {
+              type: 'number',
+              description: '文档ID'
+            },
+            content: {
+              type: 'string',
+              description: '要追加的内容（Markdown格式）'
+            },
+            projectId: {
+              type: 'number',
+              description: '项目ID（可选，默认为1）'
+            }
+          },
+          required: ['taskId', 'documentId', 'content']
         }
       },
       {
@@ -1394,7 +1420,49 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
         break;
       }
-      
+
+      case 'append-document-content': {
+        // 参数规范化：兼容 camelCase 与 snake_case
+        const taskId = ((): number | undefined => {
+          const v = (args as any).taskId ?? (args as any).task_id ?? (args as any).id ?? (args as any).task;
+          const n = typeof v === 'string' ? parseInt(v, 10) : v;
+          return typeof n === 'number' && !isNaN(n) ? n : undefined;
+        })();
+        const documentId = ((): number | undefined => {
+          const v = (args as any).documentId ?? (args as any).document_id ?? (args as any).doc_id;
+          const n = typeof v === 'string' ? parseInt(v, 10) : v;
+          return typeof n === 'number' && !isNaN(n) ? n : undefined;
+        })();
+        const projectId = ((): number | undefined => {
+          const v = (args as any).projectId ?? (args as any).project_id ?? (args as any).project;
+          const n = typeof v === 'string' ? parseInt(v, 10) : v;
+          return typeof n === 'number' && !isNaN(n) ? n : undefined;
+        })();
+        const rawContent = (args as any).content;
+        const content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent ?? '');
+
+        if (!taskId) {
+          result = { success: false, error: '缺少必要参数：taskId/task_id' };
+          break;
+        }
+        if (!documentId) {
+          result = { success: false, error: '缺少必要参数：documentId/document_id' };
+          break;
+        }
+        if (!content || content.length === 0) {
+          result = { success: false, error: '缺少必要参数：content' };
+          break;
+        }
+
+        result = await taskServer.appendDocumentContent(
+          taskId as number,
+          documentId as number,
+          content as string,
+          projectId
+        );
+        break;
+      }
+
       case 'get_task_document':
         try {
           result = await taskServer.getTaskDocument((args as any).taskId ?? (args as any).task_id as number);

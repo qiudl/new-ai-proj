@@ -163,6 +163,17 @@ export class TaskMCPServer {
         return this.documentService.createTaskDocs(options);
     }
 
+    /**
+     * 向文档追加内容（MCP专用）
+     * @param taskId 任务ID
+     * @param documentId 文档ID
+     * @param content 要追加的内容
+     * @param projectId 项目ID（可选）
+     */
+    async appendDocumentContent(taskId: number, documentId: number, content: string, projectId?: number) {
+        return this.documentService.appendDocumentContent(taskId, documentId, content, projectId);
+    }
+
     // ===========================================
     // 工作笔记相关方法
     // ===========================================
