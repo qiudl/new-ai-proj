@@ -82,7 +82,7 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	// MCP专用路由组
 	mcp := router.Group("/mcp")
 	// 支持服务账号API Key和JWT两种认证方式
-	mcp.Use(middleware.ServiceAccountOrJWTAuthMiddleware(app.GetDB(), middleware.AuthMiddleware(app.GetJWTManager())))
+	mcp.Use(middleware.ServiceAccountOrJWTAuthMiddleware(app.GetDB(), middleware.AuthMiddleware(app.GetJWTManager(), app.GetDB())))
 
 	// 获取handlers
 	documentHandler := app.GetDocumentHandler()

@@ -30,13 +30,13 @@ func RegisterAuthRoutes(api *gin.RouterGroup, app ApplicationInterface) *gin.Rou
 
 			// API Key管理（需要JWT认证）
 			authProtectedService := auth.Group("")
-			authProtectedService.Use(middleware.AuthMiddleware(app.GetJWTManager()))
+			authProtectedService.Use(middleware.AuthMiddleware(app.GetJWTManager(), app.GetDB()))
 			authProtectedService.POST("/service-api-key", serviceAccountHandler.CreateAPIKey)
 		}
 
 		// 统一权限检查路由 - 需要认证但在auth组下
 		authProtected := auth.Group("")
-		authProtected.Use(middleware.AuthMiddleware(app.GetJWTManager()))
+		authProtected.Use(middleware.AuthMiddleware(app.GetJWTManager(), app.GetDB()))
 		
 		// 获取统一权限处理器
 		unifiedPermissionHandler := app.GetUnifiedPermissionHandler()
@@ -62,7 +62,7 @@ func RegisterAuthRoutes(api *gin.RouterGroup, app ApplicationInterface) *gin.Rou
 
 	// 创建需要认证的路由组 - 使用JWT认证中间件
 	authorized := api.Group("/")
-	authorized.Use(middleware.AuthMiddleware(app.GetJWTManager()))
+	authorized.Use(middleware.AuthMiddleware(app.GetJWTManager(), app.GetDB()))
 
 	// 打印调试信息
 	fmt.Printf("✅ 认证路由已注册，返回授权路由组（使用JWT中间件）\n")

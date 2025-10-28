@@ -13,7 +13,7 @@ func RegisterRouterDocumentRoutes(router *gin.Engine, app ApplicationInterface) 
 	v1 := router.Group("/api/v1")
 
 	// 需要认证的路由
-	authorized := v1.Use(middleware.AuthMiddleware(app.GetJWTManager()))
+	authorized := v1.Use(middleware.AuthMiddleware(app.GetJWTManager(), app.GetDB()))
 
 	// 获取路由器文档处理器
 	routerHandler := app.GetRouterDocumentHandler()

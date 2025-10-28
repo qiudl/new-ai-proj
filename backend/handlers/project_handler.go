@@ -215,6 +215,16 @@ func (h *ProjectHandler) GetProject(c *gin.Context) {
 		return
 	}
 
+	// 企业数据隔离检查 - 验证用户是否有权访问此项目
+	if hasAccess, errMsg := CheckEnterpriseAccess(c, project.EnterpriseID); !hasAccess {
+		c.JSON(http.StatusForbidden, models.NewErrorResponse(
+			models.ErrCodeAuthorization,
+			"无权访问此项目",
+			errMsg,
+		))
+		return
+	}
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(project.ToResponse(), "获取项目成功"))
 }
 
@@ -262,6 +272,16 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 			log.Printf("Error getting project: %v", err)
 			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目失败", nil))
 		}
+		return
+	}
+
+	// 企业数据隔离检查 - 更新前验证访问权限
+	if hasAccess, errMsg := CheckEnterpriseAccess(c, project.EnterpriseID); !hasAccess {
+		c.JSON(http.StatusForbidden, models.NewErrorResponse(
+			models.ErrCodeAuthorization,
+			"无权修改此项目",
+			errMsg,
+		))
 		return
 	}
 
@@ -338,6 +358,16 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 			log.Printf("Error getting project %d: %v", projectID, err)
 			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目失败", nil))
 		}
+		return
+	}
+
+	// 企业数据隔离检查 - 删除前验证访问权限
+	if hasAccess, errMsg := CheckEnterpriseAccess(c, project.EnterpriseID); !hasAccess {
+		c.JSON(http.StatusForbidden, models.NewErrorResponse(
+			models.ErrCodeAuthorization,
+			"无权删除此项目",
+			errMsg,
+		))
 		return
 	}
 

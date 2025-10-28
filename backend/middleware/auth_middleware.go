@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/utils"
+	"database/sql"
 	"log"
 	"net/http"
 	"strings"
@@ -11,7 +13,7 @@ import (
 )
 
 // AuthMiddleware JWT认证中间件
-func AuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
+func AuthMiddleware(jwtManager *utils.JWTManager, db database.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 调试日志
 		log.Printf("[AUTH] Processing request: %s %s", c.Request.Method, c.Request.URL.Path)
@@ -76,6 +78,19 @@ func AuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 		c.Set("user_type", claims.UserType)
 		c.Set("current_user_type", claims.UserType) // 为 SystemUserOnlyMiddleware 使用
 		c.Set("token_claims", claims)
+
+		// 企业数据隔离支持 - 为企业用户查询并设置enterprise_id
+		if claims.UserType == "enterprise" && (claims.Role == "enterprise_admin" || claims.Role == "enterprise_user") {
+			var enterpriseID int
+			query := `SELECT enterprise_id FROM enterprise_users WHERE user_id = $1 AND deleted_at IS NULL LIMIT 1`
+			err := db.QueryRow(query, claims.UserID).Scan(&enterpriseID)
+			if err == nil {
+				c.Set("enterprise_id", enterpriseID)
+				log.Printf("[AUTH] Set enterprise_id=%d for user_id=%d", enterpriseID, claims.UserID)
+			} else if err != sql.ErrNoRows {
+				log.Printf("[AUTH] Warning: Failed to query enterprise_id for user_id=%d: %v", claims.UserID, err)
+			}
+		}
 
 		// 兼容扩展的ExtendedClaims（包含模拟上下文）。若解析成功，则用其覆盖通用的 'claims'，以便后续中间件识别模拟状态
 		if extClaims, err := jwtManager.ValidateTokenExtendedClaims(tokenString); err == nil && extClaims != nil {

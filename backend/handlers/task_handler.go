@@ -60,6 +60,38 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 		return
 	}
 
+	// 企业数据隔离检查 - 验证用户是否有权访问此项目的任务列表
+	var projectEnterpriseID *int
+	query := `SELECT enterprise_id FROM projects WHERE id = $1 AND deleted_at IS NULL`
+	err = h.db.QueryRow(query, projectID).Scan(&projectEnterpriseID)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"项目不存在",
+			nil,
+		))
+		return
+	}
+	if err != nil {
+		log.Printf("[GetTasks] Failed to query project enterprise_id: %v", err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.ErrCodeInternal,
+			"查询项目信息失败",
+			nil,
+		))
+		return
+	}
+
+	// 使用helper函数检查访问权限
+	if hasAccess, errMsg := CheckEnterpriseAccess(c, projectEnterpriseID); !hasAccess {
+		c.JSON(http.StatusForbidden, models.NewErrorResponse(
+			models.ErrCodeAuthorization,
+			"无权访问此项目的任务列表",
+			errMsg,
+		))
+		return
+	}
+
 	// Parse pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
@@ -858,6 +890,22 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
+	// 企业数据隔离检查 - 更新前验证访问权限
+	var projectEnterpriseID *int
+	query := `SELECT enterprise_id FROM projects WHERE id = $1 AND deleted_at IS NULL`
+	err = h.db.QueryRow(query, task.ProjectID).Scan(&projectEnterpriseID)
+	if err != nil && err != sql.ErrNoRows {
+		log.Printf("[UpdateTask] Failed to query project enterprise_id: %v", err)
+	}
+	if hasAccess, errMsg := CheckEnterpriseAccess(c, projectEnterpriseID); !hasAccess {
+		c.JSON(http.StatusForbidden, models.NewErrorResponse(
+			models.ErrCodeAuthorization,
+			"无权修改此任务",
+			errMsg,
+		))
+		return
+	}
+
 	// Validate task is not archived (unless we're un-archiving it)
 	if req.Status == nil || *req.Status != "todo" && *req.Status != "in_progress" && *req.Status != "completed" {
 		if errResp := h.validateTaskNotArchived(task, "修改"); errResp != nil {
@@ -1084,6 +1132,22 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 
 	log.Printf("[DeleteTask] 任务信息: taskID=%d, title=%s, status=%s, archived=%v",
 		taskID, task.Title, task.Status, task.CustomFields != nil && task.CustomFields["archived"] == "true")
+
+	// 企业数据隔离检查 - 删除前验证访问权限
+	var projectEnterpriseID *int
+	query := `SELECT enterprise_id FROM projects WHERE id = $1 AND deleted_at IS NULL`
+	err = h.db.QueryRow(query, task.ProjectID).Scan(&projectEnterpriseID)
+	if err != nil && err != sql.ErrNoRows {
+		log.Printf("[DeleteTask] Failed to query project enterprise_id: %v", err)
+	}
+	if hasAccess, errMsg := CheckEnterpriseAccess(c, projectEnterpriseID); !hasAccess {
+		c.JSON(http.StatusForbidden, models.NewErrorResponse(
+			models.ErrCodeAuthorization,
+			"无权删除此任务",
+			errMsg,
+		))
+		return
+	}
 
 	// Validate task is not archived
 	if errResp := h.validateTaskNotArchived(task, "删除"); errResp != nil {
