@@ -391,19 +391,42 @@ func (h *EnterpriseUserHandler) InviteUserToEnterprise(c *gin.Context) {
 		return
 	}
 
-	// Create enterprise_users record
+	// Get default role ID (member role) for this enterprise
+	var defaultRoleID sql.NullInt64
+	getDefaultRoleQuery := `
+		SELECT id FROM enterprise_roles
+		WHERE enterprise_id = $1 AND code = 'member' AND is_active = TRUE AND deleted_at IS NULL
+		LIMIT 1
+	`
+	err = h.db.QueryRowContext(c.Request.Context(), getDefaultRoleQuery, enterpriseID).Scan(&defaultRoleID)
+	if err != nil && err != sql.ErrNoRows {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "DATABASE_ERROR",
+				"message": "查询默认角色失败",
+				"details": err.Error(),
+			},
+		})
+		return
+	}
+
+	// Create enterprise_users record with default role
 	createdBy := identity.GetUserID()
 	var enterpriseUserID uint
 	createEnterpriseUserQuery := `
 		INSERT INTO enterprise_users (
-			enterprise_id, user_id, status, created_by, created_at, updated_at
+			enterprise_id, user_id, username, email, role_id, status, created_by, created_at, updated_at
 		) VALUES (
-			$1, $2, 'active', $3, NOW(), NOW()
+			$1, $2, $3, $4, $5, 'active', $6, NOW(), NOW()
 		) RETURNING id
 	`
 	err = h.db.QueryRowContext(c.Request.Context(), createEnterpriseUserQuery,
 		enterpriseID,
 		request.UserID,
+		username,      // From users table
+		email,         // From users table
+		defaultRoleID, // Automatically assign member role
 		createdBy,
 	).Scan(&enterpriseUserID)
 
@@ -447,18 +470,28 @@ func (h *EnterpriseUserHandler) InviteUserToEnterprise(c *gin.Context) {
 	}
 
 	// Return success response
+	responseData := gin.H{
+		"enterprise_user_id": enterpriseUserID,
+		"user_id":            request.UserID,
+		"username":           username,
+		"email":              email,
+		"enterprise_id":      enterpriseID,
+		"status":             "active",
+		"roles_assigned":     assignedRoles,
+	}
+
+	// Add default role info if assigned
+	message := fmt.Sprintf("用户成功添加到企业，由用户 ID: %d 执行", identity.GetUserID())
+	if defaultRoleID.Valid {
+		responseData["default_role_assigned"] = true
+		responseData["default_role_id"] = defaultRoleID.Int64
+		message += "（已自动分配默认角色：普通成员）"
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"data": gin.H{
-			"enterprise_user_id": enterpriseUserID,
-			"user_id":            request.UserID,
-			"username":           username,
-			"email":              email,
-			"enterprise_id":      enterpriseID,
-			"status":             "active",
-			"roles_assigned":     assignedRoles,
-		},
-		"message": fmt.Sprintf("用户成功添加到企业，由用户 ID: %d 执行", identity.GetUserID()),
+		"data":    responseData,
+		"message": message,
 	})
 }
 
