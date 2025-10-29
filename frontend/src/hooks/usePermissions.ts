@@ -1,10 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { permissionService, UserPermissionSummary, PermissionResult } from '../services/permissionService';
 import { isBasePermission, BASE_PERMISSIONS_ARRAY } from '../constants/permissions';
+import { mapRoleV2ToLegacy } from '../config/menuVisibility';
 
 interface UsePermissionsOptions {
   userId?: number;
   autoLoad?: boolean;
+}
+
+/**
+ * Extract role_v2 from JWT token
+ */
+function getRoleV2FromToken(): string | null {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload?.role_v2 || null;
+  } catch (error) {
+    console.error('[usePermissions] Failed to decode JWT token:', error);
+    return null;
+  }
 }
 
 interface PermissionCheck {
@@ -119,12 +136,28 @@ export const usePermissions = (options: UsePermissionsOptions = {}) => {
     setPermissionChecks(new Map());
   }, []);
 
-  // Check if user has role
-  const hasRole = useCallback((roleCode: string): boolean => {
-    return userPermissions?.role?.roleCode === roleCode;
+  // Get effective role (prioritize RBAC v2 role_v2 from JWT)
+  const effectiveRole = useMemo(() => {
+    const roleV2 = getRoleV2FromToken();
+    if (roleV2) {
+      // Use RBAC v2 role, map to legacy format for comparison
+      const mappedRole = mapRoleV2ToLegacy(roleV2);
+      console.log(`[usePermissions] Using RBAC v2 role: ${roleV2} → ${mappedRole}`);
+      return mappedRole;
+    }
+    // Fallback to legacy role from UserPermissionSummary
+    const legacyRole = userPermissions?.role?.roleCode;
+    console.log(`[usePermissions] Using legacy role: ${legacyRole}`);
+    return legacyRole || null;
   }, [userPermissions]);
 
-  // Check if user has unknown of the specified roles
+  // Check if user has role (supports both RBAC v2 and legacy roles)
+  const hasRole = useCallback((roleCode: string): boolean => {
+    // Compare using effective role (already mapped from role_v2 if present)
+    return effectiveRole === roleCode;
+  }, [effectiveRole]);
+
+  // Check if user has any of the specified roles
   const hasAnyRole = useCallback((roleCodes: string[]): boolean => {
     return roleCodes.some(roleCode => hasRole(roleCode));
   }, [hasRole]);
@@ -191,6 +224,7 @@ export const usePermissions = (options: UsePermissionsOptions = {}) => {
     isAdmin: hasRole('company_admin'),
     isProjectManager: hasRole('project_manager'),
     effectivePermissions: getEffectivePermissions(),
+    effectiveRole, // ✅ RBAC v2: Expose effective role for debugging
     roleInfo: userPermissions?.role,
     customPermissions: userPermissions?.customPermissions || {},
     projectPermissions: userPermissions?.projectPermissions || []

@@ -453,8 +453,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       return baseSidebarItems;
     }
 
+    // ✅ RBAC v2: Extract role_v2 from JWT token
+    let roleV2: string | undefined;
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        roleV2 = payload?.role_v2;
+        if (roleV2) {
+          console.log('[Layout] Using RBAC v2 role for menu filtering:', roleV2);
+        }
+      }
+    } catch (error) {
+      console.error('[Layout] Failed to extract role_v2 from JWT:', error);
+    }
+
     const userType = getUserType(currentUser.user_type);
-    let filteredItems = filterMenuItems(baseSidebarItems, userType, currentUser.role);
+    let filteredItems = filterMenuItems(baseSidebarItems, userType, currentUser.role, roleV2);
     
     // 如果处于模拟状态，调整菜单显示
     if (isImpersonating) {

@@ -209,32 +209,71 @@ export const COMPANY_SPECIFIC_MENUS: MenuVisibilityConfig = {
 };
 
 /**
+ * Map RBAC v2 role codes to legacy role codes for backward compatibility
+ * @param roleV2 RBAC v2 role code (e.g., 'enterprise_admin', 'super_admin')
+ * @returns Legacy role code (e.g., 'company_admin', 'admin')
+ */
+export function mapRoleV2ToLegacy(roleV2: string): string {
+  const roleMapping: Record<string, string> = {
+    // System roles (RBAC v2 → Legacy)
+    'super_admin': 'admin',
+    'admin': 'admin',
+    'enterprise_manager': 'admin',
+
+    // Enterprise roles (RBAC v2 → Legacy)
+    'enterprise_admin': 'company_admin',
+    'project_manager': 'project_manager',
+    'member': 'company_user',
+    'viewer': 'company_user',
+  };
+
+  return roleMapping[roleV2] || roleV2;
+}
+
+/**
  * 根据用户信息检查菜单项是否可见
+ * @param menuKey 菜单路径键
+ * @param userType 用户类型 (system/company)
+ * @param userRole 用户角色 (legacy role field for backward compatibility)
+ * @param roleV2 RBAC v2角色代码 (optional, prioritized if present)
  */
 export function isMenuVisible(
-  menuKey: string, 
-  userType: string, 
-  userRole: string
+  menuKey: string,
+  userType: string,
+  userRole: string,
+  roleV2?: string
 ): boolean {
   const config = MENU_VISIBILITY_CONFIG[menuKey] || COMPANY_SPECIFIC_MENUS[menuKey];
-  
+
   if (!config) {
     // 如果没有配置，默认对所有用户可见
     return true;
+  }
+
+  // ✅ RBAC v2: Determine effective role (prioritize role_v2)
+  let effectiveRole: string;
+  if (roleV2) {
+    // Use RBAC v2 role, map to legacy format for config matching
+    effectiveRole = mapRoleV2ToLegacy(roleV2);
+    console.log(`[MenuVisibility] Using RBAC v2 role: ${roleV2} → ${effectiveRole}`);
+  } else {
+    // Fallback to legacy role field
+    effectiveRole = userRole;
+    console.log(`[MenuVisibility] Using legacy role: ${effectiveRole}`);
   }
 
   // 检查用户类型
   if (config.userType === UserType.BOTH) {
     // 对所有用户可见，但可能有角色限制
     if (config.requiredRole && config.requiredRole.length > 0) {
-      return config.requiredRole.includes(userRole);
+      return config.requiredRole.includes(effectiveRole);
     }
     return true;
   }
 
   // 使用传入的用户类型参数
   const currentUserType = getUserType(userType);
-  
+
   // 检查用户类型是否匹配
   if (config.userType !== currentUserType) {
     return false;
@@ -242,7 +281,7 @@ export function isMenuVisible(
 
   // 检查角色要求
   if (config.requiredRole && config.requiredRole.length > 0) {
-    return config.requiredRole.includes(userRole);
+    return config.requiredRole.includes(effectiveRole);
   }
 
   return true;
@@ -286,21 +325,26 @@ export function getUserTypeFromRole(role: string): UserType {
 
 /**
  * 过滤菜单项数组，移除不可见的菜单项
+ * @param menuItems 菜单项数组
+ * @param userType 用户类型
+ * @param userRole 用户角色 (legacy)
+ * @param roleV2 RBAC v2角色代码 (optional)
  */
 export function filterMenuItems(
-  menuItems: any[], 
-  userType: string, 
-  userRole: string
+  menuItems: any[],
+  userType: string,
+  userRole: string,
+  roleV2?: string
 ): any[] {
   return menuItems.filter(item => {
     // 检查当前菜单项是否可见
-    if (!isMenuVisible(item.key, userType, userRole)) {
+    if (!isMenuVisible(item.key, userType, userRole, roleV2)) {
       return false;
     }
 
     // 如果有子菜单，递归过滤
     if (item.children && Array.isArray(item.children)) {
-      item.children = filterMenuItems(item.children, userType, userRole);
+      item.children = filterMenuItems(item.children, userType, userRole, roleV2);
       // 如果所有子菜单都被过滤掉，则隐藏父菜单
       return item.children.length > 0;
     }
@@ -311,19 +355,26 @@ export function filterMenuItems(
 
 /**
  * 获取用户可见的菜单配置摘要
+ * @param userType 用户类型
+ * @param userRole 用户角色 (legacy)
+ * @param roleV2 RBAC v2角色代码 (optional)
  */
-export function getUserMenuSummary(userType: string, userRole: string): {
+export function getUserMenuSummary(
+  userType: string,
+  userRole: string,
+  roleV2?: string
+): {
   visibleMenus: string[];
   hiddenMenus: string[];
   totalMenus: number;
 } {
   const allMenuKeys = [...Object.keys(MENU_VISIBILITY_CONFIG), ...Object.keys(COMPANY_SPECIFIC_MENUS)];
-  
+
   const visibleMenus: string[] = [];
   const hiddenMenus: string[] = [];
-  
+
   allMenuKeys.forEach(menuKey => {
-    if (isMenuVisible(menuKey, userType, userRole)) {
+    if (isMenuVisible(menuKey, userType, userRole, roleV2)) {
       visibleMenus.push(menuKey);
     } else {
       hiddenMenus.push(menuKey);

@@ -56,6 +56,33 @@ export interface PermissionResult {
   grantedBy: string[];
 }
 
+// Normalize various permission code formats to canonical dot notation
+// - Replace ':' with '.'
+// - Map common aliases (write -> update, list -> list.read)
+function normalizePermissionCode(code: string): string {
+  if (!code) return code;
+  let normalized = code.trim();
+
+  // Replace colon with dot
+  normalized = normalized.replace(/:/g, '.');
+
+  // Handle "list" shorthand (e.g., project.list -> project.list.read)
+  const parts = normalized.split('.');
+  if (parts.length === 2 && parts[1] === 'list') {
+    normalized = `${parts[0]}.list.read`;
+  }
+
+  // Map common action aliases
+  normalized = normalized
+    .replace(/\.write$/,'\.update')
+    .replace(/\.create$/,'\.create')
+    .replace(/\.read$/,'\.read')
+    .replace(/\.update$/,'\.update')
+    .replace(/\.delete$/,'\.delete');
+
+  return normalized;
+}
+
 export const permissionService = {
   // Role Management
   async getRoles(enterpriseId?: number) {
@@ -204,8 +231,20 @@ export const permissionService = {
         if (token) {
           try {
             const payload = JSON.parse(atob(token.split('.')[1]));
+
+            // ✅ RBAC v2: Priority check for role_v2 field (new system)
+            if (payload && payload.role_v2) {
+              // RBAC v2 system roles: super_admin, admin, enterprise_manager
+              // RBAC v2 enterprise roles: enterprise_admin, project_manager, member, viewer
+              if (['super_admin', 'admin', 'enterprise_admin'].includes(payload.role_v2)) {
+                console.log('[hasPermission] Dev bypass for RBAC v2 admin role:', payload.role_v2);
+                return true;
+              }
+            }
+
+            // Fallback to legacy role field for backward compatibility
             if (payload && (payload.role === 'admin' || payload.role === 'company_admin')) {
-              console.log('[hasPermission] Dev bypass for admin/company_admin');
+              console.log('[hasPermission] Dev bypass for legacy admin/company_admin');
               return true;
             }
             // Also check for impersonation context in JWT
@@ -219,10 +258,11 @@ export const permissionService = {
 
       // No normalization needed - frontend and database now use same format
       // Use permission code directly as it comes from constants/permissions.ts
-      console.log('[hasPermission] Checking permission:', { permissionCode, resourceId });
+      const normalizedCode = normalizePermissionCode(permissionCode);
+      console.log('[hasPermission] Checking permission:', { permissionCode, normalizedCode, resourceId });
 
       const result = await this.checkUserPermission({
-        permissionCode: permissionCode,  // Use original code directly
+        permissionCode: normalizedCode,
         resourceID: resourceId
       });
 
