@@ -101,18 +101,77 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		`
 		err := h.db.QueryRow(query, user.ID).Scan(&euID, &eID)
 		if err != nil {
-			log.Printf("[WARN] Failed to query enterprise info for user %d: %v", user.ID, err)
-			// 不阻断登录,但记录警告
+			// ❌ P0 Security Fix: Reject login if enterprise_id cannot be determined
+			log.Printf("[ERROR] Login: Enterprise user %d (%s) has no enterprise record: %v", user.ID, user.Username, err)
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+				"ENTERPRISE_DATA_MISSING",
+				"企业用户数据不完整，无法登录",
+				map[string]interface{}{
+					"user_id":   user.ID,
+					"user_type": user.UserType,
+					"error":     "enterprise_users record not found",
+				},
+			))
+			return
+		}
+		enterpriseUserID = &euID
+		enterpriseID = &eID
+		log.Printf("[DEBUG] User %d (%s) enterprise_user_id=%d, enterprise_id=%d",
+			user.ID, user.Username, euID, eID)
+	}
+
+	// ✅ P0 Security Fix: Double-check enterprise users have enterprise_id before generating token
+	if user.UserType == "enterprise" && enterpriseID == nil {
+		log.Printf("[ERROR] Login: Enterprise user %d (%s) missing enterprise_id after query", user.ID, user.Username)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			"MISSING_ENTERPRISE_ID",
+			"无法生成token：缺少企业ID",
+			map[string]interface{}{
+				"user_id":   user.ID,
+				"user_type": user.UserType,
+			},
+		))
+		return
+	}
+
+	// Query RBAC v2 role for the user
+	var roleV2 string
+	if user.UserType == "system" {
+		// System users: query from system_roles
+		roleQuery := `
+			SELECT sr.code
+			FROM system_roles sr
+			JOIN user_system_roles usr ON sr.id = usr.role_id
+			WHERE usr.user_id = $1 AND sr.deleted_at IS NULL AND usr.deleted_at IS NULL
+			LIMIT 1
+		`
+		err := h.db.QueryRow(roleQuery, user.ID).Scan(&roleV2)
+		if err != nil {
+			log.Printf("[WARN] Failed to query RBAC v2 role for system user %d: %v (using empty role_v2)", user.ID, err)
+			roleV2 = "" // 如果查询失败，使用空字符串，不阻断登录
 		} else {
-			enterpriseUserID = &euID
-			enterpriseID = &eID
-			log.Printf("[DEBUG] User %d (%s) enterprise_user_id=%d, enterprise_id=%d",
-				user.ID, user.Username, euID, eID)
+			log.Printf("[DEBUG] System user %d (%s) RBAC v2 role: %s", user.ID, user.Username, roleV2)
+		}
+	} else if user.UserType == "enterprise" && enterpriseUserID != nil {
+		// Enterprise users: query from enterprise_roles
+		roleQuery := `
+			SELECT er.code
+			FROM enterprise_roles er
+			JOIN enterprise_users eu ON er.id = eu.role_id
+			WHERE eu.user_id = $1 AND er.deleted_at IS NULL AND eu.deleted_at IS NULL
+			LIMIT 1
+		`
+		err := h.db.QueryRow(roleQuery, user.ID).Scan(&roleV2)
+		if err != nil {
+			log.Printf("[WARN] Failed to query RBAC v2 role for enterprise user %d: %v (using empty role_v2)", user.ID, err)
+			roleV2 = "" // 如果查询失败，使用空字符串，不阻断登录
+		} else {
+			log.Printf("[DEBUG] Enterprise user %d (%s) RBAC v2 role: %s", user.ID, user.Username, roleV2)
 		}
 	}
 
-	// Generate JWT token pair
-	tokenPair, err := h.tokenService.GenerateTokenPair(user.ID, user.Username, user.Role, user.UserType, enterpriseUserID, enterpriseID)
+	// Generate JWT token pair with RBAC v2 role
+	tokenPair, err := h.tokenService.GenerateTokenPair(user.ID, user.Username, user.Role, roleV2, user.UserType, enterpriseUserID, enterpriseID)
 	if err != nil {
 		log.Printf("Error generating JWT token pair: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("INTERNAL_ERROR", "登录失败", nil))
@@ -158,6 +217,54 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	// server-side token blacklisting if needed in the future.
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "登出成功"))
+}
+
+// RefreshTokenRequest represents the refresh token request structure
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+// RefreshToken godoc
+// @Summary		Refresh access token
+// @Description	Refresh access token using refresh token
+// @Tags			Authentication
+// @Accept			json
+// @Produce		json
+// @Param			request	body		RefreshTokenRequest	true	"Refresh token"
+// @Success		200		{object}	models.APIResponse{data=JWTLoginResponse}	"Token refreshed successfully"
+// @Failure		400		{object}	models.ErrorResponse	"Bad request"
+// @Failure		401		{object}	models.ErrorResponse	"Unauthorized"
+// @Failure		500		{object}	models.ErrorResponse	"Internal server error"
+// @Router			/auth/refresh [post]
+func (h *AuthHandler) RefreshToken(c *gin.Context) {
+	log.Println("=== REFRESH TOKEN HANDLER CALLED ===")
+
+	var req RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("BAD_REQUEST", "请求数据格式错误", nil))
+		return
+	}
+
+	// Use token service to refresh tokens
+	tokenPair, err := h.tokenService.RefreshTokens(req.RefreshToken)
+	if err != nil {
+		log.Printf("Error refreshing tokens: %v", err)
+		c.JSON(http.StatusUnauthorized, models.NewErrorResponse("INVALID_REFRESH_TOKEN", "刷新令牌无效或已过期", nil))
+		return
+	}
+
+	// Note: The refresh response doesn't include user details
+	// If you need user details, you would need to query the database
+	// using the user_id from the refresh token claims
+	response := JWTLoginResponse{
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		TokenType:    tokenPair.TokenType,
+		ExpiresIn:    tokenPair.ExpiresIn,
+	}
+
+	log.Printf("[DEBUG] Token refreshed successfully, new access token generated")
+	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "令牌刷新成功"))
 }
 
 // DevQuickLogin handles POST /api/v1/auth/dev-quick-login (development only)
@@ -224,17 +331,77 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 		`
 		err := h.db.QueryRow(query, user.ID).Scan(&euID, &eID)
 		if err != nil {
-			log.Printf("[WARN] DevLogin: Failed to query enterprise info for user %d: %v", user.ID, err)
+			// ❌ P0 Security Fix: Reject login if enterprise_id cannot be determined
+			log.Printf("[ERROR] DevLogin: Enterprise user %d (%s) has no enterprise record: %v", user.ID, user.Username, err)
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+				"ENTERPRISE_DATA_MISSING",
+				"企业用户数据不完整，无法登录",
+				map[string]interface{}{
+					"user_id":   user.ID,
+					"user_type": user.UserType,
+					"error":     "enterprise_users record not found",
+				},
+			))
+			return
+		}
+		enterpriseUserID = &euID
+		enterpriseID = &eID
+		log.Printf("[DEBUG] DevLogin: User %d (%s) enterprise_user_id=%d, enterprise_id=%d",
+			user.ID, user.Username, euID, eID)
+	}
+
+	// ✅ P0 Security Fix: Double-check enterprise users have enterprise_id before generating token
+	if user.UserType == "enterprise" && enterpriseID == nil {
+		log.Printf("[ERROR] DevLogin: Enterprise user %d (%s) missing enterprise_id after query", user.ID, user.Username)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			"MISSING_ENTERPRISE_ID",
+			"无法生成token：缺少企业ID",
+			map[string]interface{}{
+				"user_id":   user.ID,
+				"user_type": user.UserType,
+			},
+		))
+		return
+	}
+
+	// Query RBAC v2 role for the user
+	var roleV2 string
+	if user.UserType == "system" {
+		// System users: query from system_roles
+		roleQuery := `
+			SELECT sr.code
+			FROM system_roles sr
+			JOIN user_system_roles usr ON sr.id = usr.role_id
+			WHERE usr.user_id = $1 AND sr.deleted_at IS NULL AND usr.deleted_at IS NULL
+			LIMIT 1
+		`
+		err := h.db.QueryRow(roleQuery, user.ID).Scan(&roleV2)
+		if err != nil {
+			log.Printf("[WARN] DevLogin: Failed to query RBAC v2 role for system user %d: %v (using empty role_v2)", user.ID, err)
+			roleV2 = "" // 如果查询失败，使用空字符串，不阻断登录
 		} else {
-			enterpriseUserID = &euID
-			enterpriseID = &eID
-			log.Printf("[DEBUG] DevLogin: User %d (%s) enterprise_user_id=%d, enterprise_id=%d",
-				user.ID, user.Username, euID, eID)
+			log.Printf("[DEBUG] DevLogin: System user %d (%s) RBAC v2 role: %s", user.ID, user.Username, roleV2)
+		}
+	} else if user.UserType == "enterprise" && enterpriseUserID != nil {
+		// Enterprise users: query from enterprise_roles
+		roleQuery := `
+			SELECT er.code
+			FROM enterprise_roles er
+			JOIN enterprise_users eu ON er.id = eu.role_id
+			WHERE eu.user_id = $1 AND er.deleted_at IS NULL AND eu.deleted_at IS NULL
+			LIMIT 1
+		`
+		err := h.db.QueryRow(roleQuery, user.ID).Scan(&roleV2)
+		if err != nil {
+			log.Printf("[WARN] DevLogin: Failed to query RBAC v2 role for enterprise user %d: %v (using empty role_v2)", user.ID, err)
+			roleV2 = "" // 如果查询失败，使用空字符串，不阻断登录
+		} else {
+			log.Printf("[DEBUG] DevLogin: Enterprise user %d (%s) RBAC v2 role: %s", user.ID, user.Username, roleV2)
 		}
 	}
 
 	// Generate JWT token pair without password verification (development only)
-	tokenPair, err := h.tokenService.GenerateTokenPair(user.ID, user.Username, user.Role, user.UserType, enterpriseUserID, enterpriseID)
+	tokenPair, err := h.tokenService.GenerateTokenPair(user.ID, user.Username, user.Role, roleV2, user.UserType, enterpriseUserID, enterpriseID)
 	if err != nil {
 		log.Printf("Error generating JWT token pair for dev login: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("INTERNAL_ERROR", "登录失败", nil))

@@ -61,13 +61,16 @@ type TokenPair struct {
 
 // RefreshTokenClaims 刷新令牌声明
 type RefreshTokenClaims struct {
-	UserID       int       `json:"user_id"`
-	Username     string    `json:"username"`
-	Role         string    `json:"role"`
-	UserType     string    `json:"user_type"`
-	JTI          string    `json:"jti"` // Token ID
-	RefreshCount int       `json:"refresh_count"`
-	TokenType    TokenType `json:"token_type"`
+	UserID           int       `json:"user_id"`
+	Username         string    `json:"username"`
+	Role             string    `json:"role"`              // 旧系统角色 (向后兼容)
+	RoleV2           string    `json:"role_v2,omitempty"` // RBAC v2角色代码
+	UserType         string    `json:"user_type"`
+	EnterpriseUserID *int      `json:"enterprise_user_id,omitempty"` // 企业用户ID
+	EnterpriseID     *int      `json:"enterprise_id,omitempty"`      // 企业ID
+	JTI              string    `json:"jti"`                          // Token ID
+	RefreshCount     int       `json:"refresh_count"`
+	TokenType        TokenType `json:"token_type"`
 	jwt.RegisteredClaims
 }
 
@@ -96,11 +99,12 @@ func NewJWTTokenService(config *JWTServiceConfig, logger *log.Logger) *JWTTokenS
 }
 
 // GenerateTokenPair 生成令牌对
-func (s *JWTTokenService) GenerateTokenPair(userID int, username, role, userType string, enterpriseUserID *int, enterpriseID *int) (*TokenPair, error) {
+// roleV2: RBAC v2 role code (system_roles.code or enterprise_roles.code)
+func (s *JWTTokenService) GenerateTokenPair(userID int, username, role, roleV2, userType string, enterpriseUserID *int, enterpriseID *int) (*TokenPair, error) {
 	now := time.Now()
 
 	// 生成访问令牌
-	accessToken, err := s.jwtManager.GenerateToken(userID, username, role, userType, enterpriseUserID, enterpriseID)
+	accessToken, err := s.jwtManager.GenerateToken(userID, username, role, roleV2, userType, enterpriseUserID, enterpriseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %v", err)
 	}
@@ -112,7 +116,7 @@ func (s *JWTTokenService) GenerateTokenPair(userID int, username, role, userType
 	}
 
 	// 生成刷新令牌
-	refreshToken, err := s.generateRefreshToken(userID, username, role, userType, jti, 0)
+	refreshToken, err := s.generateRefreshToken(userID, username, role, roleV2, userType, jti, 0, enterpriseUserID, enterpriseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate refresh token: %v", err)
 	}
@@ -126,7 +130,7 @@ func (s *JWTTokenService) GenerateTokenPair(userID int, username, role, userType
 		IssuedAt:     now,
 	}
 
-	s.logger.Printf("Generated token pair for user %d (%s)", userID, username)
+	s.logger.Printf("Generated token pair for user %d (%s) with role_v2=%s", userID, username, roleV2)
 	return tokenPair, nil
 }
 
@@ -165,15 +169,15 @@ func (s *JWTTokenService) RefreshTokens(refreshTokenString string) (*TokenPair, 
 		s.addToBlacklist(refreshClaims.JTI, refreshClaims.ExpiresAt.Time, "token_refreshed")
 	}
 
-	// 生成新的令牌对 (注意: refresh token没有enterprise信息,需要从数据库重新查询)
-	// TODO: 未来可以考虑在refresh token中也存储enterprise信息
+	// 生成新的令牌对 (现在refresh token包含enterprise信息和role_v2，直接使用)
 	newTokenPair, err := s.GenerateTokenPair(
 		refreshClaims.UserID,
 		refreshClaims.Username,
 		refreshClaims.Role,
+		refreshClaims.RoleV2, // 保留RBAC v2角色
 		refreshClaims.UserType,
-		nil, // 刷新时暂不包含enterprise_user_id
-		nil, // 刷新时暂不包含enterprise_id
+		refreshClaims.EnterpriseUserID, // 保留企业用户ID
+		refreshClaims.EnterpriseID,     // 保留企业ID
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate new token pair: %v", err)
@@ -182,8 +186,8 @@ func (s *JWTTokenService) RefreshTokens(refreshTokenString string) (*TokenPair, 
 	// 更新刷新计数
 	newTokenPair.RefreshCount = refreshClaims.RefreshCount + 1
 
-	s.logger.Printf("Refreshed tokens for user %d (%s), refresh count: %d",
-		refreshClaims.UserID, refreshClaims.Username, newTokenPair.RefreshCount)
+	s.logger.Printf("Refreshed tokens for user %d (%s), refresh count: %d, role_v2: %s",
+		refreshClaims.UserID, refreshClaims.Username, newTokenPair.RefreshCount, refreshClaims.RoleV2)
 
 	return newTokenPair, nil
 }
@@ -265,17 +269,20 @@ func (s *JWTTokenService) GetBlacklistStats() map[string]interface{} {
 // 私有方法
 
 // generateRefreshToken 生成刷新令牌
-func (s *JWTTokenService) generateRefreshToken(userID int, username, role, userType, jti string, refreshCount int) (string, error) {
+func (s *JWTTokenService) generateRefreshToken(userID int, username, role, roleV2, userType, jti string, refreshCount int, enterpriseUserID *int, enterpriseID *int) (string, error) {
 	now := time.Now()
 
 	claims := &RefreshTokenClaims{
-		UserID:       userID,
-		Username:     username,
-		Role:         role,
-		UserType:     userType,
-		JTI:          jti,
-		RefreshCount: refreshCount,
-		TokenType:    TokenTypeRefresh,
+		UserID:           userID,
+		Username:         username,
+		Role:             role,
+		RoleV2:           roleV2,
+		UserType:         userType,
+		EnterpriseUserID: enterpriseUserID,
+		EnterpriseID:     enterpriseID,
+		JTI:              jti,
+		RefreshCount:     refreshCount,
+		TokenType:        TokenTypeRefresh,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.config.RefreshTokenExpiry)),
 			IssuedAt:  jwt.NewNumericDate(now),

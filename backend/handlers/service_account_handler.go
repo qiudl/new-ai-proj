@@ -98,6 +98,7 @@ func (h *ServiceAccountHandler) GenerateServiceToken(c *gin.Context) {
 		user.ID,
 		user.Username,
 		user.Role,
+		"",  // service account暂无RBAC v2角色
 		user.UserType,
 		nil, // service account没有enterprise_user_id
 		nil, // service account没有enterprise_id

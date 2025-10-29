@@ -14,7 +14,8 @@ import (
 type JWTClaims struct {
 	UserID           int    `json:"user_id"`
 	Username         string `json:"username"`
-	Role             string `json:"role"`
+	Role             string `json:"role"`                         // 旧系统角色 (向后兼容)
+	RoleV2           string `json:"role_v2,omitempty"`            // RBAC v2角色代码 (system_roles.code 或 enterprise_roles.code)
 	UserType         string `json:"user_type"`
 	EnterpriseUserID *int   `json:"enterprise_user_id,omitempty"` // 企业用户ID (对于enterprise类型用户)
 	EnterpriseID     *int   `json:"enterprise_id,omitempty"`      // 企业ID (对于enterprise类型用户)
@@ -37,7 +38,8 @@ func NewJWTManager(secretKey string, expiration time.Duration) *JWTManager {
 
 // GenerateToken generates a new JWT token
 // For backward compatibility, enterprise fields are optional
-func (m *JWTManager) GenerateToken(userID int, username, role, userType string, enterpriseUserID *int, enterpriseID *int) (string, error) {
+// roleV2: RBAC v2 role code (system_roles.code or enterprise_roles.code)
+func (m *JWTManager) GenerateToken(userID int, username, role, roleV2, userType string, enterpriseUserID *int, enterpriseID *int) (string, error) {
 	// Generate a unique JWT ID
 	jti, err := generateJTI()
 	if err != nil {
@@ -48,6 +50,7 @@ func (m *JWTManager) GenerateToken(userID int, username, role, userType string, 
 		UserID:           userID,
 		Username:         username,
 		Role:             role,
+		RoleV2:           roleV2,
 		UserType:         userType,
 		EnterpriseUserID: enterpriseUserID,
 		EnterpriseID:     enterpriseID,
@@ -65,11 +68,13 @@ func (m *JWTManager) GenerateToken(userID int, username, role, userType string, 
 }
 
 // GenerateTokenWithJTI generates a new JWT token with specified JTI
-func (m *JWTManager) GenerateTokenWithJTI(userID int, username, role, userType, jti string, enterpriseUserID *int, enterpriseID *int) (string, error) {
+// roleV2: RBAC v2 role code (system_roles.code or enterprise_roles.code)
+func (m *JWTManager) GenerateTokenWithJTI(userID int, username, role, roleV2, userType, jti string, enterpriseUserID *int, enterpriseID *int) (string, error) {
 	claims := &JWTClaims{
 		UserID:           userID,
 		Username:         username,
 		Role:             role,
+		RoleV2:           roleV2,
 		UserType:         userType,
 		EnterpriseUserID: enterpriseUserID,
 		EnterpriseID:     enterpriseID,
@@ -135,8 +140,8 @@ func (m *JWTManager) RefreshToken(tokenString string) (string, error) {
 		return "", err
 	}
 
-	// Generate new token with the same user info (including enterprise info) but new JTI
-	return m.GenerateToken(claims.UserID, claims.Username, claims.Role, claims.UserType, claims.EnterpriseUserID, claims.EnterpriseID)
+	// Generate new token with the same user info (including enterprise info and role_v2) but new JTI
+	return m.GenerateToken(claims.UserID, claims.Username, claims.Role, claims.RoleV2, claims.UserType, claims.EnterpriseUserID, claims.EnterpriseID)
 }
 
 // ExtractTokenInfo extracts basic token information without full validation
