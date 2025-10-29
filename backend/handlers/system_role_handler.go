@@ -83,7 +83,7 @@ func (h *SystemRoleHandler) ListSystemRoles(c *gin.Context) {
 
 	// Query system roles from database
 	query := `
-		SELECT id, role_code, role_name, description, is_active, is_built_in, created_at, updated_at
+		SELECT id, code, name, description, is_active, is_builtin, created_at, updated_at
 		FROM system_roles
 	`
 
@@ -92,7 +92,7 @@ func (h *SystemRoleHandler) ListSystemRoles(c *gin.Context) {
 	whereAdded := false
 
 	if search != "" {
-		query += " WHERE (role_name ILIKE $1 OR role_code ILIKE $2)"
+		query += " WHERE (name ILIKE $1 OR code ILIKE $2)"
 		searchPattern := "%" + search + "%"
 		args = append(args, searchPattern, searchPattern)
 		argIndex += 2
