@@ -172,3 +172,8 @@ func (a *DocumentRepositoryAdapter) GetTaskDocuments(ctx context.Context, taskID
 func (a *DocumentRepositoryAdapter) AppendContent(ctx context.Context, documentID int, appendContent string, userID int) (*models.Document, error) {
 	return a.newRepo.AppendContent(ctx, documentID, appendContent, userID)
 }
+
+// AttachToTask 将文档关联到任务 (for MCP)
+func (a *DocumentRepositoryAdapter) AttachToTask(ctx context.Context, taskID, documentID int, relationshipType string, createdBy int) error {
+	return a.newRepo.AttachToTask(ctx, taskID, documentID, relationshipType, createdBy)
+}

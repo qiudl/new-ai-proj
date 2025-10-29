@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"ai-project-backend/handlers"
 	"ai-project-backend/middleware"
+	"ai-project-backend/models"
 )
 
 // responseRecorder 用于捕获响应内容（不写入原始Writer，避免重复响应）
@@ -312,6 +313,64 @@ func CreateAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 
 			unifiedHandler.CreateDocument(c)
 
+			// ✅ 新增：获取用户ID用于数据库操作
+			userIDValue, exists := c.Get("user_id")
+			var userID int
+			if exists {
+				switch v := userIDValue.(type) {
+				case int:
+					userID = v
+				case uint:
+					userID = int(v)
+				case int64:
+					userID = int(v)
+				case float64:
+					userID = int(v)
+				default:
+					log.Printf("[WARN] MCP create-and-attach: Invalid user ID type: %T", userIDValue)
+				}
+			}
+
+			// ✅ 新增：创建数据库记录和任务关联
+			var createdDocID int
+			if userID > 0 {
+				docRepo := app.GetDB().Documents()
+				if docRepo != nil {
+					// 创建文档记录
+					newDoc := &models.Document{
+						ProjectID:  &projectID,
+						Title:      title,
+						Content:    &req.Content,
+						Type:       "markdown",
+						Status:     "draft",
+						OwnerID:    userID,
+						Visibility: "team",
+						Version:    1,
+						CreatedBy:  userID,
+					}
+
+					createdDoc, createErr := docRepo.Create(c.Request.Context(), newDoc)
+					if createErr != nil {
+						log.Printf("[ERROR] MCP create-and-attach: Failed to create document record: %v", createErr)
+					} else {
+						createdDocID = createdDoc.ID
+						log.Printf("[INFO] MCP create-and-attach: Created document record ID=%d", createdDocID)
+
+						// 创建任务关联
+						attachErr := docRepo.AttachToTask(c.Request.Context(), req.TaskID, createdDoc.ID, "main", userID)
+						if attachErr != nil {
+							log.Printf("[ERROR] MCP create-and-attach: Failed to attach document to task: %v", attachErr)
+						} else {
+							log.Printf("[SUCCESS] MCP create-and-attach: Document %d attached to task %d", createdDoc.ID, req.TaskID)
+						}
+					}
+				} else {
+					log.Printf("[WARN] MCP create-and-attach: Document repository not available")
+				}
+			} else {
+				log.Printf("[WARN] MCP create-and-attach: Invalid user ID, skipping database operations")
+			}
+
 			// 修改响应，添加action标识
 			var createResp map[string]interface{}
 			if err := json.Unmarshal(recorder.body.Bytes(), &createResp); err == nil {
@@ -320,6 +379,10 @@ func CreateAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 					data["action"] = "created"
 					data["task_id"] = req.TaskID
 					data["project_id"] = projectID
+					// ✅ 新增：添加文档ID到响应
+					if createdDocID > 0 {
+						data["document_id"] = createdDocID
+					}
 				} else {
 					// 记录警告日志，但不阻塞请求
 					log.Printf("[WARN] MCP create-and-attach: Failed to add action field - data is not map[string]interface{}, got type %T", createResp["data"])
