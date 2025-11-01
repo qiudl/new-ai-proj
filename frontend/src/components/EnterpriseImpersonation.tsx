@@ -95,9 +95,9 @@ const EnterpriseImpersonation: React.FC = () => {
   // 获取企业列表
   const fetchEnterprises = async () => {
     if (!token) return;
-    
+
     try {
-      const response = await fetch('/api/v1/enterprises', {
+      const response = await fetch('/api/v1/system/enterprises', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

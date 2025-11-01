@@ -1,12 +1,19 @@
 // Mermaid 统一初始化和渲染工具
 // 解决 TaskMarkdownEditor 和 TaskDocumentEditor 之间的初始化冲突问题
 
+import mermaid from 'mermaid';
+
 declare global {
   interface Window {
     mermaid?: any;
     mermaidInitialized: boolean;
     mermaidConfig?: any;
   }
+}
+
+// 将 mermaid 设置到 window 对象，保持兼容性
+if (typeof window !== 'undefined') {
+  window.mermaid = mermaid;
 }
 
 // 统一的 Mermaid 配置

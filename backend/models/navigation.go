@@ -6,22 +6,22 @@ import (
 
 // MenuItem 菜单项模型
 type MenuItem struct {
-	ID          int        `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	Key         string     `gorm:"column:key;type:varchar(100);not null;uniqueIndex" json:"key"`
-	Icon        *string    `gorm:"column:icon;type:varchar(50)" json:"icon,omitempty"`
-	Label       string     `gorm:"column:label;type:varchar(200);not null" json:"label"`
-	Path        *string    `gorm:"column:path;type:varchar(500)" json:"path,omitempty"`
-	ParentID    *int       `gorm:"column:parent_id;index" json:"parent_id,omitempty"`
-	SortOrder   int        `gorm:"column:sort_order;default:0" json:"sort_order"`
-	IsVisible   bool       `gorm:"column:is_visible;default:true" json:"is_visible"`
-	IsEnabled   bool       `gorm:"column:is_enabled;default:true" json:"is_enabled"`
-	Permission  *string    `gorm:"column:permission;type:varchar(100)" json:"permission,omitempty"`
-	Component   *string    `gorm:"column:component;type:varchar(200)" json:"component,omitempty"`
-	CreatedAt   time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
-	UpdatedAt   time.Time  `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+	ID          int        `db:"id" json:"id"`
+	Key         string     `db:"key" json:"key"`
+	Icon        *string    `db:"icon" json:"icon,omitempty"`
+	Label       string     `db:"label" json:"label"`
+	Path        *string    `db:"path" json:"path,omitempty"`
+	ParentID    *int       `db:"parent_id" json:"parent_id,omitempty"`
+	SortOrder   int        `db:"sort_order" json:"sort_order"`
+	IsVisible   bool       `db:"is_visible" json:"is_visible"`
+	IsEnabled   bool       `db:"is_enabled" json:"is_enabled"`
+	Permission  *string    `db:"permission" json:"permission,omitempty"`
+	Component   *string    `db:"component" json:"component,omitempty"`
+	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time  `db:"updated_at" json:"updated_at"`
 
 	// 关联
-	Children    []MenuItem `gorm:"foreignKey:ParentID" json:"children,omitempty"`
+	Children    []MenuItem `json:"children,omitempty"`
 }
 
 // TableName 指定表名
@@ -61,16 +61,16 @@ func (req *MenuItemRequest) ToModel() *MenuItem {
 
 // MenuGroup 菜单分组模型
 type MenuGroup struct {
-	ID          int        `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	Name        string     `gorm:"column:name;type:varchar(100);not null" json:"name"`
-	Description *string    `gorm:"column:description;type:text" json:"description,omitempty"`
-	SortOrder   int        `gorm:"column:sort_order;default:0" json:"sort_order"`
-	IsActive    bool       `gorm:"column:is_active;default:true" json:"is_active"`
-	CreatedAt   time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
-	UpdatedAt   time.Time  `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+	ID          int        `db:"id" json:"id"`
+	Name        string     `db:"name" json:"name"`
+	Description *string    `db:"description" json:"description,omitempty"`
+	SortOrder   int        `db:"sort_order" json:"sort_order"`
+	IsActive    bool       `db:"is_active" json:"is_active"`
+	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time  `db:"updated_at" json:"updated_at"`
 
 	// 关联 - 可选，根据需要
-	MenuItems   []MenuItem `gorm:"-" json:"menu_items,omitempty"`
+	MenuItems   []MenuItem `json:"menu_items,omitempty"`
 }
 
 // TableName 指定表名
@@ -98,17 +98,17 @@ func (req *MenuGroupRequest) ToModel() *MenuGroup {
 
 // RouteConfig 路由配置模型
 type RouteConfig struct {
-	ID          int        `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	Path        string     `gorm:"column:path;type:varchar(500);not null;index" json:"path"`
-	Component   string     `gorm:"column:component;type:varchar(200);not null" json:"component"`
-	Exact       *bool      `gorm:"column:exact;default:false" json:"exact,omitempty"`
-	MenuItemID  *int       `gorm:"column:menu_item_id;index" json:"menu_item_id,omitempty"`
-	IsProtected bool       `gorm:"column:is_protected;default:true" json:"is_protected"`
-	Permission  *string    `gorm:"column:permission;type:varchar(100)" json:"permission,omitempty"`
-	Redirect    *string    `gorm:"column:redirect;type:varchar(500)" json:"redirect,omitempty"`
-	Meta        *RouteMeta `gorm:"column:meta;type:jsonb" json:"meta,omitempty"`
-	CreatedAt   time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
-	UpdatedAt   time.Time  `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+	ID          int        `db:"id" json:"id"`
+	Path        string     `db:"path" json:"path"`
+	Component   string     `db:"component" json:"component"`
+	Exact       *bool      `db:"exact" json:"exact,omitempty"`
+	MenuItemID  *int       `db:"menu_item_id" json:"menu_item_id,omitempty"`
+	IsProtected bool       `db:"is_protected" json:"is_protected"`
+	Permission  *string    `db:"permission" json:"permission,omitempty"`
+	Redirect    *string    `db:"redirect" json:"redirect,omitempty"`
+	Meta        *RouteMeta `db:"meta" json:"meta,omitempty"`
+	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time  `db:"updated_at" json:"updated_at"`
 }
 
 // TableName 指定表名

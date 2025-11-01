@@ -6,8 +6,10 @@ import TaskMarkdownEditor from './TaskMarkdownEditor';
 import api from '../services/api';
 import { documentService } from '../services/unifiedDocumentService';
 import { apiCache } from '../utils/apiCacheManager';
+import html2pdf from 'html2pdf.js';
 import '../styles/TaskDocumentEditor.css';
-// html2pdf.js and mermaid.js are loaded globally via CDN in index.html
+
+// html2pdf and mermaid are now loaded as npm packages
 declare global {
   interface Window {
     html2pdf: any;
@@ -16,8 +18,10 @@ declare global {
   }
 }
 
-// Type declaration for global html2pdf function
-declare const html2pdf: any;
+// Make html2pdf available globally for compatibility
+if (typeof window !== 'undefined') {
+  window.html2pdf = html2pdf;
+}
 
 // API返回的数据结构 - 匹配后端统一响应格式
 interface TaskDocumentResponse {
