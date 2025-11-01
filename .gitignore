@@ -164,3 +164,11 @@ CLAUDE.md
 ./claude/
 
 /backend/ai-project-backend.worktree-config.json
+
+# Backend binaries
+backend/ai-project-backend-*
+!backend/ai-project-backend.go
+
+# Test scripts
+backend/scripts/test-*.sh
+mcp-task-bridge/test-*.js
