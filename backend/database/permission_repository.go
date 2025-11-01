@@ -9,6 +9,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/lib/pq"
 )
 
 // PostgresPermissionRepository implements PermissionRepository for PostgreSQL
@@ -324,7 +326,7 @@ func (r *PostgresPermissionRepository) GetRolesWithPermissions(ctx context.Conte
 		ORDER BY rp.role_id, p.module, p.resource, p.action`
 
 	exec := r.getExecer()
-	rows, err := exec.QueryContext(ctx, query, roleIDs)
+	rows, err := exec.QueryContext(ctx, query, pq.Array(roleIDs))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to batch get role permissions: %w", err)
 	}
@@ -642,8 +644,19 @@ func (r *PostgresPermissionRepository) CheckMultiplePermissions(ctx context.Cont
 func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, companyUserID int) (*models.UserPermissionSummary, error) {
 	exec := r.getExecer()
 
+	// Normalize input ID: accept either company_users.id or users.id
+	normalizedID := companyUserID
+	// First, check if the given ID exists as a company_user.id
+	var probeID int
+	if err := exec.QueryRowContext(ctx, "SELECT id FROM company_users WHERE id = $1", companyUserID).Scan(&probeID); err == sql.ErrNoRows {
+		// Try mapping from users.id -> company_users.id
+		if err2 := exec.QueryRowContext(ctx, "SELECT id FROM company_users WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", companyUserID).Scan(&probeID); err2 == nil {
+			normalizedID = probeID
+		}
+	}
+
 	summary := &models.UserPermissionSummary{
-		CompanyUserID:        companyUserID,
+		CompanyUserID:        normalizedID,
 		CustomPermissions:    make(map[string]bool),
 		ProjectPermissions:   []models.CompanyUserProjectPermission{},
 		EffectivePermissions: []models.PermissionResponse{},
@@ -663,7 +676,7 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, c
 	var roleDescription sql.NullString
 	var isSystemRole, isActive sql.NullBool
 
-	err := exec.QueryRowContext(ctx, userQuery, companyUserID).Scan(
+	err := exec.QueryRowContext(ctx, userQuery, normalizedID).Scan(
 		&summary.UserName, &roleID, &customPermissionsJSON, &summary.LastUpdated,
 		&roleCode, &roleName, &roleDescription, &isSystemRole, &isActive,
 	)
@@ -705,7 +718,7 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, c
 		  AND (permission_end_date IS NULL OR permission_end_date > CURRENT_TIMESTAMP)
 		ORDER BY project_id`
 
-	projectRows, err := exec.QueryContext(ctx, projectPermQuery, companyUserID)
+	projectRows, err := exec.QueryContext(ctx, projectPermQuery, normalizedID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project permissions: %w", err)
 	}
@@ -713,7 +726,7 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, c
 
 	for projectRows.Next() {
 		projectPerm := models.CompanyUserProjectPermission{
-			CompanyUserID: companyUserID,
+			CompanyUserID: normalizedID,
 		}
 		err := projectRows.Scan(
 			&projectPerm.ID, &projectPerm.ProjectID,
