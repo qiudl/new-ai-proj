@@ -43,7 +43,9 @@ func SetupRouter(app ApplicationInterface) *gin.Engine {
 			"/metrics",
 			"/version",
 			"/api/v1/health",
-			"/api/v1/timer/sse-token", // SSE连接不记录
+			"/api/v1/timer/sse-token",        // SSE连接不记录
+			"/api/v1/user/timer/current",     // 计时器轮询不记录（避免日志泛滥）
+			"/api/v1/tasks/*/timer/current",  // 任务计时器状态不记录
 		},
 	}
 	router.Use(middleware.NewAuditMiddleware(auditConfig).Middleware())
