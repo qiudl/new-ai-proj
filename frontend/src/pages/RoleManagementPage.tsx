@@ -114,13 +114,16 @@ const RoleManagementPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await api.get('/api/v1/roles', {
-        params: { 
-          include_inactive: true, 
-          include_stats: true 
+        params: {
+          include_inactive: true,
+          include_stats: true
         }
       });
-      
-      const roleData: Role[] = Array.isArray(response) ? response as Role[] : ((response as any)?.data || []);
+
+      // API返回格式：{roles: [...], total: 4}（已被拦截器解包）
+      const roleData: Role[] = Array.isArray(response)
+        ? response as Role[]
+        : ((response as any)?.roles || (response as any)?.data?.roles || (response as any)?.data || []);
       setRoles(roleData);
       
       // 计算统计数据
@@ -207,8 +210,11 @@ const RoleManagementPage: React.FC = () => {
       const response = await api.get('/api/v1/permissions', {
         params: { include_inactive: false }
       });
-      
-      const perms: Permission[] = Array.isArray(response) ? response as Permission[] : ((response as any)?.data || []);
+
+      // API可能返回格式：{permissions: [...]} 或直接数组
+      const perms: Permission[] = Array.isArray(response)
+        ? response as Permission[]
+        : ((response as any)?.permissions || (response as any)?.data?.permissions || (response as any)?.data || []);
       if (perms && perms.length > 0) {
         setPermissions(perms);
       } else {
@@ -269,8 +275,13 @@ const RoleManagementPage: React.FC = () => {
   const loadRolePermissions = useCallback(async (roleId: number) => {
     try {
       const response = await api.get(`/api/v1/roles/${roleId}/permissions`);
-      const rolePermissions: any[] = Array.isArray(response) ? response as any[] : ((response as any)?.data || []);
-      const permissionCodes = rolePermissions.map((p: any) => p.permission_code || p.permissionCode);
+      // API返回格式：{permissions: [...], granted_count: N, total_count: M}
+      const rolePermissions: any[] = Array.isArray(response)
+        ? response as any[]
+        : ((response as any)?.permissions || (response as any)?.data?.permissions || (response as any)?.data || []);
+      const permissionCodes = rolePermissions
+        .filter((p: any) => p.is_granted) // 只选择已授予的权限
+        .map((p: any) => p.permission_code || p.permissionCode);
       setSelectedPermissions(permissionCodes);
     } catch (error) {
       console.error('Failed to load role permissions:', error);
