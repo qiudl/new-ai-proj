@@ -43,8 +43,11 @@ func NewPermissionMiddlewareV2(
 //   - "system.user.delete" - Delete users
 //   - "system.config.update" - Update system configuration
 func (m *PermissionMiddlewareV2) RequireSystemPermission(permission string) gin.HandlerFunc {
+	// Normalize incoming permission to canonical form
+	norm := NormalizePermissionCode(permission)
+	
 	return func(c *gin.Context) {
-		log.Printf("[RBAC-v2] Checking system permission: %s", permission)
+log.Printf("[RBAC-v2] Checking system permission: %s", norm)
 
 		// 1. Get user ID from JWT context (set by AuthMiddleware)
 		userID, exists := c.Get("user_id")
@@ -87,7 +90,7 @@ func (m *PermissionMiddlewareV2) RequireSystemPermission(permission string) gin.
 		}
 
 		// 3. Check permission
-		hasPermission, err := m.permissionService.CheckSystemPermission(identity, permission)
+hasPermission, err := m.permissionService.CheckSystemPermission(identity, norm)
 		if err != nil {
 			log.Printf("[RBAC-v2] Error checking system permission for user %d: %v", uid, err)
 			response := models.NewErrorResponse(
@@ -101,11 +104,11 @@ func (m *PermissionMiddlewareV2) RequireSystemPermission(permission string) gin.
 		}
 
 		if !hasPermission {
-			log.Printf("[RBAC-v2] User %d does not have system permission: %s", uid, permission)
+log.Printf("[RBAC-v2] User %d does not have system permission: %s", uid, norm)
 			response := models.NewErrorResponse(
 				models.ErrCodeAuthorization,
 				"无权限执行此操作",
-				fmt.Sprintf("需要权限: %s", permission),
+fmt.Sprintf("需要权限: %s", norm),
 			)
 			c.JSON(http.StatusForbidden, response)
 			c.Abort()
@@ -115,7 +118,7 @@ func (m *PermissionMiddlewareV2) RequireSystemPermission(permission string) gin.
 		// 4. Store identity in context for handlers
 		c.Set("user_identity", identity)
 		c.Set("identity_type", "system")
-		c.Set("required_permission", permission)
+c.Set("required_permission", norm)
 
 		log.Printf("[RBAC-v2] System permission check passed for user %d: %s", uid, permission)
 		c.Next()
@@ -130,8 +133,11 @@ func (m *PermissionMiddlewareV2) RequireSystemPermission(permission string) gin.
 //       "system.enterprise.read", "system.enterprise.create",
 //   ), handler)
 func (m *PermissionMiddlewareV2) RequireAnySystemPermission(permissions ...string) gin.HandlerFunc {
+	// Normalize and dedupe permissions for consistent checks and messages
+	normPerms := NormalizePermissionCodes(permissions)
+	
 	return func(c *gin.Context) {
-		log.Printf("[RBAC-v2] Checking any of system permissions: %v", permissions)
+log.Printf("[RBAC-v2] Checking any of system permissions: %v", normPerms)
 
 		userID, exists := c.Get("user_id")
 		if !exists {
@@ -170,7 +176,7 @@ func (m *PermissionMiddlewareV2) RequireAnySystemPermission(permissions ...strin
 		}
 
 		// Check each permission until one succeeds
-		for _, permission := range permissions {
+for _, permission := range normPerms {
 			hasPermission, err := m.permissionService.CheckSystemPermission(identity, permission)
 			if err != nil {
 				log.Printf("[RBAC-v2] Error checking permission %s: %v", permission, err)
@@ -179,7 +185,8 @@ func (m *PermissionMiddlewareV2) RequireAnySystemPermission(permissions ...strin
 			if hasPermission {
 				c.Set("user_identity", identity)
 				c.Set("identity_type", "system")
-				c.Set("granted_permission", permission)
+c.Set("granted_permission", permission)
+				c.Set("required_permissions", normPerms)
 				log.Printf("[RBAC-v2] User %d granted permission: %s", uid, permission)
 				c.Next()
 				return
@@ -191,7 +198,7 @@ func (m *PermissionMiddlewareV2) RequireAnySystemPermission(permissions ...strin
 		response := models.NewErrorResponse(
 			models.ErrCodeAuthorization,
 			"无权限执行此操作",
-			fmt.Sprintf("需要以下任一权限: %s", strings.Join(permissions, ", ")),
+fmt.Sprintf("需要以下任一权限: %s", strings.Join(normPerms, ", ")),
 		)
 		c.JSON(http.StatusForbidden, response)
 		c.Abort()
@@ -217,8 +224,11 @@ func (m *PermissionMiddlewareV2) RequireAnySystemPermission(permissions ...strin
 //   3. Header `X-Enterprise-ID`
 //   4. Request body field `enterprise_id`
 func (m *PermissionMiddlewareV2) RequireEnterprisePermission(permission string) gin.HandlerFunc {
+	// Normalize incoming permission
+	norm := NormalizePermissionCode(permission)
+	
 	return func(c *gin.Context) {
-		log.Printf("[RBAC-v2] Checking enterprise permission: %s", permission)
+log.Printf("[RBAC-v2] Checking enterprise permission: %s", norm)
 
 		// 1. Get user ID from context
 		userID, exists := c.Get("user_id")
@@ -275,7 +285,7 @@ func (m *PermissionMiddlewareV2) RequireEnterprisePermission(permission string) 
 		}
 
 		// 4. Check permission
-		hasPermission, err := m.permissionService.CheckEnterprisePermission(identity, enterpriseID, permission)
+hasPermission, err := m.permissionService.CheckEnterprisePermission(identity, enterpriseID, norm)
 		if err != nil {
 			log.Printf("[RBAC-v2] Error checking enterprise permission for user %d: %v", uid, err)
 			response := models.NewErrorResponse(
@@ -294,7 +304,7 @@ func (m *PermissionMiddlewareV2) RequireEnterprisePermission(permission string) 
 			response := models.NewErrorResponse(
 				models.ErrCodeAuthorization,
 				"无权限执行此操作",
-				fmt.Sprintf("需要权限: %s", permission),
+fmt.Sprintf("需要权限: %s", norm),
 			)
 			c.JSON(http.StatusForbidden, response)
 			c.Abort()
@@ -305,7 +315,7 @@ func (m *PermissionMiddlewareV2) RequireEnterprisePermission(permission string) 
 		c.Set("user_identity", identity)
 		c.Set("identity_type", "enterprise")
 		c.Set("enterprise_id", enterpriseID)
-		c.Set("required_permission", permission)
+c.Set("required_permission", norm)
 
 		log.Printf("[RBAC-v2] Enterprise permission check passed for user %d in enterprise %d: %s",
 			uid, enterpriseID, permission)

@@ -365,6 +365,37 @@ func (r *PostgresPermissionRepository) GetRolesWithPermissions(ctx context.Conte
 	return roles, rolePermissionsMap, nil
 }
 
+// GetRolePermissionIDs returns just the permission IDs for a role
+func (r *PostgresPermissionRepository) GetRolePermissionIDs(ctx context.Context, roleID int) ([]int, error) {
+	query := `
+		SELECT permission_id
+		FROM role_permissions
+		WHERE role_id = $1 AND is_granted = true
+		ORDER BY permission_id`
+
+	exec := r.getExecer()
+	rows, err := exec.QueryContext(ctx, query, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get role permission IDs: %w", err)
+	}
+	defer rows.Close()
+
+	var permissionIDs []int
+	for rows.Next() {
+		var permID int
+		if err := rows.Scan(&permID); err != nil {
+			return nil, fmt.Errorf("failed to scan permission ID: %w", err)
+		}
+		permissionIDs = append(permissionIDs, permID)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating permission ID rows: %w", err)
+	}
+
+	return permissionIDs, nil
+}
+
 // SetRolePermissions sets permissions for a role
 func (r *PostgresPermissionRepository) SetRolePermissions(ctx context.Context, roleID int, permissionIDs []int) error {
 	exec := r.getExecer()

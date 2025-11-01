@@ -234,15 +234,15 @@ func (p *Permission) ToResponse() PermissionResponse {
 
 // CreateRoleRequest represents a request to create a new role
 type CreateRoleRequest struct {
-	RoleCode        string   `json:"role_code" validate:"required,min=1,max=50"`
-	RoleName        string   `json:"role_name" validate:"required,min=1,max=100"`
+	RoleCode        string   `json:"role_code" binding:"required,min=1,max=50"`
+	RoleName        string   `json:"role_name" binding:"required,min=1,max=100"`
 	RoleDescription string   `json:"role_description"`
 	PermissionCodes []string `json:"permission_codes"`
 }
 
 // UpdateRoleRequest represents a request to update an existing role
 type UpdateRoleRequest struct {
-	RoleName        string   `json:"role_name" validate:"required,min=1,max=100"`
+	RoleName        string   `json:"role_name" binding:"required,min=1,max=100"`
 	RoleDescription string   `json:"role_description"`
 	PermissionCodes []string `json:"permission_codes"`
 }

@@ -610,10 +610,11 @@ func (m *UnifiedPermissionManager) logPermissionCheck(ctx context.Context, reque
 		return
 	}
 
+	permCode := request.PermissionCode
 	auditLog := &models.AuditLog{
 		UserID:     &request.CompanyUserID,
 		Action:     "permission_check",
-		EntityType: request.PermissionCode,
+		EntityType: &permCode,
 		EntityData: map[string]interface{}{
 			"permission_code":  request.PermissionCode,
 			"resource_type":    request.ResourceType,
@@ -626,7 +627,8 @@ func (m *UnifiedPermissionManager) logPermissionCheck(ctx context.Context, reque
 
 	// Convert ResourceID to string if present
 	if request.ResourceID != nil {
-		auditLog.EntityID = strconv.Itoa(*request.ResourceID)
+		entityID := strconv.Itoa(*request.ResourceID)
+		auditLog.EntityID = &entityID
 	}
 
 	// Log asynchronously to avoid blocking the request
@@ -641,10 +643,11 @@ func (m *UnifiedPermissionManager) logBatchPermissionCheck(ctx context.Context, 
 		return
 	}
 
+	entityType := "batch_permissions"
 	auditLog := &models.AuditLog{
 		UserID:     &request.CompanyUserID,
 		Action:     "batch_permission_check",
-		EntityType: "batch_permissions",
+		EntityType: &entityType,
 		EntityData: map[string]interface{}{
 			"permissions_count": len(request.Permissions),
 			"cache_hits":        response.CacheHits,

@@ -123,6 +123,9 @@ func isSuperAdminCtx(c *gin.Context) bool {
 
 // RequirePermission creates middleware that requires specific permission
 func (m *PermissionMiddleware) RequirePermission(permissionCode string) gin.HandlerFunc {
+	// Normalize incoming permission to canonical form
+	normalized := NormalizePermissionCode(permissionCode)
+	
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 
@@ -180,8 +183,8 @@ func (m *PermissionMiddleware) RequirePermission(permissionCode string) gin.Hand
 			}
 		}
 
-		// Check permission
-		result, err := m.permissionRepo.CheckUserPermission(ctx, companyUserID, permissionCode, resourceID)
+		// Check permission (use normalized code)
+		result, err := m.permissionRepo.CheckUserPermission(ctx, companyUserID, normalized, resourceID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permission"})
 			c.Abort()
@@ -190,8 +193,9 @@ func (m *PermissionMiddleware) RequirePermission(permissionCode string) gin.Hand
 
 		if !result.HasPermission {
 			c.JSON(http.StatusForbidden, gin.H{
-				"error":  "Permission denied",
-				"reason": result.Reason,
+				"error":               "Permission denied",
+				"reason":              result.Reason,
+				"required_permission": normalized,
 			})
 			c.Abort()
 			return
@@ -205,6 +209,9 @@ func (m *PermissionMiddleware) RequirePermission(permissionCode string) gin.Hand
 
 // RequireAnyPermission creates middleware that requires any of the specified permissions
 func (m *PermissionMiddleware) RequireAnyPermission(permissionCodes ...string) gin.HandlerFunc {
+	// Normalize and de-duplicate permissions up-front
+	nCodes := NormalizePermissionCodes(permissionCodes)
+	
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 
@@ -247,7 +254,7 @@ func (m *PermissionMiddleware) RequireAnyPermission(permissionCodes ...string) g
 		}
 
 		// Check if user has any of the required permissions
-		results, err := m.permissionRepo.CheckMultiplePermissions(ctx, companyUserID, permissionCodes, resourceID)
+		results, err := m.permissionRepo.CheckMultiplePermissions(ctx, companyUserID, nCodes, resourceID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permissions"})
 			c.Abort()
@@ -265,8 +272,9 @@ func (m *PermissionMiddleware) RequireAnyPermission(permissionCodes ...string) g
 
 		if !hasPermission {
 			c.JSON(http.StatusForbidden, gin.H{
-				"error":  "Permission denied",
-				"reason": "User does not have any of the required permissions",
+				"error":                "Permission denied",
+				"reason":               "User does not have any of the required permissions",
+				"required_permissions": nCodes,
 			})
 			c.Abort()
 			return
@@ -274,13 +282,17 @@ func (m *PermissionMiddleware) RequireAnyPermission(permissionCodes ...string) g
 
 		// Store permission results in context
 		c.Set("permission_results", results)
-		c.Set("granted_permissions", grantedPermissions)
+			c.Set("granted_permissions", grantedPermissions)
+			c.Set("required_permissions", nCodes)
 		c.Next()
 	}
 }
 
 // RequireAllPermissions creates middleware that requires all of the specified permissions
 func (m *PermissionMiddleware) RequireAllPermissions(permissionCodes ...string) gin.HandlerFunc {
+	// Normalize and de-duplicate permissions up-front
+	nCodes := NormalizePermissionCodes(permissionCodes)
+	
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 
@@ -322,7 +334,7 @@ func (m *PermissionMiddleware) RequireAllPermissions(permissionCodes ...string) 
 		}
 
 		// Check if user has all required permissions
-		results, err := m.permissionRepo.CheckMultiplePermissions(ctx, companyUserID, permissionCodes, resourceID)
+		results, err := m.permissionRepo.CheckMultiplePermissions(ctx, companyUserID, nCodes, resourceID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permissions"})
 			c.Abort()
@@ -338,9 +350,10 @@ func (m *PermissionMiddleware) RequireAllPermissions(permissionCodes ...string) 
 
 		if len(deniedPermissions) > 0 {
 			c.JSON(http.StatusForbidden, gin.H{
-				"error":              "Permission denied",
-				"reason":             "User does not have all required permissions",
-				"denied_permissions": deniedPermissions,
+				"error":                "Permission denied",
+				"reason":               "User does not have all required permissions",
+				"required_permissions": nCodes,
+				"denied_permissions":   deniedPermissions,
 			})
 			c.Abort()
 			return

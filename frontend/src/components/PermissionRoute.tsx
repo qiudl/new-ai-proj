@@ -195,8 +195,16 @@ const PermissionRoute: React.FC<PermissionRouteProps> = ({
         subTitle="抱歉，您没有权限访问此页面"
         extra={
           <div style={{ fontSize: '14px', color: '#666' }}>
-            {permission && `需要权限: ${permission}`}
-            {permissions && `需要权限: ${permissions.join(', ')}`}
+            {permission && (() => {
+              const normalized = permission.replace(/:/g, '.');
+              return `需要权限: ${normalized}`;
+            })()}
+            {permissions && (() => {
+              // 规范化并去重展示权限列表，避免同义权限重复显示
+              const normalize = (p: string) => p.replace(/:/g, '.');
+              const uniq = Array.from(new Set(permissions.map(normalize)));
+              return `需要权限: ${uniq.join(', ')}`;
+            })()}
             {roles && `需要角色: ${roles.join(', ')}`}
           </div>
         }

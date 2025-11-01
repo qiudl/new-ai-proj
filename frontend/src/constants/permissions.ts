@@ -333,8 +333,8 @@ export const ROUTE_PERMISSIONS = {
   '/audit-logs': [AUDIT_PERMISSIONS.LOGS_READ],
 
   // 项目类页面
-  '/projects': [PROJECT_PERMISSIONS.LIST_READ, PROJECT_PERMISSIONS.READ],
-  '/tasks': [TASK_PERMISSIONS.LIST_READ, TASK_PERMISSIONS.READ],
+  '/projects': [PROJECT_PERMISSIONS.LIST_READ],
+  '/tasks': [TASK_PERMISSIONS.LIST_READ],
 
   // 仪表板页面（基础权限 - 所有认证用户都可访问）
   '/dashboard': [BASE_PERMISSIONS.DASHBOARD_READ],

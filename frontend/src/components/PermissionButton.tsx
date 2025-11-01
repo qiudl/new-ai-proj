@@ -100,8 +100,10 @@ const PermissionButton: React.FC<PermissionButtonProps> = ({
     
     if (permissionsToCheck.length === 0) return '无权限要求';
     
-    const permissionNames = permissionsToCheck.join(', ');
-    return `需要权限: ${permissionNames}`;
+    // 规范化并去重，避免同时显示 task.list.read 与 task:read
+    const normalize = (p: string) => p.replace(/:/g, '.');
+    const uniq = Array.from(new Set(permissionsToCheck.map(normalize)));
+    return `需要权限: ${uniq.join(', ')}`;
   }, [noPermissionTooltip, permissionsToCheck]);
 
   // 权限检查中的状态

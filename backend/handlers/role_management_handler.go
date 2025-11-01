@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -147,6 +148,28 @@ func (h *RoleManagementHandler) CreateRole(c *gin.Context) {
 		return
 	}
 
+	// Trim spaces and validate required fields
+	req.RoleCode = strings.TrimSpace(req.RoleCode)
+	req.RoleName = strings.TrimSpace(req.RoleName)
+
+	if req.RoleCode == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Validation failed",
+			"details": "role_code cannot be empty or contain only whitespace",
+		})
+		return
+	}
+
+	if req.RoleName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Validation failed",
+			"details": "role_name cannot be empty or contain only whitespace",
+		})
+		return
+	}
+
 	// 检查角色代码是否已存在
 	existingRole, _ := h.permissionRepo.GetRoleByCode(ctx, req.RoleCode)
 	if existingRole != nil {
@@ -227,6 +250,18 @@ func (h *RoleManagementHandler) UpdateRole(c *gin.Context) {
 			"success": false,
 			"error":   "Invalid request format",
 			"details": err.Error(),
+		})
+		return
+	}
+
+	// Trim spaces and validate required fields
+	req.RoleName = strings.TrimSpace(req.RoleName)
+
+	if req.RoleName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Validation failed",
+			"details": "role_name cannot be empty or contain only whitespace",
 		})
 		return
 	}
