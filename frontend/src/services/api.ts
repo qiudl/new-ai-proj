@@ -30,9 +30,20 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   transformResponse: [
-    (data) => {
+    (data, headers) => {
       // 如果数据是字符串，尝试清理并解析JSON
       if (typeof data === 'string') {
+        // 检查空字符串（常见于404等错误响应）
+        if (data.trim() === '') {
+          return null; // 返回null而不是尝试解析空字符串
+        }
+
+        // 检查响应是否为HTML（404错误页面）
+        if (data.trim().startsWith('<') || data.trim().startsWith('<!DOCTYPE')) {
+          console.warn('Received HTML response instead of JSON, likely an error page');
+          return data; // 返回原始数据，让错误处理器处理
+        }
+
         try {
           // 查找JSON结束位置（最后一个}或]）
           const jsonEnd = Math.max(data.lastIndexOf('}'), data.lastIndexOf(']'));
@@ -45,7 +56,8 @@ const api = axios.create({
           return JSON.parse(data);
         } catch (e) {
           console.error('JSON parse error:', e);
-          return data;
+          console.error('Problematic data:', data.substring(0, 100)); // Log first 100 chars
+          return data; // 返回原始数据而不是抛出错误
         }
       }
       return data;
