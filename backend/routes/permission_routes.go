@@ -42,7 +42,10 @@ func RegisterPermissionRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 		permissions.GET("/audit-logs", app.GetPermissionHandler().GetPermissionAuditLogs)
 
 		// 权限矩阵
-		permissions.GET("/matrix", app.GetPermissionHandler().GetPermissionMatrix)
-		permissions.POST("/matrix", app.GetPermissionHandler().UpdatePermissionMatrix)
+		permHandler := app.GetPermissionHandler()
+		if permHandler != nil {
+			permissions.GET("/matrix", permHandler.GetPermissionMatrix)
+			permissions.POST("/matrix", permHandler.UpdatePermissionMatrix)
+		}
 	}
 }

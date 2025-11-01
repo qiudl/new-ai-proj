@@ -32,6 +32,22 @@ func SetupRouter(app ApplicationInterface) *gin.Engine {
 	router.Use(middleware.SecurityHeadersMiddleware())
 	router.Use(middleware.HTTPSEnforcer())
 
+	// 审计中间件 - 记录所有API请求
+	auditConfig := &middleware.AuditConfig{
+		DB:              app.GetDB(),
+		LogRequestBody:  true,
+		LogResponseBody: false, // 避免日志过大
+		MaxBodySize:     1024 * 1024, // 1MB
+		ExcludePaths: []string{
+			"/health",
+			"/metrics",
+			"/version",
+			"/api/v1/health",
+			"/api/v1/timer/sse-token", // SSE连接不记录
+		},
+	}
+	router.Use(middleware.NewAuditMiddleware(auditConfig).Middleware())
+
 	// 注册简化的路由（专注于角色权限测试）
 	RegisterAllRoutes(router, app)
 

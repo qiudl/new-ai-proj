@@ -5,7 +5,7 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"bytes"
-	// "context"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -713,12 +713,16 @@ func (am *AuditMiddleware) logAuditEvent(auditData *models.AuditEventData) {
 		}
 	}
 
-	// Save to database - 临时注释掉以避免编译错误
-	// if err := am.config.DB.Audit().CreateAuditLog(ctx, auditLog); err != nil {
-	// 	// Log error but don't fail the request
-	// 	fmt.Printf("Failed to log audit event: %v\n", err)
-	// }
-	fmt.Printf("Audit event logged: %s %s\n", auditLog.Action, auditLog.ResourceType)
+	// Save to database
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := am.config.DB.Audit().CreateAuditLog(ctx, auditLog); err != nil {
+		// Log error but don't fail the request
+		fmt.Printf("❌ Failed to log audit event: %v\n", err)
+	} else {
+		fmt.Printf("✅ Audit event logged: %s %s\n", auditLog.Action, auditLog.ResourceType)
+	}
 }
 
 // getAuditConfig gets the audit configuration for a specific resource type and action
