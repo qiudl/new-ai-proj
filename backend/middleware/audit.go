@@ -657,25 +657,33 @@ func (am *AuditMiddleware) logAuditEvent(auditData *models.AuditEventData) {
 	// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	// defer cancel()
 
+	// Helper function to convert string to *string (nil if empty)
+	stringPtr := func(s string) *string {
+		if s == "" {
+			return nil
+		}
+		return &s
+	}
+
 	// Create audit log entry
 	auditLog := &models.AuditLog{
 		EventID:      uuid.New().String(),
 		Timestamp:    time.Now().UTC(),
 		UserID:       auditData.UserID,
-		UserEmail:    auditData.UserEmail,
-		UserName:     auditData.UserName,
-		UserRole:     auditData.UserRole,
+		UserEmail:    stringPtr(auditData.UserEmail),
+		UserName:     stringPtr(auditData.UserName),
+		UserRole:     stringPtr(auditData.UserRole),
 		Action:       auditData.Action,
-		ResourceType: auditData.ResourceType,
-		ResourceID:   auditData.ResourceID,
-		ResourceName: auditData.ResourceName,
-		IPAddress:    auditData.IPAddress,
-		UserAgent:    auditData.UserAgent,
-		SessionID:    auditData.SessionID,
-		RequestID:    auditData.RequestID,
-		Description:  auditData.Description,
-		Status:       auditData.Status,
-		ErrorMessage: auditData.ErrorMessage,
+		ResourceType: stringPtr(auditData.ResourceType),
+		ResourceID:   stringPtr(auditData.ResourceID),
+		ResourceName: stringPtr(auditData.ResourceName),
+		IPAddress:    stringPtr(auditData.IPAddress),
+		UserAgent:    stringPtr(auditData.UserAgent),
+		SessionID:    stringPtr(auditData.SessionID),
+		RequestID:    stringPtr(auditData.RequestID),
+		Description:  stringPtr(auditData.Description),
+		Status:       stringPtr(auditData.Status),
+		ErrorMessage: stringPtr(auditData.ErrorMessage),
 		ProjectID:    auditData.ProjectID,
 		Metadata:     models.JSONB(auditData.Metadata),
 		Tags:         models.StringArray(auditData.Tags),

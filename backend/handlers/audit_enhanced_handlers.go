@@ -288,8 +288,8 @@ func (h *AuditEnhancedHandler) formatAuditLogCSVRow(log *models.AuditLog) string
 		log.ID,
 		log.UserID,
 		escapeCSV(log.Action),
-		escapeCSV(log.ResourceType),
-		escapeCSV(log.ResourceID),
+		escapeCSV(models.DerefString(log.ResourceType)),
+		escapeCSV(models.DerefString(log.ResourceID)),
 		log.CreatedAt.Format(time.RFC3339),
 	)
 }

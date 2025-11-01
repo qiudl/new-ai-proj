@@ -312,13 +312,13 @@ func (h *AuditHandler) exportAsExcel(c *gin.Context, logs []interface{}) {
 // formatCSVRow formats a single audit log as CSV row
 func (h *AuditHandler) formatCSVRow(log *models.AuditLog) string {
 	return log.Timestamp.Format("2006-01-02 15:04:05") + "," +
-		log.UserName + "," +
+		models.DerefString(log.UserName) + "," +
 		log.Action + "," +
-		log.ResourceType + "," +
-		log.ResourceID + "," +
-		log.IPAddress + "," +
-		log.Status + "," +
-		"\"" + log.Description + "\"" + "\n"
+		models.DerefString(log.ResourceType) + "," +
+		models.DerefString(log.ResourceID) + "," +
+		models.DerefString(log.IPAddress) + "," +
+		models.DerefString(log.Status) + "," +
+		"\"" + models.DerefString(log.Description) + "\"" + "\n"
 }
 
 // enhanceAuditStats enhances basic stats with additional metrics

@@ -127,40 +127,40 @@ type AuditLog struct {
 	CreatedAt time.Time `json:"created_at" db:"timestamp"` // 前端兼容字段
 
 	// User information
-	UserID    *int   `json:"user_id" db:"user_id"`
-	UserEmail string `json:"user_email" db:"user_email"`
-	UserName  string `json:"user_name" db:"user_name"`
-	UserRole  string `json:"user_role" db:"user_role"`
+	UserID    *int    `json:"user_id" db:"user_id"`
+	UserEmail *string `json:"user_email" db:"user_email"`
+	UserName  *string `json:"user_name" db:"user_name"`
+	UserRole  *string `json:"user_role" db:"user_role"`
 
 	// Operation information
-	Action       string `json:"action" db:"action"`
-	ResourceType string `json:"resource_type,omitempty" db:"resource_type"`
-	EntityType   string `json:"entity_type" db:"resource_type"` // 前端兼容字段
-	ResourceID   string `json:"resource_id,omitempty" db:"resource_id"`
-	EntityID     string `json:"entity_id" db:"resource_id"` // 前端兼容字段（注意：前端期望number但后端是string）
-	ResourceName string `json:"resource_name" db:"resource_name"`
+	Action       string  `json:"action" db:"action"`
+	ResourceType *string `json:"resource_type,omitempty" db:"resource_type"`
+	EntityType   *string `json:"entity_type" db:"resource_type"` // 前端兼容字段
+	ResourceID   *string `json:"resource_id,omitempty" db:"resource_id"`
+	EntityID     *string `json:"entity_id" db:"resource_id"` // 前端兼容字段（注意：前端期望number但后端是string）
+	ResourceName *string `json:"resource_name" db:"resource_name"`
 
 	// Request information
-	IPAddress string `json:"ip_address" db:"ip_address"`
-	UserAgent string `json:"user_agent" db:"user_agent"`
-	SessionID string `json:"session_id" db:"session_id"`
-	RequestID string `json:"request_id" db:"request_id"`
+	IPAddress *string `json:"ip_address" db:"ip_address"`
+	UserAgent *string `json:"user_agent" db:"user_agent"`
+	SessionID *string `json:"session_id" db:"session_id"`
+	RequestID *string `json:"request_id" db:"request_id"`
 
 	// Operation details
-	Description string `json:"description" db:"description"`
-	BeforeData  JSONB  `json:"before_data" db:"before_data"`
-	AfterData   JSONB  `json:"after_data" db:"after_data"`
-	EntityData  JSONB  `json:"entity_data" db:"after_data"` // 前端兼容字段，映射到after_data
-	Changes     JSONB  `json:"changes" db:"changes"`
+	Description *string `json:"description" db:"description"`
+	BeforeData  JSONB   `json:"before_data" db:"before_data"`
+	AfterData   JSONB   `json:"after_data" db:"after_data"`
+	EntityData  JSONB   `json:"entity_data" db:"after_data"` // 前端兼容字段，映射到after_data
+	Changes     JSONB   `json:"changes" db:"changes"`
 
 	// Status information
-	Status       string `json:"status" db:"status"`
-	ErrorMessage string `json:"error_message" db:"error_message"`
+	Status       *string `json:"status" db:"status"`
+	ErrorMessage *string `json:"error_message" db:"error_message"`
 
 	// Context information
-	ProjectID     *int   `json:"project_id" db:"project_id"`
-	ParentEventID string `json:"parent_event_id" db:"parent_event_id"`
-	CorrelationID string `json:"correlation_id" db:"correlation_id"`
+	ProjectID     *int    `json:"project_id" db:"project_id"`
+	ParentEventID *string `json:"parent_event_id" db:"parent_event_id"`
+	CorrelationID *string `json:"correlation_id" db:"correlation_id"`
 
 	// Metadata
 	Metadata JSONB       `json:"metadata" db:"metadata"`
@@ -311,31 +311,50 @@ const (
 	StatusPending = "pending"
 )
 
+// DerefString safely dereferences a string pointer, returning empty string if nil
+func DerefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// StringPtr creates a string pointer, returning nil for empty strings
+func StringPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 // ToAuditEventData converts AuditLog to AuditEventData
 func (a *AuditLog) ToAuditEventData() *AuditEventData {
+	// Helper function to dereference pointer strings
+	derefStr := DerefString
+
 	return &AuditEventData{
 		UserID:        a.UserID,
-		UserEmail:     a.UserEmail,
-		UserName:      a.UserName,
-		UserRole:      a.UserRole,
+		UserEmail:     derefStr(a.UserEmail),
+		UserName:      derefStr(a.UserName),
+		UserRole:      derefStr(a.UserRole),
 		Action:        a.Action,
-		ResourceType:  a.ResourceType,
-		ResourceID:    a.ResourceID,
-		ResourceName:  a.ResourceName,
-		IPAddress:     a.IPAddress,
-		UserAgent:     a.UserAgent,
-		SessionID:     a.SessionID,
-		RequestID:     a.RequestID,
-		Description:   a.Description,
+		ResourceType:  derefStr(a.ResourceType),
+		ResourceID:    derefStr(a.ResourceID),
+		ResourceName:  derefStr(a.ResourceName),
+		IPAddress:     derefStr(a.IPAddress),
+		UserAgent:     derefStr(a.UserAgent),
+		SessionID:     derefStr(a.SessionID),
+		RequestID:     derefStr(a.RequestID),
+		Description:   derefStr(a.Description),
 		BeforeData:    a.BeforeData,
 		AfterData:     a.AfterData,
 		ProjectID:     a.ProjectID,
-		Status:        a.Status,
-		ErrorMessage:  a.ErrorMessage,
+		Status:        derefStr(a.Status),
+		ErrorMessage:  derefStr(a.ErrorMessage),
 		Metadata:      a.Metadata,
 		Tags:          []string(a.Tags),
-		ParentEventID: a.ParentEventID,
-		CorrelationID: a.CorrelationID,
+		ParentEventID: derefStr(a.ParentEventID),
+		CorrelationID: derefStr(a.CorrelationID),
 	}
 }
 

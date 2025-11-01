@@ -231,62 +231,85 @@ func (r *PostgresAuditRepository) GetAuditLogs(ctx context.Context, filter *mode
 	var logs []*models.AuditLog
 	for rows.Next() {
 		log := &models.AuditLog{}
-		var userEmail, userName, userRole, resourceID, resourceName sql.NullString
+		var userEmail, userName, userRole, resourceType, resourceID, resourceName sql.NullString
 		var ipAddress, userAgent, sessionID, requestID, description sql.NullString
-		var errorMessage, parentEventID, correlationID sql.NullString
+		var status, errorMessage, parentEventID, correlationID sql.NullString
 		var beforeDataJSON, afterDataJSON, changesJSON, metadataJSON sql.NullString
 
 		err := rows.Scan(
 			&log.ID, &log.EventID, &log.Timestamp, &log.UserID, &userEmail, &userName, &userRole,
-			&log.Action, &log.ResourceType, &resourceID, &resourceName,
+			&log.Action, &resourceType, &resourceID, &resourceName,
 			&ipAddress, &userAgent, &sessionID, &requestID,
 			&description, &beforeDataJSON, &afterDataJSON, &changesJSON,
-			&log.Status, &errorMessage, &log.ProjectID, &parentEventID,
+			&status, &errorMessage, &log.ProjectID, &parentEventID,
 			&correlationID, &metadataJSON, &log.Tags,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan audit log: %w", err)
 		}
 
-		// Convert NULL strings to regular strings
+		// Convert NULL strings to string pointers
 		if userEmail.Valid {
-			log.UserEmail = userEmail.String
+			s := userEmail.String
+			log.UserEmail = &s
 		}
 		if userName.Valid {
-			log.UserName = userName.String
+			s := userName.String
+			log.UserName = &s
 		}
 		if userRole.Valid {
-			log.UserRole = userRole.String
+			s := userRole.String
+			log.UserRole = &s
+		}
+		if resourceType.Valid {
+			s := resourceType.String
+			log.ResourceType = &s
+			log.EntityType = &s // 前端兼容字段
 		}
 		if resourceID.Valid {
-			log.ResourceID = resourceID.String
+			s := resourceID.String
+			log.ResourceID = &s
+			log.EntityID = &s // 前端兼容字段
 		}
 		if resourceName.Valid {
-			log.ResourceName = resourceName.String
+			s := resourceName.String
+			log.ResourceName = &s
+		}
+		if status.Valid {
+			s := status.String
+			log.Status = &s
 		}
 		if ipAddress.Valid {
-			log.IPAddress = ipAddress.String
+			s := ipAddress.String
+			log.IPAddress = &s
 		}
 		if userAgent.Valid {
-			log.UserAgent = userAgent.String
+			s := userAgent.String
+			log.UserAgent = &s
 		}
 		if sessionID.Valid {
-			log.SessionID = sessionID.String
+			s := sessionID.String
+			log.SessionID = &s
 		}
 		if requestID.Valid {
-			log.RequestID = requestID.String
+			s := requestID.String
+			log.RequestID = &s
 		}
 		if description.Valid {
-			log.Description = description.String
+			s := description.String
+			log.Description = &s
 		}
 		if errorMessage.Valid {
-			log.ErrorMessage = errorMessage.String
+			s := errorMessage.String
+			log.ErrorMessage = &s
 		}
 		if parentEventID.Valid {
-			log.ParentEventID = parentEventID.String
+			s := parentEventID.String
+			log.ParentEventID = &s
 		}
 		if correlationID.Valid {
-			log.CorrelationID = correlationID.String
+			s := correlationID.String
+			log.CorrelationID = &s
 		}
 
 		// Parse JSON fields
@@ -337,17 +360,17 @@ func (r *PostgresAuditRepository) GetAuditLogByID(ctx context.Context, id int64)
 		FROM audit_logs WHERE id = $1`
 
 	log := &models.AuditLog{}
-	var userEmail, userName, userRole, resourceID, resourceName sql.NullString
+	var userEmail, userName, userRole, resourceType, resourceID, resourceName sql.NullString
 	var ipAddress, userAgent, sessionID, requestID, description sql.NullString
-	var errorMessage, parentEventID, correlationID sql.NullString
+	var status, errorMessage, parentEventID, correlationID sql.NullString
 	var beforeDataJSON, afterDataJSON, changesJSON, metadataJSON sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&log.ID, &log.EventID, &log.Timestamp, &log.UserID, &userEmail, &userName, &userRole,
-		&log.Action, &log.ResourceType, &resourceID, &resourceName,
+		&log.Action, &resourceType, &resourceID, &resourceName,
 		&ipAddress, &userAgent, &sessionID, &requestID,
 		&description, &beforeDataJSON, &afterDataJSON, &changesJSON,
-		&log.Status, &errorMessage, &log.ProjectID, &parentEventID,
+		&status, &errorMessage, &log.ProjectID, &parentEventID,
 		&correlationID, &metadataJSON, &log.Tags,
 	)
 
@@ -358,45 +381,68 @@ func (r *PostgresAuditRepository) GetAuditLogByID(ctx context.Context, id int64)
 		return nil, fmt.Errorf("failed to get audit log: %w", err)
 	}
 
-	// Convert NULL strings to regular strings
+	// Convert NULL strings to string pointers
 	if userEmail.Valid {
-		log.UserEmail = userEmail.String
+		s := userEmail.String
+		log.UserEmail = &s
 	}
 	if userName.Valid {
-		log.UserName = userName.String
+		s := userName.String
+		log.UserName = &s
 	}
 	if userRole.Valid {
-		log.UserRole = userRole.String
+		s := userRole.String
+		log.UserRole = &s
+	}
+	if resourceType.Valid {
+		s := resourceType.String
+		log.ResourceType = &s
+		log.EntityType = &s // 前端兼容字段
 	}
 	if resourceID.Valid {
-		log.ResourceID = resourceID.String
+		s := resourceID.String
+		log.ResourceID = &s
+		log.EntityID = &s // 前端兼容字段
 	}
 	if resourceName.Valid {
-		log.ResourceName = resourceName.String
+		s := resourceName.String
+		log.ResourceName = &s
+	}
+	if status.Valid {
+		s := status.String
+		log.Status = &s
 	}
 	if ipAddress.Valid {
-		log.IPAddress = ipAddress.String
+		s := ipAddress.String
+		log.IPAddress = &s
 	}
 	if userAgent.Valid {
-		log.UserAgent = userAgent.String
+		s := userAgent.String
+		log.UserAgent = &s
 	}
 	if sessionID.Valid {
-		log.SessionID = sessionID.String
+		s := sessionID.String
+		log.SessionID = &s
 	}
 	if requestID.Valid {
-		log.RequestID = requestID.String
+		s := requestID.String
+		log.RequestID = &s
 	}
 	if description.Valid {
-		log.Description = description.String
+		s := description.String
+		log.Description = &s
 	}
 	if errorMessage.Valid {
-		log.ErrorMessage = errorMessage.String
+		s := errorMessage.String
+		log.ErrorMessage = &s
 	}
 	if parentEventID.Valid {
-		log.ParentEventID = parentEventID.String
+		s := parentEventID.String
+		log.ParentEventID = &s
 	}
 	if correlationID.Valid {
-		log.CorrelationID = correlationID.String
+		s := correlationID.String
+		log.CorrelationID = &s
 	}
 
 	// Parse JSON fields

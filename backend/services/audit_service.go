@@ -53,28 +53,36 @@ func (s *AuditService) LogEvent(ctx context.Context, data *models.AuditEventData
 		changes = s.calculateChanges(beforeData, afterData)
 	}
 
+	// Helper function to convert string to *string (nil if empty)
+	stringPtr := func(s string) *string {
+		if s == "" {
+			return nil
+		}
+		return &s
+	}
+
 	// Build audit log entry
 	auditLog := &models.AuditLog{
 		EventID:       eventID,
 		Timestamp:     time.Now(),
 		UserID:        data.UserID,
-		UserEmail:     data.UserEmail,
-		UserName:      data.UserName,
-		UserRole:      data.UserRole,
+		UserEmail:     stringPtr(data.UserEmail),
+		UserName:      stringPtr(data.UserName),
+		UserRole:      stringPtr(data.UserRole),
 		Action:        data.Action,
-		ResourceType:  data.ResourceType,
-		ResourceID:    data.ResourceID,
-		ResourceName:  data.ResourceName,
-		IPAddress:     data.IPAddress,
-		UserAgent:     data.UserAgent,
-		SessionID:     data.SessionID,
-		RequestID:     data.RequestID,
-		Description:   data.Description,
-		Status:        data.Status,
-		ErrorMessage:  data.ErrorMessage,
+		ResourceType:  stringPtr(data.ResourceType),
+		ResourceID:    stringPtr(data.ResourceID),
+		ResourceName:  stringPtr(data.ResourceName),
+		IPAddress:     stringPtr(data.IPAddress),
+		UserAgent:     stringPtr(data.UserAgent),
+		SessionID:     stringPtr(data.SessionID),
+		RequestID:     stringPtr(data.RequestID),
+		Description:   stringPtr(data.Description),
+		Status:        stringPtr(data.Status),
+		ErrorMessage:  stringPtr(data.ErrorMessage),
 		ProjectID:     data.ProjectID,
-		ParentEventID: data.ParentEventID,
-		CorrelationID: data.CorrelationID,
+		ParentEventID: stringPtr(data.ParentEventID),
+		CorrelationID: stringPtr(data.CorrelationID),
 		Tags:          models.StringArray(data.Tags),
 	}
 
