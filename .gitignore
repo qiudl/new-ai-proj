@@ -172,3 +172,4 @@ backend/ai-project-backend-*
 # Test scripts
 backend/scripts/test-*.sh
 mcp-task-bridge/test-*.js
+backend/ai-project-backend
