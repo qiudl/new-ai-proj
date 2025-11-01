@@ -18,6 +18,7 @@ import {
   message,
   Spin,
   Empty,
+  Alert,
   List,
   Modal,
   Form,
@@ -72,6 +73,7 @@ const ProjectDetailPage: React.FC = () => {
   const { timerState } = useTimer();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [enterpriseInfo, setEnterpriseInfo] = useState<Enterprise | null>(null);
+  const [enterpriseLoadError, setEnterpriseLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tasks-enhanced');
   const [userModalVisible, setUserModalVisible] = useState(false);
@@ -244,23 +246,47 @@ const ProjectDetailPage: React.FC = () => {
                   <Col xs={24} lg={12}>
                     <Card  style={{ backgroundColor: '#f6ffed', border: '1px solid #b7eb8f' }}>
                       <Space direction="vertical" style={{ width: '100%' }} size={16}>
-                        <Space align="center">
-                          <Avatar 
-                            size="large" 
-                            icon={<BankOutlined />} 
-                            style={{ backgroundColor: '#52c41a' }} 
+                        {enterpriseLoadError ? (
+                          <Alert
+                            message="企业信息暂不可用"
+                            description={
+                              <Space direction="vertical" size={4}>
+                                <Text type="secondary">
+                                  企业ID: #{project.enterprise_id}
+                                </Text>
+                                <Text type="secondary">
+                                  关联的企业信息无法加载，可能已被删除或您没有访问权限。
+                                </Text>
+                                <Text type="secondary">
+                                  建议联系管理员更新项目的企业关联信息。
+                                </Text>
+                              </Space>
+                            }
+                            type="warning"
+                            showIcon
+                            icon={<BankOutlined />}
                           />
-                          <div>
-<Text strong style={{ color: enterpriseInfo?.status === 'suspended' ? '#f5222d' : '#389e0d', fontSize: '16px' }}>
-                              {enterpriseInfo?.name || '加载中...'}
-                              {enterpriseInfo?.status === 'suspended' && '（已暂停）'}
-                            </Text>
-                            <br />
-                            <Text type="secondary" style={{ fontSize: '12px' }}>企业ID: #{project.enterprise_id}</Text>
-                          </div>
-                        </Space>
-                        
-                        {enterpriseInfo && (
+                        ) : (
+                          <>
+                            <Space align="center">
+                              <Avatar
+                                size="large"
+                                icon={<BankOutlined />}
+                                style={{ backgroundColor: '#52c41a' }}
+                              />
+                              <div>
+                                <Text strong style={{ color: enterpriseInfo?.status === 'suspended' ? '#f5222d' : '#389e0d', fontSize: '16px' }}>
+                                  {enterpriseInfo?.name || (loading ? '加载中...' : '企业信息加载失败')}
+                                  {enterpriseInfo?.status === 'suspended' && '（已暂停）'}
+                                </Text>
+                                <br />
+                                <Text type="secondary" style={{ fontSize: '12px' }}>企业ID: #{project.enterprise_id}</Text>
+                              </div>
+                            </Space>
+                          </>
+                        )}
+
+                        {enterpriseInfo && !enterpriseLoadError && (
                           <>
                             <Divider style={{ margin: '8px 0' }} />
                             <Row gutter={[8, 8]}>
@@ -296,7 +322,19 @@ const ProjectDetailPage: React.FC = () => {
                   </Col>
                   <Col xs={24} lg={12}>
                     <Card  title="联系方式" extra={<PhoneOutlined />}>
-                      {enterpriseInfo ? (
+                      {enterpriseLoadError ? (
+                        <Empty
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          description={
+                            <Space direction="vertical" size={4}>
+                              <Text type="secondary">企业联系方式不可用</Text>
+                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                                关联的企业信息无法访问
+                              </Text>
+                            </Space>
+                          }
+                        />
+                      ) : enterpriseInfo ? (
                         <Space direction="vertical" style={{ width: '100%' }} >
                           <Row gutter={[16, 8]}>
                             <Col span={24}>
@@ -331,10 +369,10 @@ const ProjectDetailPage: React.FC = () => {
                                 <Space>
                                   <LinkOutlined style={{ color: '#722ed1' }} />
                                   <Text strong>网站：</Text>
-                                  <Button 
-                                    type="link" 
-                                     
-                                    href={enterpriseInfo.website} 
+                                  <Button
+                                    type="link"
+
+                                    href={enterpriseInfo.website}
                                     target="_blank"
                                     style={{ padding: 0, height: 'auto' }}
                                   >
@@ -347,8 +385,10 @@ const ProjectDetailPage: React.FC = () => {
                         </Space>
                       ) : (
                         <div style={{ textAlign: 'center', padding: '20px' }}>
-                          <Text type="secondary" style={{ fontSize: '14px' }}>
-                            {loading ? '正在加载企业联系方式...' : '暂无企业联系方式信息'}
+                          <Spin size="small" />
+                          <br />
+                          <Text type="secondary" style={{ fontSize: '14px', marginTop: 8 }}>
+                            正在加载企业联系方式...
                           </Text>
                         </div>
                       )}
@@ -503,12 +543,13 @@ const ProjectDetailPage: React.FC = () => {
       const enterpriseId = projectDetail.enterprise_id;
       if (enterpriseId) {
         try {
+          setEnterpriseLoadError(false);
           const enterprise = await enterpriseService.getEnterprise(enterpriseId);
           setEnterpriseInfo(enterprise);
         } catch (error) {
           console.error('获取企业信息失败:', error);
-          message.warning('获取企业信息失败，部分信息可能无法显示');
-          // 企业信息获取失败不影响主流程
+          setEnterpriseLoadError(true);
+          // 企业信息获取失败不影响主流程，不显示错误消息避免干扰用户
         }
       }
     } catch (error) {
