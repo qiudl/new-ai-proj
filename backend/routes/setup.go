@@ -3,6 +3,7 @@ package routes
 import (
 	"ai-project-backend/config"
 	"ai-project-backend/middleware"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	promhttp "github.com/prometheus/client_golang/prometheus/promhttp"
@@ -33,6 +34,9 @@ func SetupRouter(app ApplicationInterface) *gin.Engine {
 
 	// 注册简化的路由（专注于角色权限测试）
 	RegisterAllRoutes(router, app)
+
+	// 设置404和405处理器，确保返回JSON格式而不是空响应
+	setupNotFoundHandler(router)
 
 	return router
 }
@@ -205,4 +209,41 @@ func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
 		// 继续处理其他请求
 		c.Next()
 	}
+}
+
+// setupNotFoundHandler 设置404和405处理器，确保返回标准JSON格式
+func setupNotFoundHandler(router *gin.Engine) {
+	// NoRoute handles 404 - Not Found
+	// 当请求的路由不存在时返回统一的JSON错误响应
+	router.NoRoute(func(c *gin.Context) {
+		c.JSON(404, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "NOT_FOUND",
+				"message": "请求的资源不存在",
+				"details": gin.H{
+					"path":   c.Request.URL.Path,
+					"method": c.Request.Method,
+				},
+			},
+			"timestamp": time.Now(),
+		})
+	})
+
+	// NoMethod handles 405 - Method Not Allowed
+	// 当请求的HTTP方法不被支持时返回统一的JSON错误响应
+	router.NoMethod(func(c *gin.Context) {
+		c.JSON(405, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "METHOD_NOT_ALLOWED",
+				"message": "不支持的HTTP方法",
+				"details": gin.H{
+					"path":   c.Request.URL.Path,
+					"method": c.Request.Method,
+				},
+			},
+			"timestamp": time.Now(),
+		})
+	})
 }
