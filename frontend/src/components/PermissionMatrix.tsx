@@ -136,74 +136,39 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
   const loadData = async () => {
     setLoading(true);
     try {
-      // 并行加载角色、权限和权限矩阵数据
-      const [rolesRes, permissionsRes] = await Promise.all([
-        api.get('/api/v1/roles', { params: { include_inactive: false } }),
-        api.get('/api/v1/permissions', { params: { include_inactive: false } })
-      ]);
+      // 使用权限矩阵API一次性加载所有数据
+      const response = await api.get('/api/v1/permissions/matrix');
 
-      if (rolesRes.data.success) {
-        setRoles(rolesRes.data.data || []);
+      if (response.data && response.data.success) {
+        const data = response.data.data;
+
+        // 转换角色数据格式
+        const rolesData = (data.roles || []).map((role: any) => ({
+          id: role.id,
+          role_name: role.role_name || role.roleName,
+          role_code: role.role_code || role.roleCode,
+          is_system_role: role.is_system_role !== undefined ? role.is_system_role : role.isSystemRole,
+          status: role.is_active ? 'active' : 'inactive'
+        }));
+        setRoles(rolesData);
+
+        // 转换权限数据格式
+        const permsData = (data.permissions || []).map((perm: any) => ({
+          id: perm.id,
+          permission_name: perm.permission_name || perm.permissionName,
+          permission_code: perm.permission_code || perm.permissionCode,
+          permission_description: perm.permission_description || perm.permissionDescription,
+          module: perm.module,
+          status: perm.is_active ? 'active' : 'inactive'
+        }));
+        setPermissions(permsData);
+
+        // 设置权限矩阵
+        setPermissionMatrix(data.matrix || []);
       }
-
-      if (permissionsRes.data.success) {
-        setPermissions(permissionsRes.data.data || []);
-      }
-
-      // 加载权限矩阵 - 使用模拟数据
-      setPermissionMatrix([
-        { role_id: 1, permission_id: 1, granted: true },
-        { role_id: 1, permission_id: 2, granted: true },
-        { role_id: 2, permission_id: 1, granted: true },
-        { role_id: 2, permission_id: 3, granted: false },
-      ]);
-
     } catch (error: any) {
       console.error('Failed to load permission matrix data:', error);
-      message.error('加载权限矩阵数据失败');
-      
-      // 使用模拟数据
-      setRoles([
-        {
-          id: 1,
-          role_name: '超级管理员',
-          role_code: 'SYSTEM_SUPER_ADMIN',
-          is_system_role: true,
-          status: 'active'
-        },
-        {
-          id: 2,
-          role_name: '企业管理员',
-          role_code: 'ENTERPRISE_ADMIN',
-          is_system_role: false,
-          status: 'active'
-        }
-      ]);
-
-      setPermissions([
-        {
-          id: 1,
-          permission_name: '用户管理',
-          permission_code: 'USER_MANAGE',
-          module: '用户管理',
-          status: 'active'
-        },
-        {
-          id: 2,
-          permission_name: '角色管理',
-          permission_code: 'ROLE_MANAGE',
-          module: '权限管理',
-          status: 'active'
-        },
-        {
-          id: 3,
-          permission_name: '系统设置',
-          permission_code: 'SYSTEM_CONFIG',
-          module: '系统管理',
-          status: 'active'
-        }
-      ]);
-
+      message.error('加载权限矩阵数据失败: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -213,21 +178,50 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
   const handleSave = async (changes: Map<string, boolean>) => {
     setSaving(true);
     try {
-      // 这里应该调用API保存权限矩阵变更
-      await new Promise(resolve => setTimeout(resolve, 1000)); // 模拟API调用
-      
-      setChanges(new Map());
-      message.success('权限变更保存成功');
-      
-      // 触发回调
-      if (onPermissionChange) {
+      // 构建更新数据
+      const updates = Array.from(changes.entries()).map(([key, granted]) => {
+        const [roleId, permissionId] = key.split('-').map(Number);
+        return {
+          role_id: roleId,
+          permission_id: permissionId,
+          granted: granted
+        };
+      });
+
+      // 调用API保存权限矩阵变更
+      const response = await api.post('/api/v1/permissions/matrix', { updates });
+
+      if (response.data && response.data.success) {
+        // 更新本地权限矩阵状态
+        const newMatrix = [...permissionMatrix];
         changes.forEach((granted, key) => {
           const [roleId, permissionId] = key.split('-').map(Number);
-          onPermissionChange(roleId, permissionId, granted);
+          const existingIndex = newMatrix.findIndex(
+            m => m.role_id === roleId && m.permission_id === permissionId
+          );
+
+          if (existingIndex >= 0) {
+            newMatrix[existingIndex] = { role_id: roleId, permission_id: permissionId, granted };
+          } else {
+            newMatrix.push({ role_id: roleId, permission_id: permissionId, granted });
+          }
         });
+        setPermissionMatrix(newMatrix);
+
+        setChanges(new Map());
+        message.success(`权限变更保存成功，已更新 ${updates.length} 个权限`);
+
+        // 触发回调
+        if (onPermissionChange) {
+          changes.forEach((granted, key) => {
+            const [roleId, permissionId] = key.split('-').map(Number);
+            onPermissionChange(roleId, permissionId, granted);
+          });
+        }
       }
-    } catch (error) {
-      message.error('保存失败: ' + (error as Error).message);
+    } catch (error: any) {
+      console.error('Failed to save permission matrix:', error);
+      message.error('保存失败: ' + (error.response?.data?.message || error.message));
     } finally {
       setSaving(false);
     }
