@@ -229,6 +229,7 @@ type PermissionRepository interface {
 	GetPermissionsByModule(ctx context.Context, module string) ([]*models.Permission, error)
 	GetRolePermissions(ctx context.Context, roleID int) ([]*models.Permission, error)
 	GetRolesWithPermissions(ctx context.Context, companyID *int) ([]*models.CompanyRole, map[int][]*models.Permission, error)
+	GetRolePermissionIDs(ctx context.Context, roleID int) ([]int, error)
 	SetRolePermissions(ctx context.Context, roleID int, permissionIDs []int) error
 
 	// User permission management

@@ -1080,11 +1080,12 @@ func (h *EnterpriseHandler) GetEnterpriseUserActivities(c *gin.Context) {
 	var activities []Activity
 	for _, log := range logs {
 		actType := "system"
+		resourceType := models.DerefString(log.ResourceType)
 		if log.Action == "login" {
 			actType = "login"
-		} else if log.ResourceType == "project" {
+		} else if resourceType == "project" {
 			actType = "project"
-		} else if log.ResourceType == "task" {
+		} else if resourceType == "task" {
 			actType = "task"
 		}
 
@@ -1092,7 +1093,7 @@ func (h *EnterpriseHandler) GetEnterpriseUserActivities(c *gin.Context) {
 			ID:          int(log.ID),
 			Type:        actType,
 			Title:       log.Action,
-			Description: log.Description,
+			Description: models.DerefString(log.Description),
 			Timestamp:   log.CreatedAt,
 			Status:      "success",
 		})
@@ -1248,11 +1249,11 @@ func (h *EnterpriseHandler) UpdateEnterpriseUserPermissions(c *gin.Context) {
 	auditLog := &models.AuditLog{
 		UserID:       &currentUserID,
 		Action:       "update_permissions",
-		ResourceType: "enterprise_user",
-		ResourceID:   strconv.Itoa(userID),
-		Description:  fmt.Sprintf("Updated permissions for user ID %d", userID),
-		IPAddress:    c.ClientIP(),
-		UserAgent:    c.GetHeader("User-Agent"),
+		ResourceType: models.StringPtr("enterprise_user"),
+		ResourceID:   models.StringPtr(strconv.Itoa(userID)),
+		Description:  models.StringPtr(fmt.Sprintf("Updated permissions for user ID %d", userID)),
+		IPAddress:    models.StringPtr(c.ClientIP()),
+		UserAgent:    models.StringPtr(c.GetHeader("User-Agent")),
 	}
 	_ = auditRepo.CreateAuditLog(ctx, auditLog)
 
@@ -1330,11 +1331,11 @@ func (h *EnterpriseHandler) ResetEnterpriseUserPassword(c *gin.Context) {
 	auditLog := &models.AuditLog{
 		UserID:       &currentUserID,
 		Action:       "reset_password",
-		ResourceType: "enterprise_user",
-		ResourceID:   strconv.Itoa(userID),
-		Description:  fmt.Sprintf("Reset password for user %s (ID: %d)", user.Name, userID),
-		IPAddress:    c.ClientIP(),
-		UserAgent:    c.GetHeader("User-Agent"),
+		ResourceType: models.StringPtr("enterprise_user"),
+		ResourceID:   models.StringPtr(strconv.Itoa(userID)),
+		Description:  models.StringPtr(fmt.Sprintf("Reset password for user %s (ID: %d)", user.Name, userID)),
+		IPAddress:    models.StringPtr(c.ClientIP()),
+		UserAgent:    models.StringPtr(c.GetHeader("User-Agent")),
 	}
 	_ = auditRepo.CreateAuditLog(ctx, auditLog)
 
@@ -1434,11 +1435,11 @@ func (h *EnterpriseHandler) RemoveEnterpriseUser(c *gin.Context) {
 	auditLog := &models.AuditLog{
 		UserID:       &currentUserID,
 		Action:       "remove_enterprise_user",
-		ResourceType: "enterprise_user",
-		ResourceID:   strconv.Itoa(userID),
-		Description:  fmt.Sprintf("Removed user %s (ID: %d) from enterprise %d", user.Name, userID, enterpriseID),
-		IPAddress:    c.ClientIP(),
-		UserAgent:    c.GetHeader("User-Agent"),
+		ResourceType: models.StringPtr("enterprise_user"),
+		ResourceID:   models.StringPtr(strconv.Itoa(userID)),
+		Description:  models.StringPtr(fmt.Sprintf("Removed user %s (ID: %d) from enterprise %d", user.Name, userID, enterpriseID)),
+		IPAddress:    models.StringPtr(c.ClientIP()),
+		UserAgent:    models.StringPtr(c.GetHeader("User-Agent")),
 	}
 	_ = auditRepo.CreateAuditLog(ctx, auditLog)
 

@@ -17,6 +17,7 @@ func RegisterAuthRoutes(api *gin.RouterGroup, app ApplicationInterface) *gin.Rou
 		// 基础认证路由
 		auth.POST("/login", authHandler.Login)
 		auth.POST("/logout", authHandler.Logout)
+		auth.POST("/refresh", authHandler.RefreshToken)
 
 		// Development-only 快速登录
 		auth.POST("/dev-quick-login", authHandler.DevQuickLogin)

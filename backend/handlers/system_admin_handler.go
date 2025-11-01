@@ -696,20 +696,22 @@ func (h *SystemAdminHandler) UpdateTaskProject(c *gin.Context) {
 	}
 
 	// Create audit log entry
+	userName := username.(string)
+	role := userRole.(string)
 	auditLog := &models.AuditLog{
 		Timestamp:    time.Now(),
 		UserID:       userID.(*int),
-		UserName:     username.(string),
-		UserRole:     userRole.(string),
+		UserName:     &userName,
+		UserRole:     &role,
 		Action:       "task_project_change",
-		ResourceType: "task",
-		ResourceID:   fmt.Sprintf("%d", taskID),
-		ResourceName: currentTask.Title,
-		Description:  auditDescription,
-		IPAddress:    c.ClientIP(),
-		UserAgent:    c.GetHeader("User-Agent"),
-		RequestID:    c.GetString("request_id"),
-		Status:       "success",
+		ResourceType: models.StringPtr("task"),
+		ResourceID:   models.StringPtr(fmt.Sprintf("%d", taskID)),
+		ResourceName: models.StringPtr(currentTask.Title),
+		Description:  models.StringPtr(auditDescription),
+		IPAddress:    models.StringPtr(c.ClientIP()),
+		UserAgent:    models.StringPtr(c.GetHeader("User-Agent")),
+		RequestID:    models.StringPtr(c.GetString("request_id")),
+		Status:       models.StringPtr("success"),
 		Changes: map[string]interface{}{
 			"old_project_id":   oldProjectID,
 			"old_project_name": oldProjectName,

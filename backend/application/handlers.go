@@ -699,3 +699,8 @@ func (app *Application) GetBulkOperationHandler() *handlers.BulkOperationHandler
 	// Fallback: create handler on-demand
 	return handlers.NewBulkOperationHandler(app.db, app.logger, app.validator)
 }
+
+// GetNavigationHandler returns the navigation management handler
+func (app *Application) GetNavigationHandler() *handlers.NavigationHandler {
+	return app.navigationHandler
+}

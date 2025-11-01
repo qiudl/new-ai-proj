@@ -199,6 +199,9 @@ type ApplicationInterface interface {
 	// 系统管理员权限处理器
 	GetSystemAdminHandler() *handlers.SystemAdminHandler
 
+	// 审计日志处理器
+	GetAuditHandler() *handlers.AuditHandler
+
 	// Dashboard处理器
 	GetDashboardHandler() *handlers.DashboardHandler
 
@@ -248,4 +251,7 @@ type ApplicationInterface interface {
 	GetSystemPermissionHandler() *handlers.SystemPermissionHandler
 	GetEnterpriseUserHandler() *handlers.EnterpriseUserHandler
 	GetEnterpriseRoleHandler() *handlers.EnterpriseRoleHandler
+
+	// 导航管理处理器
+	GetNavigationHandler() *handlers.NavigationHandler
 }

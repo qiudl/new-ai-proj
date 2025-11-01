@@ -23,6 +23,12 @@ func RegisterSystemRoutes(authorized *gin.RouterGroup, app ApplicationInterface)
 
 	// 系统管理员权限管理路由
 	registerSystemAdminRoutes(authorized, app)
+
+	// 审计日志路由
+	registerAuditRoutes(authorized, app)
+
+	// 导航管理路由
+	registerNavigationRoutes(authorized, app)
 }
 
 // registerPermissionManagementRoutes 注册权限管理路由
@@ -245,4 +251,83 @@ func registerSystemAdminRoutes(authorized *gin.RouterGroup, app ApplicationInter
 	}
 
 	log.Printf("[DEBUG] 系统管理员权限管理路由注册完成")
+}
+
+// registerAuditRoutes 注册审计日志路由
+func registerAuditRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	log.Printf("[DEBUG] 开始注册审计日志路由")
+
+	// 检查AuditHandler是否为nil
+	auditHandler := app.GetAuditHandler()
+	if auditHandler == nil {
+		log.Printf("[ERROR] AuditHandler is nil, cannot register audit routes!")
+		return
+	}
+	log.Printf("[DEBUG] AuditHandler OK: %p", auditHandler)
+
+	// 系统审计日志路由组 - 所有路由都在 /system/audit 下
+	systemGroup := authorized.Group("/system")
+	{
+		auditGroup := systemGroup.Group("/audit")
+		{
+			// ========== 审计日志查询 ==========
+			// 获取审计日志列表（支持筛选和分页）
+			auditGroup.GET("/logs", middleware.RequireView(), auditHandler.GetAuditLogs)
+
+			// 获取单条审计日志详情
+			auditGroup.GET("/logs/:id", middleware.RequireView(), auditHandler.GetAuditLog)
+
+			// 导出审计日志（CSV格式）
+			auditGroup.GET("/logs/export", middleware.RequireView(), auditHandler.ExportAuditLogs)
+		}
+	}
+
+	log.Printf("[DEBUG] 审计日志路由注册完成")
+}
+
+// registerNavigationRoutes 注册导航管理路由
+func registerNavigationRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	log.Printf("[DEBUG] 开始注册导航管理路由")
+
+	// 检查NavigationHandler是否为nil
+	navHandler := app.GetNavigationHandler()
+	if navHandler == nil {
+		log.Printf("[ERROR] NavigationHandler is nil, cannot register navigation routes!")
+		return
+	}
+	log.Printf("[DEBUG] NavigationHandler OK: %p", navHandler)
+
+	// 系统导航管理路由组
+	systemGroup := authorized.Group("/system")
+	{
+		// 菜单项管理
+		systemGroup.GET("/menu-items", navHandler.GetMenuItems)
+		systemGroup.GET("/menu-items/:id", navHandler.GetMenuItem)
+		systemGroup.POST("/menu-items", navHandler.CreateMenuItem)
+		systemGroup.PUT("/menu-items/:id", navHandler.UpdateMenuItem)
+		systemGroup.DELETE("/menu-items/:id", navHandler.DeleteMenuItem)
+		systemGroup.POST("/menu-items/reorder", navHandler.ReorderMenuItems)
+
+		// 菜单分组管理
+		systemGroup.GET("/menu-groups", navHandler.GetMenuGroups)
+		systemGroup.GET("/menu-groups/:id", navHandler.GetMenuGroup)
+		systemGroup.POST("/menu-groups", navHandler.CreateMenuGroup)
+		systemGroup.PUT("/menu-groups/:id", navHandler.UpdateMenuGroup)
+		systemGroup.DELETE("/menu-groups/:id", navHandler.DeleteMenuGroup)
+
+		// 路由配置管理
+		systemGroup.GET("/routes", navHandler.GetRoutes)
+		systemGroup.GET("/routes/:id", navHandler.GetRoute)
+		systemGroup.POST("/routes", navHandler.CreateRoute)
+		systemGroup.PUT("/routes/:id", navHandler.UpdateRoute)
+		systemGroup.DELETE("/routes/:id", navHandler.DeleteRoute)
+
+		// 导航配置和统计
+		navConfigGroup := systemGroup.Group("/navigation-config")
+		{
+			navConfigGroup.GET("/stats", navHandler.GetNavigationStats)
+		}
+	}
+
+	log.Printf("[DEBUG] 导航管理路由注册完成")
 }

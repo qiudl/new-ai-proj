@@ -23,6 +23,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/go-redis/redis/v8"
+	"github.com/jmoiron/sqlx"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -70,6 +71,8 @@ type Application struct {
 	systemPermissionHandler  *handlers.SystemPermissionHandler  // System permission handler instance (RBAC v2)
 	enterpriseUserHandler    *handlers.EnterpriseUserHandler    // Enterprise user handler instance (RBAC v2)
 	enterpriseRoleHandler    *handlers.EnterpriseRoleHandler    // Enterprise role handler instance (RBAC v2)
+	// Navigation Management Handler
+	navigationHandler        *handlers.NavigationHandler        // Navigation management handler instance
 	mirrorWritable           bool
 }
 
@@ -298,6 +301,13 @@ func NewApplication() (*Application, error) {
 
 	logger.Println("✅ RBAC v2 handlers initialized (SystemUserHandler, SystemRoleHandler, SystemPermissionHandler, EnterpriseUserHandler, EnterpriseRoleHandler)")
 
+	// Initialize Navigation Management Handler
+	// Convert *sql.DB to *sqlx.DB for navigation repository
+	sqlxDB := sqlx.NewDb(sqlDB, "postgres")
+	navigationRepo := database.NewNavigationRepository(sqlxDB)
+	navigationHandler := handlers.NewNavigationHandler(navigationRepo)
+	logger.Println("✅ Navigation management handler initialized")
+
 	// Initialize WebSocket Hub (temporarily disabled)
 	// wsHub := ws.NewHub(logger)
 	// go wsHub.Run() // Start the hub in a goroutine
@@ -355,6 +365,8 @@ func NewApplication() (*Application, error) {
 		systemPermissionHandler:  systemPermissionHandler,  // System permission handler (RBAC v2)
 		enterpriseUserHandler:    enterpriseUserHandler,    // Enterprise user handler (RBAC v2)
 		enterpriseRoleHandler:    enterpriseRoleHandler,    // Enterprise role handler (RBAC v2)
+		// Navigation Management Handler
+		navigationHandler:        navigationHandler,        // Navigation management handler
 	}
 
 	// Perform startup permission/volume checks
@@ -837,6 +849,14 @@ func (app *Application) GetAPIKeyHandler() *handlers.APIKeyHandler {
 // GetSystemAdminHandler returns the system admin handler
 func (app *Application) GetSystemAdminHandler() *handlers.SystemAdminHandler {
 	return app.systemAdminHandler
+}
+
+// GetAuditHandler returns the audit handler
+func (app *Application) GetAuditHandler() *handlers.AuditHandler {
+	if app.handlers != nil && app.handlers.AuditHandler != nil {
+		return app.handlers.AuditHandler
+	}
+	return nil
 }
 
 // GetDashboardHandler returns the Dashboard handler
