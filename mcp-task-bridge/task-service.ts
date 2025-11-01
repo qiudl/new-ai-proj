@@ -59,10 +59,8 @@ export class TaskService extends BaseClient {
         project_id: projectId,
         status: options.status || 'todo', // 默认状态改为'todo'（待开始）
         description: options.description || `通过Claude Code创建：${title}`,
-        custom_fields: {
-          priority: options.priority || 'low', // 设置默认优先级为'低'
-          ...options.custom_fields
-        }
+        priority: options.priority || 'low', // ✅ 修复：priority应该是顶级字段
+        custom_fields: options.custom_fields || {}
       };
       
       // 如果有parent_id，添加到请求中
@@ -362,40 +360,32 @@ export class TaskService extends BaseClient {
   // @requiresPermission('create_task')
   async createSubTask(parentId: number, taskData: SubTaskData | string): Promise<ApiResponse> {
     try {
-      // 1. 验证父任务存在
-      const parentTask = await this.findTaskById(parentId);
-      if (!parentTask) {
-        return { success: false, error: `父任务 ID ${parentId} 不存在` };
-      }
-
-      // 2. 构造子任务数据
-      let subTaskData: SubTaskData;
+      // 构造子任务数据
+      let title: string;
       if (typeof taskData === 'string') {
-        subTaskData = {
-          title: taskData,
-          priority: 'low',
-          status: 'todo'
-        };
+        title = taskData;
       } else {
-        subTaskData = { ...taskData };
+        title = taskData.title;
       }
 
-      // 3. 调用创建任务接口，传递parent_id
-      const result = await this.createTask(subTaskData.title, parentTask.project_id, {
-        ...subTaskData,
-        parent_id: parentId
-      });
+      console.error(`[DEBUG] 创建子任务: parentId=${parentId}, title=${title}`);
 
-      if (result.success) {
+      // 调用MCP专用的创建子任务接口
+      const requestBody = {
+        parentId: parentId,
+        title: title
+      };
+      console.error(`[DEBUG] 请求体:`, JSON.stringify(requestBody, null, 2));
+      const response = await this.makeRequest('POST', '/mcp/create-subtask', requestBody);
+
+      if (response.success) {
         return {
           success: true,
-          parent_id: parentId,
-          parent_title: parentTask.title,
-          subtask: result.data,
-          message: `✅ 成功为任务 "${parentTask.title}" 创建子任务 "${subTaskData.title}"`
+          data: response.data,
+          message: `✅ 成功创建子任务 "${title}"`
         };
       } else {
-        return result;
+        return response;
       }
     } catch (error: any) {
       return {
