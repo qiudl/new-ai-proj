@@ -45,8 +45,17 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
       const response = await enterpriseService.getEnterprises(1, 100);
       setEnterprises(response.data);
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ 刷新企业列表失败:', err);
+      
+      // 如果是404错误，说明后端尚未实现企业管理功能，静默处理
+      if (err?.response?.status === 404 || err?.status === 404) {
+        console.warn('⚠️ 企业管理功能尚未启用（后端API不存在）');
+        setEnterprises([]); // 设置空列表
+        setError(null); // 不显示错误
+        return; // 静默处理，不显示错误消息
+      }
+      
       const errorMessage = err instanceof Error ? err.message : '刷新企业列表失败';
       setError(errorMessage);
       message.error(errorMessage);

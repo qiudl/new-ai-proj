@@ -226,7 +226,6 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
       key,
       title: (
         <div
-          key={`title-${folder.id}-${folder.name}`}
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -272,7 +271,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
     const rootNode: DataNode = {
       key: 'root',
       title: (
-        <div key={`root-${activeTreeType}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <span style={{ fontWeight: 500 }}>
             {config.icon}
             <span style={{ marginLeft: 8 }}>{config.name}</span>

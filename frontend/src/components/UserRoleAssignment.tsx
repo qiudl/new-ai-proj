@@ -163,12 +163,12 @@ const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
 
   const loadUserRoles = async (userId: number) => {
     try {
-      const response = await api.get(`/api/v1/users/${userId}/roles`);
-      
+      const response = await api.get(`/api/v1/permissions/users/${userId}/roles`);
+
       if (response.data.success) {
         const userRoleData = response.data.data || [];
         setUserRoles(userRoleData);
-        
+
         // 设置Transfer组件的目标键
         const assignedRoleIds = userRoleData
           .filter((ur: UserRole) => ur.is_active)
@@ -215,21 +215,21 @@ const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
 
     try {
       const assignedRoles = targetKeys.map(key => parseInt(key));
-      
-      await api.post(`/api/v1/users/${selectedUser.id}/roles`, {
+
+      await api.post(`/api/v1/permissions/users/${selectedUser.id}/roles`, {
         role_ids: assignedRoles
       });
 
       message.success('角色分配成功');
       setAssignModalVisible(false);
       loadUsers(); // 刷新用户列表
-      
+
       // 触发回调
       if (onRoleChange) {
         const assignedRoleObjects = roles.filter(role => assignedRoles.includes(role.id));
         onRoleChange(selectedUser.id, assignedRoleObjects);
       }
-      
+
     } catch (error: any) {
       console.error('Failed to assign roles:', error);
       message.error('角色分配失败：' + (error.response?.data?.message || error.message));

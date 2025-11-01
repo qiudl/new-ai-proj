@@ -256,33 +256,52 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
 
       console.log('✅ [PDF导出] html2pdf库已加载');
 
-      // 简单的Markdown转换HTML函数（避免异步问题）
+      // 简单的Markdown转换HTML函数（优化边框渲染以适配scale=1.5）
       const simpleMarkdownToHtml = (md: string) => {
-        return md
-          // 标题
-          .replace(/^### (.*$)/gm, '<h3 style="color: #333; margin: 16px 0 8px 0; font-size: 18px;">$1</h3>')
-          .replace(/^## (.*$)/gm, '<h2 style="color: #333; margin: 20px 0 10px 0; font-size: 22px;">$1</h2>')
-          .replace(/^# (.*$)/gm, '<h1 style="color: #333; margin: 24px 0 12px 0; font-size: 28px; border-bottom: 2px solid #1890ff; padding-bottom: 8px;">$1</h1>')
+        let html = md
+          // 标题（减小间距）
+          .replace(/^### (.*$)/gm, '<h3 style="color: #333; margin: 10px 0 6px 0; font-size: 16px; font-weight: 600; page-break-after: avoid;">$1</h3>')
+          .replace(/^## (.*$)/gm, '<h2 style="color: #333; margin: 12px 0 8px 0; font-size: 18px; font-weight: 600; page-break-after: avoid;">$1</h2>')
+          .replace(/^# (.*$)/gm, '<h1 style="color: #333; margin: 14px 0 10px 0; font-size: 20px; font-weight: 700; border-bottom: 1px solid #1890ff; padding-bottom: 6px; page-break-after: avoid;">$1</h1>')
           // 粗体和斜体
           .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #333; font-weight: 600;">$1</strong>')
           .replace(/\*(.*?)\*/g, '<em style="font-style: italic; color: #666;">$1</em>')
-          // 代码块
+          // 代码块（减小间距，添加分页保护）
           .replace(/```[\s\S]*?```/g, (match) => {
             const code = match.replace(/```(\w+)?/, '').replace(/```$/, '');
-            return `<pre style="background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin: 16px 0; font-family: Consolas, Monaco, monospace; font-size: 14px; white-space: pre-wrap; word-wrap: break-word;">${code.trim()}</pre>`;
+            return `<pre style="background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 3px; padding: 10px; margin: 8px 0; font-family: 'Courier New', Consolas, Monaco, monospace; font-size: 10px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; page-break-inside: avoid;">${code.trim()}</pre>`;
           })
-          // 行内代码
-          .replace(/`([^`]+)`/g, '<code style="background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: Consolas, Monaco, monospace; font-size: 13px; color: #d73a49;">$1</code>')
+          // 行内代码（使用背景色，无边框）
+          .replace(/`([^`]+)`/g, '<code style="background: #f6f8fa; padding: 2px 5px; border-radius: 2px; font-family: \'Courier New\', Consolas, Monaco, monospace; font-size: 12px; color: #d73a49;">$1</code>')
           // 链接
-          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #1890ff; text-decoration: none;">$1</a>')
-          // 列表
-          .replace(/^\* (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
-          .replace(/^- (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
-          .replace(/^\d+\. (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
-          // 分割线
-          .replace(/^---$/gm, '<hr style="border: none; border-top: 1px solid #e8e8e8; margin: 20px 0;">')
-          // 换行
-          .replace(/\n/g, '<br>');
+          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #1890ff; text-decoration: underline;">$1</a>')
+          // 分割线（减小间距）
+          .replace(/^---$/gm, '<hr style="border: none; border-top: 1px solid #d0d7de; margin: 12px 0;">');
+
+        // 处理无序列表（包裹在ul中，减小间距）
+        html = html.replace(/((?:^[\*\-] .*$\n?)+)/gm, (match) => {
+          const items = match
+            .split('\n')
+            .filter(line => line.trim())
+            .map(line => line.replace(/^[\*\-] (.*)$/, '<li style="margin: 2px 0; line-height: 1.5;">$1</li>'))
+            .join('');
+          return `<ul style="margin: 8px 0; padding-left: 24px; list-style-type: disc; page-break-inside: avoid;">${items}</ul>`;
+        });
+
+        // 处理有序列表（包裹在ol中，减小间距）
+        html = html.replace(/((?:^\d+\. .*$\n?)+)/gm, (match) => {
+          const items = match
+            .split('\n')
+            .filter(line => line.trim())
+            .map(line => line.replace(/^\d+\. (.*)$/, '<li style="margin: 2px 0; line-height: 1.5;">$1</li>'))
+            .join('');
+          return `<ol style="margin: 8px 0; padding-left: 24px; page-break-inside: avoid;">${items}</ol>`;
+        });
+
+        // 处理段落（将连续的非标签行包裹在p标签中，减小段落间距）
+        html = html.replace(/^(?!<[huplodi]|<\/|<pre|<hr)(.+)$/gm, '<p style="margin: 4px 0; line-height: 1.6;">$1</p>');
+
+        return html;
       };
 
       // 转换内容
@@ -292,62 +311,117 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       // 如果转换后的内容为空，使用原始内容
       const finalContent = htmlContent.trim() || content.replace(/\n/g, '<br>');
 
-      // ===== 使用调试成功的简化方法 =====
-      // 直接创建基础元素（避免复杂HTML结构导致的问题）
+      // ===== 优化的PDF内容元素创建 =====
+      // 创建PDF容器元素，设置合适的宽度以适应A4页面
       const pdfElement = document.createElement('div');
-      
-      // 设置基础内容结构（基于调试成功的逻辑）
+
+      // 设置优化的内容结构，减小整体间距
       pdfElement.innerHTML = `
-        <div style="padding: 30px; background: white; font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-          <h1 style="color: #333; border-bottom: 2px solid #1890ff; padding-bottom: 10px; margin-bottom: 20px;">${title || '任务文档'}</h1>
-          <div style="margin: 20px 0; color: #666; font-size: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+        <div style="max-width: 100%; padding: 20px; background: white; font-family: Arial, 'Microsoft YaHei', sans-serif; color: #333; line-height: 1.6; box-sizing: border-box;">
+          <h1 style="color: #333; border-bottom: 1px solid #1890ff; padding-bottom: 6px; margin-bottom: 12px; font-size: 20px; font-weight: 700; word-wrap: break-word; page-break-after: avoid;">${title || '任务文档'}</h1>
+          <div style="margin: 10px 0; color: #666; font-size: 11px; border-bottom: 1px solid #d0d7de; padding-bottom: 6px; word-wrap: break-word;">
             任务ID: ${taskId} | 项目ID: ${projectId} | 导出时间: ${new Date().toLocaleString('zh-CN')}
           </div>
-          <div style="margin-top: 30px; color: #333; line-height: 1.6;">
+          <div style="margin-top: 14px; color: #333; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word;">
             ${finalContent}
           </div>
         </div>
       `;
 
-      // 设置元素样式（基于调试成功的配置）
-      pdfElement.style.padding = '20px';
+      // 设置元素样式，确保内容不溢出页面
+      // A4纸宽度210mm，减去margin后约680px（在scale=1时）
+      pdfElement.style.width = '210mm';  // 使用mm单位匹配A4宽度
+      pdfElement.style.maxWidth = '210mm';
       pdfElement.style.backgroundColor = '#ffffff';
       pdfElement.style.color = '#333333';
-      pdfElement.style.fontFamily = 'Arial, sans-serif';
-      pdfElement.style.lineHeight = '1.6';
-      pdfElement.style.width = '700px'; // 固定宽度确保一致性
+      pdfElement.style.fontFamily = 'Arial, "Microsoft YaHei", sans-serif';
+      pdfElement.style.lineHeight = '1.6';  // 减小行高，紧凑布局
+      pdfElement.style.boxSizing = 'border-box';
+      pdfElement.style.overflow = 'hidden';  // 防止内容溢出
 
       console.log('✅ [PDF导出] 简化元素创建完成');
 
-      // PDF配置选项（基于调试成功的设置）
+      // 🎯 智能检测文档类型，自动选择最佳scale
+      const detectDocumentType = (text: string): { hasAsciiArt: boolean; scale: number; mode: string } => {
+        // 检测ASCII艺术图/线框图的特征
+        const asciiArtPatterns = [
+          /[│├┤┬┴┼─┌┐└┘]/g,           // 中文制表符
+          /[|]{2,}/g,                   // 连续的竖线（至少2个）
+          /[-─]{3,}/g,                  // 连续的横线（至少3个）
+          /[+\-|]{5,}/g,                // 包含+-|的组合（至少5个字符）
+          /\s+[|]\s+.*\s+[|]\s+/g,     // 表格结构（| xxx | xxx |）
+          /[\/\\]{2,}/g,                // 斜线组合
+          /[▲▼◄►▶◀△▽]/g,              // 箭头符号
+          /[┌┐└┘├┤┬┴┼]/g,              // 框线字符
+        ];
+
+        // 检测是否包含架构图特征
+        let matchCount = 0;
+        asciiArtPatterns.forEach(pattern => {
+          const matches = text.match(pattern);
+          if (matches) {
+            matchCount += matches.length;
+          }
+        });
+
+        // 如果匹配超过5个特征，认为包含线框图
+        const hasAsciiArt = matchCount > 5;
+
+        // 根据检测结果选择scale
+        const scale = hasAsciiArt ? 1 : 1.5;
+        const mode = hasAsciiArt ? '标准模式(线框图优化)' : '高清模式(文字优化)';
+
+        console.log(`📊 [PDF导出] 文档类型检测: ${mode}, 匹配特征数: ${matchCount}, scale: ${scale}`);
+
+        return { hasAsciiArt, scale, mode };
+      };
+
+      // 检测文档类型
+      const docType = detectDocumentType(content);
+
+      // PDF配置选项（智能选择scale以平衡线框和清晰度）
       const opt = {
-        margin: 15,
+        margin: [10, 10, 10, 10],  // 上右下左边距（mm）
         filename: `task-${taskId}-document-${new Date().toISOString().split('T')[0]}.pdf`,
-        image: { 
-          type: 'jpeg', 
-          quality: 0.98 
+        image: {
+          type: 'jpeg',
+          quality: docType.scale === 1 ? 0.98 : 0.96  // 线框图模式使用更高质量
         },
-        html2canvas: { 
-          scale: 1,  // 使用调试成功的scale=1
+        html2canvas: {
+          scale: docType.scale,  // 智能选择：线框图用1，纯文字用1.5
           backgroundColor: '#ffffff',
-          logging: true,
+          logging: false,
           useCORS: true,
-          allowTaint: true
+          allowTaint: true,
+          letterRendering: true,  // 改善文字渲染质量
+          scrollX: 0,
+          scrollY: 0,
+          imageTimeout: 0,
+          removeContainer: true,
+          dpi: docType.scale === 1 ? 150 : 144  // 根据scale调整DPI
         },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4', 
-          orientation: 'portrait' 
+        jsPDF: {
+          unit: 'mm',
+          format: 'a4',
+          orientation: 'portrait',
+          compress: true,
+          precision: 2  // 提高PDF精度
+        },
+        pagebreak: {
+          mode: ['css', 'legacy'],  // 使用CSS分页控制
+          before: '.page-break-before',
+          after: '.page-break-after',
+          avoid: 'p, pre, code, h1, h2, h3, ul, ol, li'  // 避免在这些元素中间分页
         }
       };
 
-      console.log('🔄 [PDF导出] 开始生成PDF（使用简化方法）...');
-      
+      console.log(`🔄 [PDF导出] 开始生成PDF（${docType.mode}）...`);
+
       // 使用简化的生成方法（基于调试成功的逻辑）
       await window.html2pdf().set(opt).from(pdfElement).save();
-      
+
       console.log('✅ [PDF导出] PDF生成并下载成功');
-      message.success('PDF导出成功！');
+      message.success(`PDF导出成功！（${docType.mode}）`);
 
     } catch (error: any) {
       console.error('❌ [PDF导出] PDF导出失败:', error);
