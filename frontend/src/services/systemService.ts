@@ -357,15 +357,17 @@ export class SystemService {
     const response = await api.get<BackendPaginatedResponse>(
       `/system/audit/logs?${params.toString()}`
     );
+    // API interceptor already unwrapped response.data, so response is {data: [...], pagination: {...}}
     return {
-      data: (response as any).data.data as AuditLog[],
-      pagination: (response as any).data.pagination
+      data: (response as any).data as AuditLog[],
+      pagination: (response as any).pagination
     };
   }
 
   static async getAuditLog(id: number): Promise<AuditLog> {
     const response = await api.get<ApiResponse<AuditLog>>(`/system/audit/logs/${id}`);
-    return (response as any).data;
+    // API interceptor already unwrapped response, so response is the audit log object
+    return response as any;
   }
 
   static async getAuditStats(filters: AuditLogFilter = {}): Promise<AuditStats> {
@@ -381,7 +383,8 @@ export class SystemService {
     const response = await api.get<ApiResponse<AuditStats>>(
       `/system/audit/stats?${params.toString()}`
     );
-    return (response as any).data;
+    // API interceptor already unwrapped response, so response is the stats object
+    return response as any;
   }
 
   static async exportAuditLogs(
