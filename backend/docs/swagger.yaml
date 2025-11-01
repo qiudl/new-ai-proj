@@ -4343,6 +4343,99 @@ paths:
       summary: Update enterprise user roles
       tags:
       - enterprise-users
+  /api/v1/mcp/documents/append:
+    post:
+      consumes:
+      - application/json
+      description: 向指定的文档追加内容，支持版本控制和并发安全
+      parameters:
+      - description: 追加请求
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            content:
+              type: string
+            documentId:
+              type: integer
+            projectId:
+              type: integer
+            taskId:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              message:
+                type: string
+              success:
+                type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+              success:
+                type: boolean
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+              success:
+                type: boolean
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+              success:
+                type: boolean
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+              success:
+                type: boolean
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+              success:
+                type: boolean
+            type: object
+      summary: 追加内容到文档
+      tags:
+      - MCP
   /api/v1/mcp/generate-document-from-template:
     post:
       consumes:
