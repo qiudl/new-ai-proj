@@ -165,8 +165,10 @@ const UserDetailPage: React.FC = () => {
     try {
       setDepartmentsLoading(true);
       // Use getDepartmentsWithActualCount which calls /departments/stats endpoint
-      const departments = await enterpriseService.getDepartmentsWithActualCount(enterpriseId);
-      setDepartments(departments || []);
+      const response = await enterpriseService.getDepartmentsWithActualCount(enterpriseId);
+      // handleApiResponse wraps the array in { data, pagination }, so extract data
+      const depts = Array.isArray(response) ? response : (response as any)?.data || [];
+      setDepartments(depts);
     } catch (error) {
       console.error('Error loading departments:', error);
       message.error('加载部门列表失败');

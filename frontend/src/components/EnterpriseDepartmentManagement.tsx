@@ -57,11 +57,13 @@ const EnterpriseDepartmentManagement: React.FC<EnterpriseDepartmentManagementPro
   const loadDepartments = async () => {
     setLoading(true);
     try {
-      const data = await enterpriseService.getDepartmentsWithActualCount(enterpriseId);
-      setDepartments(data || []);
+      const response = await enterpriseService.getDepartmentsWithActualCount(enterpriseId);
+      // handleApiResponse wraps the array in { data, pagination }, so extract data
+      const departments = Array.isArray(response) ? response : (response as any)?.data || [];
+      setDepartments(departments);
 
       // 计算统计数据
-      const flattenDepartments = flattenTree(data || []);
+      const flattenDepartments = flattenTree(departments);
       setTotalDepartments(flattenDepartments.length);
       setTotalEmployees(
         flattenDepartments.reduce((sum, dept) => sum + (dept.actual_employee_count || 0), 0)

@@ -90,8 +90,10 @@ const EnterprisePersonnelManagement: React.FC<EnterprisePersonnelManagementProps
   const loadDepartments = async () => {
     setDepartmentsLoading(true);
     try {
-      const data = await enterpriseService.getDepartmentsWithActualCount(enterpriseId);
-      setDepartments(flattenDepartments(data || []));
+      const response = await enterpriseService.getDepartmentsWithActualCount(enterpriseId);
+      // handleApiResponse wraps the array in { data, pagination }, so extract data
+      const departments = Array.isArray(response) ? response : (response as any)?.data || [];
+      setDepartments(flattenDepartments(departments));
     } catch (error) {
       console.error('加载部门列表失败:', error);
       message.error('加载部门列表失败');
