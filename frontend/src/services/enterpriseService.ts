@@ -171,7 +171,7 @@ export interface EnterpriseStats {
 }
 
 class EnterpriseService {
-  private readonly API_BASE_URL = '/system/enterprises';
+  private readonly API_BASE_URL = '/enterprises';
 
   // 统一的 API 响应处理函数
   private handleApiResponse<T>(response: any): T {
