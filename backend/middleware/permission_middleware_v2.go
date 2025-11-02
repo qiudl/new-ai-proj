@@ -275,6 +275,14 @@ log.Printf("[RBAC-v2] Checking enterprise permission: %s", norm)
 			log.Printf("[RBAC-v2] System admin access granted for user %d to enterprise %d, skipping enterprise permission check for: %s",
 				uid, enterpriseID, norm)
 			// System admin has already passed EnforceEnterpriseIsolation with system.enterprise.access_data
+			// Load system user identity for handler
+			identity, err := m.identityProvider.GetSystemUserIdentity(uid)
+			if err != nil {
+				log.Printf("[RBAC-v2] Warning: Failed to load system user identity: %v", err)
+				// Continue anyway since permission was already granted
+			} else {
+				c.Set("user_identity", identity)
+			}
 			// Store context for handler
 			c.Set("identity_type", "system")
 			c.Set("enterprise_id", enterpriseID)
