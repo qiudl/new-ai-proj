@@ -12,6 +12,7 @@ type CompanyRole struct {
 	RoleDescription *string   `json:"role_description" db:"role_description"`
 	IsSystemRole    bool      `json:"is_system_role" db:"is_system_role"`
 	IsActive        bool      `json:"is_active" db:"is_active"`
+	EnterpriseID    *int      `json:"enterprise_id,omitempty" db:"enterprise_id"` // NULL for system roles, enterprise ID for enterprise roles
 	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -105,30 +106,31 @@ type CompanyRoleRequest struct {
 // CompanyRoleResponse represents a company role with permissions
 type CompanyRoleResponse struct {
 	ID              int                  `json:"id"`
-	RoleCode        string               `json:"role_code"`
-	RoleName        string               `json:"role_name"`
-	RoleDescription *string              `json:"role_description"`
-	IsSystemRole    bool                 `json:"is_system_role"`
-	IsActive        bool                 `json:"is_active"`
+	RoleCode        string               `json:"roleCode"`
+	RoleName        string               `json:"roleName"`
+	RoleDescription *string              `json:"roleDescription"`
+	IsSystemRole    bool                 `json:"isSystemRole"`
+	IsActive        bool                 `json:"isActive"`
+	EnterpriseID    *int                 `json:"enterpriseId,omitempty"` // NULL for system roles
 	Permissions     []PermissionResponse `json:"permissions"`
-	UserCount       int                  `json:"user_count"` // Number of users with this role
-	CreatedAt       time.Time            `json:"created_at"`
-	UpdatedAt       time.Time            `json:"updated_at"`
+	UserCount       int                  `json:"userCount"` // Number of users with this role
+	CreatedAt       time.Time            `json:"createdAt"`
+	UpdatedAt       time.Time            `json:"updatedAt"`
 }
 
 // PermissionResponse represents a permission with additional context
 type PermissionResponse struct {
 	ID                    int     `json:"id"`
-	PermissionCode        string  `json:"permission_code"`
-	PermissionName        string  `json:"permission_name"`
-	PermissionDescription *string `json:"permission_description"`
+	PermissionCode        string  `json:"permissionCode"`
+	PermissionName        string  `json:"permissionName"`
+	PermissionDescription *string `json:"permissionDescription"`
 	Module                string  `json:"module"`
-	ModuleName            string  `json:"module_name"` // Localized module name
+	ModuleName            string  `json:"moduleName"` // Localized module name
 	Resource              string  `json:"resource"`
 	Action                string  `json:"action"`
-	ActionName            string  `json:"action_name"` // Localized action name
-	IsActive              bool    `json:"is_active"`
-	IsGranted             bool    `json:"is_granted"` // Whether this permission is granted in current context
+	ActionName            string  `json:"actionName"` // Localized action name
+	IsActive              bool    `json:"isActive"`
+	IsGranted             bool    `json:"isGranted"` // Whether this permission is granted in current context
 }
 
 // UserPermissionRequest represents a request to update user permissions
@@ -207,6 +209,7 @@ func (cr *CompanyRole) ToResponse() CompanyRoleResponse {
 		RoleDescription: cr.RoleDescription,
 		IsSystemRole:    cr.IsSystemRole,
 		IsActive:        cr.IsActive,
+		EnterpriseID:    cr.EnterpriseID,
 		Permissions:     []PermissionResponse{}, // Will be populated separately
 		CreatedAt:       cr.CreatedAt,
 		UpdatedAt:       cr.UpdatedAt,
