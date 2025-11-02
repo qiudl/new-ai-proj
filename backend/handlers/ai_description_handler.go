@@ -11,6 +11,7 @@ import (
 
 	"ai-project-backend/cache"
 	"ai-project-backend/database"
+	"ai-project-backend/models"
 	"ai-project-backend/services"
 )
 
@@ -101,10 +102,11 @@ func (h *AIDescriptionHandler) GenerateDescription(c *gin.Context) {
 	}
 
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": "任务不存在",
-		})
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"任务不存在",
+			nil,
+		))
 		return
 	}
 
@@ -190,10 +192,11 @@ func (h *AIDescriptionHandler) UpdateTaskDescription(c *gin.Context) {
 		query := `SELECT description FROM tasks WHERE id = $1`
 		err = h.db.QueryRow(query, taskID).Scan(&currentDesc)
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"success": false,
-				"message": "任务不存在",
-			})
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(
+				models.ErrCodeNotFound,
+				"任务不存在",
+				nil,
+			))
 			return
 		}
 		if err != nil {
@@ -301,10 +304,11 @@ func (h *AIDescriptionHandler) GetDescriptionSuggestions(c *gin.Context) {
 	}
 
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": "任务不存在",
-		})
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"任务不存在",
+			nil,
+		))
 		return
 	}
 

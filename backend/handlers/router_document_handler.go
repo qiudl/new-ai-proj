@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"ai-project-backend/interfaces"
+	"ai-project-backend/models"
 	"ai-project-backend/services"
 	"context"
 	"net/http"
@@ -126,11 +127,11 @@ func (h *RouterDocumentHandler) GetDocument(c *gin.Context) {
 	response, err := h.router.ReadDocument(ctx, req)
 	if err != nil {
 		if err.Error() == "document not found" {
-			c.JSON(http.StatusNotFound, gin.H{
-				"success": false,
-				"message": "Document not found",
-				"exists":  false,
-			})
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(
+				models.ErrCodeNotFound,
+				"Document not found",
+				gin.H{"exists": false},
+			))
 			return
 		}
 
@@ -204,10 +205,11 @@ func (h *RouterDocumentHandler) UpdateDocument(c *gin.Context) {
 	// 调用路由器更新文档
 	if err := h.router.UpdateDocument(ctx, &req); err != nil {
 		if err.Error() == "document not found" {
-			c.JSON(http.StatusNotFound, gin.H{
-				"success": false,
-				"message": "Document not found",
-			})
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(
+				models.ErrCodeNotFound,
+				"Document not found",
+				nil,
+			))
 			return
 		}
 
@@ -273,10 +275,11 @@ func (h *RouterDocumentHandler) DeleteDocument(c *gin.Context) {
 	// 调用路由器删除文档
 	if err := h.router.DeleteDocument(ctx, req); err != nil {
 		if err.Error() == "document not found" {
-			c.JSON(http.StatusNotFound, gin.H{
-				"success": false,
-				"message": "Document not found",
-			})
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(
+				models.ErrCodeNotFound,
+				"Document not found",
+				nil,
+			))
 			return
 		}
 
@@ -833,11 +836,11 @@ func (h *RouterDocumentHandler) EnableService(c *gin.Context) {
 	version := services.ServiceVersion(c.Param("version"))
 
 	if err := h.router.EnableService(version); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": "Service not found",
-			"error":   err.Error(),
-		})
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"Service not found",
+			gin.H{"error": err.Error()},
+		))
 		return
 	}
 

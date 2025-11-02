@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"ai-project-backend/models"
 	"ai-project-backend/services"
 	"net/http"
 	"strconv"
@@ -37,10 +38,11 @@ func (h *TaskDocumentFileHandler) GetTaskDocument(c *gin.Context) {
 
 	content, err := h.DocumentService.ReadTaskDocument(taskID, projectID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error":   "Document not found",
-			"details": err.Error(),
-		})
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"Document not found",
+			gin.H{"details": err.Error()},
+		))
 		return
 	}
 
@@ -74,10 +76,11 @@ func (h *TaskDocumentFileHandler) GetPersonalTaskDocument(c *gin.Context) {
 	uid := userID.(int)
 	content, err := h.DocumentService.ReadPersonalTaskDocument(taskID, uid)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error":   "Personal document not found",
-			"details": err.Error(),
-		})
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"Personal document not found",
+			gin.H{"details": err.Error()},
+		))
 		return
 	}
 

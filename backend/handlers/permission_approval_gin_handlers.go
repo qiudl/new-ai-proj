@@ -82,7 +82,11 @@ func (h *PermissionApprovalGinHandler) GetApprovalRequest(c *gin.Context) {
 	response, err := h.approvalService.GetApprovalRequest(c.Request.Context(), requestID, userIDInt)
 	if err != nil {
 		if err.Error() == "approval request not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Approval request not found"})
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(
+				models.ErrCodeNotFound,
+				"Approval request not found",
+				nil,
+			))
 			return
 		}
 		h.logger.Printf("Error getting approval request: %v", err)
@@ -164,7 +168,11 @@ func (h *PermissionApprovalGinHandler) ProcessApprovalDecision(c *gin.Context) {
 	response, err := h.approvalService.ProcessApprovalDecision(c.Request.Context(), requestID, &req, userIDInt)
 	if err != nil {
 		if err.Error() == "approval request not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Approval request not found"})
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(
+				models.ErrCodeNotFound,
+				"Approval request not found",
+				nil,
+			))
 			return
 		}
 		if err.Error() == "user not authorized to approve this request" {
@@ -205,7 +213,11 @@ func (h *PermissionApprovalGinHandler) GetApprovalHistory(c *gin.Context) {
 	response, err := h.approvalService.GetApprovalHistory(c.Request.Context(), requestID, userIDInt, limit, offset)
 	if err != nil {
 		if err.Error() == "approval request not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Approval request not found"})
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(
+				models.ErrCodeNotFound,
+				"Approval request not found",
+				nil,
+			))
 			return
 		}
 		h.logger.Printf("Error getting approval history: %v", err)
@@ -339,7 +351,11 @@ func (h *PermissionApprovalGinHandler) UpdateDelegation(c *gin.Context) {
 	response, err := h.approvalService.UpdateDelegation(c.Request.Context(), delegationID, &req, userIDInt)
 	if err != nil {
 		if err.Error() == "delegation not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Delegation not found"})
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(
+				models.ErrCodeNotFound,
+				"Delegation not found",
+				nil,
+			))
 			return
 		}
 		if err.Error() == "user not authorized to update this delegation" {

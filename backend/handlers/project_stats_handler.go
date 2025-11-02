@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"ai-project-backend/database"
+	"ai-project-backend/models"
 	"database/sql"
 	"net/http"
 	"strconv"
@@ -56,10 +57,11 @@ func (h *ProjectStatsHandler) GetProjectStats(c *gin.Context) {
 	}
 
 	if !projectExists {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Project not found",
-		})
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"Project not found",
+			nil,
+		))
 		return
 	}
 

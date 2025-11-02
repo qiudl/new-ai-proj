@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	// "ai-project-backend/models"
+	"ai-project-backend/models"
 	"ai-project-backend/services"
 )
 
@@ -156,7 +156,11 @@ func (h *SmartTemplateHandler) GetTemplateByID(c *gin.Context) {
 	template, err := h.templateService.GetTemplateByID(c.Request.Context(), templateID)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(
+				models.ErrCodeNotFound,
+				"Template not found",
+				nil,
+			))
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

@@ -217,11 +217,11 @@ func (h *DocumentVersionHandler) GetVersion(c *gin.Context) {
 
 	version, err := h.versionService.GetVersion(c.Request.Context(), documentID, versionNumber, userIDUint64)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": "版本不存在",
-			"error":   err.Error(),
-		})
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"版本不存在",
+			gin.H{"error": err.Error()},
+		))
 		return
 	}
 
@@ -526,11 +526,11 @@ func (h *DocumentVersionHandler) DownloadVersion(c *gin.Context) {
 
 	reader, version, err := h.versionService.DownloadVersion(c.Request.Context(), documentID, versionNumber, userID.(uint64), c)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": "下载版本失败",
-			"error":   err.Error(),
-		})
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"下载版本失败",
+			gin.H{"error": err.Error()},
+		))
 		return
 	}
 	defer reader.Close()

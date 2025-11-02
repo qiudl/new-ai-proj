@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"ai-project-backend/database"
+	"ai-project-backend/models"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -213,7 +214,11 @@ func (h *AnalyticsHandler) GetKPI(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, gin.H{"data": resp, "kpi": name, "from": from.UTC().Format(time.RFC3339)})
 	default:
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("unknown kpi: %s", name)})
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			fmt.Sprintf("unknown kpi: %s", name),
+			nil,
+		))
 	}
 }
 

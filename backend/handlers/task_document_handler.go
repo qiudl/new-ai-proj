@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"ai-project-backend/models"
 )
 
 // TaskDocumentHandler 任务文档处理器
@@ -689,10 +691,11 @@ func (h *TaskDocumentHandler) ViewFile(c *gin.Context) {
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": "File not found",
-		})
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"File not found",
+			nil,
+		))
 		return
 	}
 
@@ -738,10 +741,11 @@ func (h *TaskDocumentHandler) DownloadFile(c *gin.Context) {
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": "File not found",
-		})
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"File not found",
+			nil,
+		))
 		return
 	}
 
