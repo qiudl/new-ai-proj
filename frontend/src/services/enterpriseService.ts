@@ -172,6 +172,7 @@ export interface EnterpriseStats {
 
 class EnterpriseService {
   private readonly API_BASE_URL = '/enterprises';
+  private readonly SYSTEM_API_BASE_URL = '/system/enterprises';
 
   // 统一的 API 响应处理函数
   private handleApiResponse<T>(response: any): T {
@@ -230,7 +231,7 @@ class EnterpriseService {
         page_size: pageSize.toString(),
         ...filters
       });
-      const response = await api.get(`${this.API_BASE_URL}?${params}`);
+      const response = await api.get(`${this.SYSTEM_API_BASE_URL}?${params}`);
       const result = this.handleApiResponse<PaginatedResponse<Enterprise>>(response);
       return result;
     } catch (error: any) {
@@ -247,7 +248,7 @@ class EnterpriseService {
   // 普通用户和企业用户可能无权访问，会返回404/403
   async getEnterprise(id: number): Promise<Enterprise> {
     try {
-      const response = await api.get(`${this.API_BASE_URL}/${id}`);
+      const response = await api.get(`${this.SYSTEM_API_BASE_URL}/${id}`);
       const result = this.handleApiResponse<Enterprise>(response);
       return result;
     } catch (error: any) {
@@ -262,7 +263,7 @@ class EnterpriseService {
   // 创建企业
   async createEnterprise(enterprise: EnterpriseRequest): Promise<Enterprise> {
     try {
-      const response = await api.post(this.API_BASE_URL, enterprise);
+      const response = await api.post(this.SYSTEM_API_BASE_URL, enterprise);
       const result = this.handleApiResponse<Enterprise>(response);
       return result;
     } catch (error) {
@@ -274,7 +275,7 @@ class EnterpriseService {
   // 更新企业
   async updateEnterprise(id: number, enterprise: EnterpriseUpdateRequest): Promise<Enterprise> {
     try {
-      const response = await api.put(`${this.API_BASE_URL}/${id}`, enterprise);
+      const response = await api.put(`${this.SYSTEM_API_BASE_URL}/${id}`, enterprise);
       const result = this.handleApiResponse<Enterprise>(response);
       return result;
     } catch (error) {
@@ -286,7 +287,7 @@ class EnterpriseService {
   // 删除企业
   async deleteEnterprise(id: number): Promise<void> {
     try {
-      await api.delete(`${this.API_BASE_URL}/${id}`);
+      await api.delete(`${this.SYSTEM_API_BASE_URL}/${id}`);
     } catch (error) {
       console.error('❌ 删除企业失败:', error);
       throw error;

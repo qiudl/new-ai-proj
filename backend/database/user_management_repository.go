@@ -81,6 +81,20 @@ func (r *UserManagementRepository) UpdateUser(ctx context.Context, id int, req *
 		user.Profile = *req.Profile
 	}
 
+	// Update enterprise user specific fields
+	if req.ContactPersonName != nil {
+		user.ContactPersonName = req.ContactPersonName
+	}
+	if req.ContactPhone != nil {
+		user.ContactPhone = req.ContactPhone
+	}
+	if req.DepartmentTitle != nil {
+		user.DepartmentTitle = req.DepartmentTitle
+	}
+	if req.Notes != nil {
+		user.Notes = req.Notes
+	}
+
 	// Update using the main UserRepository which handles enterprise routing
 	return r.userRepo.Update(ctx, user)
 }

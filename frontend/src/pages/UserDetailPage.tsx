@@ -50,6 +50,7 @@ import {
 } from '../types/user';
 import { userService } from '../services/userService';
 import userManagementService from '../services/userManagementService';
+import enterpriseService, { EnterpriseDepartment } from '../services/enterpriseService';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -81,11 +82,13 @@ const UserDetailPage: React.FC = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [activityLogs, setActivityLogs] = useState<UserActivityLog[]>([]);
   const [userProjects, setUserProjects] = useState<UserProjects[]>([]);
-  
+  const [departments, setDepartments] = useState<EnterpriseDepartment[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+
   // Modal states
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [resetPasswordModalVisible, setResetPasswordModalVisible] = useState(false);
-  
+
   // Forms
   const [editForm] = Form.useForm();
   const [resetPasswordForm] = Form.useForm();
@@ -112,9 +115,17 @@ const UserDetailPage: React.FC = () => {
         status: response.data.status,
         contact_person_name: response.data.contact_person_name,
         contact_phone: response.data.contact_phone,
+        department_id: response.data.department_id,
         department_title: response.data.department_title,
         notes: response.data.notes
       });
+
+      // Load departments if user is a company user with enterprise_id or company_id
+      // Use enterprise_id if available, otherwise fall back to company_id (legacy)
+      const enterpriseId = response.data.enterprise_id || response.data.company_id;
+      if (response.data.user_type === 'company' && enterpriseId) {
+        loadDepartments(enterpriseId);
+      }
     } catch (error) {
       message.error('加载用户详情失败');
       console.error('Error loading user detail:', error);
@@ -141,7 +152,7 @@ const UserDetailPage: React.FC = () => {
   const loadUserProjects = async () => {
     try {
       if (!userId) return;
-      
+
       const response = await userManagementService.getUserProjects(Number(userId));
       setUserProjects(response.data);
     } catch (error) {
@@ -150,12 +161,49 @@ const UserDetailPage: React.FC = () => {
     }
   };
 
-  const handleEditUser = async (values: UserUpdateRequest) => {
+  const loadDepartments = async (enterpriseId: number) => {
+    try {
+      setDepartmentsLoading(true);
+      // Use getDepartmentsWithActualCount which calls /departments/stats endpoint
+      const departments = await enterpriseService.getDepartmentsWithActualCount(enterpriseId);
+      setDepartments(departments || []);
+    } catch (error) {
+      console.error('Error loading departments:', error);
+      message.error('加载部门列表失败');
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  };
+
+  const handleEditUser = async (values: any) => {
     try {
       setEditLoading(true);
       console.log('🐛 [UserDetailPage] Form values before submit:', values);
       console.log('🐛 [UserDetailPage] User type:', user?.user_type);
-      await userManagementService.updateUser(Number(userId), values);
+
+      // Extract department_id for separate update
+      const { department_id, ...userValues } = values;
+
+      // Update basic user information
+      await userManagementService.updateUser(Number(userId), userValues);
+
+      // If department_id changed and user is enterprise user, update department separately
+      const enterpriseId = user?.enterprise_id || user?.company_id;
+      if (user?.user_type === 'company' && enterpriseId &&
+          department_id !== undefined && department_id !== user?.department_id) {
+        try {
+          await enterpriseService.updateUserDepartment(
+            enterpriseId,
+            Number(userId),
+            department_id || null
+          );
+          console.log('✅ Department updated successfully');
+        } catch (deptError) {
+          console.error('❌ Failed to update department:', deptError);
+          message.warning('用户信息已更新，但部门更新失败');
+        }
+      }
+
       message.success('用户信息更新成功');
       setEditModalVisible(false);
       loadUserDetail();
@@ -591,11 +639,30 @@ const UserDetailPage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          
+
+          {user?.user_type === 'company' && (user?.enterprise_id || user?.company_id) && (
+            <Form.Item label="部门" name="department_id">
+              <Select
+                placeholder="选择部门"
+                loading={departmentsLoading}
+                allowClear
+                showSearch
+                optionFilterProp="children"
+                getPopupContainer={(triggerNode) => triggerNode.parentElement}
+              >
+                {departments.map((dept) => (
+                  <Select.Option key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
+
           <Form.Item label="部门职位" name="department_title">
-            <Input />
+            <Input placeholder="如：技术总监、产品经理等" />
           </Form.Item>
-          
+
           <Form.Item label="备注" name="notes">
             <Input.TextArea rows={3} />
           </Form.Item>

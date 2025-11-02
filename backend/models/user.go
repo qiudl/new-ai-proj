@@ -86,13 +86,18 @@ type UserCreateRequest struct {
 
 // UserUpdateRequest represents a user update request
 type UserUpdateRequest struct {
-	Username  *string      `json:"username,omitempty" validate:"omitempty,min=3,max=50"`
-	Email     *string      `json:"email,omitempty" validate:"omitempty,email"`
-	UserType  *string      `json:"user_type,omitempty" validate:"omitempty,oneof=system company"`
-	CompanyID *int         `json:"company_id,omitempty"`
-	Role      *string      `json:"role,omitempty" validate:"omitempty"`
-	Status    *string      `json:"status,omitempty" validate:"omitempty,oneof=active inactive suspended"`
-	Profile   *UserProfile `json:"profile,omitempty"`
+	Username          *string      `json:"username,omitempty" validate:"omitempty,min=3,max=50"`
+	Email             *string      `json:"email,omitempty" validate:"omitempty,email"`
+	UserType          *string      `json:"user_type,omitempty" validate:"omitempty,oneof=system company"`
+	CompanyID         *int         `json:"company_id,omitempty"`
+	Role              *string      `json:"role,omitempty" validate:"omitempty"`
+	Status            *string      `json:"status,omitempty" validate:"omitempty,oneof=active inactive suspended"`
+	Profile           *UserProfile `json:"profile,omitempty"`
+	// Enterprise user fields
+	ContactPersonName *string `json:"contact_person_name,omitempty"`
+	ContactPhone      *string `json:"contact_phone,omitempty"`
+	DepartmentTitle   *string `json:"department_title,omitempty"`
+	Notes             *string `json:"notes,omitempty"`
 }
 
 // UserListParams represents parameters for listing users

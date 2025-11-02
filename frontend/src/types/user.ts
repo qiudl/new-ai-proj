@@ -18,6 +18,7 @@ export interface User {
   user_type: UserType;
   company_id?: number; // Legacy field, kept for compatibility
   enterprise_id?: number; // New enterprise system field
+  department_id?: number; // Department ID in enterprise_departments table
   company_user_id?: number;
   role: UserRole;
   status: UserStatus;
@@ -50,6 +51,8 @@ export interface UserUpdateRequest {
   email?: string;
   user_type?: UserType;
   company_id?: number;
+  enterprise_id?: number;
+  department_id?: number;
   role?: UserRole;
   status?: UserStatus;
   profile?: UserProfile;
