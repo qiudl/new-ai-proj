@@ -166,7 +166,7 @@ const AuditLogPage: React.FC = () => {
     try {
       // 临时实现：导出当前页面数据
       const csvData = auditLogs.map(log => ({
-        时间: dayjs(log.created_at).format('YYYY-MM-DD HH:mm:ss'),
+        时间: dayjs(log.timestamp).format('YYYY-MM-DD HH:mm:ss'),
         用户: log.user_name || `用户${log.user_id}`,
         操作: getActionText(log.action),
         实体类型: getEntityTypeText(log.entity_type),
@@ -248,15 +248,15 @@ const AuditLogPage: React.FC = () => {
   const columns: unknown[] = [
     {
       title: '时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
+      dataIndex: 'timestamp',
+      key: 'timestamp',
       width: 160,
       render: (text) => (
         <Tooltip title={dayjs(text).format('YYYY-MM-DD HH:mm:ss')}>
           <Text>{dayjs(text).format('MM-DD HH:mm')}</Text>
         </Tooltip>
       ),
-      sorter: (a, b) => dayjs(a.created_at).unix() - dayjs(b.created_at).unix(),
+      sorter: (a, b) => dayjs(a.timestamp).unix() - dayjs(b.timestamp).unix(),
     },
     {
       title: '用户',
@@ -727,7 +727,7 @@ const AuditLogPage: React.FC = () => {
             <Row gutter={16}>
               <Col span={12}>
                 <Text strong>操作时间：</Text>
-                <div>{dayjs(selectedLog.created_at).format('YYYY-MM-DD HH:mm:ss')}</div>
+                <div>{dayjs(selectedLog.timestamp).format('YYYY-MM-DD HH:mm:ss')}</div>
               </Col>
               <Col span={12}>
                 <Text strong>操作类型：</Text>

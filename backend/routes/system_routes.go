@@ -260,7 +260,10 @@ func registerAuditRoutes(authorized *gin.RouterGroup, app ApplicationInterface) 
 	// 检查AuditHandler是否为nil
 	auditHandler := app.GetAuditHandler()
 	if auditHandler == nil {
-		log.Printf("[ERROR] AuditHandler is nil, cannot register audit routes!")
+		log.Printf("[ERROR] ========================================")
+		log.Printf("[ERROR] AuditHandler is nil!!!")
+		log.Printf("[ERROR] 审计日志路由将不会被注册!")
+		log.Printf("[ERROR] ========================================")
 		return
 	}
 	log.Printf("[DEBUG] AuditHandler OK: %p", auditHandler)
