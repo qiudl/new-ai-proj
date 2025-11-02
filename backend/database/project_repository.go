@@ -729,3 +729,78 @@ func (r *PostgresProjectRepository) HardDeleteProject(ctx context.Context, id in
 
 	return nil
 }
+
+// GetProjectsByMemberUserID gets all projects where the user is a member (through project_members table)
+func (r *PostgresProjectRepository) GetProjectsByMemberUserID(ctx context.Context, userID int) ([]map[string]interface{}, error) {
+	query := `
+		SELECT
+			p.id,
+			p.name,
+			p.status,
+			p.created_at,
+			p.updated_at,
+			pm.created_at as joined_at,
+			r.name as role_name
+		FROM projects p
+		INNER JOIN project_members pm ON p.id = pm.project_id
+		LEFT JOIN roles r ON pm.role_id = r.id
+		WHERE pm.user_id = $1
+			AND p.deleted_at IS NULL
+		ORDER BY pm.created_at DESC`
+
+	exec := r.getExecer()
+	rows, err := exec.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user projects: %w", err)
+	}
+	defer rows.Close()
+
+	var projects []map[string]interface{}
+	for rows.Next() {
+		var (
+			id        int
+			name      string
+			status    string
+			createdAt sql.NullTime
+			updatedAt sql.NullTime
+			joinedAt  sql.NullTime
+			roleName  sql.NullString
+		)
+
+		err := rows.Scan(&id, &name, &status, &createdAt, &updatedAt, &joinedAt, &roleName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan project row: %w", err)
+		}
+
+		// Determine last_access (for now, use joinedAt as a placeholder)
+		var lastAccess *string
+		if joinedAt.Valid {
+			lastAccessStr := joinedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+			lastAccess = &lastAccessStr
+		}
+
+		project := map[string]interface{}{
+			"id":     id,
+			"name":   name,
+			"status": status,
+		}
+
+		if roleName.Valid {
+			project["role"] = roleName.String
+		} else {
+			project["role"] = "成员"
+		}
+
+		if lastAccess != nil {
+			project["last_access"] = *lastAccess
+		}
+
+		projects = append(projects, project)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating project rows: %w", err)
+	}
+
+	return projects, nil
+}

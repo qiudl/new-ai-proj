@@ -53,6 +53,7 @@ type Application struct {
 	documentHandler          *handlers.DocumentHandler          // Document handler instance (legacy)
 	routerDocumentHandler    *handlers.RouterDocumentHandler    // Router-based document handler
 	userProfileHandler    *handlers.UserProfileHandler    // User profile handler instance
+	userEnterpriseHandler *handlers.UserEnterpriseHandler // User enterprise handler instance
 	enterpriseHandler     *handlers.EnterpriseHandler     // Enterprise handler instance
 	projectHandler        *handlers.ProjectHandler        // Project handler instance
 	taskHandler           *handlers.TaskHandler           // Task handler instance
@@ -129,6 +130,9 @@ func NewApplication() (*Application, error) {
 
 	// Initialize User Profile Handler
 	userProfileHandler := handlers.NewUserProfileHandler(db, logger, validate)
+
+	// Initialize User Enterprise Handler
+	userEnterpriseHandler := handlers.NewUserEnterpriseHandler(db)
 
 	// Initialize Enterprise Service and Handler
 	auditService := services.NewAuditService(db)
@@ -347,6 +351,7 @@ func NewApplication() (*Application, error) {
 		documentHandler:       documentHandler,
 		routerDocumentHandler: routerDocumentHandler,
 		userProfileHandler:    userProfileHandler,
+		userEnterpriseHandler: userEnterpriseHandler,
 		enterpriseHandler:     enterpriseHandler,
 		projectHandler:        projectHandler,
 		taskHandler:              taskHandler,
@@ -501,6 +506,11 @@ func (app *Application) GetUserManagementHandler() *handlers.UserManagementHandl
 	// Initialize UserManagementRepository and UserManagementHandler
 	userRepo := database.NewUserManagementRepository(app.db.(*database.PostgresDB).DB())
 	return handlers.NewUserManagementHandler(userRepo)
+}
+
+// GetUserEnterpriseHandler returns the user enterprise handler
+func (app *Application) GetUserEnterpriseHandler() *handlers.UserEnterpriseHandler {
+	return app.userEnterpriseHandler
 }
 
 // GetEnterpriseHandler returns the enterprise handler

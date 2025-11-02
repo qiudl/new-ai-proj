@@ -1,7 +1,7 @@
 package routes
 
 import (
-	// "ai-project-backend/middleware" // 暂时未使用，注释掉避免编译警告
+	"ai-project-backend/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -10,6 +10,7 @@ func RegisterUserRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	// 获取用户资料处理器和用户管理处理器
 	userProfileHandler := app.GetUserProfileHandler()
 	userManagementHandler := app.GetUserManagementHandler()
+	userEnterpriseHandler := app.GetUserEnterpriseHandler()
 
 	// 用户资料路由 - 已经通过authorized组应用了JWT中间件，不需要重复应用
 	users := authorized.Group("/users")
@@ -40,5 +41,11 @@ func RegisterUserRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 
 		// 用户活动时间线
 		users.GET("/:id/activity", app.GetTimelineHandler().GetUserActivity)
+
+		// 用户企业信息管理 - 仅超级管理员可访问
+		users.PUT("/:id/enterprise",
+			middleware.SystemUserOnlyMiddleware(),
+			userEnterpriseHandler.UpdateUserEnterprise)
+		users.GET("/:id/enterprise-details", userEnterpriseHandler.GetUserEnterpriseDetails)
 	}
 }

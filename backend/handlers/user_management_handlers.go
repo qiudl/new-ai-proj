@@ -17,15 +17,17 @@ import (
 
 // UserManagementHandler handles user management operations
 type UserManagementHandler struct {
-	userRepo  *database.UserManagementRepository
-	validator *validator.Validate
+	userRepo    *database.UserManagementRepository
+	projectRepo *database.PostgresProjectRepository
+	validator   *validator.Validate
 }
 
 // NewUserManagementHandler creates a new user management handler
-func NewUserManagementHandler(userRepo *database.UserManagementRepository) *UserManagementHandler {
+func NewUserManagementHandler(userRepo *database.UserManagementRepository, projectRepo *database.PostgresProjectRepository) *UserManagementHandler {
 	return &UserManagementHandler{
-		userRepo:  userRepo,
-		validator: validator.New(),
+		userRepo:    userRepo,
+		projectRepo: projectRepo,
+		validator:   validator.New(),
 	}
 }
 
@@ -530,12 +532,22 @@ func (h *UserManagementHandler) GetUserProjects(c *gin.Context) {
 		return
 	}
 
-	// For now, return empty list as project association feature is not implemented
-	projects := make([]map[string]interface{}, 0)
-	
+	// Get user's projects from project_members table
+	projects, err := h.projectRepo.GetProjectsByMemberUserID(c.Request.Context(), userID)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve user projects", err.Error())
+		c.JSON(models.GetStatusCode(models.ErrCodeInternal), response)
+		return
+	}
+
+	// Return empty array if no projects found
+	if projects == nil {
+		projects = make([]map[string]interface{}, 0)
+	}
+
 	response := models.NewSuccessResponse(map[string]interface{}{
-		"data": projects,
-		"total": 0,
+		"data":  projects,
+		"total": len(projects),
 	}, "User projects retrieved successfully")
 	c.JSON(http.StatusOK, response)
 }

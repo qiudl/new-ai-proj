@@ -113,6 +113,7 @@ type ApplicationInterface interface {
 	GetUserTimerHandler() *handlers.UserTimerHandler
 	GetUserProfileHandler() *handlers.UserProfileHandler
 	GetUserManagementHandler() *handlers.UserManagementHandler
+	GetUserEnterpriseHandler() *handlers.UserEnterpriseHandler
 
 	// 企业管理处理器
 	GetEnterpriseHandler() *handlers.EnterpriseHandler
