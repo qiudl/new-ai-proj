@@ -452,14 +452,14 @@ const UserDetailPage: React.FC = () => {
                     <Col span={8}>
                       <Statistic
                         title="企业ID"
-                        value={user.enterprise_id || '-'}
+                        value={user.enterprise_id || user.company_id || '-'}
                         prefix={<BankOutlined />}
                       />
                     </Col>
                     <Col span={16}>
-                      <Statistic 
-                        title="部门" 
-                        value={user.department_title || '-'} 
+                      <Statistic
+                        title="部门"
+                        value={user.department_title || user.department_name || '-'}
                         prefix={<TeamOutlined />}
                       />
                     </Col>
