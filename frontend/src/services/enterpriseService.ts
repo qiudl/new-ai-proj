@@ -238,13 +238,18 @@ class EnterpriseService {
   }
 
   // 获取单个企业详情
+  // 注意: 此API使用系统管理路径，需要system.enterprise.read权限
+  // 普通用户和企业用户可能无权访问，会返回404/403
   async getEnterprise(id: number): Promise<Enterprise> {
     try {
       const response = await api.get(`${this.API_BASE_URL}/${id}`);
       const result = this.handleApiResponse<Enterprise>(response);
       return result;
-    } catch (error) {
-      console.error('❌ 获取企业详情失败:', error);
+    } catch (error: any) {
+      // 404/403是权限不足的正常情况，不需要打印错误日志
+      if (error?.response?.status !== 404 && error?.response?.status !== 403) {
+        console.error('❌ 获取企业详情失败:', error);
+      }
       throw error;
     }
   }
