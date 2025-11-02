@@ -19,14 +19,16 @@ import (
 type UserManagementHandler struct {
 	userRepo    *database.UserManagementRepository
 	projectRepo *database.PostgresProjectRepository
+	auditRepo   *database.PostgresAuditRepository
 	validator   *validator.Validate
 }
 
 // NewUserManagementHandler creates a new user management handler
-func NewUserManagementHandler(userRepo *database.UserManagementRepository, projectRepo *database.PostgresProjectRepository) *UserManagementHandler {
+func NewUserManagementHandler(userRepo *database.UserManagementRepository, projectRepo *database.PostgresProjectRepository, auditRepo *database.PostgresAuditRepository) *UserManagementHandler {
 	return &UserManagementHandler{
 		userRepo:    userRepo,
 		projectRepo: projectRepo,
+		auditRepo:   auditRepo,
 		validator:   validator.New(),
 	}
 }
@@ -590,13 +592,42 @@ func (h *UserManagementHandler) GetUserActivityLog(c *gin.Context) {
 		return
 	}
 
-	// For now, return empty list as activity logging feature is not implemented
-	activities := make([]map[string]interface{}, 0)
-	
+	// Get user activity logs from audit_logs table
+	offset := (page - 1) * pageSize
+	filter := &models.AuditLogFilter{
+		UserID: &userID,
+		Offset: offset,
+		Limit:  pageSize,
+	}
+
+	auditLogs, total, err := h.auditRepo.GetAuditLogs(c.Request.Context(), filter)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve activity log", err.Error())
+		c.JSON(models.GetStatusCode(models.ErrCodeInternal), response)
+		return
+	}
+
+	// Transform audit logs to activity log format
+	activities := make([]map[string]interface{}, 0, len(auditLogs))
+	for _, log := range auditLogs {
+		activity := map[string]interface{}{
+			"id":          fmt.Sprintf("%d", log.ID),
+			"action":      log.Action,
+			"description": log.Description,
+			"created_at":  log.Timestamp.Format(time.RFC3339),
+		}
+
+		if log.IPAddress != nil {
+			activity["ip_address"] = *log.IPAddress
+		}
+
+		activities = append(activities, activity)
+	}
+
 	response := models.NewSuccessResponse(map[string]interface{}{
-		"data": activities,
-		"total": 0,
-		"page": page,
+		"data":      activities,
+		"total":     total,
+		"page":      page,
 		"page_size": pageSize,
 	}, "User activity log retrieved successfully")
 	c.JSON(http.StatusOK, response)
