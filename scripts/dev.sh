@@ -170,13 +170,21 @@ start_backend() {
     if is_port_busy "$BACKEND_PORT"; then
         log_warning "端口 $BACKEND_PORT 已被占用"
 
-        read -p "是否停止占用进程并重启? (y/N) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
+        # 检查是否在交互式终端中运行
+        if [ -t 0 ]; then
+            read -p "是否停止占用进程并重启? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                lsof -ti ":$BACKEND_PORT" | xargs kill -9 2>/dev/null || true
+                sleep 2
+            else
+                return 1
+            fi
+        else
+            # 非交互模式：自动杀死占用进程
+            log "非交互模式：自动停止占用进程..."
             lsof -ti ":$BACKEND_PORT" | xargs kill -9 2>/dev/null || true
             sleep 2
-        else
-            return 1
         fi
     fi
 
@@ -187,19 +195,31 @@ start_backend() {
     if [ ! -f "./backend" ]; then
         log_warning "backend 可执行文件不存在"
 
-        read -p "是否立即构建? (Y/n) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-            log "正在构建后端..."
+        # 检查是否在交互式终端中运行
+        if [ -t 0 ]; then
+            read -p "是否立即构建? (Y/n) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                log "正在构建后端..."
+                if go build -o backend main.go; then
+                    log_success "构建完成"
+                else
+                    log_error "构建失败"
+                    return 1
+                fi
+            else
+                log_error "取消启动"
+                return 1
+            fi
+        else
+            # 非交互模式：自动构建
+            log "非交互模式：自动构建后端..."
             if go build -o backend main.go; then
                 log_success "构建完成"
             else
                 log_error "构建失败"
                 return 1
             fi
-        else
-            log_error "取消启动"
-            return 1
         fi
     fi
 
@@ -294,13 +314,21 @@ start_frontend() {
     if is_port_busy "$FRONTEND_PORT"; then
         log_warning "端口 $FRONTEND_PORT 已被占用"
 
-        read -p "是否停止占用进程并重启? (y/N) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
+        # 检查是否在交互式终端中运行
+        if [ -t 0 ]; then
+            read -p "是否停止占用进程并重启? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                lsof -ti ":$FRONTEND_PORT" | xargs kill -9 2>/dev/null || true
+                sleep 2
+            else
+                return 1
+            fi
+        else
+            # 非交互模式：自动杀死占用进程
+            log "非交互模式：自动停止占用进程..."
             lsof -ti ":$FRONTEND_PORT" | xargs kill -9 2>/dev/null || true
             sleep 2
-        else
-            return 1
         fi
     fi
 
@@ -311,19 +339,31 @@ start_frontend() {
     if [ ! -d "node_modules" ]; then
         log_warning "node_modules 不存在"
 
-        read -p "是否立即安装依赖? (Y/n) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-            log "正在安装依赖..."
+        # 检查是否在交互式终端中运行
+        if [ -t 0 ]; then
+            read -p "是否立即安装依赖? (Y/n) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                log "正在安装依赖..."
+                if npm install; then
+                    log_success "依赖安装完成"
+                else
+                    log_error "依赖安装失败"
+                    return 1
+                fi
+            else
+                log_error "取消启动"
+                return 1
+            fi
+        else
+            # 非交互模式：自动安装依赖
+            log "非交互模式：自动安装依赖..."
             if npm install; then
                 log_success "依赖安装完成"
             else
                 log_error "依赖安装失败"
                 return 1
             fi
-        else
-            log_error "取消启动"
-            return 1
         fi
     fi
 
