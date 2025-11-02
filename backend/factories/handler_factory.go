@@ -111,7 +111,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 
 	// 用户管理处理器
 	userManagementRepo := database.NewUserManagementRepository(f.db.GetDB())
-	projectRepo := database.NewPostgresProjectRepository(f.db.GetDB())
+	projectRepo := database.NewPostgresProjectRepository(f.db.GetDB().(*sql.DB))
 	allHandlers.UserManagementHandler = handlers.NewUserManagementHandler(userManagementRepo, projectRepo)
 
 	// 用户统计处理器

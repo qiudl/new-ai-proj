@@ -14,6 +14,11 @@ type PostgresProjectRepository struct {
 	db interface{}
 }
 
+// NewPostgresProjectRepository creates a new PostgreSQL project repository
+func NewPostgresProjectRepository(db *sql.DB) *PostgresProjectRepository {
+	return &PostgresProjectRepository{db: db}
+}
+
 // getExecer returns the appropriate execer (DB or Tx)
 func (r *PostgresProjectRepository) getExecer() execer {
 	if tx, ok := r.db.(*sql.Tx); ok {
