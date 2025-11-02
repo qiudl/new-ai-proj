@@ -21,7 +21,9 @@ import {
   Radio,
   Breadcrumb,
   Popover,
-  Checkbox
+  Checkbox,
+  Divider,
+  InputNumber
 } from 'antd';
 import {
   UserOutlined,
@@ -60,6 +62,7 @@ import userManagementService from '../services/userManagementService';
 // import CompanyService from '../services/companyService'; // Removed - company service no longer exists
 import enterpriseService from '../services/enterpriseService';
 import EnterpriseSelector from '../components/EnterpriseSelector';
+import DepartmentSelector from '../components/DepartmentSelector';
 import { Enterprise } from '../types/enterprise';
 import PermissionWrapper from '../components/PermissionWrapper';
 import { USER_PERMISSIONS } from '../constants/permissions';
@@ -92,6 +95,10 @@ const UserManagementPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+
+  // 企业归属管理状态
+  const [selectedEnterpriseIdForDept, setSelectedEnterpriseIdForDept] = useState<number | undefined>(undefined);
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
 
   // 表单实例
   const [createForm] = Form.useForm();
@@ -382,18 +389,68 @@ const UserManagementPage: React.FC = () => {
   }, [createForm, refreshUsers, refreshStats]);
 
   // 编辑用户
-  const handleEditUser = useCallback(async (values: UserUpdateRequest) => {
+  const handleEditUser = useCallback(async (values: any) => {
     if (!editingUser) return;
-    
+
     try {
-      await userManagementService.updateUser(editingUser.id, values);
-      message.success('用户信息更新成功');
+      // 1. 更新用户基本信息
+      const basicUpdateData: UserUpdateRequest = {
+        username: values.username,
+        email: values.email,
+        user_type: values.user_type,
+        role: values.role,
+        status: values.status,
+        profile: values.profile
+      };
+
+      await userManagementService.updateUser(editingUser.id, basicUpdateData);
+
+      // 2. 更新企业归属信息（如果有修改）
+      const enterpriseData: any = {};
+      let hasEnterpriseChanges = false;
+
+      if (values.company_id !== undefined) {
+        enterpriseData.company_id = values.company_id || null;
+        hasEnterpriseChanges = true;
+      }
+      if (values.enterprise_id_for_mgmt !== undefined) {
+        enterpriseData.enterprise_id = values.enterprise_id_for_mgmt || null;
+        hasEnterpriseChanges = true;
+      }
+      if (values.department_id_for_mgmt !== undefined) {
+        enterpriseData.department_id = values.department_id_for_mgmt || null;
+        hasEnterpriseChanges = true;
+      }
+      if (values.position_for_mgmt !== undefined) {
+        enterpriseData.position = values.position_for_mgmt || null;
+        hasEnterpriseChanges = true;
+      }
+      if (values.sync_to_enterprise !== undefined) {
+        enterpriseData.sync_to_enterprise = values.sync_to_enterprise;
+        hasEnterpriseChanges = true;
+      }
+
+      // 如果有企业归属字段的更改，调用企业归属更新API
+      if (hasEnterpriseChanges && Object.keys(enterpriseData).length > 0) {
+        try {
+          await userManagementService.updateUserEnterprise(editingUser.id, enterpriseData);
+          message.success('用户信息和企业归属更新成功');
+        } catch (enterpriseError) {
+          console.error('企业归属更新失败:', enterpriseError);
+          message.warning('用户基本信息已更新，但企业归属更新失败');
+        }
+      } else {
+        message.success('用户信息更新成功');
+      }
+
       setEditModalVisible(false);
       setEditingUser(null);
       editForm.resetFields();
+      setSelectedEnterpriseIdForDept(undefined);
       refreshUsers();
       refreshStats();
     } catch (error) {
+      console.error('用户信息更新失败:', error);
       message.error('用户信息更新失败');
     }
   }, [editingUser, editForm, refreshUsers, refreshStats]);
@@ -491,8 +548,10 @@ const UserManagementPage: React.FC = () => {
   }, [searchParams]);
 
   // 打开编辑模态框
-  const openEditModal = useCallback((user: User) => {
+  const openEditModal = useCallback(async (user: User) => {
     setEditingUser(user);
+
+    // 基本信息
     editForm.setFieldsValue({
       username: user.username,
       email: user.email,
@@ -503,6 +562,29 @@ const UserManagementPage: React.FC = () => {
       profile: user.profile
     });
     setSelectedUserType(user.user_type);
+
+    // 加载企业归属详情
+    try {
+      const enterpriseDetails = await userManagementService.getUserEnterpriseDetails(user.id);
+
+      // 设置企业归属管理字段
+      editForm.setFieldsValue({
+        company_id: enterpriseDetails.user.company_id,
+        enterprise_id_for_mgmt: enterpriseDetails.enterprise_user?.enterprise_id,
+        department_id_for_mgmt: enterpriseDetails.enterprise_user?.department_id,
+        position_for_mgmt: enterpriseDetails.enterprise_user?.position,
+        sync_to_enterprise: false // 默认不勾选
+      });
+
+      // 设置企业ID以便部门选择器使用
+      if (enterpriseDetails.enterprise_user?.enterprise_id) {
+        setSelectedEnterpriseIdForDept(enterpriseDetails.enterprise_user.enterprise_id);
+      }
+    } catch (error) {
+      console.error('加载企业归属信息失败:', error);
+      // 如果加载失败，不影响基本信息编辑
+    }
+
     setEditModalVisible(true);
   }, [editForm]);
 
@@ -1447,6 +1529,69 @@ const UserManagementPage: React.FC = () => {
           </Row>
           <Form.Item name={['profile', 'department']} label="部门">
             <Input placeholder="请输入部门" />
+          </Form.Item>
+
+          {/* 企业归属管理区域（仅超级管理员可见）*/}
+          <Divider orientation="left">企业归属管理（仅超级管理员）</Divider>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="company_id"
+                label="公司ID（旧模型）"
+                tooltip="向后兼容的公司ID字段"
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  placeholder="请输入公司ID"
+                  min={0}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="enterprise_id_for_mgmt"
+                label="企业ID（新模型）"
+                tooltip="企业管理系统中的企业ID"
+              >
+                <EnterpriseSelector
+                  placeholder="请选择企业"
+                  onChange={(value) => {
+                    setSelectedEnterpriseIdForDept(value);
+                    // 清空部门选择
+                    editForm.setFieldValue('department_id_for_mgmt', undefined);
+                  }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="department_id_for_mgmt"
+                label="部门ID"
+                tooltip="企业下的部门ID，需先选择企业"
+              >
+                <DepartmentSelector
+                  enterpriseId={selectedEnterpriseIdForDept}
+                  placeholder="请先选择企业"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="position_for_mgmt"
+                label="职位"
+              >
+                <Input placeholder="请输入职位" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item
+            name="sync_to_enterprise"
+            valuePropName="checked"
+            tooltip="是否同步到enterprise_users表（新企业管理系统）"
+          >
+            <Checkbox>同步到enterprise_users表</Checkbox>
           </Form.Item>
         </Form>
       </Modal>
