@@ -458,8 +458,8 @@ const UserDetailPage: React.FC = () => {
                     </Col>
                     <Col span={16}>
                       <Statistic
-                        title="部门"
-                        value={user.department_title || user.department_name || '-'}
+                        title="职位"
+                        value={user.department_title || '-'}
                         prefix={<TeamOutlined />}
                       />
                     </Col>
