@@ -503,9 +503,10 @@ func (app *Application) GetUserProfileHandler() *handlers.UserProfileHandler {
 
 // GetUserManagementHandler returns the user management handler
 func (app *Application) GetUserManagementHandler() *handlers.UserManagementHandler {
-	// Initialize UserManagementRepository and UserManagementHandler
+	// Initialize UserManagementRepository and ProjectRepository
 	userRepo := database.NewUserManagementRepository(app.db.(*database.PostgresDB).DB())
-	return handlers.NewUserManagementHandler(userRepo)
+	projectRepo := database.NewPostgresProjectRepository(app.db.(*database.PostgresDB).DB())
+	return handlers.NewUserManagementHandler(userRepo, projectRepo)
 }
 
 // GetUserEnterpriseHandler returns the user enterprise handler
