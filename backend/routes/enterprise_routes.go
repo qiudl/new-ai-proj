@@ -19,12 +19,15 @@ func RegisterEnterpriseRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 
 		// 企业用户管理
 		enterprises.GET("/:id/users", app.GetEnterpriseHandler().GetEnterpriseUsers)
+		enterprises.GET("/:id/users/unassigned", app.GetEnterpriseHandler().GetUnassignedEnterpriseUsers)
 		enterprises.POST("/:id/users", app.GetEnterpriseHandler().CreateEnterpriseUser)
 		enterprises.GET("/:id/users/:userId", app.GetEnterpriseHandler().GetEnterpriseUser)
 		enterprises.PUT("/:id/users/:userId", app.GetEnterpriseHandler().UpdateEnterpriseUser)
+		enterprises.PUT("/:id/users/:userId/department", app.GetEnterpriseHandler().UpdateEnterpriseUserDepartment)
 
 		// 企业部门管理
 		enterprises.GET("/:id/departments", app.GetEnterpriseHandler().GetEnterpriseDepartments)
+		enterprises.GET("/:id/departments/stats", app.GetEnterpriseHandler().GetEnterpriseDepartmentStats)
 		enterprises.POST("/:id/departments", app.GetEnterpriseHandler().CreateEnterpriseDepartment)
 		enterprises.PUT("/:id/departments/:dept_id", app.GetEnterpriseHandler().UpdateEnterpriseDepartment)
 		enterprises.DELETE("/:id/departments/:dept_id", app.GetEnterpriseHandler().DeleteEnterpriseDepartment)

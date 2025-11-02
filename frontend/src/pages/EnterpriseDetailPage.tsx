@@ -30,6 +30,8 @@ import enterpriseService from '../services/enterpriseService';
 import { Enterprise } from '../types/enterprise';
 import { formatDate } from '../utils/formatters';
 import EnterpriseProjectManager from '../components/EnterpriseProjectManager';
+import EnterpriseDepartmentManagement from '../components/EnterpriseDepartmentManagement';
+import EnterprisePersonnelManagement from '../components/EnterprisePersonnelManagement';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -146,7 +148,7 @@ const EnterpriseDetailPage: React.FC = () => {
       </div>
 
       {/* 主要内容Tabs */}
-      <Tabs defaultActiveKey="projects" size="large">
+      <Tabs defaultActiveKey="departments" size="large">
         <Tabs.TabPane
           tab={
             <span>
@@ -333,7 +335,37 @@ const EnterpriseDetailPage: React.FC = () => {
         </Col>
       </Row>
         </Tabs.TabPane>
-        
+
+        <Tabs.TabPane
+          tab={
+            <span>
+              <TeamOutlined />
+              部门管理
+            </span>
+          }
+          key="departments"
+        >
+          <EnterpriseDepartmentManagement
+            enterpriseId={enterprise.id}
+            enterpriseName={enterprise.name}
+          />
+        </Tabs.TabPane>
+
+        <Tabs.TabPane
+          tab={
+            <span>
+              <UserOutlined />
+              人员管理
+            </span>
+          }
+          key="personnel"
+        >
+          <EnterprisePersonnelManagement
+            enterpriseId={enterprise.id}
+            enterpriseName={enterprise.name}
+          />
+        </Tabs.TabPane>
+
         <Tabs.TabPane
           tab={
             <span>
@@ -343,8 +375,8 @@ const EnterpriseDetailPage: React.FC = () => {
           }
           key="projects"
         >
-          <EnterpriseProjectManager 
-            enterpriseId={enterprise.id} 
+          <EnterpriseProjectManager
+            enterpriseId={enterprise.id}
             enterpriseName={enterprise.name}
           />
         </Tabs.TabPane>

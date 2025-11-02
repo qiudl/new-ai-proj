@@ -36,6 +36,9 @@ func RegisterEnterpriseRoutesV2(
 	// 注册企业角色权限管理路由
 	registerEnterpriseRolePermissionRoutes(enterprise, permMiddleware, app)
 
+	// 注册企业部门管理路由 (新增)
+	registerEnterpriseDepartmentRoutes(enterprise, permMiddleware, app)
+
 	// 注册业务路由 (项目、任务、文档等)
 	registerEnterpriseBusinessRoutes(enterprise, permMiddleware, app)
 }
@@ -84,6 +87,36 @@ func registerEnterpriseUserManagementRoutes(
 		permMiddleware.RequireEnterprisePermission("enterprise.user.delete"),
 		enterpriseUserHandler.RemoveEnterpriseUser,
 	)
+
+	// 获取未分配部门的用户 (新增)
+	enterpriseHandler := app.GetEnterpriseHandler()
+	if enterpriseHandler != nil {
+		users.GET("/unassigned",
+			permMiddleware.RequireEnterprisePermission("enterprise.user.read"),
+			func(c *gin.Context) {
+				enterpriseID := c.Param("enterprise_id")
+				// 完全替换params以避免冲突
+				c.Params = []gin.Param{
+					{Key: "id", Value: enterpriseID},
+				}
+				enterpriseHandler.GetUnassignedEnterpriseUsers(c)
+			},
+		)
+
+		// 更新用户部门 (新增)
+		users.PUT("/:user_id/department",
+			permMiddleware.RequireEnterprisePermission("enterprise.user.update"),
+			func(c *gin.Context) {
+				enterpriseID := c.Param("enterprise_id")
+				userID := c.Param("user_id")
+				c.Params = []gin.Param{
+					{Key: "id", Value: enterpriseID},
+					{Key: "userId", Value: userID},
+				}
+				enterpriseHandler.UpdateEnterpriseUserDepartment(c)
+			},
+		)
+	}
 
 	fmt.Printf("  ✓ 企业用户管理路由: /api/v1/enterprises/:enterprise_id/users\n")
 }
@@ -167,6 +200,38 @@ func registerEnterpriseRolePermissionRoutes(
 	)
 
 	fmt.Printf("  ✓ 企业权限管理路由: /api/v1/enterprises/:enterprise_id/permissions\n")
+}
+
+// registerEnterpriseDepartmentRoutes 注册企业部门管理路由
+// 路径: /api/v1/enterprises/:enterprise_id/departments/*
+func registerEnterpriseDepartmentRoutes(
+	enterprise *gin.RouterGroup,
+	permMiddleware *middleware.PermissionMiddlewareV2,
+	app ApplicationInterface,
+) {
+	enterpriseHandler := app.GetEnterpriseHandler()
+	if enterpriseHandler == nil {
+		fmt.Printf("⚠️  [WARNING] EnterpriseHandler not available for department routes\n")
+		return
+	}
+
+	departments := enterprise.Group("/departments")
+
+	// 部门统计（带实际人数）
+	departments.GET("/stats",
+		permMiddleware.RequireEnterprisePermission("enterprise.department.read"),
+		func(c *gin.Context) {
+			// 将enterprise_id从路径参数转换为:id参数供handler使用
+			enterpriseID := c.Param("enterprise_id")
+			// 完全替换params以避免冲突
+			c.Params = []gin.Param{
+				{Key: "id", Value: enterpriseID},
+			}
+			enterpriseHandler.GetEnterpriseDepartmentStats(c)
+		},
+	)
+
+	fmt.Printf("  ✓ 企业部门管理路由: /api/v1/enterprises/:enterprise_id/departments\n")
 }
 
 // registerEnterpriseBusinessRoutes 注册企业业务路由 (项目、任务、文档等)

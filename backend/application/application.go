@@ -72,6 +72,7 @@ type Application struct {
 	systemPermissionHandler  *handlers.SystemPermissionHandler  // System permission handler instance (RBAC v2)
 	enterpriseUserHandler    *handlers.EnterpriseUserHandler    // Enterprise user handler instance (RBAC v2)
 	enterpriseRoleHandler    *handlers.EnterpriseRoleHandler    // Enterprise role handler instance (RBAC v2)
+	roleManagementHandlerV2  *handlers.RoleManagementHandlerV2  // RBAC v2 dual-layer role management handler
 	// Navigation Management Handler
 	navigationHandler        *handlers.NavigationHandler        // Navigation management handler instance
 	mirrorWritable           bool
@@ -302,8 +303,9 @@ func NewApplication() (*Application, error) {
 	systemPermissionHandler := handlers.NewSystemPermissionHandler(sqlDB, identityProvider)
 	enterpriseUserHandler := handlers.NewEnterpriseUserHandler(sqlDB, identityProvider, enterpriseRoleRepo)
 	enterpriseRoleHandler := handlers.NewEnterpriseRoleHandler(sqlDB, enterpriseRoleRepo, identityProvider)
+	roleManagementHandlerV2 := handlers.NewRoleManagementHandlerV2(db.Permissions())
 
-	logger.Println("✅ RBAC v2 handlers initialized (SystemUserHandler, SystemRoleHandler, SystemPermissionHandler, EnterpriseUserHandler, EnterpriseRoleHandler)")
+	logger.Println("✅ RBAC v2 handlers initialized (SystemUserHandler, SystemRoleHandler, SystemPermissionHandler, EnterpriseUserHandler, EnterpriseRoleHandler, RoleManagementHandlerV2)")
 
 	// Initialize Navigation Management Handler
 	// Convert *sql.DB to *sqlx.DB for navigation repository
@@ -370,6 +372,7 @@ func NewApplication() (*Application, error) {
 		systemPermissionHandler:  systemPermissionHandler,  // System permission handler (RBAC v2)
 		enterpriseUserHandler:    enterpriseUserHandler,    // Enterprise user handler (RBAC v2)
 		enterpriseRoleHandler:    enterpriseRoleHandler,    // Enterprise role handler (RBAC v2)
+		roleManagementHandlerV2:  roleManagementHandlerV2,  // RBAC v2 dual-layer role management handler
 		// Navigation Management Handler
 		navigationHandler:        navigationHandler,        // Navigation management handler
 	}

@@ -212,6 +212,11 @@ type EnterpriseRepository interface {
 	UpdateDepartment(ctx context.Context, dept *models.EnterpriseDepartment) (*models.EnterpriseDepartment, error)
 	DeleteDepartment(ctx context.Context, id int) error
 	GetDepartmentStats(ctx context.Context, enterpriseID int) (*models.EnterpriseDepartmentStats, error)
+	GetDepartmentsWithActualCount(ctx context.Context, enterpriseID int) ([]map[string]interface{}, error)
+
+	// Enterprise User-Department operations
+	GetUnassignedUsers(ctx context.Context, enterpriseID int, limit, offset int) ([]*models.EnterpriseUser, int, error)
+	UpdateUserDepartment(ctx context.Context, enterpriseID, userID int, departmentID *int) error
 }
 
 // PermissionRepository defines the interface for permission operations
@@ -223,6 +228,12 @@ type PermissionRepository interface {
 	CreateRole(ctx context.Context, role *models.CompanyRole) (*models.CompanyRole, error)
 	UpdateRole(ctx context.Context, role *models.CompanyRole) (*models.CompanyRole, error)
 	DeleteRole(ctx context.Context, roleID int) error
+
+	// RBAC v2: System and Enterprise Role management
+	GetSystemRoles(ctx context.Context) ([]*models.CompanyRole, error)
+	GetEnterpriseRoles(ctx context.Context, enterpriseID int) ([]*models.CompanyRole, error)
+	GetEnterpriseRoleByCode(ctx context.Context, roleCode string, enterpriseID int) (*models.CompanyRole, error)
+	CreateRoleFromTemplate(ctx context.Context, templateRoleCode string, enterpriseID int, customName *string) (*models.CompanyRole, error)
 
 	// Permission management
 	GetPermissions(ctx context.Context) ([]*models.Permission, error)

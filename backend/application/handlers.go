@@ -704,3 +704,8 @@ func (app *Application) GetBulkOperationHandler() *handlers.BulkOperationHandler
 func (app *Application) GetNavigationHandler() *handlers.NavigationHandler {
 	return app.navigationHandler
 }
+
+// GetRoleManagementHandlerV2 returns the RBAC v2 dual-layer role management handler
+func (app *Application) GetRoleManagementHandlerV2() *handlers.RoleManagementHandlerV2 {
+	return app.roleManagementHandlerV2
+}

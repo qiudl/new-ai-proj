@@ -109,6 +109,7 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
 	// 注册企业管理路由
 	// TEMPORARILY DISABLED: Conflicts with RBAC v2 enterprise routes (:id vs :enterprise_id)
+	// 新的部门和用户管理端点已添加到 RegisterEnterpriseRoutesV2
 	// RegisterEnterpriseRoutes(authorized, app)
 
 	// 注册企业模拟管理路由（系统管理员功能）

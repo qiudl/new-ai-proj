@@ -980,7 +980,7 @@ func (r *PostgresEnterpriseRepository) GetDepartmentStats(ctx context.Context, e
 
 	// Get basic counts
 	countQuery := `
-		SELECT 
+		SELECT
 			COUNT(*) FILTER (WHERE deleted_at IS NULL) as total,
 			COUNT(*) FILTER (WHERE status = 'active' AND deleted_at IS NULL) as active,
 			COUNT(*) FILTER (WHERE status = 'inactive' AND deleted_at IS NULL) as inactive,
@@ -1004,6 +1004,205 @@ func (r *PostgresEnterpriseRepository) GetDepartmentStats(ctx context.Context, e
 	}
 
 	return stats, nil
+}
+
+// GetDepartmentsWithActualCount retrieves departments with real-time employee counts
+func (r *PostgresEnterpriseRepository) GetDepartmentsWithActualCount(ctx context.Context, enterpriseID int) ([]map[string]interface{}, error) {
+	exec := r.getExecer()
+
+	query := `
+		SELECT
+			d.id,
+			d.name,
+			d.parent_id,
+			d.level,
+			d.path,
+			d.manager_id,
+			d.employee_count as static_employee_count,
+			d.status,
+			d.sort_order,
+			d.description,
+			eu_mgr.name as manager_name,
+			COUNT(DISTINCT eu.id) as actual_employee_count
+		FROM enterprise_departments d
+		LEFT JOIN enterprise_users eu ON d.id = eu.department_id AND eu.deleted_at IS NULL AND eu.status = 'active'
+		LEFT JOIN enterprise_users eu_mgr ON d.manager_id = eu_mgr.id AND eu_mgr.deleted_at IS NULL
+		WHERE d.enterprise_id = $1 AND d.deleted_at IS NULL
+		GROUP BY d.id, d.name, d.parent_id, d.level, d.path, d.manager_id, d.employee_count,
+		         d.status, d.sort_order, d.description, eu_mgr.name
+		ORDER BY d.level, d.sort_order, d.id`
+
+	rows, err := exec.QueryContext(ctx, query, enterpriseID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query departments with counts: %w", err)
+	}
+	defer rows.Close()
+
+	var departments []map[string]interface{}
+	departmentMap := make(map[int]map[string]interface{})
+
+	for rows.Next() {
+		var (
+			id, level, staticCount, actualCount, sortOrder int
+			name, status                                   string
+			parentID, managerID                            *int
+			path, description, managerName                 *string
+		)
+
+		err := rows.Scan(
+			&id, &name, &parentID, &level, &path, &managerID,
+			&staticCount, &status, &sortOrder, &description,
+			&managerName, &actualCount,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan department: %w", err)
+		}
+
+		dept := map[string]interface{}{
+			"id":                     id,
+			"name":                   name,
+			"parent_id":              parentID,
+			"level":                  level,
+			"path":                   path,
+			"manager_id":             managerID,
+			"manager_name":           managerName,
+			"static_employee_count":  staticCount,
+			"actual_employee_count":  actualCount,
+			"status":                 status,
+			"sort_order":             sortOrder,
+			"description":            description,
+			"children":               []map[string]interface{}{},
+		}
+
+		departmentMap[id] = dept
+		departments = append(departments, dept)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating departments: %w", err)
+	}
+
+	// Build tree structure
+	var roots []map[string]interface{}
+	for _, dept := range departments {
+		parentID := dept["parent_id"].(*int)
+		if parentID == nil {
+			roots = append(roots, dept)
+		} else {
+			parent := departmentMap[*parentID]
+			if parent != nil {
+				children := parent["children"].([]map[string]interface{})
+				parent["children"] = append(children, dept)
+			}
+		}
+	}
+
+	return roots, nil
+}
+
+// GetUnassignedUsers retrieves users without department assignment
+func (r *PostgresEnterpriseRepository) GetUnassignedUsers(ctx context.Context, enterpriseID int, limit, offset int) ([]*models.EnterpriseUser, int, error) {
+	exec := r.getExecer()
+
+	// Count total unassigned users
+	countQuery := `
+		SELECT COUNT(*)
+		FROM enterprise_users
+		WHERE enterprise_id = $1
+		  AND department_id IS NULL
+		  AND deleted_at IS NULL
+		  AND status = 'active'`
+
+	var total int
+	err := exec.QueryRowContext(ctx, countQuery, enterpriseID).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count unassigned users: %w", err)
+	}
+
+	// Get unassigned users with pagination
+	query := `
+		SELECT id, enterprise_id, user_id, username, email, name, phone, position,
+		       department_id, is_primary_contact, access_level, status, last_login_at,
+		       bio, created_by, updated_by, created_at, updated_at
+		FROM enterprise_users
+		WHERE enterprise_id = $1
+		  AND department_id IS NULL
+		  AND deleted_at IS NULL
+		  AND status = 'active'
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3`
+
+	rows, err := exec.QueryContext(ctx, query, enterpriseID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query unassigned users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*models.EnterpriseUser
+	for rows.Next() {
+		user := &models.EnterpriseUser{}
+		err := rows.Scan(
+			&user.ID, &user.EnterpriseID, &user.UserID, &user.Username, &user.Email,
+			&user.Name, &user.Phone, &user.Position, &user.DepartmentID,
+			&user.IsPrimaryContact, &user.AccessLevel, &user.Status,
+			&user.LastLoginAt, &user.Bio, &user.CreatedBy, &user.UpdatedBy,
+			&user.CreatedAt, &user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan unassigned user: %w", err)
+		}
+		users = append(users, user)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating unassigned users: %w", err)
+	}
+
+	return users, total, nil
+}
+
+// UpdateUserDepartment updates the department assignment for a user
+func (r *PostgresEnterpriseRepository) UpdateUserDepartment(ctx context.Context, enterpriseID, userID int, departmentID *int) error {
+	exec := r.getExecer()
+
+	// If departmentID is not null, verify it belongs to the enterprise
+	if departmentID != nil && *departmentID != 0 {
+		var deptEnterpriseID int
+		checkQuery := `SELECT enterprise_id FROM enterprise_departments WHERE id = $1 AND deleted_at IS NULL`
+		err := exec.QueryRowContext(ctx, checkQuery, *departmentID).Scan(&deptEnterpriseID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return fmt.Errorf("department not found")
+			}
+			return fmt.Errorf("failed to verify department: %w", err)
+		}
+
+		if deptEnterpriseID != enterpriseID {
+			return fmt.Errorf("department does not belong to this enterprise")
+		}
+	}
+
+	// Update user department
+	updateQuery := `
+		UPDATE enterprise_users
+		SET department_id = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2 AND enterprise_id = $3 AND deleted_at IS NULL`
+
+	result, err := exec.ExecContext(ctx, updateQuery, departmentID, userID, enterpriseID)
+	if err != nil {
+		return fmt.Errorf("failed to update user department: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found or does not belong to this enterprise")
+	}
+
+	return nil
 }
 
 // buildWhereClause builds the WHERE clause for filtering

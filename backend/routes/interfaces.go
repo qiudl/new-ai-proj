@@ -252,6 +252,7 @@ type ApplicationInterface interface {
 	GetSystemPermissionHandler() *handlers.SystemPermissionHandler
 	GetEnterpriseUserHandler() *handlers.EnterpriseUserHandler
 	GetEnterpriseRoleHandler() *handlers.EnterpriseRoleHandler
+	GetRoleManagementHandlerV2() *handlers.RoleManagementHandlerV2 // RBAC v2 dual-layer role management
 
 	// 导航管理处理器
 	GetNavigationHandler() *handlers.NavigationHandler

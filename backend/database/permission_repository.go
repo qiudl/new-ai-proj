@@ -37,11 +37,11 @@ func NewPermissionRepository(db interface{}) PermissionRepository {
 	return repo
 }
 
-// GetRoles retrieves all company roles
+// GetRoles retrieves all company roles (RBAC v2: supports filtering by enterprise_id)
 func (r *PostgresPermissionRepository) GetRoles(ctx context.Context, companyID *int) ([]*models.CompanyRole, error) {
 	query := `
-		SELECT id, role_code, role_name, role_description, is_system_role, is_active, created_at, updated_at
-		FROM company_roles 
+		SELECT id, role_code, role_name, role_description, is_system_role, is_active, enterprise_id, created_at, updated_at
+		FROM company_roles
 		WHERE is_active = true
 		ORDER BY is_system_role DESC, role_name ASC`
 
@@ -57,7 +57,7 @@ func (r *PostgresPermissionRepository) GetRoles(ctx context.Context, companyID *
 		role := &models.CompanyRole{}
 		err := rows.Scan(
 			&role.ID, &role.RoleCode, &role.RoleName, &role.RoleDescription,
-			&role.IsSystemRole, &role.IsActive, &role.CreatedAt, &role.UpdatedAt,
+			&role.IsSystemRole, &role.IsActive, &role.EnterpriseID, &role.CreatedAt, &role.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan role: %w", err)
@@ -71,15 +71,15 @@ func (r *PostgresPermissionRepository) GetRoles(ctx context.Context, companyID *
 // GetRoleByID retrieves a role by ID
 func (r *PostgresPermissionRepository) GetRoleByID(ctx context.Context, roleID int) (*models.CompanyRole, error) {
 	query := `
-		SELECT id, role_code, role_name, role_description, is_system_role, is_active, created_at, updated_at
-		FROM company_roles 
+		SELECT id, role_code, role_name, role_description, is_system_role, is_active, enterprise_id, created_at, updated_at
+		FROM company_roles
 		WHERE id = $1`
 
 	exec := r.getExecer()
 	role := &models.CompanyRole{}
 	err := exec.QueryRowContext(ctx, query, roleID).Scan(
 		&role.ID, &role.RoleCode, &role.RoleName, &role.RoleDescription,
-		&role.IsSystemRole, &role.IsActive, &role.CreatedAt, &role.UpdatedAt,
+		&role.IsSystemRole, &role.IsActive, &role.EnterpriseID, &role.CreatedAt, &role.UpdatedAt,
 	)
 
 	if err != nil {
@@ -92,18 +92,18 @@ func (r *PostgresPermissionRepository) GetRoleByID(ctx context.Context, roleID i
 	return role, nil
 }
 
-// GetRoleByCode retrieves a role by code
+// GetRoleByCode retrieves a role by code (for system roles, enterprise_id will be NULL)
 func (r *PostgresPermissionRepository) GetRoleByCode(ctx context.Context, roleCode string) (*models.CompanyRole, error) {
 	query := `
-		SELECT id, role_code, role_name, role_description, is_system_role, is_active, created_at, updated_at
-		FROM company_roles 
-		WHERE role_code = $1`
+		SELECT id, role_code, role_name, role_description, is_system_role, is_active, enterprise_id, created_at, updated_at
+		FROM company_roles
+		WHERE role_code = $1 AND is_system_role = true`
 
 	exec := r.getExecer()
 	role := &models.CompanyRole{}
 	err := exec.QueryRowContext(ctx, query, roleCode).Scan(
 		&role.ID, &role.RoleCode, &role.RoleName, &role.RoleDescription,
-		&role.IsSystemRole, &role.IsActive, &role.CreatedAt, &role.UpdatedAt,
+		&role.IsSystemRole, &role.IsActive, &role.EnterpriseID, &role.CreatedAt, &role.UpdatedAt,
 	)
 
 	if err != nil {
@@ -116,16 +116,16 @@ func (r *PostgresPermissionRepository) GetRoleByCode(ctx context.Context, roleCo
 	return role, nil
 }
 
-// CreateRole creates a new company role
+// CreateRole creates a new company role (RBAC v2: supports enterprise_id)
 func (r *PostgresPermissionRepository) CreateRole(ctx context.Context, role *models.CompanyRole) (*models.CompanyRole, error) {
 	query := `
-		INSERT INTO company_roles (role_code, role_name, role_description, is_system_role, is_active)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO company_roles (role_code, role_name, role_description, is_system_role, is_active, enterprise_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at, updated_at`
 
 	exec := r.getExecer()
 	err := exec.QueryRowContext(ctx, query,
-		role.RoleCode, role.RoleName, role.RoleDescription, role.IsSystemRole, role.IsActive,
+		role.RoleCode, role.RoleName, role.RoleDescription, role.IsSystemRole, role.IsActive, role.EnterpriseID,
 	).Scan(&role.ID, &role.CreatedAt, &role.UpdatedAt)
 
 	if err != nil {
@@ -1339,4 +1339,154 @@ func (r *PostgresPermissionRepository) initSuperadminFromEnv() {
 			r.superAdminEmails[email] = struct{}{}
 		}
 	}
+}
+
+// =============================================================================
+// RBAC v2 - Dual-Layer Role Management Methods
+// =============================================================================
+
+// GetSystemRoles retrieves all system-level roles (enterprise_id IS NULL)
+func (r *PostgresPermissionRepository) GetSystemRoles(ctx context.Context) ([]*models.CompanyRole, error) {
+	query := `
+		SELECT id, role_code, role_name, role_description, is_system_role, is_active, enterprise_id, created_at, updated_at
+		FROM company_roles
+		WHERE is_system_role = true AND enterprise_id IS NULL AND is_active = true
+		ORDER BY role_code ASC`
+
+	exec := r.getExecer()
+	rows, err := exec.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system roles: %w", err)
+	}
+	defer rows.Close()
+
+	var roles []*models.CompanyRole
+	for rows.Next() {
+		role := &models.CompanyRole{}
+		err := rows.Scan(
+			&role.ID, &role.RoleCode, &role.RoleName, &role.RoleDescription,
+			&role.IsSystemRole, &role.IsActive, &role.EnterpriseID, &role.CreatedAt, &role.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan system role: %w", err)
+		}
+		roles = append(roles, role)
+	}
+
+	return roles, nil
+}
+
+// GetEnterpriseRoles retrieves all roles for a specific enterprise
+func (r *PostgresPermissionRepository) GetEnterpriseRoles(ctx context.Context, enterpriseID int) ([]*models.CompanyRole, error) {
+	query := `
+		SELECT id, role_code, role_name, role_description, is_system_role, is_active, enterprise_id, created_at, updated_at
+		FROM company_roles
+		WHERE enterprise_id = $1 AND is_active = true
+		ORDER BY role_code ASC`
+
+	exec := r.getExecer()
+	rows, err := exec.QueryContext(ctx, query, enterpriseID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get enterprise roles: %w", err)
+	}
+	defer rows.Close()
+
+	var roles []*models.CompanyRole
+	for rows.Next() {
+		role := &models.CompanyRole{}
+		err := rows.Scan(
+			&role.ID, &role.RoleCode, &role.RoleName, &role.RoleDescription,
+			&role.IsSystemRole, &role.IsActive, &role.EnterpriseID, &role.CreatedAt, &role.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan enterprise role: %w", err)
+		}
+		roles = append(roles, role)
+	}
+
+	return roles, nil
+}
+
+// GetEnterpriseRoleByCode retrieves an enterprise role by code and enterprise ID
+func (r *PostgresPermissionRepository) GetEnterpriseRoleByCode(ctx context.Context, roleCode string, enterpriseID int) (*models.CompanyRole, error) {
+	query := `
+		SELECT id, role_code, role_name, role_description, is_system_role, is_active, enterprise_id, created_at, updated_at
+		FROM company_roles
+		WHERE role_code = $1 AND enterprise_id = $2`
+
+	exec := r.getExecer()
+	role := &models.CompanyRole{}
+	err := exec.QueryRowContext(ctx, query, roleCode, enterpriseID).Scan(
+		&role.ID, &role.RoleCode, &role.RoleName, &role.RoleDescription,
+		&role.IsSystemRole, &role.IsActive, &role.EnterpriseID, &role.CreatedAt, &role.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("enterprise role not found")
+		}
+		return nil, fmt.Errorf("failed to get enterprise role: %w", err)
+	}
+
+	return role, nil
+}
+
+// CreateRoleFromTemplate creates an enterprise role from a system role template
+func (r *PostgresPermissionRepository) CreateRoleFromTemplate(ctx context.Context, templateRoleCode string, enterpriseID int, customName *string) (*models.CompanyRole, error) {
+	exec := r.getExecer()
+
+	// Get the template role
+	templateRole, err := r.GetRoleByCode(ctx, templateRoleCode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get template role: %w", err)
+	}
+
+	if !templateRole.IsSystemRole {
+		return nil, fmt.Errorf("template role must be a system role")
+	}
+
+	// Create the enterprise role
+	enterpriseRole := &models.CompanyRole{
+		RoleCode:        templateRole.RoleCode,
+		RoleName:        templateRole.RoleName,
+		RoleDescription: templateRole.RoleDescription,
+		IsSystemRole:    false,
+		IsActive:        true,
+		EnterpriseID:    &enterpriseID,
+	}
+
+	// Override name if custom name provided
+	if customName != nil && *customName != "" {
+		enterpriseRole.RoleName = *customName
+	}
+
+	// Create the role
+	createQuery := `
+		INSERT INTO company_roles (role_code, role_name, role_description, is_system_role, is_active, enterprise_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, created_at, updated_at`
+
+	err = exec.QueryRowContext(ctx, createQuery,
+		enterpriseRole.RoleCode, enterpriseRole.RoleName, enterpriseRole.RoleDescription,
+		enterpriseRole.IsSystemRole, enterpriseRole.IsActive, enterpriseRole.EnterpriseID,
+	).Scan(&enterpriseRole.ID, &enterpriseRole.CreatedAt, &enterpriseRole.UpdatedAt)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create enterprise role: %w", err)
+	}
+
+	// Copy permissions from template
+	templatePermissionIDs, err := r.GetRolePermissionIDs(ctx, templateRole.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get template permissions: %w", err)
+	}
+
+	if len(templatePermissionIDs) > 0 {
+		err = r.SetRolePermissions(ctx, enterpriseRole.ID, templatePermissionIDs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to copy permissions to enterprise role: %w", err)
+		}
+	}
+
+	return enterpriseRole, nil
 }

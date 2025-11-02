@@ -454,6 +454,72 @@ class EnterpriseService {
       { value: 5, label: '最高权限' }
     ];
   }
+
+  // ========== 新增：企业管理功能改进 API ==========
+
+  /**
+   * 获取企业部门统计信息（带实际人数）
+   * @param enterpriseId 企业ID
+   * @returns 部门树形结构数据，包含实际员工数
+   */
+  async getDepartmentsWithActualCount(enterpriseId: number): Promise<any[]> {
+    try {
+      const response = await api.get(`${this.API_BASE_URL}/${enterpriseId}/departments/stats`);
+      return this.handleApiResponse<any[]>(response);
+    } catch (error) {
+      console.error('❌ 获取部门统计信息失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取未分配部门的用户列表
+   * @param enterpriseId 企业ID
+   * @param page 页码
+   * @param pageSize 每页数量
+   * @returns 未分配部门的用户列表
+   */
+  async getUnassignedUsers(
+    enterpriseId: number,
+    page: number = 1,
+    pageSize: number = 20
+  ): Promise<PaginatedResponse<EnterpriseUser>> {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: pageSize.toString()
+      });
+      const response = await api.get(`${this.API_BASE_URL}/${enterpriseId}/users/unassigned?${params}`);
+      return this.handleApiResponse<PaginatedResponse<EnterpriseUser>>(response);
+    } catch (error) {
+      console.error('❌ 获取未分配部门用户列表失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 更新用户的部门分配
+   * @param enterpriseId 企业ID
+   * @param userId 用户ID
+   * @param departmentId 部门ID（null表示清空部门）
+   * @returns 更新后的用户信息
+   */
+  async updateUserDepartment(
+    enterpriseId: number,
+    userId: number,
+    departmentId: number | null
+  ): Promise<EnterpriseUser> {
+    try {
+      const response = await api.put(
+        `${this.API_BASE_URL}/${enterpriseId}/users/${userId}/department`,
+        { department_id: departmentId }
+      );
+      return this.handleApiResponse<EnterpriseUser>(response);
+    } catch (error) {
+      console.error('❌ 更新用户部门失败:', error);
+      throw error;
+    }
+  }
 }
 
 export default new EnterpriseService();

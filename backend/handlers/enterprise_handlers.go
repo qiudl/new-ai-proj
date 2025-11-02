@@ -1455,6 +1455,245 @@ func (h *EnterpriseHandler) RemoveEnterpriseUser(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// ========== Department Management Extensions ==========
+
+// GetEnterpriseDepartmentStats godoc
+// @Summary 获取企业部门实时人数统计
+// @Description 获取企业所有部门的详细统计信息，包括实时人数（通过JOIN enterprise_users动态计算）
+// @Tags Enterprise Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "企业ID"
+// @Success 200 {object} map[string]interface{} "部门树形结构，包含actual_employee_count字段"
+// @Failure 400 {object} map[string]interface{} "请求参数错误 - 无效的企业ID"
+// @Failure 401 {object} map[string]interface{} "未认证 - Token缺失或无效"
+// @Failure 404 {object} map[string]interface{} "资源不存在 - 企业不存在"
+// @Failure 500 {object} map[string]interface{} "服务器错误 - 数据库操作失败"
+// @Router /enterprises/{id}/departments/stats [get]
+func (h *EnterpriseHandler) GetEnterpriseDepartmentStats(c *gin.Context) {
+	enterpriseIDStr := c.Param("id")
+	enterpriseID, err := strconv.Atoi(enterpriseIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Verify enterprise exists
+	_, err = h.db.Enterprises().GetByID(c.Request.Context(), enterpriseID)
+	if err != nil {
+		h.logger.Printf("Error getting enterprise %d: %v", enterpriseID, err)
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Enterprise not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Get departments with actual employee counts
+	departments, err := h.db.Enterprises().GetDepartmentsWithActualCount(c.Request.Context(), enterpriseID)
+	if err != nil {
+		h.logger.Printf("Error getting department stats for enterprise %d: %v", enterpriseID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve department statistics", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(departments, "Department statistics retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// GetUnassignedEnterpriseUsers godoc
+// @Summary 获取未分配部门的企业用户
+// @Description 获取指定企业中未分配到任何部门的用户列表（department_id为NULL）
+// @Tags Enterprise Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "企业ID"
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(20)
+// @Success 200 {object} map[string]interface{} "未分配用户列表，带分页信息"
+// @Failure 400 {object} map[string]interface{} "请求参数错误 - 无效的企业ID或分页参数"
+// @Failure 401 {object} map[string]interface{} "未认证 - Token缺失或无效"
+// @Failure 404 {object} map[string]interface{} "资源不存在 - 企业不存在"
+// @Failure 500 {object} map[string]interface{} "服务器错误 - 数据库操作失败"
+// @Router /enterprises/{id}/users/unassigned [get]
+func (h *EnterpriseHandler) GetUnassignedEnterpriseUsers(c *gin.Context) {
+	enterpriseIDStr := c.Param("id")
+	enterpriseID, err := strconv.Atoi(enterpriseIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Parse pagination parameters
+	var pagination models.PaginationParams
+	if err := c.ShouldBindQuery(&pagination); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid pagination parameters", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Default pagination values
+	if pagination.Page == 0 {
+		pagination.Page = 1
+	}
+	if pagination.PageSize == 0 {
+		pagination.PageSize = 20
+	}
+
+	offset := (pagination.Page - 1) * pagination.PageSize
+
+	// Get unassigned users
+	users, total, err := h.db.Enterprises().GetUnassignedUsers(
+		c.Request.Context(),
+		enterpriseID,
+		pagination.PageSize,
+		offset,
+	)
+	if err != nil {
+		h.logger.Printf("Error getting unassigned users for enterprise %d: %v", enterpriseID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve unassigned users", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Convert to response format
+	userResponses := make([]models.EnterpriseUserResponseNew, len(users))
+	for i, user := range users {
+		userResponses[i] = user.ToResponse()
+	}
+
+	// Create pagination metadata
+	totalPages := int((int64(total) + int64(pagination.PageSize) - 1) / int64(pagination.PageSize))
+	paginationMeta := models.Pagination{
+		Page:       pagination.Page,
+		PageSize:   pagination.PageSize,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    pagination.Page < totalPages,
+		HasPrev:    pagination.Page > 1,
+	}
+
+	paginatedResponse := models.PaginatedResponse{
+		Data:       userResponses,
+		Pagination: paginationMeta,
+	}
+
+	response := models.NewSuccessResponse(paginatedResponse, "Unassigned users retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// UpdateEnterpriseUserDepartment godoc
+// @Summary 更新企业用户的部门分配
+// @Description 更新指定企业用户的部门分配，department_id可以为null（取消分配）
+// @Tags Enterprise Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "企业ID"
+// @Param userId path int true "用户ID"
+// @Param request body object true "部门ID（可为null）" example({"department_id": 2})
+// @Success 200 {object} map[string]interface{} "更新成功，返回用户信息"
+// @Failure 400 {object} map[string]interface{} "请求参数错误 - 无效ID或部门不属于企业"
+// @Failure 401 {object} map[string]interface{} "未认证 - Token缺失或无效"
+// @Failure 404 {object} map[string]interface{} "资源不存在 - 企业、用户或部门不存在"
+// @Failure 500 {object} map[string]interface{} "服务器错误 - 数据库操作失败"
+// @Router /enterprises/{id}/users/{userId}/department [put]
+func (h *EnterpriseHandler) UpdateEnterpriseUserDepartment(c *gin.Context) {
+	enterpriseIDStr := c.Param("id")
+	enterpriseID, err := strconv.Atoi(enterpriseIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userIDStr := c.Param("userId")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var req struct {
+		DepartmentID *int `json:"department_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Update user department
+	err = h.db.Enterprises().UpdateUserDepartment(
+		c.Request.Context(),
+		enterpriseID,
+		userID,
+		req.DepartmentID,
+	)
+	if err != nil {
+		h.logger.Printf("Error updating user department: %v", err)
+		if strings.Contains(err.Error(), "not found") {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, err.Error(), nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		if strings.Contains(err.Error(), "does not belong") {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, err.Error(), nil)
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to update user department", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Get updated user info
+	user, err := h.db.Enterprises().GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Printf("Error getting updated user: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve updated user", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Get department name if assigned
+	var departmentName *string
+	if req.DepartmentID != nil && *req.DepartmentID != 0 {
+		dept, err := h.db.Enterprises().GetDepartmentByID(c.Request.Context(), *req.DepartmentID)
+		if err == nil && dept != nil {
+			departmentName = &dept.Name
+		}
+	}
+
+	result := gin.H{
+		"id":              user.ID,
+		"name":            user.Name,
+		"department_id":   req.DepartmentID,
+		"department_name": departmentName,
+	}
+
+	// Log the department assignment change
+	currentUserID := c.GetInt("user_id")
+	auditRepo := h.db.Audit()
+	auditLog := &models.AuditLog{
+		UserID:       &currentUserID,
+		Action:       "update_user_department",
+		ResourceType: models.StringPtr("enterprise_user"),
+		ResourceID:   models.StringPtr(strconv.Itoa(userID)),
+		Description:  models.StringPtr(fmt.Sprintf("Updated department for user ID %d to department ID %v", userID, req.DepartmentID)),
+		IPAddress:    models.StringPtr(c.ClientIP()),
+		UserAgent:    models.StringPtr(c.GetHeader("User-Agent")),
+	}
+	_ = auditRepo.CreateAuditLog(c.Request.Context(), auditLog)
+
+	response := models.NewSuccessResponse(result, "User department updated successfully")
+	c.JSON(http.StatusOK, response)
+}
+
 // ========== Helper Functions ==========
 
 // generateRandomPassword generates a random password with specified length
