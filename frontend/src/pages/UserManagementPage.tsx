@@ -673,7 +673,7 @@ const UserManagementPage: React.FC = () => {
       sortOrder: sortField === 'enterprise_id' ? sortOrder : null,
       render: (_, user) => {
         // 优先使用新的企业系统数据
-        const companyInfo = user.user_type === 'company' && user.enterprise_id ? 
+        const companyInfo = (user.user_type === 'enterprise' || user.user_type === 'company') && user.enterprise_id ?
           (() => {
             // 先从 enterprises 中查找
             const enterprise = enterprises.find(e => e.id === user.enterprise_id);
@@ -683,7 +683,7 @@ const UserManagementPage: React.FC = () => {
             // 再从 companies 中查找（向后兼容）
             const company = companies.find(c => c.id === user.enterprise_id);
             return company ? company.name : `企业${user.enterprise_id}`;
-          })() : 
+          })() :
           (user.user_type === 'system' ? '系统用户' : '未关联');
         
         const department = user.profile?.department || '-';
