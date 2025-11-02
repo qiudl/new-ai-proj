@@ -12,6 +12,14 @@ REMOTE_HOST="ubuntu@152.136.104.251"
 REMOTE_BASE="/opt/ai-project"
 LOCAL_DIR="/Users/johnqiu/coding/www/projects/new-ai-proj"
 
+# SSH超时配置（防止网络不稳定时卡住）
+SSH_OPTS="-o ConnectTimeout=10 -o ServerAliveInterval=5 -o ServerAliveCountMax=3"
+
+# 命令超时配置
+RSYNC_TIMEOUT=300      # rsync超时：5分钟
+BUILD_TIMEOUT=600      # 编译超时：10分钟
+DB_CHECK_TIMEOUT=30    # 数据库检查超时：30秒
+
 # 颜色输出
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -72,7 +80,7 @@ check_prerequisites() {
     log_info "检查前置条件..."
     
     # 检查SSH连接
-    if ! ssh -o ConnectTimeout=5 "$REMOTE_HOST" "echo connected" > /dev/null 2>&1; then
+    if ! ssh $SSH_OPTS "$REMOTE_HOST" "echo connected" > /dev/null 2>&1; then
         log_error "无法连接到远程服务器: $REMOTE_HOST"
         exit 1
     fi
@@ -88,7 +96,7 @@ create_release() {
     log_info "创建发布目录: $release_name"
 
     if [ "$DRY_RUN" != true ]; then
-        ssh "$REMOTE_HOST" "mkdir -p $release_dir"
+        ssh $SSH_OPTS "$REMOTE_HOST" "mkdir -p $release_dir"
     fi
 
     echo "$release_dir"
@@ -100,7 +108,7 @@ sync_backend() {
 
     log_info "同步后端代码..."
 
-    ssh "$REMOTE_HOST" "mkdir -p $release_dir/backend"
+    ssh $SSH_OPTS "$REMOTE_HOST" "mkdir -p $release_dir/backend"
 
     if [ "$DRY_RUN" = true ]; then
         log_warning "[模拟] 同步后端代码到: $release_dir/backend"
@@ -108,7 +116,7 @@ sync_backend() {
     fi
 
     # 排除不需要同步的文件
-    rsync -avz --delete \
+    rsync -avz --delete --timeout=$RSYNC_TIMEOUT \
         --exclude='backend-test' \
         --exclude='backend-linux' \
         --exclude='backend' \
@@ -137,21 +145,21 @@ copy_production_config() {
     fi
 
     # 检查旧版本的配置文件
-    local old_env_exists=$(ssh "$REMOTE_HOST" "test -f $REMOTE_BASE/backend/.env && echo 'yes' || echo 'no'")
+    local old_env_exists=$(ssh $SSH_OPTS "$REMOTE_HOST" "test -f $REMOTE_BASE/backend/.env && echo 'yes' || echo 'no'")
 
     if [ "$old_env_exists" = "yes" ]; then
         log_info "从旧版本复制 .env 配置..."
-        ssh "$REMOTE_HOST" "cp $REMOTE_BASE/backend/.env $release_dir/backend/.env"
+        ssh $SSH_OPTS "$REMOTE_HOST" "cp $REMOTE_BASE/backend/.env $release_dir/backend/.env"
         log_success "生产环境配置复制完成"
     else
         log_warning "未找到旧版本的 .env 文件"
         log_warning "请确保新版本目录中有正确的 .env 配置文件"
 
         # 检查是否有备用配置
-        local backup_env_exists=$(ssh "$REMOTE_HOST" "test -f $REMOTE_BASE/.env.prod && echo 'yes' || echo 'no'")
+        local backup_env_exists=$(ssh $SSH_OPTS "$REMOTE_HOST" "test -f $REMOTE_BASE/.env.prod && echo 'yes' || echo 'no'")
         if [ "$backup_env_exists" = "yes" ]; then
             log_info "使用备用配置 .env.prod..."
-            ssh "$REMOTE_HOST" "cp $REMOTE_BASE/.env.prod $release_dir/backend/.env"
+            ssh $SSH_OPTS "$REMOTE_HOST" "cp $REMOTE_BASE/.env.prod $release_dir/backend/.env"
             log_success "备用配置复制完成"
         else
             log_error "错误：找不到生产环境配置文件！"
@@ -164,8 +172,8 @@ copy_production_config() {
 
     # 验证配置文件内容
     log_info "验证配置文件..."
-    local db_port=$(ssh "$REMOTE_HOST" "grep '^DB_PORT=' $release_dir/backend/.env | cut -d'=' -f2")
-    local db_host=$(ssh "$REMOTE_HOST" "grep '^DB_HOST=' $release_dir/backend/.env | cut -d'=' -f2")
+    local db_port=$(ssh $SSH_OPTS "$REMOTE_HOST" "grep '^DB_PORT=' $release_dir/backend/.env | cut -d'=' -f2")
+    local db_host=$(ssh $SSH_OPTS "$REMOTE_HOST" "grep '^DB_HOST=' $release_dir/backend/.env | cut -d'=' -f2")
 
     if [ -z "$db_port" ] || [ -z "$db_host" ]; then
         log_error "配置文件验证失败：缺少必要的数据库配置"
@@ -187,7 +195,7 @@ verify_database_connection() {
     fi
 
     # 从配置文件读取数据库信息
-    local db_check=$(ssh "$REMOTE_HOST" bash -s "$release_dir" << 'EOF'
+    local db_check=$(ssh $SSH_OPTS "$REMOTE_HOST" bash -s "$release_dir" << 'EOF'
         release_dir=$1
         cd $release_dir/backend
         if [ ! -f .env ]; then
@@ -200,8 +208,8 @@ verify_database_connection() {
 
         # 检查PostgreSQL是否可访问
         if command -v psql > /dev/null 2>&1; then
-            # 使用psql检查连接
-            PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT 1;" > /dev/null 2>&1
+            # 使用psql检查连接（带超时）
+            timeout $DB_CHECK_TIMEOUT bash -c "PGPASSWORD=\$DB_PASSWORD psql -h \$DB_HOST -p \$DB_PORT -U \$DB_USER -d \$DB_NAME -c 'SELECT 1;'" > /dev/null 2>&1
             if [ $? -eq 0 ]; then
                 echo "SUCCESS"
             else
@@ -235,15 +243,15 @@ sync_frontend() {
     local release_dir=$1
     
     log_info "同步前端代码..."
-    
-    ssh "$REMOTE_HOST" "mkdir -p $release_dir/frontend"
+
+    ssh $SSH_OPTS "$REMOTE_HOST" "mkdir -p $release_dir/frontend"
 
     if [ "$DRY_RUN" = true ]; then
         log_warning "[模拟] 同步前端代码到: $release_dir/frontend"
         return 0
     fi
     
-    rsync -avz --delete \
+    rsync -avz --delete --timeout=$RSYNC_TIMEOUT \
         --exclude='node_modules/' \
         --exclude='build/' \
         --exclude='dist/' \
@@ -268,16 +276,16 @@ sync_other_files() {
         return 0
     fi
 
-    ssh "$REMOTE_HOST" "mkdir -p $release_dir/mcp-task-bridge"
-    
+    ssh $SSH_OPTS "$REMOTE_HOST" "mkdir -p $release_dir/mcp-task-bridge"
+
     # 同步配置文件
-    rsync -avz \
+    rsync -avz --timeout=$RSYNC_TIMEOUT \
         "$LOCAL_DIR/docker-compose.prod.yml" \
         "$LOCAL_DIR/nginx.conf" \
         "$REMOTE_HOST:$release_dir/" 2>/dev/null || true
     
     # 同步MCP服务器
-    rsync -avz --delete \
+    rsync -avz --delete --timeout=$RSYNC_TIMEOUT \
         --exclude='node_modules/' \
         --exclude='dist/' \
         --exclude='.env' \
@@ -299,7 +307,7 @@ build_backend() {
     fi
 
     log_info "开始编译 Go 项目..."
-    local build_output=$(ssh "$REMOTE_HOST" bash -s << EOF 2>&1
+    local build_output=$(ssh $SSH_OPTS "$REMOTE_HOST" bash -s << EOF 2>&1
         cd $release_dir/backend
 
         # 检查 Go 是否安装
@@ -317,9 +325,9 @@ build_backend() {
             exit 1
         fi
 
-        # 编译
+        # 编译（带超时保护）
         echo "开始编译..."
-        go build -v -o main main.go 2>&1
+        timeout $BUILD_TIMEOUT go build -v -o main main.go 2>&1
         build_status=\$?
 
         if [ \$build_status -ne 0 ]; then
@@ -379,7 +387,7 @@ update_symlink() {
         return 0
     fi
     
-    ssh "$REMOTE_HOST" << EOF
+    ssh $SSH_OPTS "$REMOTE_HOST" << EOF
         cd $REMOTE_BASE
         # 备份当前链接为previous
         if [ -L current ]; then
@@ -406,7 +414,7 @@ restart_backend() {
 
     # 获取旧进程信息用于回滚
     log_info "记录当前运行的进程信息..."
-    local old_pid=$(ssh "$REMOTE_HOST" "pgrep -f '$REMOTE_BASE/backend.*main' || echo ''")
+    local old_pid=$(ssh $SSH_OPTS "$REMOTE_HOST" "pgrep -f '$REMOTE_BASE/backend.*main' || echo ''")
 
     if [ -n "$old_pid" ]; then
         log_info "当前运行的进程: PID=$old_pid"
@@ -416,7 +424,7 @@ restart_backend() {
 
     # 停止旧服务
     log_info "停止旧版本服务..."
-    ssh "$REMOTE_HOST" bash -s << 'EOF'
+    ssh $SSH_OPTS "$REMOTE_HOST" bash -s << 'EOF'
         # 查找所有相关进程
         pids=$(pgrep -f '/opt/ai-project.*main' || echo "")
 
@@ -441,7 +449,7 @@ EOF
 
     # 启动新服务
     log_info "启动新版本服务..."
-    local start_output=$(ssh "$REMOTE_HOST" bash -s << EOF 2>&1
+    local start_output=$(ssh $SSH_OPTS "$REMOTE_HOST" bash -s << EOF 2>&1
         cd $release_dir/backend
 
         # 检查二进制文件
@@ -490,7 +498,7 @@ EOF
 
     for i in {1..10}; do
         log_info "健康检查尝试 $i/10..."
-        local health_response=$(ssh "$REMOTE_HOST" "curl -s -w '\nHTTP_CODE:%{http_code}' http://localhost:8080/health 2>&1" || echo "ERROR")
+        local health_response=$(ssh $SSH_OPTS "$REMOTE_HOST" "curl -s -w '\nHTTP_CODE:%{http_code}' http://localhost:8080/health 2>&1" || echo "ERROR")
 
         if [[ "$health_response" == *"HTTP_CODE:200"* ]] || [[ "$health_response" == *'"status":"ok"'* ]]; then
             health_check_passed=true
@@ -510,7 +518,7 @@ EOF
         log_error "服务启动失败！"
         log_error "正在收集错误信息..."
 
-        ssh "$REMOTE_HOST" bash -s << EOF
+        ssh $SSH_OPTS "$REMOTE_HOST" bash -s << EOF
             echo "=== 进程状态 ==="
             ps aux | grep -E 'main|backend' | grep -v grep || echo "没有相关进程"
 
@@ -534,7 +542,7 @@ EOF
     log_success "后端服务重启完成"
 
     # 显示新进程信息
-    local new_pid=$(ssh "$REMOTE_HOST" "pgrep -f '$release_dir/backend/main' || echo ''")
+    local new_pid=$(ssh $SSH_OPTS "$REMOTE_HOST" "pgrep -f '$release_dir/backend/main' || echo ''")
     if [ -n "$new_pid" ]; then
         log_success "新服务进程: PID=$new_pid"
     fi
