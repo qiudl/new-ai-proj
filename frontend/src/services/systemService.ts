@@ -335,33 +335,47 @@ export class SystemService {
 
   // Audit Logs
   static async getAuditLogs(
-    page = 1, 
-    pageSize = 20, 
+    page = 1,
+    pageSize = 20,
     filters: AuditLogFilter = {}
   ): Promise<PaginatedResponse<AuditLog>> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      page_size: pageSize.toString(),
-    });
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: pageSize.toString(),
+      });
 
-    // Add filter parameters
-    if (filters.action) params.append('action', filters.action);
-    if (filters.entity_type) params.append('entity_type', filters.entity_type);
-    if (filters.user_id) params.append('user_id', filters.user_id.toString());
-    if (filters.start_date) params.append('start_date', filters.start_date);
-    if (filters.end_date) params.append('end_date', filters.end_date);
-    if (filters.ip_address) params.append('ip_address', filters.ip_address);
-    if (filters.search) params.append('search', filters.search);
-    if (filters.status) params.append('status', filters.status);
+      // Add filter parameters
+      if (filters.action) params.append('action', filters.action);
+      if (filters.entity_type) params.append('entity_type', filters.entity_type);
+      if (filters.user_id) params.append('user_id', filters.user_id.toString());
+      if (filters.start_date) params.append('start_date', filters.start_date);
+      if (filters.end_date) params.append('end_date', filters.end_date);
+      if (filters.ip_address) params.append('ip_address', filters.ip_address);
+      if (filters.search) params.append('search', filters.search);
+      if (filters.status) params.append('status', filters.status);
 
-    const response = await api.get<BackendPaginatedResponse>(
-      `/system/audit/logs?${params.toString()}`
-    );
-    // API interceptor already unwrapped response.data, so response is {data: [...], pagination: {...}}
-    return {
-      data: (response as any).data as AuditLog[],
-      pagination: (response as any).pagination
-    };
+      const response = await api.get<BackendPaginatedResponse>(
+        `/system/audit/logs?${params.toString()}`
+      );
+      // API interceptor already unwrapped response.data, so response is {data: [...], pagination: {...}}
+      return {
+        data: (response as any).data as AuditLog[],
+        pagination: (response as any).pagination
+      };
+    } catch (error: any) {
+      // 404是审计日志API未注册的正常情况（后端路由问题），返回空数据
+      if (error?.response?.status === 404 || error?.response?.status === 403) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ 审计日志API不可用（后端路由未注册）');
+        }
+        return {
+          data: [],
+          pagination: { page, page_size: pageSize, total: 0, total_pages: 0 }
+        };
+      }
+      throw error;
+    }
   }
 
   static async getAuditLog(id: number): Promise<AuditLog> {

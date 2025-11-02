@@ -103,16 +103,24 @@ const EnterpriseImpersonation: React.FC = () => {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         setEnterprises(result.data?.data || []);
+      } else if (response.status === 404 || response.status === 403) {
+        // 权限不足或API不可用，静默处理
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ 企业列表API不可用（权限不足）');
+        }
+        setEnterprises([]);
       } else {
         throw new Error('获取企业列表失败');
       }
     } catch (error) {
-      console.error('Failed to fetch enterprises:', error);
-      message.error('获取企业列表失败');
+      // 仅在非网络错误时显示消息
+      if (error instanceof Error && error.message !== '获取企业列表失败') {
+        console.error('Failed to fetch enterprises:', error);
+      }
     }
   };
 

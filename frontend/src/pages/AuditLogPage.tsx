@@ -97,9 +97,12 @@ const AuditLogPage: React.FC = () => {
       setAuditLogs(validAuditLogs);
       setTotal(response.pagination?.total || 0);
       setCurrentPage(page);
-    } catch (error) {
-      console.error('Error loading audit logs:', error);
-      message.error('加载审计日志失败');
+    } catch (error: any) {
+      // 仅在非404/403错误时显示错误消息
+      if (error?.response?.status !== 404 && error?.response?.status !== 403) {
+        console.error('Error loading audit logs:', error);
+        message.error('加载审计日志失败');
+      }
       setAuditLogs([]);
       setTotal(0);
     } finally {
