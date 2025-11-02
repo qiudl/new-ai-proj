@@ -39,6 +39,9 @@ func RegisterEnterpriseRoutesV2(
 	// 注册企业部门管理路由 (新增)
 	registerEnterpriseDepartmentRoutes(enterprise, permMiddleware, app)
 
+	// 注册企业用户中心路由 (用户详情、项目、统计、活动等)
+	registerEnterpriseUserCenterRoutes(enterprise, permMiddleware, app)
+
 	// 注册业务路由 (项目、任务、文档等)
 	registerEnterpriseBusinessRoutes(enterprise, permMiddleware, app)
 }
@@ -232,6 +235,82 @@ func registerEnterpriseDepartmentRoutes(
 	)
 
 	fmt.Printf("  ✓ 企业部门管理路由: /api/v1/enterprises/:enterprise_id/departments\n")
+}
+
+// registerEnterpriseUserCenterRoutes 注册企业用户中心路由
+// 路径: /api/v1/enterprises/:enterprise_id/users/:user_id/*
+// 提供用户详情、项目列表、统计信息、活动记录、权限管理等功能
+func registerEnterpriseUserCenterRoutes(
+	enterprise *gin.RouterGroup,
+	permMiddleware *middleware.PermissionMiddlewareV2,
+	app ApplicationInterface,
+) {
+	enterpriseHandler := app.GetEnterpriseHandler()
+	if enterpriseHandler == nil {
+		fmt.Printf("⚠️  [WARNING] EnterpriseHandler not available for user center routes\n")
+		return
+	}
+
+	// 用户中心路由组
+	userCenter := enterprise.Group("/users/:user_id")
+
+	// 用户项目列表
+	userCenter.GET("/projects",
+		permMiddleware.RequireEnterprisePermission("enterprise.user.read"),
+		adaptUserCenterParams(enterpriseHandler.GetEnterpriseUserProjects),
+	)
+
+	// 用户统计信息
+	userCenter.GET("/stats",
+		permMiddleware.RequireEnterprisePermission("enterprise.user.read"),
+		adaptUserCenterParams(enterpriseHandler.GetEnterpriseUserStats),
+	)
+
+	// 用户活动记录
+	userCenter.GET("/activities",
+		permMiddleware.RequireEnterprisePermission("enterprise.user.read"),
+		adaptUserCenterParams(enterpriseHandler.GetEnterpriseUserActivities),
+	)
+
+	// 用户权限查询
+	userCenter.GET("/permissions",
+		permMiddleware.RequireEnterprisePermission("enterprise.user.read_permissions"),
+		adaptUserCenterParams(enterpriseHandler.GetEnterpriseUserPermissions),
+	)
+
+	// 更新用户权限
+	userCenter.PUT("/permissions",
+		permMiddleware.RequireEnterprisePermission("enterprise.user.manage_permissions"),
+		adaptUserCenterParams(enterpriseHandler.UpdateEnterpriseUserPermissions),
+	)
+
+	// 重置用户密码
+	userCenter.POST("/reset-password",
+		permMiddleware.RequireEnterprisePermission("enterprise.user.reset_password"),
+		adaptUserCenterParams(enterpriseHandler.ResetEnterpriseUserPassword),
+	)
+
+	fmt.Printf("  ✓ 企业用户中心路由: /api/v1/enterprises/:enterprise_id/users/:user_id\n")
+}
+
+// adaptUserCenterParams 参数适配器: 将RBAC v2路径参数映射为旧handler期望的参数名
+// 映射关系:
+//   - enterprise_id (新) -> id (旧)
+//   - user_id (新) -> userId (旧)
+// 这样可以复用EnterpriseHandler的现有方法,无需修改其内部实现
+func adaptUserCenterParams(handler gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		enterpriseID := c.Param("enterprise_id")
+		userID := c.Param("user_id")
+
+		// 重映射参数为旧handler期望的名称
+		c.Params = []gin.Param{
+			{Key: "id", Value: enterpriseID},
+			{Key: "userId", Value: userID},
+		}
+
+		handler(c)
+	}
 }
 
 // registerEnterpriseBusinessRoutes 注册企业业务路由 (项目、任务、文档等)
