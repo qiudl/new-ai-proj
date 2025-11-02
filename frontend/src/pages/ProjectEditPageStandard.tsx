@@ -379,9 +379,17 @@ const ProjectEditPageNew: React.FC = () => {
         setEnterprises(response.data);
         console.log('   已加载企业数量:', response.data.length);
       }
-    } catch (error) {
-      console.error('❌ [loadEnterprises] 加载企业列表失败:', error);
-      message.error('加载企业列表失败');
+    } catch (error: any) {
+      // 404/403是权限不足的正常情况（非管理员用户），不需要打印错误或显示提示
+      if (error?.response?.status !== 404 && error?.response?.status !== 403) {
+        console.error('❌ [loadEnterprises] 加载企业列表失败:', error);
+        message.error('加载企业列表失败');
+      } else {
+        // 静默处理权限不足错误，仅在开发环境显示提示
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ [loadEnterprises] 企业列表API不可用（权限不足）');
+        }
+      }
     } finally {
       setLoadingStates(prev => ({ ...prev, enterprise: false }));
     }

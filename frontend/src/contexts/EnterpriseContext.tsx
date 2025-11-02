@@ -41,21 +41,24 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await enterpriseService.getEnterprises(1, 100);
       setEnterprises(response.data);
-      
+
     } catch (err: any) {
-      console.error('❌ 刷新企业列表失败:', err);
-      
-      // 如果是404错误，说明后端尚未实现企业管理功能，静默处理
-      if (err?.response?.status === 404 || err?.status === 404) {
-        console.warn('⚠️ 企业管理功能尚未启用（后端API不存在）');
+      // 如果是404/403错误，说明用户无权访问系统管理API或后端尚未实现，静默处理
+      if (err?.response?.status === 404 || err?.response?.status === 403 || err?.status === 404 || err?.status === 403) {
+        // 仅在开发环境显示警告，生产环境完全静默
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ 企业列表API不可用（权限不足或后端未实现）');
+        }
         setEnterprises([]); // 设置空列表
         setError(null); // 不显示错误
         return; // 静默处理，不显示错误消息
       }
-      
+
+      // 仅对非权限问题的真实错误打印日志和显示提示
+      console.error('❌ 刷新企业列表失败:', err);
       const errorMessage = err instanceof Error ? err.message : '刷新企业列表失败';
       setError(errorMessage);
       message.error(errorMessage);
@@ -69,18 +72,26 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
     try {
       setLoading(true);
       setError(null);
-      
+
       const enterprise = await enterpriseService.getEnterprise(enterpriseId);
       setCurrentEnterprise(enterprise);
-      
+
       // 保存到本地存储
       localStorage.setItem('currentEnterpriseId', enterpriseId.toString());
-      
-    } catch (err) {
-      console.error('❌ 企业切换失败:', err);
-      const errorMessage = err instanceof Error ? err.message : '企业切换失败';
-      setError(errorMessage);
-      message.error(errorMessage);
+
+    } catch (err: any) {
+      // 仅在非404/403错误时打印日志和显示错误
+      if (err?.response?.status !== 404 && err?.response?.status !== 403) {
+        console.error('❌ 企业切换失败:', err);
+        const errorMessage = err instanceof Error ? err.message : '企业切换失败';
+        setError(errorMessage);
+        message.error(errorMessage);
+      } else {
+        // 权限不足的情况，显示友好提示
+        const errorMessage = '您没有权限访问该企业信息';
+        setError(errorMessage);
+        message.error(errorMessage);
+      }
       throw err;
     } finally {
       setLoading(false);
@@ -94,12 +105,15 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
       if (!enterpriseId) {
         return null;
       }
-      
+
       const enterprise = await enterpriseService.getEnterprise(enterpriseId);
       return enterprise;
-      
-    } catch (err) {
-      console.error('❌ 获取用户企业信息失败:', err);
+
+    } catch (err: any) {
+      // 仅在非404/403错误时打印日志
+      if (err?.response?.status !== 404 && err?.response?.status !== 403) {
+        console.error('❌ 获取用户企业信息失败:', err);
+      }
       return null;
     }
   };

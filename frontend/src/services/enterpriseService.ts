@@ -221,6 +221,8 @@ class EnterpriseService {
   }
 
   // 获取企业列表
+  // 注意: 此API使用系统管理路径，需要system.enterprise.read权限
+  // 普通用户和企业用户可能无权访问，会返回404/403
   async getEnterprises(page: number = 1, pageSize: number = 20, filters?: any): Promise<PaginatedResponse<Enterprise>> {
     try {
       const params = new URLSearchParams({
@@ -231,8 +233,11 @@ class EnterpriseService {
       const response = await api.get(`${this.API_BASE_URL}?${params}`);
       const result = this.handleApiResponse<PaginatedResponse<Enterprise>>(response);
       return result;
-    } catch (error) {
-      console.error('❌ 获取企业列表失败:', error);
+    } catch (error: any) {
+      // 404/403是权限不足的正常情况，不需要打印错误日志
+      if (error?.response?.status !== 404 && error?.response?.status !== 403) {
+        console.error('❌ 获取企业列表失败:', error);
+      }
       throw error;
     }
   }

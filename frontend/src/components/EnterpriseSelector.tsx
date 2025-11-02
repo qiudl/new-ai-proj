@@ -45,10 +45,18 @@ const EnterpriseSelector: React.FC<EnterpriseSelectorProps> = ({
     try {
       const result = await enterpriseService.getEnterprises(1, 100); // 获取前100个企业
       setEnterprises(result.data);
-    } catch (err) {
-      console.error('❌ 加载企业列表失败:', err);
-      setError('加载企业列表失败');
-      message.error('加载企业列表失败');
+    } catch (err: any) {
+      // 404/403是权限不足的正常情况，静默处理
+      if (err?.response?.status !== 404 && err?.response?.status !== 403) {
+        console.error('❌ 加载企业列表失败:', err);
+        setError('加载企业列表失败');
+        message.error('加载企业列表失败');
+      } else {
+        // 权限不足时静默处理，不显示错误
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ 企业列表API不可用（权限不足）');
+        }
+      }
       setEnterprises([]);
     } finally {
       setLoading(false);
