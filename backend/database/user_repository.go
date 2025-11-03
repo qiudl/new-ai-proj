@@ -1115,6 +1115,41 @@ func (r *PostgresUserRepository) UpdatePassword(ctx context.Context, userID int,
 	return nil
 }
 
+// UpdateLastLogin updates the last login timestamp for a user
+func (r *PostgresUserRepository) UpdateLastLogin(ctx context.Context, userID int) error {
+	// First get the user to determine if it's a system or enterprise user
+	user, err := r.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
+
+	exec := r.getExecer()
+	var query string
+
+	// Route to appropriate table based on user type
+	if user.UserType == "system" {
+		query = `UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
+	} else {
+		query = `UPDATE enterprise_users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
+	}
+
+	result, err := exec.ExecContext(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update last login: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
+}
+
 // GetUsersTimingTask retrieves all users currently timing the specified task
 func (r *PostgresUserRepository) GetUsersTimingTask(ctx context.Context, taskID int) ([]models.User, error) {
 	// Only system users have timing functionality in users table

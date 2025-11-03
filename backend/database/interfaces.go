@@ -33,6 +33,7 @@ type UserRepository interface {
 	// User profile management
 	UpdateProfile(ctx context.Context, userID int, username, email string) (*models.User, error)
 	UpdatePassword(ctx context.Context, userID int, passwordHash string) error
+	UpdateLastLogin(ctx context.Context, userID int) error
 
 	// Timer management
 	GetUsersTimingTask(ctx context.Context, taskID int) ([]models.User, error)
