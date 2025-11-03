@@ -238,32 +238,51 @@ func (h *ImpersonationHandler) StartImpersonation(c *gin.Context) {
 
 // ExitImpersonation POST /api/v1/admin/impersonate/exit
 func (h *ImpersonationHandler) ExitImpersonation(c *gin.Context) {
-	// 1. 获取当前Claims
-	claims, exists := c.Get("claims")
-	if !exists {
+	// 1. 尝试从多个来源获取Claims
+	var extendedClaims *models.ExtendedClaims
+
+	// 优先尝试从claims获取（模拟状态下应该有ExtendedClaims）
+	if claimsInterface, exists := c.Get("claims"); exists {
+		if claims, ok := claimsInterface.(*models.ExtendedClaims); ok {
+			extendedClaims = claims
+		}
+	}
+
+	// 如果没有找到ExtendedClaims，检查是否有token_claims
+	if extendedClaims == nil {
+		if tokenClaimsInterface, exists := c.Get("token_claims"); exists {
+			if _, ok := tokenClaimsInterface.(*utils.JWTClaims); ok {
+				// 如果只有标准claims，说明可能不在模拟状态
+				c.JSON(http.StatusBadRequest, gin.H{
+					"success": false,
+					"error":   "Not impersonating",
+					"message": "Not currently in impersonation mode",
+					"code":    "NOT_IMPERSONATING",
+				})
+				return
+			}
+		}
+
+		// 如果两者都没有，返回认证错误
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "No authentication claims found",
+			"success": false,
+			"error":   "No authentication claims found",
+			"code":    "UNAUTHENTICATED",
 		})
 		return
 	}
-	
-	extendedClaims, ok := claims.(*models.ExtendedClaims)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Invalid claims type",
-		})
-		return
-	}
-	
+
 	// 2. 验证是否在模拟状态
 	if !extendedClaims.IsImpersonating() {
 		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
 			"error":   "Not impersonating",
 			"message": "Not currently in impersonation mode",
+			"code":    "NOT_IMPERSONATING",
 		})
 		return
 	}
-	
+
 	ctx := extendedClaims.ImpersonationContext
 	
 	// 3. 生成原始用户的新Token
@@ -275,8 +294,10 @@ func (h *ImpersonationHandler) ExitImpersonation(c *gin.Context) {
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
 			"error":   "Failed to restore session",
 			"message": err.Error(),
+			"code":    "TOKEN_GENERATION_FAILED",
 		})
 		return
 	}
