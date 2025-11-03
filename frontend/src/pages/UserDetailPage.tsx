@@ -456,7 +456,14 @@ const UserDetailPage: React.FC = () => {
                         prefix={<BankOutlined />}
                       />
                     </Col>
-                    <Col span={16}>
+                    <Col span={8}>
+                      <Statistic
+                        title="部门"
+                        value={user.department_name || '-'}
+                        prefix={<TeamOutlined />}
+                      />
+                    </Col>
+                    <Col span={8}>
                       <Statistic
                         title="职位"
                         value={user.department_title || '-'}

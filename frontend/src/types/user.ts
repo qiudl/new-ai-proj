@@ -30,6 +30,7 @@ export interface User {
   contact_person_name?: string;
   contact_phone?: string;
   department_title?: string;
+  department_name?: string;
   is_primary_contact?: boolean;
   account_expires_at?: string;
   last_project_access?: string;
