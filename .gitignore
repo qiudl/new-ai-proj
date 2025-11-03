@@ -59,6 +59,11 @@ coverage/
 htmlcov/
 .nyc_output/
 
+# Playwright E2E Testing
+playwright-report/
+test-results/
+playwright/.cache/
+
 # Database
 *.db
 *.sqlite
