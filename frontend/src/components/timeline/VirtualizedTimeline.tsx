@@ -347,6 +347,7 @@ const VirtualizedTimeline: React.FC<VirtualizedTimelineProps> = ({
       style={{ height: height + 100 }}
       styles={{ body: { height, padding: 0  }}}
     >
+      {/* ✅ FIXED - Pass VirtualTimelineItem as children prop for react-window List (TS2322) */}
       <List
         ref={listRef}
         height={height}
@@ -355,9 +356,8 @@ const VirtualizedTimeline: React.FC<VirtualizedTimelineProps> = ({
         itemData={virtualListData}
         overscanCount={overscanCount}
         style={{ width: '100%' }}
-      >
-        {VirtualTimelineItem}
-      </List>
+        children={VirtualTimelineItem}
+      />
     </Card>
   );
 };
