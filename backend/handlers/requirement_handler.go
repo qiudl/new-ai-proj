@@ -188,9 +188,25 @@ func (h *RequirementHandler) CreateRequirement(c *gin.Context) {
 		return
 	}
 
+	// Determine enterprise ID
+	var enterpriseID int
 	if user.CompanyID == nil {
-		c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "用户未关联企业，无法创建需求", nil))
-		return
+		// System admin without company association
+		if user.UserType == "system" && req.EnterpriseID != nil {
+			// System admin can specify enterprise_id in request
+			enterpriseID = *req.EnterpriseID
+		} else if user.UserType == "system" {
+			// System admin must specify enterprise_id
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation, "系统管理员创建需求时必须指定企业ID", nil))
+			return
+		} else {
+			// Regular user must have company association
+			c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "用户未关联企业，无法创建需求", nil))
+			return
+		}
+	} else {
+		// User has company association, use it
+		enterpriseID = *user.CompanyID
 	}
 
 	// Create requirement object
@@ -198,7 +214,7 @@ func (h *RequirementHandler) CreateRequirement(c *gin.Context) {
 		Title:              req.Title,
 		Description:        req.Description,
 		ProjectID:          req.ProjectID,
-		EnterpriseID:       *user.CompanyID,
+		EnterpriseID:       enterpriseID,
 		SubmitterID:        userID,
 		Status:             string(models.RequirementStatusPending),
 		Priority:           req.Priority,
@@ -688,11 +704,14 @@ func (h *RequirementHandler) ConvertRequirementToTask(c *gin.Context) {
 
 	// Create task
 	task := &models.Task{
-		Title:       taskTitle,
-		Description: &taskDescription,
-		ProjectID:   *projectID,
-		Status:      "todo",
-		Priority:    taskPriority,
+		Title:        taskTitle,
+		Description:  &taskDescription,
+		ProjectID:    *projectID,
+		Status:       "todo",
+		Priority:     taskPriority,
+		CustomFields: models.CustomFields{}, // Initialize empty JSON fields
+		Dependencies: models.Dependencies{}, // Initialize empty dependencies
+		Tags:         models.Tags{},         // Initialize empty tags
 	}
 
 	if req.AssigneeID != nil {

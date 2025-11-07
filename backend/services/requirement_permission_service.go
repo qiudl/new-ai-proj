@@ -79,8 +79,8 @@ func (s *RequirementPermissionService) checkRequirementSpecificAccess(ctx contex
 		query := `
 			SELECT id, title, description, enterprise_id, submitter_id, reviewer_id,
 				   status, priority, due_date, created_at, updated_at
-			FROM requirement
-			WHERE id = $1 AND deleted_at IS NULL
+			FROM requirements
+			WHERE id = $1
 		`
 		requirement = &models.Requirement{}
 		var description, reviewerID, priority, dueDate sql.NullString
@@ -172,8 +172,8 @@ func (s *RequirementPermissionService) GetRequirementAccess(ctx context.Context,
 	// Load requirement
 	query := `
 		SELECT id, enterprise_id, submitter_id, reviewer_id, status
-		FROM requirement
-		WHERE id = $1 AND deleted_at IS NULL
+		FROM requirements
+		WHERE id = $1
 	`
 	var enterpriseID, submitterID int
 	var reviewerID sql.NullInt64
