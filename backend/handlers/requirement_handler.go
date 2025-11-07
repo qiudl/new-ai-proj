@@ -704,14 +704,15 @@ func (h *RequirementHandler) ConvertRequirementToTask(c *gin.Context) {
 
 	// Create task
 	task := &models.Task{
-		Title:        taskTitle,
-		Description:  &taskDescription,
-		ProjectID:    *projectID,
-		Status:       "todo",
-		Priority:     taskPriority,
-		CustomFields: models.CustomFields{}, // Initialize empty JSON fields
-		Dependencies: models.Dependencies{}, // Initialize empty dependencies
-		Tags:         models.Tags{},         // Initialize empty tags
+		Title:            taskTitle,
+		Description:      &taskDescription,
+		ProjectID:        *projectID,
+		Status:           "todo",
+		Priority:         taskPriority,
+		CustomFields:     models.CustomFields{}, // Initialize empty JSON fields
+		Dependencies:     models.Dependencies{}, // Initialize empty dependencies
+		Tags:             models.Tags{},         // Initialize empty tags
+		TimeTrackingMode: "manual",              // Set default time tracking mode
 	}
 
 	if req.AssigneeID != nil {
