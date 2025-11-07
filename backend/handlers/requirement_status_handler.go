@@ -27,8 +27,22 @@ func NewRequirementStatusHandler(db database.DB, permissionService *services.Req
 	}
 }
 
-// UpdateRequirementStatusEnhanced handles PUT /api/v1/requirements/:id/status
-// This is an enhanced version that uses RequirementPermissionService for comprehensive validation
+// UpdateRequirementStatusEnhanced godoc
+// @Summary Update requirement status
+// @Description Update requirement status with permission validation and workflow checks
+// @Tags requirement-status
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body object{status=string,comment=string} true "Status update data"
+// @Success 200 {object} models.APIResponse{data=object{requirement_id=int,old_status=string,new_status=string,changed_at=string,changed_by=int}}
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/{id}/status [put]
+// @Security BearerAuth
 func (h *RequirementStatusHandler) UpdateRequirementStatusEnhanced(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
@@ -135,14 +149,42 @@ func (h *RequirementStatusHandler) UpdateRequirementStatusEnhanced(c *gin.Contex
 	c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, "需求状态更新成功"))
 }
 
-// SubmitRequirement handles POST /api/v1/requirements/:id/submit
-// Convenience endpoint to transition from Draft to Pending
+// SubmitRequirement godoc
+// @Summary Submit requirement for review
+// @Description Submit a draft requirement for review (changes status from draft to pending)
+// @Tags requirement-status
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body object{comment=string} false "Optional comment"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/{id}/submit [post]
+// @Security BearerAuth
 func (h *RequirementStatusHandler) SubmitRequirement(c *gin.Context) {
 	h.transitionToStatus(c, string(models.RequirementStatusPending), "提交需求审核")
 }
 
-// ApproveRequirement handles POST /api/v1/requirements/:id/approve
-// Convenience endpoint to transition from Pending to Approved
+// ApproveRequirement godoc
+// @Summary Approve requirement
+// @Description Approve a requirement (only reviewers/admins can approve)
+// @Tags requirement-status
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body object{comment=string} false "Optional approval comment"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/{id}/approve [post]
+// @Security BearerAuth
 func (h *RequirementStatusHandler) ApproveRequirement(c *gin.Context) {
 	var req struct {
 		Comment *string `json:"comment"` // Optional approval comment
@@ -217,8 +259,22 @@ func (h *RequirementStatusHandler) ApproveRequirement(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "需求已批准"))
 }
 
-// RejectRequirement handles POST /api/v1/requirements/:id/reject
-// Convenience endpoint to transition from Pending to Rejected
+// RejectRequirement godoc
+// @Summary Reject requirement
+// @Description Reject a requirement with mandatory rejection reason
+// @Tags requirement-status
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body object{comment=string} true "Rejection reason (required)"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/{id}/reject [post]
+// @Security BearerAuth
 func (h *RequirementStatusHandler) RejectRequirement(c *gin.Context) {
 	var req struct {
 		Comment *string `json:"comment" binding:"required"` // Rejection reason is required
@@ -296,14 +352,42 @@ func (h *RequirementStatusHandler) RejectRequirement(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "需求已拒绝"))
 }
 
-// WithdrawRequirement handles POST /api/v1/requirements/:id/withdraw
-// Convenience endpoint to transition from Pending back to Draft
+// WithdrawRequirement godoc
+// @Summary Withdraw requirement
+// @Description Withdraw a submitted requirement back to draft status
+// @Tags requirement-status
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body object{comment=string} false "Optional comment"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/{id}/withdraw [post]
+// @Security BearerAuth
 func (h *RequirementStatusHandler) WithdrawRequirement(c *gin.Context) {
 	h.transitionToStatus(c, string(models.RequirementStatusDraft), "撤回需求")
 }
 
-// ArchiveRequirement handles POST /api/v1/requirements/:id/archive
-// Convenience endpoint to archive a requirement
+// ArchiveRequirement godoc
+// @Summary Archive requirement
+// @Description Archive a requirement for historical record keeping
+// @Tags requirement-status
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body object{comment=string} false "Optional comment"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/{id}/archive [post]
+// @Security BearerAuth
 func (h *RequirementStatusHandler) ArchiveRequirement(c *gin.Context) {
 	h.transitionToStatus(c, string(models.RequirementStatusArchived), "归档需求")
 }
@@ -382,8 +466,19 @@ func (h *RequirementStatusHandler) transitionToStatus(c *gin.Context, targetStat
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, fmt.Sprintf("%s成功", actionDescription)))
 }
 
-// GetRequirementPermissions handles GET /api/v1/requirements/:id/permissions
-// Returns what actions the current user can perform on the requirement
+// GetRequirementPermissions godoc
+// @Summary Get requirement permissions
+// @Description Get what actions the current user can perform on the requirement
+// @Tags requirement-status
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Success 200 {object} models.APIResponse{data=object{can_access=bool,can_update=bool,can_delete=bool,can_approve=bool,can_reject=bool,can_comment=bool,is_submitter=bool,is_reviewer=bool,is_enterprise_user=bool,reason=string}}
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/{id}/permissions [get]
+// @Security BearerAuth
 func (h *RequirementStatusHandler) GetRequirementPermissions(c *gin.Context) {
 	userID := c.GetInt("user_id")
 	requirementID, err := strconv.Atoi(c.Param("id"))

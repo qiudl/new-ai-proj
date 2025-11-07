@@ -1,5 +1,13 @@
 basePath: /api/v1
 definitions:
+  gorm.DeletedAt:
+    properties:
+      time:
+        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
+    type: object
   handlers.BatchGenerateDescriptionsRequest:
     properties:
       model:
@@ -13,6 +21,26 @@ definitions:
     required:
     - model
     - task_ids
+    type: object
+  handlers.CreateEnterpriseRoleRequest:
+    properties:
+      permission_ids:
+        description: Only used if not creating from template
+        items:
+          type: integer
+        type: array
+      role_code:
+        type: string
+      role_description:
+        type: string
+      role_name:
+        type: string
+      template_role_code:
+        description: If provided, create from template
+        type: string
+    required:
+    - role_code
+    - role_name
     type: object
   handlers.GenerateDescriptionRequest:
     properties:
@@ -127,6 +155,26 @@ definitions:
     - entityType
     - id
     type: object
+  handlers.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  handlers.UpdateEnterpriseRoleRequest:
+    properties:
+      permission_ids:
+        items:
+          type: integer
+        type: array
+      role_description:
+        type: string
+      role_name:
+        type: string
+    required:
+    - role_name
+    type: object
   handlers.UpdateTaskDescriptionRequest:
     properties:
       description:
@@ -136,6 +184,24 @@ definitions:
         type: string
     required:
     - description
+    type: object
+  handlers.UpdateUserEnterpriseRequest:
+    properties:
+      company_id:
+        description: 旧模型 company_id
+        type: integer
+      department_id:
+        description: 部门ID
+        type: integer
+      enterprise_id:
+        description: 新模型 enterprise_id
+        type: integer
+      position:
+        description: 职位
+        type: string
+      sync_to_enterprise:
+        description: 是否同步到enterprise_users表
+        type: boolean
     type: object
   models.APIError:
     properties:
@@ -438,6 +504,17 @@ definitions:
       timestamp:
         type: string
     type: object
+  models.Attachment:
+    properties:
+      name:
+        type: string
+      size:
+        type: integer
+      type:
+        type: string
+      url:
+        type: string
+    type: object
   models.BatchConversionItem:
     properties:
       options:
@@ -593,6 +670,29 @@ definitions:
     required:
     - target_task_id
     type: object
+  models.ConvertToTaskRequest:
+    properties:
+      assignee_id:
+        type: integer
+      create_subtasks:
+        type: boolean
+      description:
+        type: string
+      due_date:
+        type: string
+      link_requirement:
+        type: boolean
+      priority:
+        enum:
+        - low
+        - medium
+        - high
+        type: string
+      project_id:
+        type: integer
+      task_title:
+        type: string
+    type: object
   models.CreateDailyFocusTaskRequest:
     properties:
       estimated_duration_minutes:
@@ -611,6 +711,93 @@ definitions:
       user_notes:
         type: string
     required:
+    - task_id
+    type: object
+  models.CreateRequirementCommentRequest:
+    properties:
+      attachments:
+        items:
+          $ref: '#/definitions/models.Attachment'
+        type: array
+      comment_type:
+        enum:
+        - general
+        - question
+        - suggestion
+        - approval
+        type: string
+      content:
+        maxLength: 2000
+        minLength: 1
+        type: string
+      is_internal:
+        type: boolean
+      mentioned_user_ids:
+        description: 可选：前端直接提供@用户ID列表
+        items:
+          type: integer
+        type: array
+      parent_comment_id:
+        type: integer
+      requirement_id:
+        type: integer
+    required:
+    - content
+    - requirement_id
+    type: object
+  models.CreateRequirementRequest:
+    properties:
+      acceptance_criteria:
+        type: string
+      attachments:
+        items:
+          $ref: '#/definitions/models.Attachment'
+        type: array
+      business_value:
+        type: string
+      category:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      enterprise_id:
+        description: system用户创建时需要指定
+        type: integer
+      expected_outcome:
+        type: string
+      priority:
+        enum:
+        - low
+        - medium
+        - high
+        - urgent
+        type: string
+      project_id:
+        type: integer
+      title:
+        maxLength: 500
+        minLength: 1
+        type: string
+    required:
+    - title
+    type: object
+  models.CreateRequirementTaskLinkRequest:
+    properties:
+      link_comment:
+        type: string
+      link_type:
+        enum:
+        - manual
+        - converted
+        - related
+        type: string
+      requirement_id:
+        type: integer
+      task_id:
+        type: integer
+    required:
+    - requirement_id
     - task_id
     type: object
   models.CreateTaskCommentRequest:
@@ -985,6 +1172,74 @@ definitions:
       total_versions:
         type: integer
     type: object
+  models.Enterprise:
+    properties:
+      address:
+        type: string
+      business_type:
+        enum:
+        - individual
+        - partnership
+        - corporation
+        - llc
+        type: string
+      city:
+        type: string
+      code:
+        maxLength: 100
+        minLength: 1
+        type: string
+      contact_email:
+        description: Contact information
+        type: string
+      contact_phone:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        description: Metadata
+        type: integer
+      deleted_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      industry_type:
+        description: Industry and business information
+        type: string
+      legal_representative:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      postal_code:
+        type: string
+      province:
+        type: string
+      registration_number:
+        description: Legal and registration information
+        type: string
+      status:
+        description: Status
+        enum:
+        - active
+        - inactive
+        - suspended
+        type: string
+      tax_id:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: integer
+      website:
+        type: string
+    required:
+    - code
+    - name
+    type: object
   models.ErrorResponse:
     properties:
       data: {}
@@ -1058,6 +1313,174 @@ definitions:
       title:
         type: string
     type: object
+  models.InventoryAdjustRequest:
+    properties:
+      new_quantity:
+        description: 调整后的库存数量
+        minimum: 0
+        type: integer
+      reason:
+        type: string
+      sku_id:
+        type: integer
+      warehouse_id:
+        type: integer
+    required:
+    - new_quantity
+    - reason
+    - sku_id
+    type: object
+  models.InventoryInRequest:
+    properties:
+      quantity:
+        type: integer
+      reason:
+        type: string
+      reference_id:
+        type: integer
+      reference_type:
+        type: string
+      sku_id:
+        type: integer
+      warehouse_id:
+        type: integer
+    required:
+    - quantity
+    - sku_id
+    type: object
+  models.InventoryLockRequest:
+    properties:
+      quantity:
+        type: integer
+      reason:
+        type: string
+      reference_id:
+        type: integer
+      reference_type:
+        type: string
+      sku_id:
+        type: integer
+      warehouse_id:
+        type: integer
+    required:
+    - quantity
+    - sku_id
+    type: object
+  models.InventoryOutRequest:
+    properties:
+      quantity:
+        type: integer
+      reason:
+        type: string
+      reference_id:
+        type: integer
+      reference_type:
+        type: string
+      sku_id:
+        type: integer
+      warehouse_id:
+        type: integer
+    required:
+    - quantity
+    - sku_id
+    type: object
+  models.InventoryRecord:
+    properties:
+      available_quantity:
+        description: 库存数量
+        type: integer
+      id:
+        type: integer
+      last_check_date:
+        description: 最后盘点时间
+        type: string
+      last_in_date:
+        description: 时间信息
+        type: string
+      last_out_date:
+        description: 最后出库时间
+        type: string
+      locked_quantity:
+        description: 锁定库存
+        type: integer
+      sku:
+        allOf:
+        - $ref: '#/definitions/models.SKU'
+        description: 关联关系
+      sku_id:
+        description: 关联信息
+        type: integer
+      total_quantity:
+        description: 总库存
+        type: integer
+      updated_at:
+        description: 审计字段
+        type: string
+      warehouse_id:
+        description: 仓库ID（可选）
+        type: integer
+    type: object
+  models.InventoryTransaction:
+    properties:
+      after_quantity:
+        description: 变动后数量
+        type: integer
+      before_quantity:
+        description: 变动前数量
+        type: integer
+      created_at:
+        description: 审计字段
+        type: string
+      id:
+        type: integer
+      operator:
+        $ref: '#/definitions/models.User'
+      operator_id:
+        description: 操作信息
+        type: integer
+      quantity:
+        description: 变动数量（正数增加，负数减少）
+        type: integer
+      reason:
+        description: 原因说明
+        type: string
+      reference_id:
+        description: 关联单据
+        type: integer
+      reference_type:
+        description: 关联单据类型
+        type: string
+      sku:
+        allOf:
+        - $ref: '#/definitions/models.SKU'
+        description: 关联关系
+      sku_id:
+        description: 关联信息
+        type: integer
+      transaction_type:
+        description: 变动信息
+        type: string
+      warehouse_id:
+        type: integer
+    type: object
+  models.InventoryUnlockRequest:
+    properties:
+      quantity:
+        type: integer
+      reason:
+        type: string
+      reference_id:
+        type: integer
+      reference_type:
+        type: string
+      sku_id:
+        type: integer
+      warehouse_id:
+        type: integer
+    required:
+    - quantity
+    - sku_id
+    type: object
   models.ListTaskCommentsResponse:
     properties:
       comments:
@@ -1070,6 +1493,120 @@ definitions:
         type: integer
       total:
         type: integer
+    type: object
+  models.MarkAsReadRequest:
+    properties:
+      notification_ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - notification_ids
+    type: object
+  models.MentionedUser:
+    properties:
+      avatar:
+        type: string
+      user_id:
+        type: integer
+      username:
+        type: string
+    type: object
+  models.MenuGroup:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      menu_items:
+        description: 关联 - 可选，根据需要
+        items:
+          $ref: '#/definitions/models.MenuItem'
+        type: array
+      name:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  models.MenuGroupRequest:
+    properties:
+      description:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
+    required:
+    - name
+    type: object
+  models.MenuItem:
+    properties:
+      children:
+        description: 关联
+        items:
+          $ref: '#/definitions/models.MenuItem'
+        type: array
+      component:
+        type: string
+      created_at:
+        type: string
+      icon:
+        type: string
+      id:
+        type: integer
+      is_enabled:
+        type: boolean
+      is_visible:
+        type: boolean
+      key:
+        type: string
+      label:
+        type: string
+      parent_id:
+        type: integer
+      path:
+        type: string
+      permission:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  models.MenuItemRequest:
+    properties:
+      component:
+        type: string
+      icon:
+        type: string
+      is_enabled:
+        type: boolean
+      is_visible:
+        type: boolean
+      key:
+        type: string
+      label:
+        type: string
+      parent_id:
+        type: integer
+      path:
+        type: string
+      permission:
+        type: string
+      sort_order:
+        type: integer
+    required:
+    - key
+    - label
     type: object
   models.MetadataJSON:
     additionalProperties: true
@@ -1085,6 +1622,67 @@ definitions:
       target_project_id:
         minimum: 1
         type: integer
+    type: object
+  models.NavigationStats:
+    properties:
+      enabled_items:
+        type: integer
+      total_groups:
+        type: integer
+      total_items:
+        type: integer
+      total_routes:
+        type: integer
+      visible_items:
+        type: integer
+    type: object
+  models.NotificationListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/models.NotificationResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  models.NotificationMetadata:
+    additionalProperties: true
+    type: object
+  models.NotificationResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_read:
+        type: boolean
+      message:
+        type: string
+      metadata:
+        $ref: '#/definitions/models.NotificationMetadata'
+      project_title:
+        type: string
+      read_at:
+        type: string
+      related_project_id:
+        type: integer
+      related_task_id:
+        type: integer
+      task_title:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      user_id:
+        type: integer
+      username:
+        description: Additional populated fields
+        type: string
     type: object
   models.OrganizeDetail:
     properties:
@@ -1281,6 +1879,245 @@ definitions:
     required:
     - new_position
     type: object
+  models.RequirementCommentListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/models.RequirementCommentResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  models.RequirementCommentResponse:
+    properties:
+      attachments:
+        items:
+          $ref: '#/definitions/models.Attachment'
+        type: array
+      comment_type:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
+        type: integer
+      id:
+        type: integer
+      is_internal:
+        type: boolean
+      is_pinned:
+        type: boolean
+      mentioned_count:
+        description: 提及用户数量
+        type: integer
+      mentioned_user_ids:
+        description: '@提及的用户ID列表'
+        items:
+          type: integer
+        type: array
+      mentioned_users:
+        description: '@提及用户的详细信息'
+        items:
+          $ref: '#/definitions/models.MentionedUser'
+        type: array
+      parent_comment_id:
+        type: integer
+      replies:
+        items:
+          $ref: '#/definitions/models.RequirementCommentResponse'
+        type: array
+      replies_count:
+        type: integer
+      requirement_id:
+        type: integer
+      status:
+        type: string
+      updated_at:
+        type: string
+      user_avatar:
+        type: string
+      user_id:
+        type: integer
+      user_type:
+        type: string
+      username:
+        type: string
+    type: object
+  models.RequirementListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/models.RequirementResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  models.RequirementResponse:
+    properties:
+      acceptance_criteria:
+        type: string
+      attachments:
+        items:
+          $ref: '#/definitions/models.Attachment'
+        type: array
+      business_value:
+        description: 业务信息
+        type: string
+      category:
+        type: string
+      comments_count:
+        description: 统计信息
+        type: integer
+      complexity:
+        type: string
+      converted_at:
+        type: string
+      converted_by:
+        type: integer
+      converted_task_id:
+        description: 转化信息
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      display_id:
+        type: string
+      due_date:
+        type: string
+      enterprise_id:
+        type: integer
+      enterprise_name:
+        type: string
+      estimated_cost:
+        type: number
+      estimated_hours:
+        description: 估算信息
+        type: number
+      expected_outcome:
+        type: string
+      id:
+        type: integer
+      priority:
+        type: string
+      project_id:
+        description: 关联信息
+        type: integer
+      project_name:
+        type: string
+      review_comment:
+        type: string
+      review_score:
+        type: integer
+      review_status:
+        description: 评审信息
+        type: string
+      reviewed_at:
+        type: string
+      reviewer_id:
+        description: 评审人信息
+        type: integer
+      reviewer_name:
+        type: string
+      status:
+        description: 状态和优先级
+        type: string
+      submitted_at:
+        description: 时间戳
+        type: string
+      submitter_id:
+        description: 提交人信息
+        type: integer
+      submitter_name:
+        type: string
+      title:
+        description: 基础信息
+        type: string
+      updated_at:
+        type: string
+      views_count:
+        type: integer
+    type: object
+  models.RequirementStats:
+    properties:
+      approved_this_month:
+        type: integer
+      average_review_time_hours:
+        type: number
+      by_priority:
+        additionalProperties:
+          type: integer
+        type: object
+      by_status:
+        additionalProperties:
+          type: integer
+        type: object
+      conversion_rate:
+        type: number
+      converted_this_month:
+        type: integer
+      pending_review:
+        type: integer
+      total_requirements:
+        type: integer
+    type: object
+  models.RequirementTaskListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/models.RequirementTaskResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  models.RequirementTaskResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      link_comment:
+        type: string
+      link_type:
+        type: string
+      linked_by:
+        type: integer
+      linker_username:
+        type: string
+      requirement_display_id:
+        type: string
+      requirement_id:
+        type: integer
+      requirement_status:
+        type: string
+      requirement_title:
+        description: Requirement details
+        type: string
+      task_id:
+        type: integer
+      task_status:
+        type: string
+      task_title:
+        description: Task details
+        type: string
+      updated_at:
+        type: string
+    type: object
   models.RestoreDocumentVersionRequest:
     properties:
       change_summary:
@@ -1290,6 +2127,383 @@ definitions:
         type: integer
     required:
     - target_version
+    type: object
+  models.RouteConfig:
+    properties:
+      component:
+        type: string
+      created_at:
+        type: string
+      exact:
+        type: boolean
+      id:
+        type: integer
+      is_protected:
+        type: boolean
+      menu_item_id:
+        type: integer
+      meta:
+        $ref: '#/definitions/models.RouteMeta'
+      path:
+        type: string
+      permission:
+        type: string
+      redirect:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.RouteConfigRequest:
+    properties:
+      component:
+        type: string
+      exact:
+        type: boolean
+      is_protected:
+        type: boolean
+      menu_item_id:
+        type: integer
+      meta:
+        $ref: '#/definitions/models.RouteMeta'
+      path:
+        type: string
+      permission:
+        type: string
+      redirect:
+        type: string
+    required:
+    - component
+    - path
+    type: object
+  models.RouteMeta:
+    properties:
+      description:
+        type: string
+      keywords:
+        type: string
+      title:
+        type: string
+    type: object
+  models.SKU:
+    properties:
+      alert_quantity:
+        description: 库存预警值
+        type: integer
+      attributes:
+        allOf:
+        - $ref: '#/definitions/models.SKUAttributes'
+        description: 属性信息
+      barcode:
+        description: 物流信息
+        type: string
+      cost_price:
+        description: 成本价
+        type: number
+      created_at:
+        description: 审计字段
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      inventory_records:
+        items:
+          $ref: '#/definitions/models.InventoryRecord'
+        type: array
+      market_price:
+        description: 市场价
+        type: number
+      name:
+        description: SKU名称
+        type: string
+      price:
+        description: 价格信息
+        type: number
+      sku_code:
+        description: SKU编码
+        type: string
+      spu:
+        allOf:
+        - $ref: '#/definitions/models.SPU'
+        description: 关联关系
+      spu_id:
+        description: 所属SPU
+        type: integer
+      status:
+        description: 状态管理
+        type: string
+      stock_quantity:
+        description: 库存信息
+        type: integer
+      updated_at:
+        type: string
+      volume:
+        description: 体积（m³）
+        type: number
+      weight:
+        description: 重量（kg）
+        type: number
+    type: object
+  models.SKUAttributes:
+    additionalProperties:
+      type: string
+    type: object
+  models.SKUBatchCreateRequest:
+    properties:
+      skus:
+        items:
+          $ref: '#/definitions/models.SKUCreateRequest'
+        minItems: 1
+        type: array
+      spu_id:
+        type: integer
+    required:
+    - skus
+    - spu_id
+    type: object
+  models.SKUBatchUpdateRequest:
+    properties:
+      updates:
+        items:
+          $ref: '#/definitions/models.SKUUpdateItem'
+        minItems: 1
+        type: array
+    required:
+    - updates
+    type: object
+  models.SKUCreateRequest:
+    properties:
+      alert_quantity:
+        type: integer
+      attributes:
+        $ref: '#/definitions/models.SKUAttributes'
+      barcode:
+        type: string
+      cost_price:
+        type: number
+      market_price:
+        type: number
+      name:
+        maxLength: 200
+        type: string
+      price:
+        minimum: 0
+        type: number
+      sku_code:
+        maxLength: 50
+        type: string
+      spu_id:
+        type: integer
+      status:
+        type: string
+      stock_quantity:
+        minimum: 0
+        type: integer
+      volume:
+        type: number
+      weight:
+        type: number
+    required:
+    - name
+    - price
+    - sku_code
+    - spu_id
+    type: object
+  models.SKUUpdateItem:
+    properties:
+      alert_quantity:
+        type: integer
+      attributes:
+        $ref: '#/definitions/models.SKUAttributes'
+      cost_price:
+        type: number
+      id:
+        type: integer
+      market_price:
+        type: number
+      price:
+        type: number
+      status:
+        type: string
+      stock_quantity:
+        type: integer
+    required:
+    - id
+    type: object
+  models.SPU:
+    properties:
+      brand:
+        description: 品牌
+        type: string
+      category_id:
+        description: 类目ID（可选）
+        type: integer
+      created_at:
+        type: string
+      created_by:
+        description: 审计字段
+        type: integer
+      creator:
+        $ref: '#/definitions/models.User'
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        description: 商品信息
+        type: string
+      enterprise:
+        allOf:
+        - $ref: '#/definitions/models.Enterprise'
+        description: 关联关系
+      enterprise_id:
+        description: 关联信息
+        type: integer
+      id:
+        type: integer
+      images:
+        description: 图片列表
+        items:
+          type: string
+        type: array
+      main_image:
+        description: 主图URL
+        type: string
+      name:
+        description: 商品名称
+        type: string
+      skus:
+        items:
+          $ref: '#/definitions/models.SKU'
+        type: array
+      specifications:
+        allOf:
+        - $ref: '#/definitions/models.SPUSpecs'
+        description: 规格参数
+      spu_code:
+        description: SPU编码
+        type: string
+      status:
+        description: 状态管理
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.SPUCreateRequest:
+    properties:
+      brand:
+        type: string
+      category_id:
+        type: integer
+      description:
+        type: string
+      enterprise_id:
+        type: integer
+      images:
+        items:
+          type: string
+        type: array
+      main_image:
+        type: string
+      name:
+        type: string
+      specifications:
+        additionalProperties: true
+        type: object
+      spu_code:
+        type: string
+      status:
+        type: string
+    required:
+    - enterprise_id
+    - name
+    - spu_code
+    type: object
+  models.SPUDetailResponse:
+    properties:
+      brand:
+        description: 品牌
+        type: string
+      category_id:
+        description: 类目ID（可选）
+        type: integer
+      created_at:
+        type: string
+      created_by:
+        description: 审计字段
+        type: integer
+      creator:
+        $ref: '#/definitions/models.User'
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        description: 商品信息
+        type: string
+      enterprise:
+        allOf:
+        - $ref: '#/definitions/models.Enterprise'
+        description: 关联关系
+      enterprise_id:
+        description: 关联信息
+        type: integer
+      id:
+        type: integer
+      images:
+        description: 图片列表
+        items:
+          type: string
+        type: array
+      main_image:
+        description: 主图URL
+        type: string
+      name:
+        description: 商品名称
+        type: string
+      sku_count:
+        type: integer
+      skus:
+        items:
+          $ref: '#/definitions/models.SKU'
+        type: array
+      specifications:
+        allOf:
+        - $ref: '#/definitions/models.SPUSpecs'
+        description: 规格参数
+      spu_code:
+        description: SPU编码
+        type: string
+      status:
+        description: 状态管理
+        type: string
+      total_stock:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  models.SPUSpecs:
+    additionalProperties: true
+    type: object
+  models.SPUUpdateRequest:
+    properties:
+      brand:
+        type: string
+      category_id:
+        type: integer
+      description:
+        type: string
+      images:
+        items:
+          type: string
+        type: array
+      main_image:
+        type: string
+      name:
+        type: string
+      specifications:
+        additionalProperties: true
+        type: object
+      spu_code:
+        type: string
+      status:
+        type: string
     type: object
   models.Task:
     properties:
@@ -1782,6 +2996,60 @@ definitions:
         - high
         type: string
       user_notes:
+        type: string
+    type: object
+  models.UpdateRequirementCommentRequest:
+    properties:
+      attachments:
+        items:
+          $ref: '#/definitions/models.Attachment'
+        type: array
+      comment_type:
+        enum:
+        - general
+        - question
+        - suggestion
+        - approval
+        type: string
+      content:
+        maxLength: 2000
+        minLength: 1
+        type: string
+      is_internal:
+        type: boolean
+      is_pinned:
+        type: boolean
+    type: object
+  models.UpdateRequirementRequest:
+    properties:
+      acceptance_criteria:
+        type: string
+      attachments:
+        items:
+          $ref: '#/definitions/models.Attachment'
+        type: array
+      business_value:
+        type: string
+      category:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      expected_outcome:
+        type: string
+      priority:
+        enum:
+        - low
+        - medium
+        - high
+        - urgent
+        type: string
+      project_id:
+        type: integer
+      title:
+        maxLength: 500
+        minLength: 1
         type: string
     type: object
   models.UpdateWorkNoteRequest:
@@ -4343,6 +5611,662 @@ paths:
       summary: Update enterprise user roles
       tags:
       - enterprise-users
+  /api/v1/enterprises/{enterpriseId}/roles:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all roles for a specific enterprise
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterpriseId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Enterprise roles list
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid enterprise ID
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get enterprise roles
+      tags:
+      - Roles (RBAC v2)
+    post:
+      consumes:
+      - application/json
+      description: Creates a new role for an enterprise, optionally from a system
+        template
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterpriseId
+        required: true
+        type: integer
+      - description: Role creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateEnterpriseRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created role
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create enterprise role
+      tags:
+      - Roles (RBAC v2)
+  /api/v1/enterprises/{enterpriseId}/roles/{roleId}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes an enterprise role (soft delete)
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterpriseId
+        required: true
+        type: integer
+      - description: Role ID
+        in: path
+        name: roleId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Deletion successful
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Cannot delete system role or role from different enterprise
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete enterprise role
+      tags:
+      - Roles (RBAC v2)
+    put:
+      consumes:
+      - application/json
+      description: Updates an enterprise role's details and permissions
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterpriseId
+        required: true
+        type: integer
+      - description: Role ID
+        in: path
+        name: roleId
+        required: true
+        type: integer
+      - description: Role update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateEnterpriseRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated role
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Cannot modify system role or role from different enterprise
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update enterprise role
+      tags:
+      - Roles (RBAC v2)
+  /api/v1/enterprises/{enterpriseId}/roles/{roleId}/permissions:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all permissions assigned to a specific enterprise role
+      parameters:
+      - description: Enterprise ID
+        in: path
+        name: enterpriseId
+        required: true
+        type: integer
+      - description: Role ID
+        in: path
+        name: roleId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role permissions
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Role does not belong to enterprise
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get permissions for an enterprise role
+      tags:
+      - Roles (RBAC v2)
+  /api/v1/inventory/adjust:
+    post:
+      consumes:
+      - application/json
+      description: 调整库存数量（用于盘点、纠错等）
+      parameters:
+      - description: 调整请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.InventoryAdjustRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 调整成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SKU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 库存调整/盘点
+      tags:
+      - 库存管理
+  /api/v1/inventory/in:
+    post:
+      consumes:
+      - application/json
+      description: 记录库存入库操作
+      parameters:
+      - description: 入库请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.InventoryInRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 入库成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SKU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 库存入库
+      tags:
+      - 库存管理
+  /api/v1/inventory/lock:
+    post:
+      consumes:
+      - application/json
+      description: 锁定库存（用于订单下单时）
+      parameters:
+      - description: 锁定请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.InventoryLockRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 锁定成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误或可用库存不足
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SKU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 锁定库存
+      tags:
+      - 库存管理
+  /api/v1/inventory/out:
+    post:
+      consumes:
+      - application/json
+      description: 记录库存出库操作
+      parameters:
+      - description: 出库请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.InventoryOutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 出库成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误或库存不足
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SKU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 库存出库
+      tags:
+      - 库存管理
+  /api/v1/inventory/records:
+    get:
+      description: 获取库存记录列表（支持过滤、分页、排序）
+      parameters:
+      - description: SKU ID过滤
+        in: query
+        name: sku_id
+        type: integer
+      - description: SKU编码过滤
+        in: query
+        name: sku_code
+        type: string
+      - description: 仓库ID过滤
+        in: query
+        name: warehouse_id
+        type: integer
+      - description: 是否低库存
+        in: query
+        name: is_low_stock
+        type: boolean
+      - description: 是否缺货
+        in: query
+        name: is_out_of_stock
+        type: boolean
+      - description: 关键词搜索（SKU名称或编码）
+        in: query
+        name: keyword
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - default: updated_at
+        description: 排序字段 (updated_at/sku_code/available/total)
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: 排序方向 (asc/desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取库存记录列表
+      tags:
+      - 库存管理
+  /api/v1/inventory/skus/{sku_id}:
+    get:
+      description: 根据SKU ID获取当前库存信息
+      parameters:
+      - description: SKU ID
+        in: path
+        name: sku_id
+        required: true
+        type: integer
+      - description: 仓库ID
+        in: query
+        name: warehouse_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/models.InventoryRecord'
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 库存记录不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取SKU库存
+      tags:
+      - 库存管理
+  /api/v1/inventory/transactions:
+    get:
+      description: 获取库存变动历史记录（支持过滤、分页、排序）
+      parameters:
+      - description: SKU ID过滤
+        in: query
+        name: sku_id
+        type: integer
+      - description: SKU编码过滤
+        in: query
+        name: sku_code
+        type: string
+      - description: 仓库ID过滤
+        in: query
+        name: warehouse_id
+        type: integer
+      - description: 事务类型过滤 (in/out/adjust/lock/unlock/return)
+        in: query
+        name: transaction_type
+        type: string
+      - description: 操作人ID过滤
+        in: query
+        name: operator_id
+        type: integer
+      - description: 关联单据类型过滤 (order/purchase/return/transfer/manual)
+        in: query
+        name: reference_type
+        type: string
+      - description: 关联单据ID过滤
+        in: query
+        name: reference_id
+        type: integer
+      - description: 开始日期 (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期 (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - default: created_at
+        description: 排序字段 (created_at/sku_code/type/quantity)
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: 排序方向 (asc/desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取库存事务历史
+      tags:
+      - 库存管理
+  /api/v1/inventory/transactions/{id}:
+    get:
+      description: 根据ID获取库存事务详细信息
+      parameters:
+      - description: 事务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/models.InventoryTransaction'
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 事务不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取库存事务详情
+      tags:
+      - 库存管理
+  /api/v1/inventory/unlock:
+    post:
+      consumes:
+      - application/json
+      description: 解锁库存（用于订单取消时）
+      parameters:
+      - description: 解锁请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.InventoryUnlockRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 解锁成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误或锁定库存不足
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SKU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 解锁库存
+      tags:
+      - 库存管理
   /api/v1/mcp/documents/append:
     post:
       consumes:
@@ -4493,6 +6417,228 @@ paths:
       summary: 根据模板类型生成文档内容
       tags:
       - MCP
+  /api/v1/notifications:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of notifications for the current user
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by read status
+        in: query
+        name: is_read
+        type: boolean
+      - description: Filter by notification type
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.NotificationListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user notifications
+      tags:
+      - notifications
+  /api/v1/notifications/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete a notification
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete notification
+      tags:
+      - notifications
+  /api/v1/notifications/{id}/read:
+    put:
+      consumes:
+      - application/json
+      description: Mark a specific notification as read
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark notification as read
+      tags:
+      - notifications
+  /api/v1/notifications/read:
+    put:
+      consumes:
+      - application/json
+      description: Mark multiple notifications as read
+      parameters:
+      - description: Notification IDs
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.MarkAsReadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Batch mark notifications as read
+      tags:
+      - notifications
+  /api/v1/notifications/read/all:
+    put:
+      consumes:
+      - application/json
+      description: Mark all notifications as read for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications as read
+      tags:
+      - notifications
+  /api/v1/notifications/unread/count:
+    get:
+      consumes:
+      - application/json
+      description: Get the count of unread notifications for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  type: integer
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get unread notifications count
+      tags:
+      - notifications
   /api/v1/parallel-groups:
     get:
       description: Get all parallel development groups with their tasks and status
@@ -4660,6 +6806,65 @@ paths:
       summary: Revoke delegation
       tags:
       - Enhanced Permissions
+  /api/v1/permissions/matrix:
+    get:
+      consumes:
+      - application/json
+      description: Get the full permission matrix showing which permissions are granted
+        to which roles
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Permission matrix data
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get permission matrix
+      tags:
+      - permissions
+    post:
+      consumes:
+      - application/json
+      description: Batch update permission grants for multiple role-permission combinations
+      parameters:
+      - description: Matrix updates
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update permission matrix
+      tags:
+      - permissions
   /api/v1/permissions/permission-templates:
     get:
       consumes:
@@ -4969,6 +7174,726 @@ paths:
       summary: Analyze permission usage
       tags:
       - Enhanced Permissions
+  /api/v1/products/skus:
+    get:
+      description: 获取SKU列表（支持过滤、分页、排序）
+      parameters:
+      - description: SPU ID过滤
+        in: query
+        name: spu_id
+        type: integer
+      - description: 状态过滤 (active/inactive)
+        in: query
+        name: status
+        type: string
+      - description: 是否低库存
+        in: query
+        name: is_low_stock
+        type: boolean
+      - description: 关键词搜索（名称或编码）
+        in: query
+        name: keyword
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - default: created_at
+        description: 排序字段 (created_at/name/price/stock)
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: 排序方向 (asc/desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取SKU列表
+      tags:
+      - SKU管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的库存单位
+      parameters:
+      - description: 创建SKU请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SKUCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/models.SKU'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SPU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: SKU编码已存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建SKU
+      tags:
+      - SKU管理
+  /api/v1/products/skus/{id}:
+    delete:
+      description: 软删除SKU
+      parameters:
+      - description: SKU ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SKU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除SKU
+      tags:
+      - SKU管理
+    get:
+      description: 根据ID获取SKU详细信息
+      parameters:
+      - description: SKU ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/models.SKU'
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SKU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取SKU详情
+      tags:
+      - SKU管理
+    put:
+      consumes:
+      - application/json
+      description: 更新SKU信息
+      parameters:
+      - description: SKU ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新SKU请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SKUCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/models.SKU'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SKU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: SKU编码已存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新SKU
+      tags:
+      - SKU管理
+  /api/v1/products/skus/batch:
+    post:
+      consumes:
+      - application/json
+      description: 为一个SPU批量创建多个SKU（如：所有颜色和尺寸的组合）
+      parameters:
+      - description: 批量创建SKU请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SKUBatchCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SPU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 批量创建SKU
+      tags:
+      - SKU管理
+    put:
+      consumes:
+      - application/json
+      description: 批量更新多个SKU的价格、库存等信息
+      parameters:
+      - description: 批量更新SKU请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SKUBatchUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 批量更新SKU
+      tags:
+      - SKU管理
+  /api/v1/products/skus/details:
+    get:
+      description: 获取SKU列表，包含SPU名称等详细信息
+      parameters:
+      - description: SPU ID过滤
+        in: query
+        name: spu_id
+        type: integer
+      - description: 状态过滤 (active/inactive)
+        in: query
+        name: status
+        type: string
+      - description: 是否低库存
+        in: query
+        name: is_low_stock
+        type: boolean
+      - description: 关键词搜索（名称或编码）
+        in: query
+        name: keyword
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - default: created_at
+        description: 排序字段 (created_at/name/price/stock)
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: 排序方向 (asc/desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取SKU列表（含详细信息）
+      tags:
+      - SKU管理
+  /api/v1/products/spus:
+    get:
+      description: 获取SPU列表（支持过滤、分页、排序）
+      parameters:
+      - description: 状态过滤 (draft/active/inactive)
+        in: query
+        name: status
+        type: string
+      - description: 类目ID过滤
+        in: query
+        name: category_id
+        type: integer
+      - description: 品牌过滤
+        in: query
+        name: brand
+        type: string
+      - description: 关键词搜索（名称）
+        in: query
+        name: keyword
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - default: created_at
+        description: 排序字段 (created_at/name)
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: 排序方向 (asc/desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取SPU列表
+      tags:
+      - SPU管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的标准产品单位
+      parameters:
+      - description: 创建SPU请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SPUCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/models.SPU'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: SPU编码已存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建SPU
+      tags:
+      - SPU管理
+  /api/v1/products/spus/{id}:
+    delete:
+      description: 软删除SPU（同时会删除关联的SKU）
+      parameters:
+      - description: SPU ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SPU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除SPU
+      tags:
+      - SPU管理
+    get:
+      description: 根据ID获取SPU详细信息
+      parameters:
+      - description: SPU ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/models.SPU'
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SPU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取SPU详情
+      tags:
+      - SPU管理
+    put:
+      consumes:
+      - application/json
+      description: 更新SPU信息
+      parameters:
+      - description: SPU ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新SPU请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SPUUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/models.SPU'
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SPU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: SPU编码已存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新SPU
+      tags:
+      - SPU管理
+  /api/v1/products/spus/{id}/detail:
+    get:
+      description: 根据ID获取SPU详细信息，包含SKU数量和库存统计
+      parameters:
+      - description: SPU ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/models.SPUDetailResponse'
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SPU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取SPU详细信息（含统计）
+      tags:
+      - SPU管理
+  /api/v1/products/spus/{spu_id}/skus:
+    get:
+      description: 根据SPU ID获取该SPU下的所有SKU
+      parameters:
+      - description: SPU ID
+        in: path
+        name: spu_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: SPU不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取SPU下的所有SKU
+      tags:
+      - SKU管理
+  /api/v1/products/spus/stats:
+    get:
+      description: 获取SPU列表，包含SKU数量和库存统计信息
+      parameters:
+      - description: 状态过滤 (draft/active/inactive)
+        in: query
+        name: status
+        type: string
+      - description: 类目ID过滤
+        in: query
+        name: category_id
+        type: integer
+      - description: 品牌过滤
+        in: query
+        name: brand
+        type: string
+      - description: 关键词搜索（名称）
+        in: query
+        name: keyword
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - default: created_at
+        description: 排序字段 (created_at/name)
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: 排序方向 (asc/desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取SPU列表（含SKU统计）
+      tags:
+      - SPU管理
   /api/v1/progress/{entityType}/{id}:
     get:
       consumes:
@@ -5210,6 +8135,1219 @@ paths:
       summary: 扫描孤立任务
       tags:
       - Task Organization
+  /api/v1/requirements:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of requirements with filtering and sorting
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Search in title/description
+        in: query
+        name: search
+        type: string
+      - description: Filter by status (draft, pending, reviewing, need_more_info,
+          approved, rejected, converted, archived)
+        in: query
+        name: status
+        type: string
+      - description: Filter by priority (low, medium, high, critical)
+        in: query
+        name: priority
+        type: string
+      - description: Filter by category
+        in: query
+        name: category
+        type: string
+      - description: Filter by submitter user ID
+        in: query
+        name: submitter_id
+        type: integer
+      - description: Filter by reviewer user ID
+        in: query
+        name: reviewer_id
+        type: integer
+      - description: Filter by project ID
+        in: query
+        name: project_id
+        type: integer
+      - default: created_at
+        description: Sort field (created_at, updated_at, priority, status)
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: Sort order (asc, desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get requirements list
+      tags:
+      - requirements
+    post:
+      consumes:
+      - application/json
+      description: Create a new requirement in the system
+      parameters:
+      - description: Requirement data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateRequirementRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create new requirement
+      tags:
+      - requirements
+  /api/v1/requirements/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a requirement (only submitter or admin can delete)
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete requirement
+      tags:
+      - requirements
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific requirement
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get requirement by ID
+      tags:
+      - requirements
+    put:
+      consumes:
+      - application/json
+      description: Update an existing requirement (only submitter or admin can update)
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateRequirementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update requirement
+      tags:
+      - requirements
+  /api/v1/requirements/{id}/approve:
+    post:
+      consumes:
+      - application/json
+      description: Approve a requirement (only reviewers/admins can approve)
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Optional approval comment
+        in: body
+        name: request
+        schema:
+          properties:
+            comment:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Approve requirement
+      tags:
+      - requirement-status
+  /api/v1/requirements/{id}/archive:
+    post:
+      consumes:
+      - application/json
+      description: Archive a requirement for historical record keeping
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Optional comment
+        in: body
+        name: request
+        schema:
+          properties:
+            comment:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Archive requirement
+      tags:
+      - requirement-status
+  /api/v1/requirements/{id}/convert-to-task:
+    post:
+      consumes:
+      - application/json
+      description: Convert an approved requirement into a task (only approved requirements
+        can be converted)
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Conversion options
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.ConvertToTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    message:
+                      type: string
+                    requirement_id:
+                      type: integer
+                    task_id:
+                      type: integer
+                    task_title:
+                      type: string
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Convert requirement to task
+      tags:
+      - requirements
+  /api/v1/requirements/{id}/permissions:
+    get:
+      consumes:
+      - application/json
+      description: Get what actions the current user can perform on the requirement
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    can_access:
+                      type: boolean
+                    can_approve:
+                      type: boolean
+                    can_comment:
+                      type: boolean
+                    can_delete:
+                      type: boolean
+                    can_reject:
+                      type: boolean
+                    can_update:
+                      type: boolean
+                    is_enterprise_user:
+                      type: boolean
+                    is_reviewer:
+                      type: boolean
+                    is_submitter:
+                      type: boolean
+                    reason:
+                      type: string
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get requirement permissions
+      tags:
+      - requirement-status
+  /api/v1/requirements/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      description: Reject a requirement with mandatory rejection reason
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Rejection reason (required)
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            comment:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Reject requirement
+      tags:
+      - requirement-status
+  /api/v1/requirements/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Update requirement status with permission validation and workflow
+        checks
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Status update data
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            comment:
+              type: string
+            status:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    changed_at:
+                      type: string
+                    changed_by:
+                      type: integer
+                    new_status:
+                      type: string
+                    old_status:
+                      type: string
+                    requirement_id:
+                      type: integer
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update requirement status
+      tags:
+      - requirement-status
+  /api/v1/requirements/{id}/submit:
+    post:
+      consumes:
+      - application/json
+      description: Submit a draft requirement for review (changes status from draft
+        to pending)
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Optional comment
+        in: body
+        name: request
+        schema:
+          properties:
+            comment:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Submit requirement for review
+      tags:
+      - requirement-status
+  /api/v1/requirements/{id}/tasks:
+    get:
+      consumes:
+      - application/json
+      description: Get all tasks that are linked to a specific requirement
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by link type (manual, converted, related)
+        in: query
+        name: link_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementTaskListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - Bearer: []
+      summary: Get tasks linked to a requirement
+      tags:
+      - requirements
+    post:
+      consumes:
+      - application/json
+      description: Create a manual link between an existing task and a requirement
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Link request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateRequirementTaskLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementTaskResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - Bearer: []
+      summary: Link an existing task to a requirement
+      tags:
+      - requirements
+  /api/v1/requirements/{id}/tasks/{task_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove the link between a task and a requirement
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Task ID
+        in: path
+        name: task_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - Bearer: []
+      summary: Unlink a task from a requirement
+      tags:
+      - requirements
+  /api/v1/requirements/{id}/withdraw:
+    post:
+      consumes:
+      - application/json
+      description: Withdraw a submitted requirement back to draft status
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Optional comment
+        in: body
+        name: request
+        schema:
+          properties:
+            comment:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Withdraw requirement
+      tags:
+      - requirement-status
+  /api/v1/requirements/comments:
+    get:
+      consumes:
+      - application/json
+      description: Get comments for a specific requirement with pagination
+      parameters:
+      - description: Requirement ID
+        in: query
+        name: requirement_id
+        required: true
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - default: false
+        description: Include replies
+        in: query
+        name: with_replies
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementCommentListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get requirement comments
+      tags:
+      - requirement-comments
+    post:
+      consumes:
+      - application/json
+      description: Create a new comment on a requirement
+      parameters:
+      - description: Comment data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateRequirementCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementCommentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create requirement comment
+      tags:
+      - requirement-comments
+  /api/v1/requirements/comments/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete a requirement comment
+      parameters:
+      - description: Comment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete comment
+      tags:
+      - requirement-comments
+    get:
+      consumes:
+      - application/json
+      description: Get a requirement comment by ID
+      parameters:
+      - description: Comment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementCommentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get single comment
+      tags:
+      - requirement-comments
+    put:
+      consumes:
+      - application/json
+      description: Update a requirement comment (only author can update content)
+      parameters:
+      - description: Comment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateRequirementCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementCommentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update comment
+      tags:
+      - requirement-comments
+  /api/v1/requirements/comments/{id}/pin:
+    put:
+      consumes:
+      - application/json
+      description: Pin or unpin a comment (admin/manager only)
+      parameters:
+      - description: Comment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Pin status
+        in: query
+        name: is_pinned
+        required: true
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Toggle comment pin
+      tags:
+      - requirement-comments
+  /api/v1/requirements/comments/mentions/me:
+    get:
+      consumes:
+      - application/json
+      description: Get comments where the current user was @mentioned
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementCommentListResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get comments mentioning user
+      tags:
+      - requirement-comments
+  /api/v1/requirements/stats:
+    get:
+      consumes:
+      - application/json
+      description: Get statistical overview of requirements (grouped by status, priority,
+        etc.)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementStats'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get requirement statistics
+      tags:
+      - requirements
   /api/v1/search:
     get:
       consumes:
@@ -5986,6 +10124,440 @@ paths:
       summary: Revoke system admin
       tags:
       - system-admin
+  /api/v1/system/menu-groups:
+    get:
+      consumes:
+      - application/json
+      description: 获取系统中所有的菜单分组列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.MenuGroup'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取所有菜单分组
+      tags:
+      - System-Navigation
+    post:
+      consumes:
+      - application/json
+      description: 创建新的菜单分组
+      parameters:
+      - description: 菜单分组信息
+        in: body
+        name: menuGroup
+        required: true
+        schema:
+          $ref: '#/definitions/models.MenuGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.MenuGroup'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建菜单分组
+      tags:
+      - System-Navigation
+  /api/v1/system/menu-groups/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的菜单分组
+      parameters:
+      - description: 菜单分组ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除菜单分组
+      tags:
+      - System-Navigation
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取菜单分组详情
+      parameters:
+      - description: 菜单分组ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.MenuGroup'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取单个菜单分组
+      tags:
+      - System-Navigation
+    put:
+      consumes:
+      - application/json
+      description: 更新指定菜单分组的信息
+      parameters:
+      - description: 菜单分组ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 菜单分组信息
+        in: body
+        name: menuGroup
+        required: true
+        schema:
+          $ref: '#/definitions/models.MenuGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.MenuGroup'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新菜单分组
+      tags:
+      - System-Navigation
+  /api/v1/system/menu-items:
+    get:
+      consumes:
+      - application/json
+      description: 获取系统中所有的菜单项列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.MenuItem'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取所有菜单项
+      tags:
+      - System-Navigation
+    post:
+      consumes:
+      - application/json
+      description: 创建新的菜单项
+      parameters:
+      - description: 菜单项信息
+        in: body
+        name: menuItem
+        required: true
+        schema:
+          $ref: '#/definitions/models.MenuItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.MenuItem'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建菜单项
+      tags:
+      - System-Navigation
+  /api/v1/system/menu-items/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的菜单项
+      parameters:
+      - description: 菜单项ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除菜单项
+      tags:
+      - System-Navigation
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取菜单项详情
+      parameters:
+      - description: 菜单项ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.MenuItem'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取单个菜单项
+      tags:
+      - System-Navigation
+    put:
+      consumes:
+      - application/json
+      description: 更新指定菜单项的信息
+      parameters:
+      - description: 菜单项ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 菜单项信息
+        in: body
+        name: menuItem
+        required: true
+        schema:
+          $ref: '#/definitions/models.MenuItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.MenuItem'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新菜单项
+      tags:
+      - System-Navigation
+  /api/v1/system/menu-items/reorder:
+    post:
+      consumes:
+      - application/json
+      description: 批量更新菜单项的排序
+      parameters:
+      - description: 菜单项排序信息
+        in: body
+        name: items
+        required: true
+        schema:
+          properties:
+            items:
+              items:
+                properties:
+                  id:
+                    type: integer
+                  sort_order:
+                    type: integer
+                type: object
+              type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 重新排序菜单项
+      tags:
+      - System-Navigation
+  /api/v1/system/navigation-config/stats:
+    get:
+      consumes:
+      - application/json
+      description: 获取导航系统的统计数据
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.NavigationStats'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取导航统计信息
+      tags:
+      - System-Navigation
   /api/v1/system/permissions:
     get:
       consumes:
@@ -6387,6 +10959,228 @@ paths:
       summary: Assign permissions to role
       tags:
       - system-roles
+  /api/v1/system/roles/{roleId}/permissions:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all permissions assigned to a system role template
+      parameters:
+      - description: System Role ID
+        in: path
+        name: roleId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role permissions
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid role ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get permissions for a system role
+      tags:
+      - Roles (RBAC v2)
+  /api/v1/system/routes:
+    get:
+      consumes:
+      - application/json
+      description: 获取系统中所有的路由配置列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.RouteConfig'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取所有路由配置
+      tags:
+      - System-Navigation
+    post:
+      consumes:
+      - application/json
+      description: 创建新的路由配置
+      parameters:
+      - description: 路由配置信息
+        in: body
+        name: route
+        required: true
+        schema:
+          $ref: '#/definitions/models.RouteConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RouteConfig'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建路由配置
+      tags:
+      - System-Navigation
+  /api/v1/system/routes/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的路由配置
+      parameters:
+      - description: 路由配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除路由配置
+      tags:
+      - System-Navigation
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取路由配置详情
+      parameters:
+      - description: 路由配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RouteConfig'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取单个路由配置
+      tags:
+      - System-Navigation
+    put:
+      consumes:
+      - application/json
+      description: 更新指定路由配置的信息
+      parameters:
+      - description: 路由配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 路由配置信息
+        in: body
+        name: route
+        required: true
+        schema:
+          $ref: '#/definitions/models.RouteConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RouteConfig'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新路由配置
+      tags:
+      - System-Navigation
   /api/v1/system/users:
     get:
       consumes:
@@ -6934,6 +11728,54 @@ paths:
       summary: 更新任务描述
       tags:
       - AI
+  /api/v1/tasks/{id}/requirements:
+    get:
+      consumes:
+      - application/json
+      description: Get all requirements that are linked to a specific task
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by link type (manual, converted, related)
+        in: query
+        name: link_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementTaskListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - Bearer: []
+      summary: Get requirements linked to a task
+      tags:
+      - tasks
   /api/v1/tasks/{task_id}/relationships:
     get:
       description: Get all relationships for a specific task
@@ -7116,6 +11958,66 @@ paths:
       summary: 批量生成任务描述
       tags:
       - AI
+  /api/v1/users/{id}/enterprise:
+    put:
+      consumes:
+      - application/json
+      description: 超级管理员可以修改任何用户的企业归属，企业管理员只能管理本企业用户
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 企业信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateUserEnterpriseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      summary: 更新用户企业归属
+      tags:
+      - 用户管理
+  /api/v1/users/{id}/enterprise-details:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户的企业、部门等详细信息，支持新旧两种模型
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      summary: 获取用户企业详细信息
+      tags:
+      - 用户管理
   /api/v1/work-notes:
     get:
       consumes:
@@ -7526,6 +12428,45 @@ paths:
       summary: User login
       tags:
       - Authentication
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Refresh access token using refresh token
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token refreshed successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.JWTLoginResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Refresh access token
+      tags:
+      - Authentication
   /auth/service-api-key:
     post:
       consumes:
@@ -7810,6 +12751,159 @@ paths:
       summary: Carry over daily focus tasks
       tags:
       - Daily Focus Tasks
+  /enterprises/{id}/departments/stats:
+    get:
+      consumes:
+      - application/json
+      description: 获取企业所有部门的详细统计信息，包括实时人数（通过JOIN enterprise_users动态计算）
+      parameters:
+      - description: 企业ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 部门树形结构，包含actual_employee_count字段
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误 - 无效的企业ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证 - Token缺失或无效
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 资源不存在 - 企业不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误 - 数据库操作失败
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取企业部门实时人数统计
+      tags:
+      - Enterprise Management
+  /enterprises/{id}/users/{userId}/department:
+    put:
+      consumes:
+      - application/json
+      description: 更新指定企业用户的部门分配，department_id可以为null（取消分配）
+      parameters:
+      - description: 企业ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      - description: 部门ID（可为null）
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功，返回用户信息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误 - 无效ID或部门不属于企业
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证 - Token缺失或无效
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 资源不存在 - 企业、用户或部门不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误 - 数据库操作失败
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新企业用户的部门分配
+      tags:
+      - Enterprise Management
+  /enterprises/{id}/users/unassigned:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定企业中未分配到任何部门的用户列表（department_id为NULL）
+      parameters:
+      - description: 企业ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 未分配用户列表，带分页信息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误 - 无效的企业ID或分页参数
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证 - Token缺失或无效
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 资源不存在 - 企业不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误 - 数据库操作失败
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取未分配部门的企业用户
+      tags:
+      - Enterprise Management
   /projects/{id}/tasks:
     get:
       consumes:

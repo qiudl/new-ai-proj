@@ -39,9 +39,9 @@ type UpdateUserEnterpriseRequest struct {
 // @Produce json
 // @Param id path int true "用户ID"
 // @Param request body UpdateUserEnterpriseRequest true "企业信息"
-// @Success 200 {object} models.Response
-// @Failure 403 {object} models.Response "权限不足"
-// @Failure 404 {object} models.Response "用户不存在"
+// @Success 200 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse "权限不足"
+// @Failure 404 {object} models.APIResponse "用户不存在"
 // @Router /api/v1/users/{id}/enterprise [put]
 func (h *UserEnterpriseHandler) UpdateUserEnterprise(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Param("id"))
@@ -257,8 +257,8 @@ func (h *UserEnterpriseHandler) UpdateUserEnterprise(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "用户ID"
-// @Success 200 {object} models.Response
-// @Failure 404 {object} models.Response "用户不存在"
+// @Success 200 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse "用户不存在"
 // @Router /api/v1/users/{id}/enterprise-details [get]
 func (h *UserEnterpriseHandler) GetUserEnterpriseDetails(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Param("id"))

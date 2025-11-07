@@ -3,10 +3,10 @@ package handlers
 import (
 	"ai-project-backend/interfaces"
 	"ai-project-backend/services"
-	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -15,14 +15,14 @@ import (
 // SystemUserHandler handles HTTP requests for system user management (RBAC v2)
 type SystemUserHandler struct {
 	identityProvider services.IdentityProvider
-	db               *sql.DB
+	userMgmtService  services.UserManagementService
 	validator        *validator.Validate
 }
 
 // NewSystemUserHandler creates a new system user handler
-func NewSystemUserHandler(db *sql.DB, identityProvider services.IdentityProvider) *SystemUserHandler {
+func NewSystemUserHandler(userMgmtService services.UserManagementService, identityProvider services.IdentityProvider) *SystemUserHandler {
 	return &SystemUserHandler{
-		db:               db,
+		userMgmtService:  userMgmtService,
 		identityProvider: identityProvider,
 		validator:        validator.New(),
 	}
@@ -79,117 +79,56 @@ func (h *SystemUserHandler) ListSystemUsers(c *gin.Context) {
 	search := c.Query("search")
 	status := c.Query("status")
 
-	// Query system users from database
-	query := `
-		SELECT id, username, email, user_type, role, status, created_at, updated_at, last_login_at
-		FROM users
-		WHERE user_type = 'system'
-		AND deleted_at IS NULL
-	`
-
-	var args []interface{}
-	argIndex := 1
-
-	if search != "" {
-		query += fmt.Sprintf(" AND (username ILIKE $%d OR email ILIKE $%d)", argIndex, argIndex+1)
-		searchPattern := "%" + search + "%"
-		args = append(args, searchPattern, searchPattern)
-		argIndex += 2
+	// Call service to list users
+	filters := services.SystemUserFilters{
+		Search: search,
+		Status: status,
 	}
 
-	if status != "" {
-		query += fmt.Sprintf(" AND status = $%d", argIndex)
-		args = append(args, status)
-		argIndex++
+	pagination := services.Pagination{
+		Page:     page,
+		PageSize: pageSize,
 	}
 
-	// Count total
-	countQuery := "SELECT COUNT(*) FROM (" + query + ") AS filtered_users"
-	var total int
-	err := h.db.QueryRowContext(c.Request.Context(), countQuery, args...).Scan(&total)
+	result, err := h.userMgmtService.ListSystemUsers(c.Request.Context(), filters, pagination)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error": gin.H{
-				"code":    "DATABASE_ERROR",
-				"message": "查询系统用户总数失败",
+				"code":    "SERVICE_ERROR",
+				"message": "查询系统用户失败",
 				"details": err.Error(),
 			},
 		})
 		return
 	}
 
-	// Add pagination
-	query += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
-	args = append(args, pageSize, (page-1)*pageSize)
-
-	// Execute query
-	rows, err := h.db.QueryContext(c.Request.Context(), query, args...)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "DATABASE_ERROR",
-				"message": "查询系统用户列表失败",
-				"details": err.Error(),
-			},
-		})
-		return
-	}
-	defer rows.Close()
-
-	users := make([]gin.H, 0)
-	for rows.Next() {
-		var (
-			id          uint
-			username    string
-			email       string
-			userType    string
-			role        string
-			userStatus  string
-			createdAt   string
-			updatedAt   string
-			lastLoginAt sql.NullString
-		)
-
-		err := rows.Scan(&id, &username, &email, &userType, &role, &userStatus, &createdAt, &updatedAt, &lastLoginAt)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"error": gin.H{
-					"code":    "DATABASE_ERROR",
-					"message": "读取系统用户数据失败",
-					"details": err.Error(),
-				},
-			})
-			return
+	// Convert service result to HTTP response format
+	users := make([]gin.H, len(result.Users))
+	for i, user := range result.Users {
+		users[i] = gin.H{
+			"id":         user.ID,
+			"username":   user.Username,
+			"email":      user.Email,
+			"role":       user.Role,
+			"status":     user.Status,
+			"created_at": user.CreatedAt,
+			"updated_at": user.UpdatedAt,
 		}
 
-		user := gin.H{
-			"id":         id,
-			"username":   username,
-			"email":      email,
-			"user_type":  userType,
-			"role":       role,
-			"status":     userStatus,
-			"created_at": createdAt,
-			"updated_at": updatedAt,
+		if user.LastLoginAt != nil {
+			users[i]["last_login_at"] = *user.LastLoginAt
 		}
-
-		if lastLoginAt.Valid {
-			user["last_login_at"] = lastLoginAt.String
-		}
-
-		users = append(users, user)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"users":     users,
-			"total":     total,
-			"page":      page,
-			"page_size": pageSize,
+			"users":       users,
+			"total":       result.Total,
+			"page":        result.Page,
+			"page_size":   result.PageSize,
+			"total_pages": result.TotalPages,
 		},
 		"message": fmt.Sprintf("查询成功，由用户 ID: %d 执行", identity.GetUserID()),
 	})
@@ -248,34 +187,13 @@ func (h *SystemUserHandler) CreateSystemUser(c *gin.Context) {
 		return
 	}
 
-	// Check if username already exists
-	var existingUserID sql.NullInt64
-	checkUsernameQuery := `SELECT id FROM users WHERE username = $1 AND deleted_at IS NULL`
-	err := h.db.QueryRowContext(c.Request.Context(), checkUsernameQuery, request.Username).Scan(&existingUserID)
-	if err == nil && existingUserID.Valid {
-		c.JSON(http.StatusConflict, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "USERNAME_EXISTS",
-				"message": fmt.Sprintf("用户名 %s 已存在", request.Username),
-			},
-		})
-		return
-	}
-
-	// Check if email already exists
-	var existingEmailID sql.NullInt64
-	checkEmailQuery := `SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL`
-	err = h.db.QueryRowContext(c.Request.Context(), checkEmailQuery, request.Email).Scan(&existingEmailID)
-	if err == nil && existingEmailID.Valid {
-		c.JSON(http.StatusConflict, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "EMAIL_EXISTS",
-				"message": fmt.Sprintf("邮箱 %s 已存在", request.Email),
-			},
-		})
-		return
+	// Set default password if not provided
+	password := ""
+	if request.Password != nil {
+		password = *request.Password
+	} else {
+		// Generate a random password if not provided
+		password = "ChangeMe123!" // Default temporary password
 	}
 
 	// Set default status
@@ -284,54 +202,69 @@ func (h *SystemUserHandler) CreateSystemUser(c *gin.Context) {
 		status = *request.Status
 	}
 
-	// Hash password if provided (simplified - in production should use bcrypt)
-	var passwordHash *string
-	if request.Password != nil {
-		// TODO: In production, use bcrypt.GenerateFromPassword
-		hash := *request.Password // Placeholder
-		passwordHash = &hash
+	// Create service request
+	serviceReq := &services.CreateSystemUserRequest{
+		Username: request.Username,
+		Email:    request.Email,
+		Password: password,
+		Role:     request.Role,
+		Status:   status,
 	}
 
-	// Create user in users table
-	createUserQuery := `
-		INSERT INTO users (username, email, password_hash, user_type, role, status, created_at, updated_at)
-		VALUES ($1, $2, $3, 'system', $4, $5, NOW(), NOW())
-		RETURNING id, created_at, updated_at
-	`
-
-	var userID uint
-	var createdAt, updatedAt string
-	err = h.db.QueryRowContext(c.Request.Context(), createUserQuery,
-		request.Username, request.Email, passwordHash, request.Role, status).Scan(&userID, &createdAt, &updatedAt)
-
+	// Call service to create user
+	userDetail, err := h.userMgmtService.CreateSystemUser(c.Request.Context(), serviceReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		// Check if it's a conflict error
+		statusCode := http.StatusInternalServerError
+		errorCode := "CREATION_FAILED"
+
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "already exists") || strings.Contains(errMsg, "exists") {
+			statusCode = http.StatusConflict
+			if strings.Contains(errMsg, "username") {
+				errorCode = "USERNAME_EXISTS"
+			} else if strings.Contains(errMsg, "email") {
+				errorCode = "EMAIL_EXISTS"
+			}
+		}
+
+		c.JSON(statusCode, gin.H{
 			"success": false,
 			"error": gin.H{
-				"code":    "CREATION_FAILED",
+				"code":    errorCode,
 				"message": "创建系统用户失败",
-				"details": err.Error(),
+				"details": errMsg,
 			},
 		})
 		return
 	}
 
-	// Assign system roles if provided (implementation depends on SystemRoleRepository)
+	// Optionally assign system roles if provided
 	assignedRolesCount := 0
-	// Note: Role assignment logic would go here if systemRoleRepo is available
-	// For now, just tracking the count
+	if len(request.RoleIDs) > 0 {
+		roleResult, err := h.userMgmtService.UpdateSystemUserRoles(
+			c.Request.Context(),
+			userDetail.ID,
+			request.RoleIDs,
+			uint(identity.GetUserID()),
+		)
+		if err == nil {
+			assignedRolesCount = roleResult.RolesAdded
+		}
+		// Silently ignore role assignment errors for now
+	}
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": gin.H{
-			"id":         userID,
-			"username":   request.Username,
-			"email":      request.Email,
-			"user_type":  "system",
-			"role":       request.Role,
-			"status":     status,
-			"created_at": createdAt,
-			"updated_at": updatedAt,
+			"id":                   userDetail.ID,
+			"username":             userDetail.Username,
+			"email":                userDetail.Email,
+			"user_type":            userDetail.UserType,
+			"role":                 userDetail.Role,
+			"status":               userDetail.Status,
+			"created_at":           userDetail.CreatedAt,
+			"updated_at":           userDetail.UpdatedAt,
 			"assigned_roles_count": assignedRolesCount,
 		},
 		"message": fmt.Sprintf("系统用户创建成功，由用户 ID: %d 执行", identity.GetUserID()),
@@ -383,72 +316,44 @@ func (h *SystemUserHandler) GetSystemUser(c *gin.Context) {
 		return
 	}
 
-	// Get user from database
-	getUserQuery := `
-		SELECT id, username, email, user_type, role, status, created_at, updated_at, last_login_at
-		FROM users
-		WHERE id = $1 AND user_type = 'system' AND deleted_at IS NULL
-	`
-
-	var (
-		id          uint
-		username    string
-		email       string
-		userType    string
-		role        string
-		userStatus  string
-		createdAt   string
-		updatedAt   string
-		lastLoginAt sql.NullString
-	)
-
-	err = h.db.QueryRowContext(c.Request.Context(), getUserQuery, userID).Scan(
-		&id, &username, &email, &userType, &role, &userStatus, &createdAt, &updatedAt, &lastLoginAt,
-	)
-
-	if err == sql.ErrNoRows {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "USER_NOT_FOUND",
-				"message": fmt.Sprintf("系统用户 ID %d 不存在", userID),
-			},
-		})
-		return
-	}
-
+	// Call service to get user
+	userDetail, err := h.userMgmtService.GetSystemUser(c.Request.Context(), uint(userID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		// Check if it's a not found error
+		statusCode := http.StatusInternalServerError
+		errorCode := "SERVICE_ERROR"
+
+		if strings.Contains(err.Error(), "not found") {
+			statusCode = http.StatusNotFound
+			errorCode = "USER_NOT_FOUND"
+		}
+
+		c.JSON(statusCode, gin.H{
 			"success": false,
 			"error": gin.H{
-				"code":    "DATABASE_ERROR",
-				"message": "获取系统用户失败",
-				"details": err.Error(),
+				"code":    errorCode,
+				"message": fmt.Sprintf("获取系统用户失败: %v", err),
 			},
 		})
 		return
 	}
 
-	// Build user data
+	// Build user data response
 	userData := gin.H{
-		"id":         id,
-		"username":   username,
-		"email":      email,
-		"user_type":  userType,
-		"role":       role,
-		"status":     userStatus,
-		"created_at": createdAt,
-		"updated_at": updatedAt,
+		"id":           userDetail.ID,
+		"username":     userDetail.Username,
+		"email":        userDetail.Email,
+		"user_type":    userDetail.UserType,
+		"role":         userDetail.Role,
+		"status":       userDetail.Status,
+		"role_ids":     userDetail.RoleIDs,
+		"created_at":   userDetail.CreatedAt,
+		"updated_at":   userDetail.UpdatedAt,
 	}
 
-	if lastLoginAt.Valid {
-		userData["last_login_at"] = lastLoginAt.String
+	if userDetail.LastLoginAt != nil {
+		userData["last_login_at"] = *userDetail.LastLoginAt
 	}
-
-	// Get assigned system roles (if systemRoleRepo is available)
-	// This would require access to SystemRoleRepository
-	// For now, include placeholder
-	userData["system_roles"] = []gin.H{}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -520,114 +425,50 @@ func (h *SystemUserHandler) UpdateSystemUserRoles(c *gin.Context) {
 		return
 	}
 
-	// Verify user exists and is a system user
-	var username string
-	checkUserQuery := `
-		SELECT username FROM users
-		WHERE id = $1 AND user_type = 'system' AND deleted_at IS NULL
-	`
-	err = h.db.QueryRowContext(c.Request.Context(), checkUserQuery, userID).Scan(&username)
-	if err == sql.ErrNoRows {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "USER_NOT_FOUND",
-				"message": fmt.Sprintf("系统用户 ID %d 不存在", userID),
-			},
-		})
-		return
-	}
-
-	// Get current role assignments
-	getCurrentRolesQuery := `
-		SELECT system_role_id
-		FROM system_user_roles
-		WHERE user_id = $1 AND is_active = true
-	`
-	rows, err := h.db.QueryContext(c.Request.Context(), getCurrentRolesQuery, userID)
+	// Call service to update roles (this solves the N+1 problem!)
+	result, err := h.userMgmtService.UpdateSystemUserRoles(
+		c.Request.Context(),
+		uint(userID),
+		request.RoleIDs,
+		uint(identity.GetUserID()),
+	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		// Check error type
+		statusCode := http.StatusInternalServerError
+		errorCode := "SERVICE_ERROR"
+
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not found") {
+			statusCode = http.StatusNotFound
+			errorCode = "USER_NOT_FOUND"
+		} else if strings.Contains(errMsg, "locked") {
+			statusCode = http.StatusForbidden
+			errorCode = "USER_LOCKED"
+		}
+
+		c.JSON(statusCode, gin.H{
 			"success": false,
 			"error": gin.H{
-				"code":    "DATABASE_ERROR",
-				"message": "获取用户当前角色失败",
-				"details": err.Error(),
+				"code":    errorCode,
+				"message": "更新角色失败",
+				"details": errMsg,
 			},
 		})
 		return
-	}
-	defer rows.Close()
-
-	currentRoleMap := make(map[uint]bool)
-	for rows.Next() {
-		var roleID uint
-		if err := rows.Scan(&roleID); err != nil {
-			continue
-		}
-		currentRoleMap[roleID] = true
-	}
-
-	newRoleMap := make(map[uint]bool)
-	for _, roleID := range request.RoleIDs {
-		newRoleMap[roleID] = true
-	}
-
-	// Track changes
-	addedCount := 0
-	removedCount := 0
-	assignedBy := identity.GetUserID()
-
-	// Add new roles
-	for roleID := range newRoleMap {
-		if !currentRoleMap[roleID] {
-			// Verify role exists
-			var roleExists bool
-			checkRoleQuery := `SELECT EXISTS(SELECT 1 FROM system_roles WHERE id = $1)`
-			err = h.db.QueryRowContext(c.Request.Context(), checkRoleQuery, roleID).Scan(&roleExists)
-			if err != nil || !roleExists {
-				continue
-			}
-
-			// Add role
-			addRoleQuery := `
-				INSERT INTO system_user_roles (user_id, system_role_id, is_active, assigned_by, created_at, updated_at)
-				VALUES ($1, $2, true, $3, NOW(), NOW())
-				ON CONFLICT (user_id, system_role_id)
-				DO UPDATE SET is_active = true, updated_at = NOW()
-			`
-			_, err = h.db.ExecContext(c.Request.Context(), addRoleQuery, userID, roleID, assignedBy)
-			if err == nil {
-				addedCount++
-			}
-		}
-	}
-
-	// Remove roles that are not in new list
-	for roleID := range currentRoleMap {
-		if !newRoleMap[roleID] {
-			removeRoleQuery := `
-				UPDATE system_user_roles
-				SET is_active = false, updated_at = NOW()
-				WHERE user_id = $1 AND system_role_id = $2
-			`
-			_, err = h.db.ExecContext(c.Request.Context(), removeRoleQuery, userID, roleID)
-			if err == nil {
-				removedCount++
-			}
-		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"user_id":        userID,
-			"username":       username,
-			"added_count":    addedCount,
-			"removed_count":  removedCount,
-			"total_roles":    len(request.RoleIDs),
+			"user_id":       result.UserID,
+			"username":      result.Username,
+			"roles_added":   result.RolesAdded,
+			"roles_removed": result.RolesRemoved,
+			"current_roles": result.CurrentRoles,
+			"total_roles":   len(result.CurrentRoles),
+			"updated_at":    result.UpdatedAt,
 		},
-		"message": fmt.Sprintf("角色更新成功（新增: %d, 移除: %d），由用户 ID: %d 执行",
-			addedCount, removedCount, identity.GetUserID()),
+		"message": result.Message,
 	})
 }
 
@@ -694,25 +535,6 @@ func (h *SystemUserHandler) UpdateSystemUserStatus(c *gin.Context) {
 		return
 	}
 
-	// Validate status value
-	validStatuses := map[string]bool{
-		"active":    true,
-		"inactive":  true,
-		"suspended": true,
-		"locked":    true,
-	}
-
-	if !validStatuses[request.Status] {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "INVALID_STATUS",
-				"message": "状态值无效，必须是: active, inactive, suspended, locked",
-			},
-		})
-		return
-	}
-
 	// Prevent self-suspension or self-deactivation
 	if !identity.IsSystemUser() || identity.GetUserID() == uint(userID) {
 		if request.Status != "active" {
@@ -727,42 +549,36 @@ func (h *SystemUserHandler) UpdateSystemUserStatus(c *gin.Context) {
 		}
 	}
 
-	// Verify user exists and is a system user
-	var username string
-	var currentStatus string
-	checkUserQuery := `
-		SELECT username, status FROM users
-		WHERE id = $1 AND user_type = 'system' AND deleted_at IS NULL
-	`
-	err = h.db.QueryRowContext(c.Request.Context(), checkUserQuery, userID).Scan(&username, &currentStatus)
-	if err == sql.ErrNoRows {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "USER_NOT_FOUND",
-				"message": fmt.Sprintf("系统用户 ID %d 不存在", userID),
-			},
-		})
-		return
-	}
-
-	// Update status
-	updateStatusQuery := `
-		UPDATE users
-		SET status = $2, updated_at = NOW()
-		WHERE id = $1
-		RETURNING updated_at
-	`
-
-	var updatedAt string
-	err = h.db.QueryRowContext(c.Request.Context(), updateStatusQuery, userID, request.Status).Scan(&updatedAt)
+	// Call service to update status
+	result, err := h.userMgmtService.UpdateSystemUserStatus(
+		c.Request.Context(),
+		uint(userID),
+		request.Status,
+		uint(identity.GetUserID()),
+	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		// Check error type
+		statusCode := http.StatusInternalServerError
+		errorCode := "SERVICE_ERROR"
+
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not found") {
+			statusCode = http.StatusNotFound
+			errorCode = "USER_NOT_FOUND"
+		} else if strings.Contains(errMsg, "invalid status") {
+			statusCode = http.StatusBadRequest
+			errorCode = "INVALID_STATUS"
+		} else if strings.Contains(errMsg, "already has status") {
+			statusCode = http.StatusBadRequest
+			errorCode = "STATUS_UNCHANGED"
+		}
+
+		c.JSON(statusCode, gin.H{
 			"success": false,
 			"error": gin.H{
-				"code":    "UPDATE_FAILED",
-				"message": "更新用户状态失败",
-				"details": err.Error(),
+				"code":    errorCode,
+				"message": "更新状态失败",
+				"details": errMsg,
 			},
 		})
 		return
@@ -771,13 +587,12 @@ func (h *SystemUserHandler) UpdateSystemUserStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"user_id":        userID,
-			"username":       username,
-			"previous_status": currentStatus,
-			"new_status":     request.Status,
-			"updated_at":     updatedAt,
+			"user_id":         result.UserID,
+			"username":        result.Username,
+			"previous_status": result.OldStatus,
+			"new_status":      result.NewStatus,
+			"updated_at":      result.UpdatedAt,
 		},
-		"message": fmt.Sprintf("用户状态更新成功（%s -> %s），由用户 ID: %d 执行",
-			currentStatus, request.Status, identity.GetUserID()),
+		"message": result.Message,
 	})
 }

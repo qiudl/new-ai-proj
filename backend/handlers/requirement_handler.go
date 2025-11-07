@@ -22,7 +22,29 @@ func NewRequirementHandler(db database.DB, logger *log.Logger, validate interfac
 	return &RequirementHandler{db: db}
 }
 
-// GetRequirements handles GET /api/v1/requirements
+// GetRequirements godoc
+// @Summary Get requirements list
+// @Description Get paginated list of requirements with filtering and sorting
+// @Tags requirements
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number (default: 1)"
+// @Param page_size query int false "Page size (default: 20, max: 100)"
+// @Param search query string false "Search in title/description"
+// @Param status query string false "Filter by status (draft, pending, reviewing, need_more_info, approved, rejected, converted, archived)"
+// @Param priority query string false "Filter by priority (low, medium, high, critical)"
+// @Param category query string false "Filter by category"
+// @Param submitter_id query int false "Filter by submitter user ID"
+// @Param reviewer_id query int false "Filter by reviewer user ID"
+// @Param project_id query int false "Filter by project ID"
+// @Param sort_by query string false "Sort field (created_at, updated_at, priority, status)" default(created_at)
+// @Param sort_order query string false "Sort order (asc, desc)" default(desc)
+// @Success 200 {object} models.APIResponse{data=models.RequirementListResponse}
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements [get]
+// @Security BearerAuth
 func (h *RequirementHandler) GetRequirements(c *gin.Context) {
 	// Get user info from context
 	userID := c.GetInt("user_id")
@@ -129,7 +151,20 @@ func (h *RequirementHandler) GetRequirements(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, "获取需求列表成功"))
 }
 
-// CreateRequirement handles POST /api/v1/requirements
+// CreateRequirement godoc
+// @Summary Create new requirement
+// @Description Create a new requirement in the system
+// @Tags requirements
+// @Accept json
+// @Produce json
+// @Param request body models.CreateRequirementRequest true "Requirement data"
+// @Success 201 {object} models.APIResponse{data=models.RequirementResponse}
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements [post]
+// @Security BearerAuth
 func (h *RequirementHandler) CreateRequirement(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
@@ -199,7 +234,21 @@ func (h *RequirementHandler) CreateRequirement(c *gin.Context) {
 	c.JSON(http.StatusCreated, models.NewSuccessResponse(createdRequirement.ToResponse(), "需求创建成功"))
 }
 
-// GetRequirement handles GET /api/v1/requirements/:id
+// GetRequirement godoc
+// @Summary Get requirement by ID
+// @Description Get detailed information about a specific requirement
+// @Tags requirements
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Success 200 {object} models.APIResponse{data=models.RequirementResponse}
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/{id} [get]
+// @Security BearerAuth
 func (h *RequirementHandler) GetRequirement(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
@@ -237,7 +286,22 @@ func (h *RequirementHandler) GetRequirement(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(requirement.ToResponse(), "获取需求成功"))
 }
 
-// UpdateRequirement handles PUT /api/v1/requirements/:id
+// UpdateRequirement godoc
+// @Summary Update requirement
+// @Description Update an existing requirement (only submitter or admin can update)
+// @Tags requirements
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body models.UpdateRequirementRequest true "Update data"
+// @Success 200 {object} models.APIResponse{data=models.RequirementResponse}
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/{id} [put]
+// @Security BearerAuth
 func (h *RequirementHandler) UpdateRequirement(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
@@ -331,7 +395,21 @@ func (h *RequirementHandler) UpdateRequirement(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedRequirement.ToResponse(), "需求更新成功"))
 }
 
-// DeleteRequirement handles DELETE /api/v1/requirements/:id
+// DeleteRequirement godoc
+// @Summary Delete requirement
+// @Description Delete a requirement (only submitter or admin can delete)
+// @Tags requirements
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/{id} [delete]
+// @Security BearerAuth
 func (h *RequirementHandler) DeleteRequirement(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
@@ -461,7 +539,17 @@ func (h *RequirementHandler) UpdateRequirementStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "需求状态更新成功"))
 }
 
-// GetRequirementStats handles GET /api/v1/requirements/stats
+// GetRequirementStats godoc
+// @Summary Get requirement statistics
+// @Description Get statistical overview of requirements (grouped by status, priority, etc.)
+// @Tags requirements
+// @Accept json
+// @Produce json
+// @Success 200 {object} models.APIResponse{data=models.RequirementStats}
+// @Failure 401 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/stats [get]
+// @Security BearerAuth
 func (h *RequirementHandler) GetRequirementStats(c *gin.Context) {
 	userID := c.GetInt("user_id")
 	userRole, _ := c.Get("user_role")
@@ -490,4 +578,189 @@ func (h *RequirementHandler) GetRequirementStats(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(stats, "获取需求统计成功"))
+}
+
+// ConvertRequirementToTask godoc
+// @Summary Convert requirement to task
+// @Description Convert an approved requirement into a task (only approved requirements can be converted)
+// @Tags requirements
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body models.ConvertToTaskRequest true "Conversion options"
+// @Success 200 {object} models.APIResponse{data=object{task_id=int,task_title=string,requirement_id=int,message=string}}
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/{id}/convert-to-task [post]
+// @Security BearerAuth
+func (h *RequirementHandler) ConvertRequirementToTask(c *gin.Context) {
+	userID := c.GetInt("user_id")
+
+	// Parse requirement ID
+	requirementIDStr := c.Param("id")
+	requirementID, err := strconv.Atoi(requirementIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation, "无效的需求ID", nil))
+		return
+	}
+
+	// Parse request body
+	var req models.ConvertToTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation, "请求数据格式错误", err.Error()))
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Get requirement
+	requirement, err := h.db.Requirements().GetByID(ctx, requirementID)
+	if err != nil {
+		log.Printf("Error getting requirement %d: %v", requirementID, err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取需求失败", nil))
+		return
+	}
+	if requirement == nil {
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "需求不存在", nil))
+		return
+	}
+
+	// Check if already converted
+	if requirement.ConvertedTaskID != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation,
+			fmt.Sprintf("该需求已转换为任务 (任务ID: %d)", *requirement.ConvertedTaskID), nil))
+		return
+	}
+
+	// Verify requirement is approved
+	if requirement.Status != string(models.RequirementStatusApproved) {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation,
+			"只有已通过评审的需求才能转换为任务", map[string]interface{}{
+				"current_status": requirement.Status,
+				"required_status": "approved",
+			}))
+		return
+	}
+
+	// Prepare task data
+	projectID := req.ProjectID
+	if projectID == nil {
+		projectID = requirement.ProjectID
+	}
+	if projectID == nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation, "请指定任务所属项目", nil))
+		return
+	}
+
+	// Task title: use provided or default to requirement title
+	taskTitle := requirement.Title
+	if req.TaskTitle != nil && *req.TaskTitle != "" {
+		taskTitle = *req.TaskTitle
+	}
+
+	// Task description: combine requirement info
+	taskDescription := ""
+	if req.Description != nil {
+		taskDescription = *req.Description
+	} else {
+		// Auto-generate description from requirement
+		taskDescription = fmt.Sprintf("## 需求来源\n需求编号: %s\n\n", requirement.DisplayID)
+		if requirement.Description != nil {
+			taskDescription += fmt.Sprintf("## 需求描述\n%s\n\n", *requirement.Description)
+		}
+		if requirement.AcceptanceCriteria != nil {
+			taskDescription += fmt.Sprintf("## 验收标准\n%s\n\n", *requirement.AcceptanceCriteria)
+		}
+		if requirement.BusinessValue != nil {
+			taskDescription += fmt.Sprintf("## 商业价值\n%s\n", *requirement.BusinessValue)
+		}
+	}
+
+	// Task priority
+	taskPriority := "medium"
+	if req.Priority != nil {
+		taskPriority = *req.Priority
+	} else if requirement.Priority != "" {
+		taskPriority = requirement.Priority
+	}
+
+	// Create task
+	task := &models.Task{
+		Title:       taskTitle,
+		Description: &taskDescription,
+		ProjectID:   *projectID,
+		Status:      "todo",
+		Priority:    taskPriority,
+	}
+
+	if req.AssigneeID != nil {
+		task.AssigneeID = req.AssigneeID
+	}
+
+	if req.DueDate != nil {
+		task.DueDate = req.DueDate
+	} else if requirement.DueDate != nil {
+		task.DueDate = requirement.DueDate
+	}
+
+	// Create task in database
+	createdTask, err := h.db.Tasks().Create(ctx, task)
+	if err != nil {
+		log.Printf("Error creating task from requirement %d: %v", requirementID, err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "创建任务失败", nil))
+		return
+	}
+
+	// Create requirement-task link using raw SQL
+	linkComment := ""
+	if req.LinkRequirement {
+		linkComment = "需求自动转换为任务"
+	}
+
+	insertQuery := `
+		INSERT INTO requirement_tasks (
+			requirement_id, task_id, link_type, linked_by, link_comment, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, NULLIF($5, ''), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`
+
+	executor, ok := h.db.GetDB().(database.DBExecutor)
+	if !ok {
+		log.Printf("Error getting database executor for requirement-task link creation")
+		// Continue even if link creation fails
+	} else {
+		_, err = executor.ExecContext(
+			ctx,
+			insertQuery,
+			requirementID,
+			createdTask.ID,
+			string(models.RequirementTaskLinkConverted),
+			userID,
+			linkComment,
+		)
+		if err != nil {
+			log.Printf("Error creating requirement-task link: requirement=%d, task=%d, error=%v",
+				requirementID, createdTask.ID, err)
+			// Continue even if link creation fails
+		}
+	}
+
+	// Update requirement status and converted fields using SetConvertedTask
+	err = h.db.Requirements().SetConvertedTask(ctx, requirementID, createdTask.ID, userID)
+	if err != nil {
+		log.Printf("Error updating requirement %d after conversion: %v", requirementID, err)
+		// Continue even if update fails - task is created
+	}
+
+	// TODO: Create subtasks if requested
+	// This would be implemented based on req.CreateSubtasks flag
+
+	// Return success response
+	c.JSON(http.StatusOK, models.NewSuccessResponse(map[string]interface{}{
+		"task_id":        createdTask.ID,
+		"task_title":     createdTask.Title,
+		"requirement_id": requirementID,
+		"message":        "需求已成功转换为任务",
+	}, "需求转换成功"))
 }

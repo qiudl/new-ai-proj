@@ -22,6 +22,10 @@ type RequirementCommentRepository interface {
 	ListByUser(ctx context.Context, userID int, filters *models.RequirementCommentFilters) (*models.RequirementCommentListResponse, error)
 	GetReplies(ctx context.Context, parentCommentID int) ([]*models.RequirementComment, error)
 
+	// @用户提及相关
+	GetByMentionedUser(ctx context.Context, userID int, filters *models.RequirementCommentFilters) (*models.RequirementCommentListResponse, error)
+	PopulateMentionedUsers(ctx context.Context, comments []*models.RequirementComment) error
+
 	// 统计信息
 	GetStats(ctx context.Context, requirementID int) (*models.RequirementCommentStats, error)
 	GetCommentCounts(ctx context.Context, requirementIDs []int) (map[int]int, error)
@@ -54,10 +58,10 @@ func (r *requirementCommentRepositoryImpl) Create(ctx context.Context, comment *
 	query := `
 		INSERT INTO requirement_comments (
 			requirement_id, user_id, parent_comment_id, content,
-			comment_type, attachments, is_internal, status
+			comment_type, attachments, is_internal, mentioned_user_ids, status
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, created_at, updated_at
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, created_at, updated_at, mentioned_count
 	`
 
 	err := r.getDB().QueryRowContext(
@@ -69,8 +73,9 @@ func (r *requirementCommentRepositoryImpl) Create(ctx context.Context, comment *
 		comment.CommentType,
 		comment.Attachments,
 		comment.IsInternal,
+		comment.MentionedUserIDs,
 		models.RequirementCommentStatusActive,
-	).Scan(&comment.ID, &comment.CreatedAt, &comment.UpdatedAt)
+	).Scan(&comment.ID, &comment.CreatedAt, &comment.UpdatedAt, &comment.MentionedCount)
 
 	if err != nil {
 		return fmt.Errorf("创建需求评论失败: %w", err)
@@ -661,6 +666,199 @@ func (r *requirementCommentRepositoryImpl) UpdateInternal(ctx context.Context, i
 
 	if rowsAffected == 0 {
 		return fmt.Errorf("需求评论不存在或已被删除 (ID: %d)", id)
+	}
+
+	return nil
+}
+
+// GetByMentionedUser 获取@提及了某用户的评论列表
+func (r *requirementCommentRepositoryImpl) GetByMentionedUser(ctx context.Context, userID int, filters *models.RequirementCommentFilters) (*models.RequirementCommentListResponse, error) {
+	// 分页参数
+	page := filters.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := filters.PageSize
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	offset := (page - 1) * pageSize
+
+	// 查询总数 - 使用JSONB contains操作符
+	countQuery := `
+		SELECT COUNT(*)
+		FROM requirement_comments
+		WHERE mentioned_user_ids @> $1::jsonb AND status = $2
+	`
+	var total int
+	userIDJSON := fmt.Sprintf("[%d]", userID)
+	err := r.getDB().QueryRowContext(ctx, countQuery, userIDJSON, models.RequirementCommentStatusActive).Scan(&total)
+	if err != nil {
+		return nil, fmt.Errorf("查询@提及评论总数失败: %w", err)
+	}
+
+	// 查询评论列表
+	listQuery := `
+		SELECT
+			c.id, c.requirement_id, c.user_id, c.parent_comment_id,
+			c.content, c.comment_type, c.attachments,
+			c.mentioned_user_ids, c.mentioned_count,
+			c.is_internal, c.is_pinned, c.status,
+			c.created_at, c.updated_at,
+			u.username, u.user_type
+		FROM requirement_comments c
+		LEFT JOIN users u ON c.user_id = u.id
+		WHERE c.mentioned_user_ids @> $1::jsonb AND c.status = $2
+		ORDER BY c.created_at DESC
+		LIMIT $3 OFFSET $4
+	`
+
+	rows, err := r.getDB().QueryContext(ctx, listQuery, userIDJSON, models.RequirementCommentStatusActive, pageSize, offset)
+	if err != nil {
+		return nil, fmt.Errorf("查询@提及评论列表失败: %w", err)
+	}
+	defer rows.Close()
+
+	comments := []models.RequirementCommentResponse{}
+	for rows.Next() {
+		comment := models.RequirementComment{}
+
+		var username, userType sql.NullString
+		var parentCommentID sql.NullInt64
+
+		err := rows.Scan(
+			&comment.ID,
+			&comment.RequirementID,
+			&comment.UserID,
+			&parentCommentID,
+			&comment.Content,
+			&comment.CommentType,
+			&comment.Attachments,
+			&comment.MentionedUserIDs,
+			&comment.MentionedCount,
+			&comment.IsInternal,
+			&comment.IsPinned,
+			&comment.Status,
+			&comment.CreatedAt,
+			&comment.UpdatedAt,
+			&username,
+			&userType,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描@提及评论数据失败: %w", err)
+		}
+
+		if parentCommentID.Valid {
+			pid := int(parentCommentID.Int64)
+			comment.ParentCommentID = &pid
+		}
+		if username.Valid {
+			comment.Username = &username.String
+		}
+		if userType.Valid {
+			comment.UserType = &userType.String
+		}
+
+		comments = append(comments, comment.ToResponse())
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("遍历@提及评论数据失败: %w", err)
+	}
+
+	return &models.RequirementCommentListResponse{
+		Data:     comments,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
+
+// PopulateMentionedUsers 填充评论中@提及用户的详细信息
+func (r *requirementCommentRepositoryImpl) PopulateMentionedUsers(ctx context.Context, comments []*models.RequirementComment) error {
+	if len(comments) == 0 {
+		return nil
+	}
+
+	// 收集所有提及的用户ID（去重）
+	userIDMap := make(map[int]bool)
+	for _, comment := range comments {
+		if comment.MentionedUserIDs != nil && len(comment.MentionedUserIDs) > 0 {
+			for _, userID := range comment.MentionedUserIDs {
+				userIDMap[userID] = true
+			}
+		}
+	}
+
+	if len(userIDMap) == 0 {
+		return nil
+	}
+
+	// 构建用户ID列表
+	userIDs := make([]int, 0, len(userIDMap))
+	for userID := range userIDMap {
+		userIDs = append(userIDs, userID)
+	}
+
+	// 批量查询用户信息
+	placeholders := ""
+	args := make([]interface{}, len(userIDs))
+	for i, userID := range userIDs {
+		if i > 0 {
+			placeholders += ","
+		}
+		placeholders += fmt.Sprintf("$%d", i+1)
+		args[i] = userID
+	}
+
+	query := fmt.Sprintf(`
+		SELECT id, username, email
+		FROM users
+		WHERE id IN (%s)
+	`, placeholders)
+
+	rows, err := r.getDB().QueryContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("查询@提及用户信息失败: %w", err)
+	}
+	defer rows.Close()
+
+	// 构建用户信息映射
+	userInfoMap := make(map[int]models.MentionedUser)
+	for rows.Next() {
+		var userID int
+		var username string
+		var email sql.NullString
+
+		if err := rows.Scan(&userID, &username, &email); err != nil {
+			return fmt.Errorf("扫描@提及用户数据失败: %w", err)
+		}
+
+		user := models.MentionedUser{
+			UserID:   userID,
+			Username: username,
+		}
+		if email.Valid {
+			user.Avatar = &email.String // 可以改为头像URL字段
+		}
+		userInfoMap[userID] = user
+	}
+
+	if err = rows.Err(); err != nil {
+		return fmt.Errorf("遍历@提及用户数据失败: %w", err)
+	}
+
+	// 填充评论的MentionedUsers字段
+	for _, comment := range comments {
+		if comment.MentionedUserIDs != nil && len(comment.MentionedUserIDs) > 0 {
+			mentionedUsers := make([]models.MentionedUser, 0, len(comment.MentionedUserIDs))
+			for _, userID := range comment.MentionedUserIDs {
+				if userInfo, exists := userInfoMap[userID]; exists {
+					mentionedUsers = append(mentionedUsers, userInfo)
+				}
+			}
+			comment.MentionedUsers = mentionedUsers
+		}
 	}
 
 	return nil

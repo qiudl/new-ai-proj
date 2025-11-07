@@ -1,0 +1,58 @@
+.container {
+  padding: 24px;
+  background: #f0f2f5;
+  min-height: calc(100vh - 64px);
+}
+
+.filterSection {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 4px;
+}
+
+.skuCode {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.availableQty {
+  color: #52c41a;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.lockedQty {
+  color: #faad14;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.totalQty {
+  color: #1890ff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.positiveQty {
+  color: #52c41a;
+  font-weight: 600;
+}
+
+.negativeQty {
+  color: #ff4d4f;
+  font-weight: 600;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .filterSection {
+    padding: 12px;
+  }
+}
