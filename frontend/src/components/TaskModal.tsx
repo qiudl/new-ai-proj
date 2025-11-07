@@ -386,7 +386,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
       className={modalConfig.className}
       styles={modalConfig.styles}
       centered={modalConfig.centered}
-      destroyOnHidden
+      destroyOnClose
+      style={{ maxHeight: '90vh' }}
     >
       <Form
         form={form}

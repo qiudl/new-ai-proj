@@ -143,26 +143,39 @@
 .ant-modal-body {
   position: relative !important;
   padding: 24px !important;
-  max-height: 60vh !important;
+  max-height: calc(90vh - 180px) !important;
   overflow-y: auto !important;
+  overflow-x: hidden !important;
   pointer-events: auto !important;
-  
-  /* 滚动条样式 */
+
+  /* 滚动条样式 - 增强可见性 */
   scrollbar-width: thin !important;
-  scrollbar-color: rgba(0, 0, 0, 0.3) transparent !important;
+  scrollbar-color: rgba(0, 0, 0, 0.4) rgba(0, 0, 0, 0.05) !important;
+
+  /* 确保滚动流畅 */
+  -webkit-overflow-scrolling: touch !important;
 }
 
 .ant-modal-body::-webkit-scrollbar {
-  width: 6px !important;
+  width: 8px !important;
+  height: 8px !important;
 }
 
 .ant-modal-body::-webkit-scrollbar-track {
-  background: transparent !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-radius: 4px !important;
 }
 
 .ant-modal-body::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.3) !important;
-  border-radius: 3px !important;
+  border-radius: 4px !important;
+  border: 2px solid transparent !important;
+  background-clip: content-box !important;
+}
+
+.ant-modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5) !important;
+  background-clip: content-box !important;
 }
 
 .ant-modal-footer {
@@ -191,26 +204,45 @@
 /* === 移动端适配 === */
 @media (max-width: 768px) {
   .ant-modal-wrap {
+    padding: 8px !important;
+    align-items: flex-start !important;
+    padding-top: 20px !important;
+  }
+
+  .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 0 auto !important;
+    max-height: calc(100vh - 40px) !important;
+  }
+
+  .ant-modal-content {
+    max-height: calc(100vh - 40px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .ant-modal-body {
+    max-height: calc(100vh - 180px) !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
     padding: 16px !important;
   }
-  
-  .ant-modal {
-    max-width: calc(100vw - 32px) !important;
-    margin: 0 !important;
-  }
-  
-  .ant-modal-body {
-    max-height: calc(100vh - 200px) !important;
-  }
-  
+
   .ant-modal-header,
   .ant-modal-footer {
+    flex-shrink: 0 !important;
     padding-left: 16px !important;
     padding-right: 16px !important;
   }
-  
-  .ant-modal-body {
-    padding: 16px !important;
+
+  .ant-modal-header {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+  }
+
+  .ant-modal-footer {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
   }
 }
 
@@ -329,4 +361,27 @@ body:has(.ant-modal-wrap.ant-modal-wrap-open) {
 .ant-modal .ant-select-dropdown,
 .ant-modal .ant-picker-dropdown {
   z-index: 560 !important;
+}
+
+/* 直接修复所有下拉框在Modal内的显示问题 */
+.ant-select-dropdown,
+.ant-picker-dropdown,
+.ant-cascader-dropdown,
+.ant-dropdown {
+  z-index: 1050 !important;
+  position: fixed !important;
+}
+
+/* 确保Modal内触发的下拉框有更高的层级 */
+body > .ant-select-dropdown,
+body > .ant-picker-dropdown,
+body > .ant-cascader-dropdown,
+body > .ant-dropdown {
+  z-index: 1050 !important;
+}
+
+/* 特别处理Task Modal内的Select下拉框 */
+.ant-modal:has(.ant-form) ~ .ant-select-dropdown,
+.ant-modal-wrap .ant-select-dropdown {
+  z-index: 1050 !important;
 }

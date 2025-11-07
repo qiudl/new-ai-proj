@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal修复测试页面</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+
+        .test-section {
+            background: white;
+            padding: 24px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .test-section h2 {
+            margin-top: 0;
+            color: #1890ff;
+        }
+
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+
+        .checklist li {
+            padding: 12px;
+            margin: 8px 0;
+            background: #f9f9f9;
+            border-left: 4px solid #52c41a;
+            border-radius: 4px;
+        }
+
+        .checklist li:before {
+            content: "✓ ";
+            color: #52c41a;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .test-button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 12px;
+            margin-bottom: 12px;
+        }
+
+        .test-button:hover {
+            background: #40a9ff;
+        }
+
+        .code-block {
+            background: #f5f5f5;
+            padding: 16px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 12px 0;
+        }
+
+        .success {
+            color: #52c41a;
+            font-weight: bold;
+        }
+
+        .warning {
+            color: #faad14;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #ff4d4f;
+            font-weight: bold;
+        }
+
+        .info-box {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            padding: 16px;
+            border-radius: 4px;
+            margin: 12px 0;
+        }
+
+        .info-box strong {
+            color: #1890ff;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 任务创建弹窗修复验证页面</h1>
+
+    <div class="test-section">
+        <h2>📋 修复内容总结</h2>
+        <ul class="checklist">
+            <li><strong>问题1：</strong>弹窗内容超出屏幕高度时无滚动条</li>
+            <li><strong>解决：</strong>设置maxHeight为90vh，添加overflow-y: auto</li>
+            <li><strong>问题2：</strong>下拉选项不显示</li>
+            <li><strong>解决：</strong>提高下拉框z-index到1050，高于Modal的550</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 桌面端测试清单</h2>
+        <ul class="checklist">
+            <li>打开任务创建弹窗（点击"创建任务"按钮）</li>
+            <li>检查弹窗高度是否限制在90vh以内</li>
+            <li>当内容较多时，查看是否出现清晰的滚动条（8px宽度）</li>
+            <li>点击"任务状态"下拉框，确认选项正常显示</li>
+            <li>点击"优先级"下拉框，确认选项正常显示</li>
+            <li>点击"截止时间"日期选择器，确认日期面板正常显示</li>
+            <li>滚动弹窗内容，确认滚动流畅</li>
+            <li>Hover滚动条，确认颜色变深（交互反馈）</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>📱 移动端测试清单 (< 768px)</h2>
+        <ul class="checklist">
+            <li>缩小浏览器窗口到768px以下</li>
+            <li>弹窗宽度自适应屏幕（calc(100vw - 16px)）</li>
+            <li>弹窗最大高度限制在calc(100vh - 40px)</li>
+            <li>Header和Footer固定，Body可滚动</li>
+            <li>所有下拉框正常显示</li>
+            <li>触摸滚动流畅（iOS优化）</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 关键修改点</h2>
+
+        <h3>1. TaskModal组件 (TaskModal.tsx)</h3>
+        <div class="code-block">
+&lt;Modal
+  destroyOnClose  // 关闭时销毁，避免状态残留
+  style={{ maxHeight: '90vh' }}  // 限制最大高度
+  ...
+&gt;
+        </div>
+
+        <h3>2. useUnifiedModal Hook</h3>
+        <div class="code-block">
+maxHeight: isMobile
+  ? 'calc(100vh - 200px)'
+  : 'calc(90vh - 180px)',
+overflowY: 'auto',
+WebkitOverflowScrolling: 'touch'  // iOS优化
+        </div>
+
+        <h3>3. CSS滚动条样式</h3>
+        <div class="code-block">
+.ant-modal-body::-webkit-scrollbar {
+  width: 8px !important;  // 增加宽度，更易见
+}
+.ant-modal-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+.ant-modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5) !important;  // hover反馈
+}
+        </div>
+
+        <h3>4. 下拉框z-index修复</h3>
+        <div class="code-block">
+.ant-select-dropdown,
+.ant-picker-dropdown {
+  z-index: 1050 !important;  // 提高到1050，高于Modal的550
+}
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 z-index层级说明</h2>
+        <div class="info-box">
+            <p><strong>当前层级架构：</strong></p>
+            <ul>
+                <li>Modal遮罩层：549</li>
+                <li>Modal容器：550</li>
+                <li>Modal内容：551</li>
+                <li>Modal内下拉框（兼容）：560</li>
+                <li><strong class="success">全局下拉框（最终方案）：1050</strong></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 启动测试步骤</h2>
+        <div class="code-block">
+# 1. 进入前端目录
+cd /Users/johnqiu/coding/www/projects/new-ai-proj/frontend
+
+# 2. 启动开发服务器
+npm start
+
+# 3. 访问应用
+打开浏览器访问: http://localhost:3000
+
+# 4. 测试任务创建功能
+- 进入任何项目
+- 点击"创建任务"按钮
+- 验证弹窗滚动和下拉框显示
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ 验证成功标准</h2>
+        <div class="info-box">
+            <p><strong class="success">所有以下条件必须满足：</strong></p>
+            <ul>
+                <li>✓ 弹窗内容超出屏幕时，出现清晰的滚动条</li>
+                <li>✓ 滚动条宽度为8px，半透明灰色</li>
+                <li>✓ 滚动条hover时颜色变深</li>
+                <li>✓ 所有下拉框（状态、优先级、日期）正常显示</li>
+                <li>✓ 下拉选项可以正常点击选择</li>
+                <li>✓ 滚动流畅，无卡顿</li>
+                <li>✓ 移动端（<768px）弹窗自适应</li>
+                <li>✓ 弹窗关闭后无状态残留</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 相关文件</h2>
+        <ul>
+            <li><strong>frontend/src/components/TaskModal.tsx</strong> - 任务弹窗组件</li>
+            <li><strong>frontend/src/hooks/useUnifiedModal.ts</strong> - Modal配置Hook</li>
+            <li><strong>frontend/src/styles/unified-modal-fix.css</strong> - Modal样式修复</li>
+            <li><strong>frontend/MODAL_FIX_SUMMARY.md</strong> - 详细修复文档</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🐛 如果发现问题</h2>
+        <div class="info-box">
+            <p><strong>请检查：</strong></p>
+            <ol>
+                <li>浏览器缓存是否清除（Ctrl+Shift+R 强制刷新）</li>
+                <li>CSS文件是否正确加载</li>
+                <li>浏览器开发者工具Console是否有错误</li>
+                <li>浏览器是否为最新版本</li>
+            </ol>
+        </div>
+    </div>
+
+    <footer style="text-align: center; color: #999; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;">
+        <p>修复时间: 2025-11-07 | 修复版本: v1.0</p>
+        <p>技术栈: React + TypeScript + Ant Design 5</p>
+    </footer>
+</body>
+</html>

@@ -60,13 +60,16 @@ export const useUnifiedModal = (props: UseUnifiedModalProps = {}): UnifiedModalC
 
     // 设置body样式 - 智能高度管理
     const bodyStyle: React.CSSProperties = {
-      maxHeight: isMobile ? 'calc(100vh - 180px)' : `${maxHeight}px`,
+      maxHeight: isMobile ? 'calc(100vh - 200px)' : `calc(90vh - 180px)`,
       overflowY: 'auto',
       overflowX: 'hidden',
-      paddingRight: '8px',
+      padding: '24px',
+      paddingRight: '16px',
       // 自定义滚动条样式
       scrollbarWidth: 'thin',
-      scrollbarColor: '#c1c1c1 #f1f1f1'
+      scrollbarColor: '#c1c1c1 #f1f1f1',
+      // 确保滚动流畅
+      WebkitOverflowScrolling: 'touch'
     };
 
     return {
