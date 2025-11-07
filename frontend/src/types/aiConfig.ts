@@ -2,8 +2,9 @@
 // ✅ FIXED - Import and re-export AIProvider to make it available to other modules (TS2459)
 import { AIProvider } from './ai';
 
+// ✅ FIXED - Re-export as type when isolatedModules is enabled (TS1205)
 // Re-export AIProvider so it can be imported from this module
-export { AIProvider };
+export type { AIProvider };
 
 /**
  * AI配置接口
