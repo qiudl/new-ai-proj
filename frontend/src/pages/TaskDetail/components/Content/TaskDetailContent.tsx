@@ -185,9 +185,10 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     });
   };
 
+  // ✅ FIXED - Use statistics.completion instead of completionStats (TS2551)
   // 计算完成统计数据
   const completionState = useMemo(() => {
-    if (!statistics?.completionStats) {
+    if (!statistics?.completion) {
       return {
         totalSubtasks: 0,
         completedSubtasks: 0,
@@ -197,7 +198,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       };
     }
 
-    const { total, completed, inProgress, todo } = statistics.completionStats;
+    const { total, completed, inProgress, todo } = statistics.completion;
     const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     return {
@@ -207,7 +208,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       todoSubtasks: todo,
       completionRate: rate
     };
-  }, [statistics?.completionStats]);
+  }, [statistics?.completion]);
 
   // 刷新完成统计数据
   const refreshCompletionStats = async () => {

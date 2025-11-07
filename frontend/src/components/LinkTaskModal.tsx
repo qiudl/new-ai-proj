@@ -93,7 +93,8 @@ const LinkTaskModal: React.FC<LinkTaskModalProps> = ({
         const response = await TaskService.getTasks(requirement.project_id, {
           search: keyword,
           page: 1,
-          pageSize: 10,
+          // ✅ FIXED - Use page_size instead of pageSize (TS2561)
+          page_size: 10,
         });
         setTasks(response.data || []);
       } catch (error) {

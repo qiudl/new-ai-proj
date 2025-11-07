@@ -275,17 +275,27 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
         }
       });
 
+      // ✅ FIXED - Use 'completion' instead of 'completionStats' (TS2561)
       // Calculate and dispatch statistics immediately after loading relations
-      const completionStats = {
+      const completion = {
         total: subtasksArray.length,
         completed: subtasksArray.filter(t => t.status === 'completed').length,
         inProgress: subtasksArray.filter(t => t.status === 'in_progress').length,
-        todo: subtasksArray.filter(t => t.status === 'todo').length
+        todo: subtasksArray.filter(t => t.status === 'todo').length,
+        blocked: subtasksArray.filter(t => t.status === 'blocked').length,
+        rate: subtasksArray.length > 0 ? (subtasksArray.filter(t => t.status === 'completed').length / subtasksArray.length) * 100 : 0,
+        trend: 'stable' as const
       };
 
+      // ✅ FIXED - TaskStatistics requires all properties: completion, time, quality, team (TS2739)
       dispatch({
         type: 'SET_STATISTICS',
-        payload: { completionStats }
+        payload: {
+          completion,
+          time: { totalEstimated: 0, totalActual: 0, totalRemaining: 0, efficiency: 0 },
+          quality: { score: 0, trend: 'stable' as const, issues: [] },
+          team: { members: [], activeMembers: 0, productivity: 0 }
+        }
       });
     } catch (error: any) {
       dispatch({ type: 'SET_ERROR', payload: { key: 'relations', error } });
@@ -327,16 +337,26 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
         todoSubtasks: subtasks.filter(t => t.status === 'todo').length
       };
 
-      const completionStats = {
+      // ✅ FIXED - Use 'completion' instead of 'completionStats' (TS2561)
+      const completion = {
         total: stats.totalSubtasks,
         completed: stats.completedSubtasks,
         inProgress: stats.inProgressSubtasks,
-        todo: stats.todoSubtasks
+        todo: stats.todoSubtasks,
+        blocked: subtasks.filter(t => t.status === 'blocked').length,
+        rate: stats.totalSubtasks > 0 ? (stats.completedSubtasks / stats.totalSubtasks) * 100 : 0,
+        trend: 'stable' as const
       };
 
+      // ✅ FIXED - TaskStatistics requires all properties: completion, time, quality, team (TS2739)
       dispatch({
         type: 'SET_STATISTICS',
-        payload: { completionStats }
+        payload: {
+          completion,
+          time: { totalEstimated: 0, totalActual: 0, totalRemaining: 0, efficiency: 0 },
+          quality: { score: 0, trend: 'stable' as const, issues: [] },
+          team: { members: [], activeMembers: 0, productivity: 0 }
+        }
       });
     } catch (error: any) {
       dispatch({ type: 'SET_ERROR', payload: { key: 'statistics', error } });

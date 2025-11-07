@@ -287,13 +287,16 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const response = await TaskService.getTasks(mergedFilters);
+      // ✅ FIXED - TaskService.getTasks requires projectId as first parameter (TS2345)
+      const projectId = mergedFilters.project || 1; // Default to project 1 if not specified
+      const response = await TaskService.getTasks(projectId, mergedFilters);
 
-      dispatch({ type: 'SET_TASKS', payload: response.tasks });
-      dispatch({ type: 'SET_CACHE', payload: { key: cacheKey, data: response.tasks } });
+      // ✅ FIXED - Use response.data instead of response.tasks (TS2339)
+      dispatch({ type: 'SET_TASKS', payload: response.data });
+      dispatch({ type: 'SET_CACHE', payload: { key: cacheKey, data: response.data } });
 
       errorLogger.info('task', 'TaskContext: 任务加载成功', {
-        taskCount: response.tasks.length,
+        taskCount: response.data.length,
         filters: mergedFilters
       });
     } catch (error) {
@@ -339,7 +342,9 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
-      const newTask = await TaskService.createTask(taskData);
+      // ✅ FIXED - TaskService.createTask requires projectId as first parameter (TS2554)
+      const projectId = taskData.project_id || 1; // Default to project 1 if not specified
+      const newTask = await TaskService.createTask(projectId, taskData as any);
 
       dispatch({ type: 'ADD_TASK', payload: newTask });
       dispatch({ type: 'CLEAR_CACHE' });
@@ -381,7 +386,9 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
     }
 
     try {
-      const updatedTask = await TaskService.updateTask(id, updates);
+      // ✅ FIXED - TaskService.updateTask requires projectId, taskId, updates (TS2554)
+      const projectId = updates.project_id || stateRef.current.tasks.find(t => t.id === id)?.project_id || 1;
+      const updatedTask = await TaskService.updateTask(projectId, id, updates);
 
       dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
       dispatch({ type: 'CLEAR_OPTIMISTIC_UPDATE', payload: id });
@@ -414,7 +421,9 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
   // 删除任务
   const deleteTask = useCallback(async (id: number) => {
     try {
-      await TaskService.deleteTask(id);
+      // ✅ FIXED - TaskService.deleteTask requires projectId as first parameter (TS2554)
+      const projectId = stateRef.current.tasks.find(t => t.id === id)?.project_id || 1;
+      await TaskService.deleteTask(projectId, id);
 
       dispatch({ type: 'DELETE_TASK', payload: id });
       dispatch({ type: 'CLEAR_CACHE' });
@@ -442,13 +451,20 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
-      const updatedTasks = await TaskService.batchUpdateTasks(updates);
+      // ✅ FIXED - TaskService.batchUpdateTasks signature: (projectId, taskIds, updates) (TS2554, TS2740)
+      const projectId = updates[0]?.data.project_id || 1;
+      const taskIds = updates.map(u => u.id);
+      const commonUpdates = updates[0]?.data || {};
+      const result = await TaskService.batchUpdateTasks(projectId, taskIds, commonUpdates);
 
-      dispatch({ type: 'BATCH_UPDATE_TASKS', payload: updatedTasks });
+      // Note: result is { updated_count, failed_tasks, message }, not Task[]
+      // We need to reload tasks to get the updated data
       dispatch({ type: 'CLEAR_CACHE' });
+      await loadTasks({}, true);
 
       errorLogger.info('task', 'TaskContext: 批量更新成功', {
-        updateCount: updates.length
+        updateCount: result.updated_count,
+        failedCount: result.failed_tasks?.length || 0
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '批量更新失败';

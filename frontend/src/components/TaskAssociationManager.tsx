@@ -94,15 +94,17 @@ const TaskAssociationManager: React.FC<TaskAssociationManagerProps> = ({
     try {
       setSearching(true);
       // 使用项目ID 1 进行搜索，实际使用时应该动态获取
+      // ✅ FIXED - Use page_size instead of limit (TS2353)
       const result = await TaskService.getTasks(1, {
         search: keyword,
         page: 1,
-        limit: 20
+        page_size: 20
       });
 
       // 过滤掉已关联的任务
       const associatedTaskIds = associatedTasks.map(t => t.id);
-      const filtered = (result.data || result.tasks || []).filter(
+      // ✅ FIXED - PaginatedResponse uses data property (TS2339)
+      const filtered = (result.data || []).filter(
         (task: Task) => !associatedTaskIds.includes(task.id)
       );
 

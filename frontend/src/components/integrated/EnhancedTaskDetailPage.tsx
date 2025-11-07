@@ -304,10 +304,12 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
       children: (
         <Suspense fallback={<Spin />}>
           <PerformanceWrapper componentName="EnhancedTaskTimeline">
-            <EnhancedTaskTimeline 
+            {/* ✅ FIXED - Add required events prop (TS2741) */}
+            <EnhancedTaskTimeline
               taskId={taskId}
               projectId={currentTask.project_id}
               height="500px"
+              events={[]}
             />
           </PerformanceWrapper>
         </Suspense>

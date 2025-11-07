@@ -194,7 +194,8 @@ const VirtualizedTimeline: React.FC<VirtualizedTimelineProps> = ({
   onRefresh
 }) => {
   const [expandedEvents, setExpandedEvents] = useState<Set<number>>(new Set());
-  const listRef = useRef<List>(null);
+  // ✅ FIXED - Use typeof List for ref type (TS2749)
+  const listRef = useRef<InstanceType<typeof List>>(null);
 
   // 切换事件展开状态
   const toggleEventExpansion = useCallback((eventId: number) => {

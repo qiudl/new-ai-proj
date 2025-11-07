@@ -391,6 +391,7 @@ export const DEFAULT_API_CONFIG: ApiClientConfig = {
   timeout: 30000, // 30 seconds
   retryConfig: {
     maxRetries: 3,
+    retryDelay: 1000, // ✅ FIXED - Add required retryDelay property (TS2741)
     baseDelay: 1000, // 1 second
     maxDelay: 10000, // 10 seconds
     retryableStatuses: [408, 429, 500, 502, 503, 504],

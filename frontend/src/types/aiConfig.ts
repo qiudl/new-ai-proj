@@ -1,6 +1,9 @@
 // AI配置管理相关类型定义
-// ✅ FIXED - Import AIProvider from types/ai.ts to avoid type conflict (TS2322)
+// ✅ FIXED - Import and re-export AIProvider to make it available to other modules (TS2459)
 import { AIProvider } from './ai';
+
+// Re-export AIProvider so it can be imported from this module
+export { AIProvider };
 
 /**
  * AI配置接口

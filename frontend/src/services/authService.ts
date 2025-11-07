@@ -57,7 +57,8 @@ class AuthService {
       const response = await api.get('/users/google-connection');
       return {
         success: true,
-        data: response
+        // ✅ FIXED - Use response.data instead of response (TS2741)
+        data: response.data
       };
     } catch (error) {
       console.error('获取Google连接状态失败:', error);

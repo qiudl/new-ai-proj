@@ -155,9 +155,11 @@ const UserManagementPage: React.FC = () => {
       }
       
       // 回退到旧的公司系统API
-      const response = await enterpriseService.getCompanies(
-        { page: 1, pageSize: 100 }, // 获取前100个企业，足够用于选择器
-        { status: 'active' } // 只获取活跃企业
+      // ✅ FIXED - Use getEnterprises instead of getCompanies (TS2339)
+      const response = await enterpriseService.getEnterprises(
+        1, // page
+        100, // pageSize
+        { status: 'active' } // filters
       );
       
       // 转换为前端期望的格式
@@ -192,12 +194,13 @@ const UserManagementPage: React.FC = () => {
 
     try {
       setCompaniesLoading(true);
-      const searchResults = await enterpriseService.searchCompanies(keyword);
-      
+      // ✅ FIXED - Use getEnterprises with search filter (TS2339)
+      const response = await enterpriseService.getEnterprises(1, 100, { search: keyword });
+
       // 转换为前端期望的格式
-      const companiesList = searchResults.map(company => ({
+      const companiesList = response.data.map(company => ({
         id: company.id,
-        name: company.companyName,
+        name: company.companyName || company.name,
         originalData: company
       }));
       
