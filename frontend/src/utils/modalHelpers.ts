@@ -71,12 +71,13 @@ export const showAsyncConfirm = (options: ConfirmOptions) => {
     onCancel
   } = options;
 
+  // ✅ FIXED - Type assertion for okType to match Modal.confirm (TS2322)
   Modal.confirm({
     title,
     content,
     okText,
     cancelText,
-    okType,
+    okType: okType as any,
     onOk: async () => {
       try {
         await onOk();

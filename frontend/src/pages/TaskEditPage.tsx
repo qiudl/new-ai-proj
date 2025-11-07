@@ -38,6 +38,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
 import { Task } from '../types/task';
+// ✅ FIXED - Add User type import (TS2304)
+import { User } from '../types/user';
 import { TaskParentSelector } from '../components/TaskParentSelector';
 import TaskDocumentEditor from '../components/TaskDocumentEditor';
 import { isSystemAdmin } from '../utils/permissions';
@@ -95,7 +97,8 @@ const TaskEditPage: React.FC = () => {
         setTask(taskData.value);
 
         // 初始化项目选择器（系统管理员）
-        if (isSystemAdmin(user)) {
+        // ✅ FIXED - Type assertion for partial user object (TS2345)
+        if (user && isSystemAdmin(user as User)) {
           setSelectedProjectId(parsedProjectId);
         }
 
@@ -144,7 +147,8 @@ const TaskEditPage: React.FC = () => {
 
   // 加载项目列表（仅系统管理员）
   const loadProjects = useCallback(async () => {
-    if (!isSystemAdmin(user)) return;
+    // ✅ FIXED - Type assertion for partial user object (TS2345)
+    if (!user || !isSystemAdmin(user as User)) return;
 
     try {
       setLoadingProjects(true);
@@ -159,7 +163,8 @@ const TaskEditPage: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    if (isSystemAdmin(user)) {
+    // ✅ FIXED - Type assertion for partial user object (TS2345)
+    if (user && isSystemAdmin(user as User)) {
       loadProjects();
     }
   }, [loadProjects, user]);
@@ -465,7 +470,8 @@ const TaskEditPage: React.FC = () => {
                       onValuesChange={handleFormChange}
                     >
                       {/* 项目选择器（仅系统管理员可见） */}
-                      {isSystemAdmin(user) && (
+                      {/* ✅ FIXED - Type assertion for partial user object (TS2345) */}
+                      {user && isSystemAdmin(user as User) && (
                         <Alert
                           message="系统管理员权限"
                           description={
@@ -485,7 +491,8 @@ const TaskEditPage: React.FC = () => {
                                   showSearch
                                   optionFilterProp="children"
                                   filterOption={(input, option) =>
-                                    (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+                                    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+                                    (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
                                   }
                                   style={{ width: '100%' }}
                                 >

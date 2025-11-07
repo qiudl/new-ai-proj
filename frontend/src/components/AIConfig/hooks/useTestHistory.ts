@@ -157,10 +157,11 @@ export function useTestHistory(provider: AIProvider): UseTestHistoryReturn {
     setDisplayLogs(pageData);
 
     // 4. 更新分页信息
+    // ✅ FIXED - Use correct property names matching TestHistoryPagination interface (TS2353)
     setPagination({
-      currentPage,
-      pageSize: filters.limit,
-      totalRecords,
+      page: currentPage,
+      limit: filters.limit,
+      total: totalRecords,
       totalPages
     });
   }, [allLogs, filters, filterLogs]);

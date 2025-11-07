@@ -47,6 +47,7 @@ export interface Document {
   parent_document_id?: number;
   is_template: boolean;
   is_favorite?: boolean;
+  is_starred?: boolean; // Alias for is_favorite
   created_at: string;
   updated_at: string;
   created_by: number;
@@ -168,6 +169,7 @@ export interface DocumentFilter {
   sort_by?: 'title' | 'updated_at' | 'created_at';
   order?: 'asc' | 'desc';
   project_id?: number;
+  task_id?: number;
   customer_id?: number;
   category?: string;
   visibility?: string;
@@ -188,6 +190,7 @@ export interface CreateDocumentRequest {
   metadata?: Record<string, any>;
   project_id?: number;
   customer_id?: number;
+  task_id?: number; // ✅ FIXED - Added task_id to support task-document linking (TS2353)
   shared_with?: string[];
   category?: string;
   subcategory?: string;
@@ -204,6 +207,7 @@ export interface UpdateDocumentRequest {
   metadata?: Record<string, any>;
   project_id?: number;
   customer_id?: number;
+  task_id?: number; // ✅ FIXED - Added task_id to support task-document linking (TS2353)
   shared_with?: string[];
   is_template?: boolean;
   category?: string;
@@ -232,6 +236,11 @@ export interface DocumentListItem {
   file_size?: number;
   file_url?: string;
   is_favorite?: boolean;
+  task_id?: number; // Task relationship
+  content?: string; // Document content
+  visibility?: 'private' | 'team' | 'public'; // Visibility level
+  project_id?: number; // Project relationship
+  description?: string; // Document description
 }
 
 export interface DocumentStats {
@@ -336,6 +345,9 @@ export interface UploadedDocumentInfo {
   uploaded_at: string;
   file_path?: string;
   file_url?: string;
+  title?: string; // Document title
+  status?: DocumentStatus; // Document status
+  type?: DocumentType; // Document type
 }
 
 /**
@@ -433,4 +445,6 @@ export interface FileUploadOptions {
   maxRetries?: number;
   chunkSize?: number;
   enableChunking?: boolean;
+  task_id?: number; // ✅ FIXED - Added task_id to support task-specific uploads (TS2353)
+  project_id?: number; // ✅ FIXED - Added project_id to support project-specific uploads (TS2353)
 }

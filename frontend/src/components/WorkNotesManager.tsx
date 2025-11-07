@@ -967,7 +967,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     const notesWithPermission = notesToDelete.filter(note =>
       canDeleteNote({
         id: note.id,
-        creatorId: note.creator_id || 0,
+        creatorId: note.created_by || 0,
         visibility: note.visibility as 'private' | 'team' | 'public'
       })
     );
@@ -1689,12 +1689,12 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         // 检查当前笔记的编辑和删除权限
         const hasEditPermission = canEditNote({
           id: record.id,
-          creatorId: record.creator_id || 0,
+          creatorId: record.created_by || 0,
           visibility: record.visibility as 'private' | 'team' | 'public'
         });
         const hasDeletePermission = canDeleteNote({
           id: record.id,
-          creatorId: record.creator_id || 0,
+          creatorId: record.created_by || 0,
           visibility: record.visibility as 'private' | 'team' | 'public'
         });
 
@@ -2066,7 +2066,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           overflowY: 'auto',
           padding: '24px'
         }}
-        destroyOnClose
+        destroyOnHidden
         confirmLoading={saving}
         okText="保存"
         cancelText="取消"

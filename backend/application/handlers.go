@@ -709,3 +709,20 @@ func (app *Application) GetNavigationHandler() *handlers.NavigationHandler {
 func (app *Application) GetRoleManagementHandlerV2() *handlers.RoleManagementHandlerV2 {
 	return app.roleManagementHandlerV2
 }
+
+// Product Management Handler Getters
+
+// GetSPUHandler returns the SPU handler
+func (app *Application) GetSPUHandler() *handlers.SPUHandler {
+	return app.spuHandler
+}
+
+// GetSKUHandler returns the SKU handler
+func (app *Application) GetSKUHandler() *handlers.SKUHandler {
+	return app.skuHandler
+}
+
+// GetInventoryHandler returns the Inventory handler
+func (app *Application) GetInventoryHandler() *handlers.InventoryHandler {
+	return app.inventoryHandler
+}

@@ -219,6 +219,9 @@ export interface AssociatedTask {
   status: string;
   project_id: number;
   project_name: string;
+  description?: string;
+  priority?: string;
+  created_at?: string;
 }
 
 export interface ConvertPreviewRequest {

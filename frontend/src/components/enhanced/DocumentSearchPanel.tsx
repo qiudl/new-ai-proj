@@ -375,7 +375,8 @@ const DocumentSearchPanel: React.FC<DocumentSearchPanelProps> = ({
                 <div className="result-content">
                   <div className="result-location">
                     <Space>
-                      <Tag size="small" color="blue">
+                      {/* ✅ FIXED - Ant Design Tag组件不支持size属性 */}
+                      <Tag color="blue">
                         L{result.line}:{result.column}
                       </Tag>
                       <Text type="secondary" style={{ fontSize: '11px' }}>

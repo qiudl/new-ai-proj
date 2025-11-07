@@ -12,11 +12,11 @@ import BulkSubTaskCreator from '../../../../components/BulkSubTaskCreator';
 import { useTaskDetailContext } from '../../hooks/useTaskDetailContext';
 import { TaskService } from '../../../../services/taskService';
 import { useNavigate } from 'react-router-dom';
-import type { TaskRequest } from '../../types';
+import type { TaskUpdate } from '../../types';
 
 export interface TaskDetailModalsProps {
   projectId: number;
-  onTaskModalSubmit: (taskData: Partial<TaskRequest>) => Promise<void>;
+  onTaskModalSubmit: (taskData: Partial<TaskUpdate>) => Promise<void>;
   onArchiveSuccess: () => void;
   onBulkSubTaskSuccess: () => void;
   onEditDetails?: () => void;

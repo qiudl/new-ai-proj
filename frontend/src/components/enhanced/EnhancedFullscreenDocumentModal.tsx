@@ -24,7 +24,8 @@ import {
   Dropdown,
   Slider
 } from 'antd';
-import { 
+// ✅ FIXED - Add missing EditOutlined import (TS2304)
+import {
   CloseOutlined,
   EyeOutlined,
   CompressOutlined,
@@ -36,7 +37,8 @@ import {
   DownloadOutlined,
   PrinterOutlined,
   ShareAltOutlined,
-  BookOutlined
+  BookOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import EnhancedMarkdownRenderer from './EnhancedMarkdownRenderer';
 import type { MenuProps } from 'antd';
@@ -44,7 +46,7 @@ import './EnhancedFullscreenDocumentModal.css';
 
 const { Title } = Typography;
 
-export interface DocumentData {
+export interface FullscreenDocumentData {
   id: number;
   title: string;
   content: string;
@@ -57,14 +59,14 @@ export interface DocumentData {
 
 export interface EnhancedFullscreenDocumentModalProps {
   visible: boolean;
-  document: DocumentData | null;
-  documents?: DocumentData[];
+  document: FullscreenDocumentData | null;
+  documents?: FullscreenDocumentData[];
   projectId?: number;
   taskId?: number;
   onClose: () => void;
-  onDownload?: (document: DocumentData) => void;
-  onShare?: (document: DocumentData) => void;
-  onDocumentSelect?: (document: DocumentData) => void;
+  onDownload?: (document: FullscreenDocumentData) => void;
+  onShare?: (document: FullscreenDocumentData) => void;
+  onDocumentSelect?: (document: FullscreenDocumentData) => void;
   loading?: boolean;
 }
 
@@ -120,12 +122,12 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
       }, 1000);
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseleave', handleMouseLeave);
-    
+    window.document.addEventListener('mousemove', handleMouseMove);
+    window.document.addEventListener('mouseleave', handleMouseLeave);
+
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseleave', handleMouseLeave);
+      window.document.removeEventListener('mousemove', handleMouseMove);
+      window.document.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, [visible]);
 
@@ -152,14 +154,14 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
 
   const exitFullscreen = useCallback(async () => {
     try {
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-      } else if ((document as any).webkitExitFullscreen) {
-        await (document as any).webkitExitFullscreen();
-      } else if ((document as any).mozCancelFullScreen) {
-        await (document as any).mozCancelFullScreen();
-      } else if ((document as any).msExitFullscreen) {
-        await (document as any).msExitFullscreen();
+      if (window.document.exitFullscreen) {
+        await window.document.exitFullscreen();
+      } else if ((window.document as any).webkitExitFullscreen) {
+        await (window.document as any).webkitExitFullscreen();
+      } else if ((window.document as any).mozCancelFullScreen) {
+        await (window.document as any).mozCancelFullScreen();
+      } else if ((window.document as any).msExitFullscreen) {
+        await (window.document as any).msExitFullscreen();
       }
       setIsFullscreen(false);
     } catch (error) {
@@ -171,24 +173,24 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isCurrentlyFullscreen = !!(
-        document.fullscreenElement ||
-        (document as any).webkitFullscreenElement ||
-        (document as any).mozFullScreenElement ||
-        (document as any).msFullscreenElement
+        window.document.fullscreenElement ||
+        (window.document as any).webkitFullscreenElement ||
+        (window.document as any).mozFullScreenElement ||
+        (window.document as any).msFullscreenElement
       );
       setIsFullscreen(isCurrentlyFullscreen);
     };
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+    window.document.addEventListener('fullscreenchange', handleFullscreenChange);
+    window.document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    window.document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    window.document.addEventListener('msfullscreenchange', handleFullscreenChange);
 
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+      window.document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      window.document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      window.document.removeEventListener('msfullscreenchange', handleFullscreenChange);
     };
   }, []);
 
@@ -271,8 +273,8 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
       }
     };
 
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
+    window.document.addEventListener('keydown', handleKeyPress);
+    return () => window.document.removeEventListener('keydown', handleKeyPress);
   }, [visible, document, onClose, onDownload, onShare, fontSize, showToc, toolbarVisible, isFullscreen, enterFullscreen, exitFullscreen]);
 
   // 处理打印
@@ -459,13 +461,13 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
               <FontSizeOutlined style={{ color: '#fff', marginRight: 8 }} />
             </Tooltip>
             <div style={{ width: 80 }}>
+              {/* ✅ FIXED - Ant Design Slider组件不支持size属性 */}
               <Slider
                 min={12}
                 max={20}
                 value={fontSize}
                 onChange={setFontSize}
                 tooltip={{ formatter: (value) => `${value}px` }}
-                size="small"
               />
             </div>
             <span style={{ color: '#fff', marginLeft: 8, fontSize: 12 }}>
@@ -638,7 +640,7 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
             showToc={showToc}
             className="fullscreen-markdown"
             onHeadingClick={(headingId) => {
-              const element = document.getElementById ? document.getElementById(headingId) : null;
+              const element = window.document.getElementById ? window.document.getElementById(headingId) : null;
               element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
           />

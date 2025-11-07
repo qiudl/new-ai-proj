@@ -67,6 +67,7 @@ export interface AuditLog {
   ip_address?: string;
   user_agent?: string;
   created_at: string;
+  timestamp?: string; // Alias for created_at
   user_name?: string;
   session_id?: string;
   event_id?: string;
@@ -371,7 +372,7 @@ export class SystemService {
         }
         return {
           data: [],
-          pagination: { page, page_size: pageSize, total: 0, total_pages: 0 }
+          pagination: { page, page_size: pageSize, total: 0, total_pages: 0, has_next: false, has_prev: false }
         };
       }
       throw error;
@@ -380,13 +381,13 @@ export class SystemService {
 
   static async getAuditLog(id: number): Promise<AuditLog> {
     const response = await api.get<ApiResponse<AuditLog>>(`/system/audit/logs/${id}`);
-    // API interceptor already unwrapped response, so response is the audit log object
-    return response as any;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as AuditLog;
   }
 
   static async getAuditStats(filters: AuditLogFilter = {}): Promise<AuditStats> {
     const params = new URLSearchParams();
-    
+
     // Add filter parameters for stats
     if (filters.action) params.append('action', filters.action);
     if (filters.entity_type) params.append('entity_type', filters.entity_type);
@@ -397,8 +398,8 @@ export class SystemService {
     const response = await api.get<ApiResponse<AuditStats>>(
       `/system/audit/stats?${params.toString()}`
     );
-    // API interceptor already unwrapped response, so response is the stats object
-    return response as any;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as AuditStats;
   }
 
   static async exportAuditLogs(
@@ -418,7 +419,7 @@ export class SystemService {
     const response = await api.get(`/system/audit/export?${params.toString()}`, {
       responseType: 'blob'
     });
-    return response;
+    return response.data;
   }
 
 }

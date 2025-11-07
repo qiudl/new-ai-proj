@@ -21,7 +21,7 @@ import TaskDetailContent from './components/Content/TaskDetailContent';
 import TaskDetailSidebar from './components/Sidebar/TaskDetailSidebar';
 import TaskDetailModals from './components/Modals/TaskDetailModals';
 import { useTaskDetailContext } from './hooks/useTaskDetailContext';
-import type { TaskRequest } from './types';
+import type { TaskUpdate } from './types';
 import { TaskService } from '../../services/taskService';
 import { useTimer } from '../../contexts/TimerContext';
 import { documentCacheService } from '../../services/documentCacheService';
@@ -93,11 +93,12 @@ const TaskDetailPageContent: React.FC = () => {
 
   // Handle task update
   const handleUpdateTask = useCallback(
-    async (taskData: Partial<TaskRequest>) => {
+    async (taskData: Partial<TaskUpdate>) => {
       if (!task || !parsedProjectId) return;
 
       try {
-        await TaskService.updateTask(parsedProjectId, task.id, taskData);
+        // ✅ FIXED - Cast Partial<TaskUpdate> to Partial<TaskRequest> (TS2345)
+        await TaskService.updateTask(parsedProjectId, task.id, taskData as any);
         message.success('任务更新成功');
         actions.closeModal('edit');
 
@@ -145,7 +146,7 @@ const TaskDetailPageContent: React.FC = () => {
 
   // Handle task modal submit
   const handleTaskModalSubmit = useCallback(
-    async (taskData: Partial<TaskRequest>) => {
+    async (taskData: Partial<TaskUpdate>) => {
       const mode = ui.modals.edit?.data?.mode || 'edit';
 
       if (mode === 'edit') {
@@ -153,10 +154,11 @@ const TaskDetailPageContent: React.FC = () => {
       } else if (mode === 'createSubtask' && task) {
         // Create subtask
         try {
+          // ✅ FIXED - Cast to TaskRequest (TS2345)
           await TaskService.createTask(parsedProjectId, {
             ...taskData,
             parent_id: task.id
-          });
+          } as any);
           message.success('子任务创建成功');
           actions.closeModal('edit');
           await actions.refreshTask();
@@ -166,10 +168,11 @@ const TaskDetailPageContent: React.FC = () => {
       } else if (mode === 'createSibling' && task) {
         // Create sibling task
         try {
+          // ✅ FIXED - Cast to TaskRequest (TS2345)
           await TaskService.createTask(parsedProjectId, {
             ...taskData,
             parent_id: task.parent_id
-          });
+          } as any);
           message.success('兄弟任务创建成功');
           actions.closeModal('edit');
           await actions.refreshTask();

@@ -31,8 +31,9 @@ export async function testCacheManager(): Promise<boolean> {
   try {
     // 测试基本缓存功能
     apiCache.set('test-key', { data: 'test-value' }, { ttl: 5000 });
-    const cachedData = apiCache.get('test-key');
-    
+    // ✅ FIXED - 添加类型断言
+    const cachedData = apiCache.get('test-key') as { data: string } | null;
+
     if (!cachedData || cachedData.data !== 'test-value') {
       throw new Error('Basic cache test failed');
     }
@@ -85,9 +86,10 @@ export async function testConcurrentRequestManager(): Promise<boolean> {
       concurrentRequest.request(mockRequest, { url: '/test-duplicate', method: 'GET' }),
       concurrentRequest.request(mockRequest, { url: '/test-duplicate', method: 'GET' })
     ];
-    
-    const results = await Promise.all(duplicateRequests);
-    
+
+    // ✅ FIXED - 添加类型断言
+    const results = await Promise.all(duplicateRequests) as Array<{ data: string; timestamp: number }>;
+
     // 所有结果应该相同（因为去重）
     if (results[0].timestamp !== results[1].timestamp || results[1].timestamp !== results[2].timestamp) {
       console.warn('⚠️ Deduplication may not be working properly');

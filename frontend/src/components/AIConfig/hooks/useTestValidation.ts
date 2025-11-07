@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { message } from 'antd';
-import { AIConfigTestService } from '@/services/aiConfigTestService';
-import type { ValidationTestRequest, ValidationTestResponse } from '@/types/aiConfig';
+import { AIConfigTestService } from '../../../services/aiConfigTestService';
+import type { ValidationTestRequest, ValidationTestResponse } from '../../../types/aiConfig';
 
 export interface UseTestValidationReturn {
   validating: boolean;

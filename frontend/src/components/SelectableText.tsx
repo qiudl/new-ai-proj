@@ -140,14 +140,17 @@ const SelectableText: React.FC<SelectableTextProps> = ({
   };
 
   const Component = as as keyof JSX.IntrinsicElements;
-  
+
+  // ✅ FIXED - onSelectStart is not a standard React event, use type assertion (TS2322)
+  const componentProps = {
+    style: finalStyles,
+    className: `selectable-text ${className}`.trim(),
+    onMouseDown: handleMouseDown,
+    onSelectStart: handleSelectStart
+  } as any;
+
   return (
-    <Component 
-      style={finalStyles} 
-      className={`selectable-text ${className}`.trim()}
-      onMouseDown={handleMouseDown}
-      onSelectStart={handleSelectStart}
-    >
+    <Component {...componentProps}>
       {children}
     </Component>
   );

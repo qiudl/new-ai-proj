@@ -27,6 +27,12 @@ func RegisterTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 		// 获取任务子任务
 		tasks.GET("/:id/children", app.GetTaskChildrenHandler())
 
+		// 获取任务关联的需求
+		requirementTaskHandler := app.GetRequirementTaskHandler()
+		if requirementTaskHandler != nil {
+			tasks.GET("/:id/requirements", requirementTaskHandler.GetTaskRequirements)
+		}
+
 		// 更新任务
 		tasks.PUT("/:id", app.UpdateTaskByIdHandler())
 

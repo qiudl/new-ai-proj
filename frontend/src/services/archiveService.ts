@@ -59,8 +59,8 @@ export const archiveTasks = async (
     task_ids: taskIds,
     reason
   });
-  
-  return data; // API 拦截器已解包
+
+  return data.data; // API 拦截器已解包
 };
 
 // 批量取消归档任务
@@ -72,8 +72,8 @@ export const unarchiveTasks = async (
     task_ids: taskIds,
     status: status || 'todo'
   });
-  
-  return data; // API 拦截器已解包
+
+  return data.data; // API 拦截器已解包
 };
 
 // 获取归档任务列表

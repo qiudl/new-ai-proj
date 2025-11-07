@@ -1,0 +1,74 @@
+{
+  "performance_thresholds": {
+    "user_search": {
+      "single_request_max_ms": 500,
+      "average_response_ms": 300,
+      "concurrent_max_ms": 1000,
+      "description": "@用户搜索性能阈值"
+    },
+    "comment_loading": {
+      "initial_load_max_ms": 3000,
+      "pagination_max_ms": 1500,
+      "infinite_scroll_max_ms": 1000,
+      "description": "评论加载性能阈值"
+    },
+    "comment_operations": {
+      "create_max_ms": 2000,
+      "update_max_ms": 1500,
+      "delete_max_ms": 1000,
+      "description": "评论操作性能阈值"
+    },
+    "requirement_list": {
+      "page_load_max_ms": 3000,
+      "filter_max_ms": 1500,
+      "search_max_ms": 1000,
+      "scroll_max_ms": 300,
+      "description": "需求列表性能阈值"
+    },
+    "memory": {
+      "max_increase_percentage": 30,
+      "max_heap_size_mb": 50,
+      "description": "内存使用限制"
+    },
+    "network": {
+      "max_request_duplication": 2,
+      "max_response_size_mb": 1,
+      "description": "网络性能指标"
+    }
+  },
+  "test_data": {
+    "user_count": 100,
+    "comment_count_small": 10,
+    "comment_count_medium": 50,
+    "comment_count_large": 100,
+    "concurrent_requests": 20,
+    "mentioned_users_per_comment": 5
+  },
+  "monitoring": {
+    "enabled": true,
+    "report_format": "json",
+    "save_screenshots_on_failure": true,
+    "save_traces": true,
+    "collect_metrics": [
+      "response_time",
+      "memory_usage",
+      "network_requests",
+      "render_time",
+      "interaction_time"
+    ]
+  },
+  "browsers": {
+    "chromium": {
+      "enabled": true,
+      "slowMo": 0
+    },
+    "firefox": {
+      "enabled": true,
+      "slowMo": 0
+    },
+    "webkit": {
+      "enabled": false,
+      "slowMo": 0
+    }
+  }
+}

@@ -541,7 +541,7 @@ export class SeverityRenderer {
     };
     return colors[severity];
   }
-  
+
   static getIcon(severity: EventSeverity): React.ReactNode {
     const icons = {
       info: <InfoCircleOutlined />,
@@ -551,7 +551,7 @@ export class SeverityRenderer {
     };
     return icons[severity];
   }
-  
+
   static getBadge(severity: EventSeverity): React.ReactNode {
     const config = {
       info: { color: 'blue', text: '信息' },
@@ -559,9 +559,14 @@ export class SeverityRenderer {
       error: { color: 'red', text: '错误' },
       critical: { color: 'purple', text: '严重' }
     };
-    
+
     const { color, text } = config[severity];
     return <Tag color={color} >{text}</Tag>;
+  }
+
+  // Instance method for rendering severity
+  renderSeverity(severity: EventSeverity): React.ReactNode {
+    return SeverityRenderer.getBadge(severity);
   }
 }
 
@@ -576,7 +581,7 @@ export class CategoryRenderer {
     };
     return colors[category];
   }
-  
+
   static getIcon(category: EventCategory): React.ReactNode {
     const icons = {
       system: <RobotOutlined />,
@@ -586,7 +591,7 @@ export class CategoryRenderer {
     };
     return icons[category];
   }
-  
+
   static getBadge(category: EventCategory): React.ReactNode {
     const config = {
       system: { color: 'default', text: '系统' },
@@ -594,8 +599,13 @@ export class CategoryRenderer {
       automation: { color: 'green', text: '自动化' },
       integration: { color: 'purple', text: '集成' }
     };
-    
+
     const { color, text } = config[category];
     return <Tag color={color} >{text}</Tag>;
+  }
+
+  // Instance method for rendering category
+  renderCategory(category: EventCategory): React.ReactNode {
+    return CategoryRenderer.getBadge(category);
   }
 }

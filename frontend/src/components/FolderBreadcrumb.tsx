@@ -137,6 +137,7 @@ const FolderBreadcrumbComponent: React.FC<FolderBreadcrumbProps> = ({
             ...
           </span>
         ),
+        onClick: undefined, // ✅ ADDED - 明确指定onClick为undefined，保持类型一致性
       },
       ...lastItems,
     ];

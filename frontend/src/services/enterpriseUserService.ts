@@ -131,11 +131,13 @@ class EnterpriseUserService {
     }
 
     // 如果直接是数据数组
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
     if (Array.isArray(response)) {
-      return response as T;
+      return response as unknown as T;
     }
 
-    return response as T;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as T;
   }
 
   // 获取企业用户列表
@@ -361,7 +363,7 @@ class EnterpriseUserService {
       const response = await api.get(`${this.API_BASE_URL}/export?format=${format}`, {
         responseType: 'blob'
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('❌ 导出用户数据失败:', error);
       throw error;

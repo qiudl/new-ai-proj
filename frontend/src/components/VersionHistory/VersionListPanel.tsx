@@ -232,14 +232,13 @@ const VersionListPanel: React.FC<VersionListPanelProps> = ({
         </div>
       )}
 
+      {/* ✅ FIXED - Ant Design List doesn't support 'virtual' prop in v5 (TS2322) */}
       <List
         className="version-list"
         loading={loading}
         dataSource={versionsWithStats}
-        // 启用虚拟滚动（大列表性能优化）
-        virtual={shouldLazyLoad}
-        // 虚拟滚动高度
-        style={{ height: shouldLazyLoad ? VIRTUAL_SCROLL_HEIGHT : 'auto' }}
+        // 虚拟滚动高度（使用滚动容器代替virtual属性）
+        style={{ height: shouldLazyLoad ? VIRTUAL_SCROLL_HEIGHT : 'auto', overflow: 'auto' }}
         renderItem={(version) => (
           <VersionListItem
             key={version.id}

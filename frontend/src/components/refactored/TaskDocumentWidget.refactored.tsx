@@ -35,7 +35,8 @@ import {
 } from '@ant-design/icons';
 import TaskDocumentManager from '../TaskDocumentManager';
 import { documentService } from '../../services/unifiedDocumentService';
-import { Document } from '../../types/document';
+// ✅ FIXED - Add UploadedDocumentInfo to imports (TS2304)
+import { Document, UploadedDocumentInfo } from '../../types/document';
 import { errorLogger } from '../../utils/ErrorLogger';
 import { 
   useOptimizedMemo, 
@@ -112,15 +113,17 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = memo(({
       // getTaskDocuments returns array directly, not { documents: [] }
       const documents = await documentService.getTaskDocuments(projectId, taskId);
 
-      setDocumentState(prev => ({
+      // ✅ FIXED - Type assertion for state updater function return type (TS2345)
+      setDocumentState((prev: DocumentState) => ({
         ...prev,
-        documents: documents || [],
+        documents: (documents || []) as UploadedDocumentInfo[],
         loading: false,
         error: null,
         lastRefresh: new Date()
-      }));
+      } as DocumentState));
 
-      onDocumentChange?.(documents || []);
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+      onDocumentChange?.((documents || []) as unknown as Document[]);
 
       errorLogger.debug('ui', 'TaskDocumentWidget: 文档加载成功', {
         taskId,
@@ -267,9 +270,11 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = memo(({
   // 下载文档
   const handleDownloadDocument = useOptimizedCallback(async (document: Document) => {
     try {
-      await documentService.downloadDocument(document.id, document.title);
+      // ✅ FIXED - downloadDocument takes 1 parameter (documentId), returns Blob (TS2554)
+      const blob = await documentService.downloadDocument(document.id);
+      documentService.triggerDownload(blob, document.title);
       message.success(`开始下载 "${document.title}"`);
-      
+
       errorLogger.debug('ui', 'TaskDocumentWidget: 文档下载', {
         taskId,
         documentId: document.id,
@@ -411,7 +416,8 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = memo(({
               {document.title}
             </Text>
             {document.status && (
-              <Tag size="small" color={document.status === 'published' ? 'green' : 'orange'}>
+              // ✅ FIXED - Ant Design Tag组件不支持size属性
+              <Tag color={document.status === 'published' ? 'green' : 'orange'}>
                 {document.status}
               </Tag>
             )}

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>清理浏览器状态</title>
+</head>
+<body>
+    <h1>正在清理浏览器状态...</h1>
+    <script>
+        // 清除所有localStorage
+        localStorage.clear();
+        // 清除所有sessionStorage
+        sessionStorage.clear();
+        // 清除所有ant-design的全局状态
+        document.body.innerHTML = '';
+        // 重定向到登录页
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 1000);
+    </script>
+</body>
+</html>

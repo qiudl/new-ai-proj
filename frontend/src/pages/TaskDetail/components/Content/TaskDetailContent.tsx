@@ -31,7 +31,8 @@ import {
   PlayCircleOutlined,
   StopOutlined,
   InboxOutlined,
-  CommentOutlined
+  CommentOutlined,
+  LinkOutlined
 } from '@ant-design/icons';
 import { TaskDetailDescendantsTreeV2, TaskDetailDescendantsTreeRef } from '../../../../components/TaskDetailDescendantsTreeV2';
 import { UnifiedTaskRefresh, RefreshContext } from '../../../../components/UnifiedTaskRefresh';
@@ -43,7 +44,7 @@ import MarkdownRenderer from '../../../../components/MarkdownRenderer';
 import { TaskBreadcrumb } from '../Header/TaskBreadcrumb';
 import { EnhancedTaskHeaderCard } from '../Header/EnhancedTaskHeaderCard';
 import { useTaskDetailContext } from '../../hooks/useTaskDetailContext';
-import type { TaskRequest } from '../../types';
+import type { TaskUpdate } from '../../types';
 import { TaskService } from '../../../../services/taskService';
 import AICreateDropdown from '../../../../components/TaskDetail/AICreateDropdown';
 import SubtaskPreviewModal, { SubtaskPreview } from '../../../../components/TaskDetail/SubtaskPreviewModal';
@@ -51,6 +52,7 @@ import AIGeneratingModal from '../../../../components/TaskDetail/AIGeneratingMod
 import type { AIModel } from '../../../../config/aiModels';
 import { aiTaskService, buildGenerateRequest } from '../../../../services/aiTaskService';
 import { TaskComments } from '../../../../components/TaskComment';
+import RequirementLinkCard from '../../../../components/RequirementLinkCard';
 
 const { Text } = Typography;
 
@@ -68,7 +70,7 @@ export interface TaskDetailContentProps {
   projectId: number;
   onCreateSubtask: () => void;
   onBulkImportSubtasks: () => void;
-  onUpdateTask: (taskData: Partial<TaskRequest>) => Promise<void>;
+  onUpdateTask: (taskData: Partial<TaskUpdate>) => Promise<void>;
   onDocsChange?: () => void;
 }
 
@@ -263,7 +265,8 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   const handleRegenerate = async () => {
     if (!selectedAIModel) return;
     setShowPreviewModal(false);
-    await handleAIModelSelect(selectedAIModel.key, selectedAIModel);
+    // ✅ FIXED - handleAIModelSelect requires 3 parameters (modelKey, modelInfo, customPrompt) (TS2554)
+    await handleAIModelSelect(selectedAIModel.key, selectedAIModel, null);
   };
 
   // 确认创建子任务
@@ -420,6 +423,22 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               taskId={task.id}
               showStats={true}
               defaultPageSize={20}
+            />
+          </div>
+        )
+      },
+      {
+        key: 'requirements',
+        label: (
+          <Space>
+            <LinkOutlined />
+            <span>关联需求</span>
+          </Space>
+        ),
+        children: (
+          <div>
+            <RequirementLinkCard
+              taskId={task.id}
             />
           </div>
         )

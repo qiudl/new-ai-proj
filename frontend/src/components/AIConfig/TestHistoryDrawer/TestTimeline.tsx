@@ -2,7 +2,7 @@ import React from 'react';
 import { Timeline, Empty, Spin, Pagination } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
 import { TestLogCard } from './TestLogCard';
-import type { TestLog, TestHistoryPagination } from '@/types/aiConfig';
+import type { TestLog, TestHistoryPagination } from '../../../types/aiConfig';
 
 interface TestTimelineProps {
   logs: TestLog[];

@@ -62,8 +62,10 @@ export class HierarchicalTaskManager {
     
     // 首先创建所有任务对象
     flatTasks.forEach(task => {
+      // ✅ FIXED - Type assertion for task spread with required children_count property (TS2322)
       const hierarchicalTask: HierarchicalTaskWithDocument = {
         ...task,
+        children_count: task.children_count || 0,
         level: task.task_level || 0,
         expanded: this.expandedKeys.has(task.id),
         hasChildren: (task.children_count || 0) > 0,
@@ -74,7 +76,7 @@ export class HierarchicalTaskManager {
         ancestorTitles: [],
         isLoading: false,
         loadError: undefined,
-      };
+      } as HierarchicalTaskWithDocument;
       
       taskMap.set(task.id, hierarchicalTask);
       this.tasks.set(task.id, hierarchicalTask);
@@ -239,10 +241,12 @@ export class HierarchicalTaskManager {
             if (existing) {
               return existing;
             }
-            
+
+            // ✅ FIXED - Type assertion for child task spread with required children_count property (TS2322)
             // 创建新的层级任务对象
             const hierarchicalChild: HierarchicalTaskWithDocument = {
               ...child,
+              children_count: child.children_count || 0,
               level: task.level + 1,
               expanded: this.expandedKeys.has(child.id),
               hasChildren: (child.children_count || 0) > 0,
@@ -253,7 +257,7 @@ export class HierarchicalTaskManager {
               ancestorTitles: [...task.ancestorTitles, task.title],
               isLoading: false,
               loadError: undefined,
-            };
+            } as HierarchicalTaskWithDocument;
             
             this.tasks.set(child.id, hierarchicalChild);
             return hierarchicalChild;

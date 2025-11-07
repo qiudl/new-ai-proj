@@ -84,7 +84,7 @@ class TodayTasksService {
       '/tasks/today';
     
     const response = await api.get(endpoint);
-    return response;
+    return response.data;
   }
 
   /**
@@ -93,7 +93,7 @@ class TodayTasksService {
   async getUserTodayTasks(userId?: number): Promise<TodayTasksResponse> {
     const params = userId ? `?user_id=${userId}` : '';
     const response = await api.get(`/users/me/tasks/today${params}`);
-    return response;
+    return response.data;
   }
 
   /**
@@ -101,7 +101,7 @@ class TodayTasksService {
    */
   async getProjectTodayTasks(projectId: number): Promise<TodayTasksResponse> {
     const response = await api.get(`/projects/${projectId}/tasks/today`);
-    return response;
+    return response.data;
   }
 
   /**
@@ -123,7 +123,7 @@ class TodayTasksService {
       '/tasks/today/stats';
     
     const response = await api.get(endpoint);
-    return response;
+    return response.data;
   }
 
   /**
@@ -133,7 +133,7 @@ class TodayTasksService {
     const response = await api.post(`/tasks/${taskId}/complete`, {
       completed_at: new Date().toISOString()
     });
-    return response;
+    return response.data;
   }
 
   /**
@@ -144,7 +144,7 @@ class TodayTasksService {
       new_due_date: newDueDate,
       postpone_reason: reason
     });
-    return response;
+    return response.data;
   }
 
   /**

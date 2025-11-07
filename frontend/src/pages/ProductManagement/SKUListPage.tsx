@@ -29,7 +29,9 @@ import {
   SaveOutlined,
   AppstoreAddOutlined,
 } from '@ant-design/icons';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+// ✅ FIXED - Import TablePaginationConfig from antd, not antd/es/table (TS2305)
+import type { TablePaginationConfig } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { SKUWithDetails, SKUFilter, SKUBatchUpdateRequest } from '../../types/product';
 import {
   listSKUsWithDetails,

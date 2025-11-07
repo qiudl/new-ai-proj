@@ -15,6 +15,12 @@ func RegisterRequirementRoutes(authorized *gin.RouterGroup, app ApplicationInter
 	// Get requirement status handler (enhanced status management)
 	requirementStatusHandler := app.GetRequirementStatusHandler()
 
+	// Get requirement comment handler
+	requirementCommentHandler := app.GetRequirementCommentHandler()
+
+	// Get requirement-task link handler
+	requirementTaskHandler := app.GetRequirementTaskHandler()
+
 	// Requirements routes
 	requirements := authorized.Group("/requirements")
 	{
@@ -47,6 +53,38 @@ func RegisterRequirementRoutes(authorized *gin.RouterGroup, app ApplicationInter
 		} else {
 			// Fallback to basic status management
 			requirements.PUT("/:id/status", requirementHandler.UpdateRequirementStatus)
+		}
+
+		// Convert requirement to task
+		requirements.POST("/:id/convert-to-task", requirementHandler.ConvertRequirementToTask)
+
+		// Task link management
+		if requirementTaskHandler != nil {
+			// Link and unlink tasks
+			requirements.POST("/:id/tasks", requirementTaskHandler.LinkTaskToRequirement)
+			requirements.DELETE("/:id/tasks/:task_id", requirementTaskHandler.UnlinkTaskFromRequirement)
+			requirements.GET("/:id/tasks", requirementTaskHandler.GetRequirementTasks)
+		}
+
+		// Comment routes
+		if requirementCommentHandler != nil {
+			comments := requirements.Group("/comments")
+			{
+				// Create and list comments
+				comments.POST("", requirementCommentHandler.CreateComment)
+				comments.GET("", requirementCommentHandler.GetComments) // ?requirement_id=X
+
+				// Get comments where current user was @mentioned
+				comments.GET("/mentions/me", requirementCommentHandler.GetMentionedComments)
+
+				// Individual comment operations
+				comments.GET("/:id", requirementCommentHandler.GetComment)
+				comments.PUT("/:id", requirementCommentHandler.UpdateComment)
+				comments.DELETE("/:id", requirementCommentHandler.DeleteComment)
+
+				// Pin/unpin comment (admin only)
+				comments.PUT("/:id/pin", requirementCommentHandler.TogglePin)
+			}
 		}
 	}
 }

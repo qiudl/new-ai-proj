@@ -58,6 +58,8 @@ export interface EfficiencyInsight {
   title: string;
   description: string;
   priority: 'high' | 'medium' | 'low';
+  impact_level?: 'high' | 'medium' | 'low'; // 影响程度
+  suggestion?: string; // 改进建议
 }
 
 // 效率计算详情类型定义

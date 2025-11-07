@@ -416,7 +416,13 @@ export class EnhancedCacheManager {
    * 注册依赖关系（通用方法）
    */
   registerDependency(dependency: { key: string; dependsOn: string[]; tags?: string[] }): void {
-    this.dependencyManager.registerDependency(dependency);
+    // ✅ FIXED - Transform to CacheDependency with required fields (TS2345)
+    this.dependencyManager.registerDependency({
+      primaryKey: dependency.key,
+      dependentKeys: dependency.dependsOn,
+      type: 'related', // Default type for generic dependencies
+      createdAt: Date.now()
+    });
   }
 
   /**
@@ -425,12 +431,19 @@ export class EnhancedCacheManager {
    */
   getDependencyManager() {
     return {
-      registerTaskDependencies: (projectId: number, taskId: number) => 
+      registerTaskDependencies: (projectId: number, taskId: number) =>
         this.dependencyManager.registerTaskDependencies(projectId, taskId),
-      registerUserDependencies: (userId: number, projectId: number) => 
+      registerUserDependencies: (userId: number, projectId: number) =>
         this.dependencyManager.registerUserDependencies(userId, projectId),
-      registerDependency: (dependency: { key: string; dependsOn: string[]; tags?: string[] }) => 
-        this.dependencyManager.registerDependency(dependency),
+      registerDependency: (dependency: { key: string; dependsOn: string[]; tags?: string[] }) => {
+        // ✅ FIXED - Transform to CacheDependency with required fields (TS2345)
+        this.dependencyManager.registerDependency({
+          primaryKey: dependency.key,
+          dependentKeys: dependency.dependsOn,
+          type: 'related',
+          createdAt: Date.now()
+        });
+      },
       getStats: () => this.dependencyManager.getStats()
     };
   }

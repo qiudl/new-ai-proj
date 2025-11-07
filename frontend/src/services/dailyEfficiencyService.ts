@@ -60,11 +60,12 @@ class DailyEfficiencyService {
       }
 
       // 检查是否有嵌套的data字段（拦截器已解包response.data）
-      const responseData = response.data || response;
-      
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+      const responseData = (response.data || response) as unknown as DailyComparisonData;
+
       // 缓存结果
       timerCache.set(cacheKey, responseData, DAILY_EFFICIENCY_CACHE_TTL.COMPARISON_DATA);
-      
+
       return responseData;
     } catch (error) {
       console.error('Failed to fetch daily comparison data:', error);

@@ -6,6 +6,7 @@ export interface Project {
   project_number?: string; // 项目编号，格式如 "P101", "P102"
   enterprise_id?: number; // 企业ID（新架构）
   enterprise_name?: string; // 企业名称（新架构）
+  company_name?: string; // 公司名称（别名，向后兼容）
   status?: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
   priority?: 'high' | 'medium' | 'low';
   start_date?: string;
@@ -22,6 +23,8 @@ export interface ProjectRequest {
   name: string;
   description?: string;
   enterprise_id?: number; // 企业ID（新架构）
+  company_id?: number; // ✅ FIXED - 兼容旧的company架构 (TS2353)
+  company_ids?: number[]; // ✅ FIXED - 兼容旧的company架构（批量） (TS2353)
   user_ids?: number[]; // 项目用户ID列表
   status?: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
   priority?: 'high' | 'medium' | 'low';

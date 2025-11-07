@@ -162,7 +162,8 @@ class PerformanceOptimizer {
     fn: T,
     delay: number = 300
   ): T {
-    return debounce(fn, delay) as T;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return debounce(fn, delay) as unknown as T;
   }
 
   /**
@@ -172,7 +173,8 @@ class PerformanceOptimizer {
     fn: T,
     delay: number = 100
   ): T {
-    return throttle(fn, delay) as T;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return throttle(fn, delay) as unknown as T;
   }
 
   /**

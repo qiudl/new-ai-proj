@@ -94,8 +94,10 @@ interface VersionComparison {
   summary: string;
 }
 
+// ✅ FIXED - Added document property (TS2322)
 interface DocumentVersionControlProps {
-  documentId: number;
+  documentId?: number;
+  document?: any; // Document object can be passed directly
   visible: boolean;
   onClose: () => void;
   mode?: 'modal' | 'embedded';

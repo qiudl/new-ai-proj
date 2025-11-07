@@ -2,11 +2,11 @@ package tests
 
 import (
 	"ai-project-backend/application"
-	"ai-project-backend/config"
 	"ai-project-backend/database"
 	"ai-project-backend/models"
-	"ai-project-backend/services"
+	"ai-project-backend/routes"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,14 +26,14 @@ type TestApp struct {
 
 // TestUser represents a test user with tokens
 type TestUser struct {
-	ID                int
-	Username          string
-	Role              string
-	UserType          string
-	EnterpriseID      *int
-	EnterpriseUserID  *int
-	AccessToken       string
-	RefreshToken      string
+	ID               int
+	Username         string
+	Role             string
+	UserType         string
+	EnterpriseID     *int
+	EnterpriseUserID *int
+	AccessToken      string
+	RefreshToken     string
 }
 
 // SetupTestApp initializes a test application instance
@@ -41,24 +41,20 @@ func SetupTestApp(t *testing.T) *TestApp {
 	// Set Gin to test mode
 	gin.SetMode(gin.TestMode)
 
-	// Load test configuration
-	cfg := config.LoadConfig()
-	cfg.AppEnv = "test"
-
-	// Initialize database connection
-	db, err := database.New(cfg)
+	// Initialize application (it loads config and DB internally)
+	app, err := application.NewApplication()
 	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
+		t.Fatalf("Failed to initialize test application: %v", err)
 	}
 
-	// Initialize application
-	app := application.NewApplication(db, cfg)
-	if app == nil {
-		t.Fatal("Failed to create application instance")
+	// Get DB from app
+	db := app.GetDB()
+	if db == nil {
+		t.Fatal("Failed to get database connection")
 	}
 
-	// Setup router
-	router := app.SetupRouter()
+	// Setup router using the routes package
+	router := routes.SetupRouter(app)
 
 	return &TestApp{
 		App:    app,
@@ -77,54 +73,64 @@ func TeardownTestApp(t *testing.T, testApp *TestApp) {
 
 // CreateTestSystemUser creates a system user for testing
 func CreateTestSystemUser(t *testing.T, testApp *TestApp, username string) *TestUser {
+	ctx := context.Background()
+
 	// Create system user in database
 	user := &models.User{
-		Username: username,
-		Password: "test_password_hash",
-		Email:    fmt.Sprintf("%s@test.com", username),
-		Role:     "admin",
-		UserType: "system",
-		Status:   "active",
+		Username:     username,
+		PasswordHash: "test_password_hash",
+		Email:        fmt.Sprintf("%s@test.com", username),
+		Role:         "admin",
+		UserType:     "system",
+		Status:       "active",
 	}
 
-	err := testApp.DB.Users().Create(user)
+	createdUser, err := testApp.DB.Users().Create(ctx, user)
 	assert.NoError(t, err, "Failed to create test system user")
 
+	// Get JWT manager from app
+	jwtManager := testApp.App.GetJWTManager()
+	if jwtManager == nil {
+		t.Fatal("Failed to get JWT manager")
+	}
+
 	// Generate JWT token
-	tokenService := services.NewJWTTokenService(testApp.App.GetConfig())
-	tokenPair, err := tokenService.GenerateTokenPair(
-		user.ID,
-		user.Username,
-		user.Role,
-		user.UserType,
+	accessToken, err := jwtManager.GenerateToken(
+		createdUser.ID,
+		createdUser.Username,
+		createdUser.Role,
+		createdUser.Role, // roleV2
+		createdUser.UserType,
 		nil, // no enterprise_user_id for system users
 		nil, // no enterprise_id for system users
 	)
 	assert.NoError(t, err, "Failed to generate token for test system user")
 
 	return &TestUser{
-		ID:           user.ID,
-		Username:     user.Username,
-		Role:         user.Role,
-		UserType:     user.UserType,
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
+		ID:           createdUser.ID,
+		Username:     createdUser.Username,
+		Role:         createdUser.Role,
+		UserType:     createdUser.UserType,
+		AccessToken:  accessToken,
+		RefreshToken: "", // Not needed for tests
 	}
 }
 
 // CreateTestEnterpriseUser creates an enterprise user for testing
 func CreateTestEnterpriseUser(t *testing.T, testApp *TestApp, username string, enterpriseID int) *TestUser {
+	ctx := context.Background()
+
 	// Create enterprise user in database
 	user := &models.User{
-		Username: username,
-		Password: "test_password_hash",
-		Email:    fmt.Sprintf("%s@enterprise.test.com", username),
-		Role:     "enterprise_user",
-		UserType: "enterprise",
-		Status:   "active",
+		Username:     username,
+		PasswordHash: "test_password_hash",
+		Email:        fmt.Sprintf("%s@enterprise.test.com", username),
+		Role:         "enterprise_user",
+		UserType:     "company", // Changed from "enterprise" to "company" to match model validation
+		Status:       "active",
 	}
 
-	err := testApp.DB.Users().Create(user)
+	createdUser, err := testApp.DB.Users().Create(ctx, user)
 	assert.NoError(t, err, "Failed to create test enterprise user")
 
 	// Create enterprise_users association
@@ -134,38 +140,45 @@ func CreateTestEnterpriseUser(t *testing.T, testApp *TestApp, username string, e
 		VALUES ($1, $2, $3, $4, NOW(), NOW())
 		RETURNING id
 	`
-	err = testApp.DB.QueryRow(query, enterpriseID, user.ID, "member", "active").Scan(&enterpriseUserID)
+	err = testApp.DB.QueryRow(query, enterpriseID, createdUser.ID, "member", "active").Scan(&enterpriseUserID)
 	assert.NoError(t, err, "Failed to create enterprise_users association")
 
+	// Get JWT manager from app
+	jwtManager := testApp.App.GetJWTManager()
+	if jwtManager == nil {
+		t.Fatal("Failed to get JWT manager")
+	}
+
 	// Generate JWT token with enterprise context
-	tokenService := services.NewJWTTokenService(testApp.App.GetConfig())
-	tokenPair, err := tokenService.GenerateTokenPair(
-		user.ID,
-		user.Username,
-		user.Role,
-		user.UserType,
+	accessToken, err := jwtManager.GenerateToken(
+		createdUser.ID,
+		createdUser.Username,
+		createdUser.Role,
+		createdUser.Role, // roleV2
+		createdUser.UserType,
 		&enterpriseUserID,
 		&enterpriseID,
 	)
 	assert.NoError(t, err, "Failed to generate token for test enterprise user")
 
 	return &TestUser{
-		ID:               user.ID,
-		Username:         user.Username,
-		Role:             user.Role,
-		UserType:         user.UserType,
+		ID:               createdUser.ID,
+		Username:         createdUser.Username,
+		Role:             createdUser.Role,
+		UserType:         createdUser.UserType,
 		EnterpriseID:     &enterpriseID,
 		EnterpriseUserID: &enterpriseUserID,
-		AccessToken:      tokenPair.AccessToken,
-		RefreshToken:     tokenPair.RefreshToken,
+		AccessToken:      accessToken,
+		RefreshToken:     "", // Not needed for tests
 	}
 }
 
 // CreateTestEnterprise creates a test enterprise
 func CreateTestEnterprise(t *testing.T, testApp *TestApp, name string) *models.Enterprise {
+	desc := fmt.Sprintf("Test enterprise: %s", name)
 	enterprise := &models.Enterprise{
 		Name:        name,
-		Description: fmt.Sprintf("Test enterprise: %s", name),
+		Description: &desc,
 		Status:      "active",
 	}
 

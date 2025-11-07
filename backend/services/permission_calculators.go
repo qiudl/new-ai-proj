@@ -2,9 +2,9 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
+	"ai-project-backend/database"
 	"github.com/go-redis/redis/v8"
 )
 
@@ -14,14 +14,14 @@ import (
 
 // SystemPermissionCalculator handles system-level permissions
 type SystemPermissionCalculator struct {
-	db    *sql.DB
+	repo  database.PermissionCalculatorRepository
 	cache *redis.Client
 }
 
 // NewSystemPermissionCalculator creates a new system permission calculator
-func NewSystemPermissionCalculator(db *sql.DB, cache *redis.Client) *SystemPermissionCalculator {
+func NewSystemPermissionCalculator(repo database.PermissionCalculatorRepository, cache *redis.Client) *SystemPermissionCalculator {
 	return &SystemPermissionCalculator{
-		db:    db,
+		repo:  repo,
 		cache: cache,
 	}
 }
@@ -78,21 +78,7 @@ func (c *SystemPermissionCalculator) SupportsSubject(subjectType SubjectType) bo
 
 // checkSystemAdminRole checks if the user has system admin role
 func (c *SystemPermissionCalculator) checkSystemAdminRole(ctx context.Context, userID int) (bool, error) {
-	query := `
-		SELECT role FROM system_users 
-		WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL
-	`
-	
-	var role string
-	err := c.db.QueryRowContext(ctx, query, userID).Scan(&role)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, nil
-		}
-		return false, err
-	}
-	
-	return role == "super_admin" || role == "admin", nil
+	return c.repo.CheckSystemAdminRole(ctx, userID)
 }
 
 // buildSystemReason builds reason string for system permissions
@@ -109,14 +95,14 @@ func (c *SystemPermissionCalculator) buildSystemReason(granted bool) string {
 
 // EnterprisePermissionCalculator handles enterprise-level permissions
 type EnterprisePermissionCalculator struct {
-	db    *sql.DB
+	repo  database.PermissionCalculatorRepository
 	cache *redis.Client
 }
 
 // NewEnterprisePermissionCalculator creates a new enterprise permission calculator
-func NewEnterprisePermissionCalculator(db *sql.DB, cache *redis.Client) *EnterprisePermissionCalculator {
+func NewEnterprisePermissionCalculator(repo database.PermissionCalculatorRepository, cache *redis.Client) *EnterprisePermissionCalculator {
 	return &EnterprisePermissionCalculator{
-		db:    db,
+		repo:  repo,
 		cache: cache,
 	}
 }
@@ -190,35 +176,13 @@ func (c *EnterprisePermissionCalculator) SupportsSubject(subjectType SubjectType
 
 // checkRolePermissions checks role-based permissions for enterprise user
 func (c *EnterprisePermissionCalculator) checkRolePermissions(ctx context.Context, check *PermissionCheck) (bool, error) {
-	permissionCode := fmt.Sprintf("%s.%s", check.Object.Type, check.Action)
-	
-	query := `
-		SELECT COUNT(*) FROM enterprise_users eu
-		JOIN company_roles cr ON eu.role_id = cr.id
-		JOIN role_permissions rp ON cr.id = rp.role_id
-		JOIN permissions p ON rp.permission_id = p.id
-		WHERE eu.id = $1 
-			AND eu.enterprise_id = $2
-			AND p.permission_code = $3
-			AND rp.is_granted = TRUE
-			AND eu.status = 'active'
-			AND eu.deleted_at IS NULL
-			AND cr.is_active = TRUE
-			AND p.is_active = TRUE
-	`
-	
-	var count int
-	err := c.db.QueryRowContext(ctx, query, 
-		check.Subject.ID, 
-		check.Subject.EnterpriseID, 
-		permissionCode,
-	).Scan(&count)
-	
-	if err != nil {
-		return false, err
+	if check.Subject.EnterpriseID == nil {
+		return false, nil
 	}
-	
-	return count > 0, nil
+
+	permissionCode := fmt.Sprintf("%s.%s", check.Object.Type, check.Action)
+
+	return c.repo.CheckEnterpriseRolePermissions(ctx, check.Subject.ID, *check.Subject.EnterpriseID, permissionCode)
 }
 
 // buildEnterpriseReason builds reason string for enterprise permissions
@@ -235,14 +199,14 @@ func (c *EnterprisePermissionCalculator) buildEnterpriseReason(granted bool) str
 
 // UserPermissionCalculator handles user-specific permission overrides
 type UserPermissionCalculator struct {
-	db    *sql.DB
+	repo  database.PermissionCalculatorRepository
 	cache *redis.Client
 }
 
 // NewUserPermissionCalculator creates a new user permission calculator
-func NewUserPermissionCalculator(db *sql.DB, cache *redis.Client) *UserPermissionCalculator {
+func NewUserPermissionCalculator(repo database.PermissionCalculatorRepository, cache *redis.Client) *UserPermissionCalculator {
 	return &UserPermissionCalculator{
-		db:    db,
+		repo:  repo,
 		cache: cache,
 	}
 }
@@ -306,26 +270,9 @@ func (c *UserPermissionCalculator) SupportsSubject(subjectType SubjectType) bool
 
 // checkCustomPermissions checks if user has custom permission overrides
 func (c *UserPermissionCalculator) checkCustomPermissions(ctx context.Context, check *PermissionCheck) (bool, bool, error) {
-	// This would check a user_custom_permissions table
-	// For now, return false as the table doesn't exist yet
-	
 	permissionCode := fmt.Sprintf("%s.%s", check.Object.Type, check.Action)
-	
-	query := `
-		SELECT is_granted FROM user_custom_permissions
-		WHERE user_id = $1 AND permission_code = $2 AND is_active = TRUE
-	`
-	
-	var isGranted bool
-	err := c.db.QueryRowContext(ctx, query, check.Subject.ID, permissionCode).Scan(&isGranted)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, false, nil // No custom permission found
-		}
-		return false, false, err
-	}
-	
-	return true, isGranted, nil
+
+	return c.repo.CheckCustomPermission(ctx, check.Subject.ID, permissionCode)
 }
 
 // buildUserReason builds reason string for user permissions
@@ -342,14 +289,14 @@ func (c *UserPermissionCalculator) buildUserReason(granted bool) string {
 
 // ProjectPermissionCalculator handles project-specific permissions
 type ProjectPermissionCalculator struct {
-	db    *sql.DB
+	repo  database.PermissionCalculatorRepository
 	cache *redis.Client
 }
 
 // NewProjectPermissionCalculator creates a new project permission calculator
-func NewProjectPermissionCalculator(db *sql.DB, cache *redis.Client) *ProjectPermissionCalculator {
+func NewProjectPermissionCalculator(repo database.PermissionCalculatorRepository, cache *redis.Client) *ProjectPermissionCalculator {
 	return &ProjectPermissionCalculator{
-		db:    db,
+		repo:  repo,
 		cache: cache,
 	}
 }
@@ -435,57 +382,23 @@ func (c *ProjectPermissionCalculator) getProjectIDForResource(ctx context.Contex
 	if object.ID == nil {
 		return nil, nil
 	}
-	
-	var query string
-	var projectID int
-	
+
+	var resourceType string
 	switch object.Type {
 	case UnifiedResourceTask:
-		query = "SELECT project_id FROM tasks WHERE id = $1"
+		resourceType = "task"
 	case UnifiedResourceDocument:
-		query = "SELECT project_id FROM documents WHERE id = $1"
+		resourceType = "document"
 	default:
 		return nil, nil
 	}
-	
-	err := c.db.QueryRowContext(ctx, query, *object.ID).Scan(&projectID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, err
-	}
-	
-	return &projectID, nil
+
+	return c.repo.GetProjectIDForResource(ctx, resourceType, *object.ID)
 }
 
 // checkProjectPermissions checks if user has specific permissions for the project
 func (c *ProjectPermissionCalculator) checkProjectPermissions(ctx context.Context, userID, projectID int, action PermissionAction) (bool, error) {
-	// Check company_user_project_permissions table
-	query := `
-		SELECT 
-			CASE 
-				WHEN $3 = 'read' THEN can_view_project
-				WHEN $3 = 'update' THEN can_edit_project
-				WHEN $3 = 'delete' THEN can_delete_project
-				WHEN $3 = 'manage' THEN can_manage_members
-				ELSE FALSE
-			END as has_permission
-		FROM company_user_project_permissions
-		WHERE company_user_id = $1 AND project_id = $2
-			AND (permission_end_date IS NULL OR permission_end_date > CURRENT_TIMESTAMP)
-	`
-	
-	var hasPermission bool
-	err := c.db.QueryRowContext(ctx, query, userID, projectID, string(action)).Scan(&hasPermission)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, nil
-		}
-		return false, err
-	}
-	
-	return hasPermission, nil
+	return c.repo.CheckProjectPermission(ctx, userID, projectID, string(action))
 }
 
 // buildProjectReason builds reason string for project permissions
@@ -502,13 +415,13 @@ func (c *ProjectPermissionCalculator) buildProjectReason(granted bool) string {
 
 // DepartmentPermissionCalculator handles department-level permissions
 type DepartmentPermissionCalculator struct {
-	db    *sql.DB
+	repo  database.PermissionCalculatorRepository
 	cache *redis.Client
 }
 
 // NewDepartmentPermissionCalculator creates a new department permission calculator
-func NewDepartmentPermissionCalculator(db *sql.DB, cache *redis.Client) *DepartmentPermissionCalculator {
-	return &DepartmentPermissionCalculator{db: db, cache: cache}
+func NewDepartmentPermissionCalculator(repo database.PermissionCalculatorRepository, cache *redis.Client) *DepartmentPermissionCalculator {
+	return &DepartmentPermissionCalculator{repo: repo, cache: cache}
 }
 
 func (c *DepartmentPermissionCalculator) Calculate(ctx context.Context, check *PermissionCheck) (*PermissionResult, error) {
@@ -533,13 +446,13 @@ func (c *DepartmentPermissionCalculator) SupportsSubject(subjectType SubjectType
 
 // PositionPermissionCalculator handles position/role-level permissions
 type PositionPermissionCalculator struct {
-	db    *sql.DB
+	repo  database.PermissionCalculatorRepository
 	cache *redis.Client
 }
 
 // NewPositionPermissionCalculator creates a new position permission calculator
-func NewPositionPermissionCalculator(db *sql.DB, cache *redis.Client) *PositionPermissionCalculator {
-	return &PositionPermissionCalculator{db: db, cache: cache}
+func NewPositionPermissionCalculator(repo database.PermissionCalculatorRepository, cache *redis.Client) *PositionPermissionCalculator {
+	return &PositionPermissionCalculator{repo: repo, cache: cache}
 }
 
 func (c *PositionPermissionCalculator) Calculate(ctx context.Context, check *PermissionCheck) (*PermissionResult, error) {
@@ -564,13 +477,13 @@ func (c *PositionPermissionCalculator) SupportsSubject(subjectType SubjectType) 
 
 // DelegatedPermissionCalculator handles delegated permissions
 type DelegatedPermissionCalculator struct {
-	db    *sql.DB
+	repo  database.PermissionCalculatorRepository
 	cache *redis.Client
 }
 
 // NewDelegatedPermissionCalculator creates a new delegated permission calculator
-func NewDelegatedPermissionCalculator(db *sql.DB, cache *redis.Client) *DelegatedPermissionCalculator {
-	return &DelegatedPermissionCalculator{db: db, cache: cache}
+func NewDelegatedPermissionCalculator(repo database.PermissionCalculatorRepository, cache *redis.Client) *DelegatedPermissionCalculator {
+	return &DelegatedPermissionCalculator{repo: repo, cache: cache}
 }
 
 func (c *DelegatedPermissionCalculator) Calculate(ctx context.Context, check *PermissionCheck) (*PermissionResult, error) {
@@ -595,13 +508,13 @@ func (c *DelegatedPermissionCalculator) SupportsSubject(subjectType SubjectType)
 
 // PolicyPermissionCalculator handles policy-based permissions
 type PolicyPermissionCalculator struct {
-	db    *sql.DB
+	repo  database.PermissionCalculatorRepository
 	cache *redis.Client
 }
 
 // NewPolicyPermissionCalculator creates a new policy permission calculator
-func NewPolicyPermissionCalculator(db *sql.DB, cache *redis.Client) *PolicyPermissionCalculator {
-	return &PolicyPermissionCalculator{db: db, cache: cache}
+func NewPolicyPermissionCalculator(repo database.PermissionCalculatorRepository, cache *redis.Client) *PolicyPermissionCalculator {
+	return &PolicyPermissionCalculator{repo: repo, cache: cache}
 }
 
 func (c *PolicyPermissionCalculator) Calculate(ctx context.Context, check *PermissionCheck) (*PermissionResult, error) {

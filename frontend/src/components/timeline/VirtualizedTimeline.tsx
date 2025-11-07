@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { FixedSizeList as List } from 'react-window';
+// ✅ FIXED - react-window v2 exports List directly, not FixedSizeList (TS2305)
+import { List } from 'react-window';
 import { Card, Space, Typography, Button, Spin, Empty, message } from 'antd';
 import { ReloadOutlined, ExpandOutlined, CompressOutlined } from '@ant-design/icons';
 import { TaskTimelineEvent } from '../../types/timeline';
@@ -144,9 +145,9 @@ const VirtualTimelineItem: React.FC<{ index: number; style: React.CSSProperties;
     }}>
       <Space>
         <span>{group.title}</span>
-        <span style={{ 
-          fontSize: 12, 
-          color: '#666',
+        <span style={{
+          fontSize: 12,
+          // ✅ FIXED - Removed duplicate color property (TS1117)
           backgroundColor: '#1890ff',
           color: 'white',
           padding: '2px 6px',

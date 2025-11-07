@@ -19,6 +19,8 @@ export interface Task {
   sort_order: number;
   parent_title?: string;
   children_count?: number;
+  // ✅ FIXED - Add missing has_children property (TS2339)
+  has_children?: boolean;
   // AI-enhanced fields
   dependencies?: number[];  // Array of task IDs this task depends on
   tags?: string[];          // AI-generated tags for categorization

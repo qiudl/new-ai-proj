@@ -52,7 +52,11 @@ import { IntelligentEventGrouper, GroupingStrategy, EventGroup } from './EventGr
 const { Text, Title } = Typography;
 const { TabPane } = Tabs;
 
+// ✅ FIXED - Added taskId, projectId, height properties (TS2322)
 interface EnhancedTaskTimelineV2Props {
+  taskId?: number;
+  projectId?: number;
+  height?: string;
   events: TaskTimelineEvent[];
   loading?: boolean;
   className?: string;

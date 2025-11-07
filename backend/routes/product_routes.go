@@ -24,7 +24,7 @@ func RegisterProductRoutes(authorized *gin.RouterGroup, app ApplicationInterface
 		spuGroup.DELETE("/:id", spuHandler.DeleteSPU)             // 删除SPU
 
 		// SPU关联的SKU
-		spuGroup.GET("/:spu_id/skus", skuHandler.ListSKUsBySPU)   // 获取SPU下的所有SKU
+		spuGroup.GET("/:id/skus", skuHandler.ListSKUsBySPU)      // 获取SPU下的所有SKU
 	}
 
 	// SKU路由组

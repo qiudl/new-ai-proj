@@ -57,22 +57,28 @@ export const getDailyWorkReport = async (projectId: number = 1): Promise<DailyWo
     const response = await api.get(`/mcp/get-daily-work-report?projectId=${projectId}`);
     console.log('完整API响应:', response);
     
+    // ✅ FIXED - API拦截器已解包响应，使用类型断言
     // 根据日志，API响应直接就是数据，不是标准的axios响应格式
     // 直接使用response作为响应数据
-    const responseData = response;
-    
+    const responseData = response as {
+      success?: boolean;
+      error?: string;
+      message?: string;
+      report?: any;
+    };
+
     console.log('处理后的响应数据:', responseData);
-    
+
     // 检查响应数据结构
     if (!responseData) {
       throw new Error('API返回空数据');
     }
-    
+
     // 如果返回的是错误响应
     if (responseData.success === false) {
       throw new Error(responseData.error || responseData.message || 'API返回错误');
     }
-    
+
     // 检查是否有成功标志和报告数据
     if (responseData.success && responseData.report) {
       return responseData as DailyWorkReportResponse;

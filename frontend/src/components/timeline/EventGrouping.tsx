@@ -698,6 +698,10 @@ export class IntelligentEventGrouper {
       'archived': { category: '系统', priority: 5, color: '#8c8c8c', icon: <ClusterOutlined /> },
       'template_applied': { category: '系统', priority: 5, color: '#722ed1', icon: <RocketOutlined /> },
       'automation_triggered': { category: '系统', priority: 6, color: '#52c41a', icon: <RocketOutlined /> },
+      // ✅ FIXED - Add missing event types (TS2739)
+      'tag_added': { category: '内容', priority: 4, color: '#2f54eb', icon: <ClusterOutlined /> },
+      'tag_removed': { category: '内容', priority: 4, color: '#f5222d', icon: <ClusterOutlined /> },
+      'error_occurred': { category: '系统', priority: 7, color: '#f5222d', icon: <BugOutlined /> },
     };
 
     return typeInfoMap[eventType] || { category: '其他', priority: 3, color: '#d9d9d9', icon: <ClusterOutlined /> };

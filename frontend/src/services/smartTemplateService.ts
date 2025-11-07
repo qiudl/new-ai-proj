@@ -67,11 +67,12 @@ class SmartTemplateService {
     const queryParams = new URLSearchParams();
     if (params?.category) queryParams.append('category', params.category);
     if (params?.priority) queryParams.append('priority', params.priority);
-    
+
     const queryString = queryParams.toString();
     const url = `/projects/${projectId}/tasks/${taskId}/templates/recommendations${queryString ? `?${queryString}` : ''}`;
-    
-    const response = await api.get(url);
+
+    // ✅ FIXED - API拦截器已解包响应，使用类型断言
+    const response = await api.get(url) as { recommendations?: TemplateRecommendation[] };
     return response.recommendations || [];
   }
 
@@ -83,7 +84,7 @@ class SmartTemplateService {
     const response = await api.post(`/templates/${templateId}/generate`, {
       variables
     });
-    return response;
+    return response.data;
   }
 
   // 获取所有模板
@@ -93,25 +94,25 @@ class SmartTemplateService {
     total: number;
   }> {
     const response = await api.get('/templates');
-    return response;
+    return response.data;
   }
 
   // 获取特定模板
   async getTemplate(templateId: number): Promise<Template> {
     const response = await api.get(`/templates/${templateId}`);
-    return response;
+    return response.data;
   }
 
   // 创建新模板
   async createTemplate(template: Omit<Template, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'usage_count'>): Promise<Template> {
     const response = await api.post('/templates', template);
-    return response;
+    return response.data;
   }
 
   // 获取模板统计
   async getTemplateStats(): Promise<TemplateStatsResponse> {
     const response = await api.get('/templates/stats');
-    return response;
+    return response.data;
   }
 
   // 搜索模板
@@ -135,7 +136,7 @@ class SmartTemplateService {
     });
     
     const response = await api.get(`/templates?${queryParams.toString()}`);
-    return response;
+    return response.data;
   }
 
   // 获取用户使用历史
@@ -151,7 +152,7 @@ class SmartTemplateService {
   }> {
     const url = userId ? `/users/${userId}/template-history` : '/user/template-history';
     const response = await api.get(url);
-    return response;
+    return response.data;
   }
 
   // 评价模板使用体验
@@ -174,7 +175,7 @@ class SmartTemplateService {
     const response = await api.post(`/templates/${templateId}/preview`, {
       variables
     });
-    return response;
+    return response.data;
   }
 
   // 克隆模板
@@ -182,7 +183,7 @@ class SmartTemplateService {
     const response = await api.post(`/templates/${templateId}/clone`, {
       name: newName
     });
-    return response;
+    return response.data;
   }
 
   // 更新模板
@@ -191,7 +192,7 @@ class SmartTemplateService {
     updates: Partial<Omit<Template, 'id' | 'created_at' | 'updated_at' | 'created_by'>>
   ): Promise<Template> {
     const response = await api.put(`/templates/${templateId}`, updates);
-    return response;
+    return response.data;
   }
 
   // 删除模板
@@ -212,7 +213,7 @@ class SmartTemplateService {
     }>;
   }> {
     const response = await api.get(`/templates/${templateId}/analytics`);
-    return response;
+    return response.data;
   }
 }
 

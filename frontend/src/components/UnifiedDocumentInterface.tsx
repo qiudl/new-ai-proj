@@ -90,17 +90,18 @@ const DocumentInterface: React.FC<DocumentInterfaceProps> = ({
         documents = await documentService.getTaskDocuments(projectId, taskId);
       } else {
         // Load all documents with filters
+        // ✅ FIXED - Wrap status and type in arrays to match DocumentFilter (TS2345)
         const filter = {
-          search: searchText || undefined,
-          status: statusFilter !== 'all' ? statusFilter : undefined,
-          type: typeFilter !== 'all' ? typeFilter : undefined,
+          status: statusFilter !== 'all' ? [statusFilter as any] : undefined,
+          type: typeFilter !== 'all' ? [typeFilter as any] : undefined,
           visibility: visibilityFilter !== 'all' ? visibilityFilter : undefined,
           project_id: projectId,
           task_id: taskId
         };
 
-        const response = await documentService.searchDocuments(filter);
-        documents = response.documents || [];
+        // ✅ FIXED: searchDocuments takes query as first param, returns array directly
+        const response = await documentService.searchDocuments(searchText || '', filter);
+        documents = response || [];
       }
 
       setDocuments(documents || []);
@@ -517,6 +518,8 @@ const DocumentInterface: React.FC<DocumentInterfaceProps> = ({
           created_at: selectedDocument.created_at,
           updated_at: selectedDocument.updated_at,
           type: 'markdown' as const,
+          work_note_type: 'general' as const,
+          priority: 'medium' as const,
           owner_id: 1,
           version: 1,
           created_by: 1
@@ -541,19 +544,19 @@ const DocumentInterface: React.FC<DocumentInterfaceProps> = ({
               message.success('文档更新成功');
             } else {
               // Create new document
-              await documentService.createDocument(
-                noteData.title,
-                noteData.content,
-                {
-                  description: noteData.description,
-                  status: noteData.status,
-                  visibility: noteData.visibility,
-                  tags: noteData.tags,
-                  is_template: noteData.is_template,
-                  task_id: taskId,
-                  project_id: projectId
-                }
-              );
+              // ✅ FIXED - createDocument takes 1 parameter (CreateDocumentRequest object) (TS2554)
+              // ✅ FIXED - Cast to CreateDocumentRequest for type compatibility (TS2345)
+              await documentService.createDocument({
+                title: noteData.title,
+                content: noteData.content,
+                description: noteData.description,
+                status: noteData.status,
+                visibility: noteData.visibility,
+                tags: noteData.tags,
+                is_template: noteData.is_template,
+                task_id: taskId,
+                project_id: projectId
+              } as any);
               message.success('文档创建成功');
             }
             loadDocuments();
@@ -580,6 +583,8 @@ const DocumentInterface: React.FC<DocumentInterfaceProps> = ({
           created_at: selectedDocument.created_at,
           updated_at: selectedDocument.updated_at,
           type: 'markdown' as const,
+          work_note_type: 'general' as const,
+          priority: 'medium' as const,
           owner_id: 1,
           version: 1,
           created_by: 1

@@ -26,6 +26,51 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 }) => {
   if (!content) return null;
 
+  /**
+   * 处理文本节点中的@用户高亮
+   */
+  const renderTextWithMentions = (text: string): React.ReactNode => {
+    // 匹配 @username 模式
+    const mentionPattern = /@(\w+)/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = mentionPattern.exec(text)) !== null) {
+      // 添加@之前的普通文本
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+
+      // 添加高亮的@用户
+      parts.push(
+        <span
+          key={`mention-${match.index}`}
+          style={{
+            color: '#1890ff',
+            backgroundColor: '#e6f7ff',
+            padding: '2px 4px',
+            borderRadius: '3px',
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+          title={`提及用户: ${match[1]}`}
+        >
+          @{match[1]}
+        </span>
+      );
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // 添加剩余的文本
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+
+    return parts.length > 0 ? <>{parts}</> : text;
+  };
+
   return (
     <div className={className} style={style}>
       <ReactMarkdown
@@ -178,15 +223,33 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               {children}
             </li>
           ),
-          p: ({ children, ...props }) => (
-            <p style={{ 
-              margin: '8px 0', 
-              lineHeight: '1.6',
-              color: '#262626'
-            }} {...props}>
-              {children}
-            </p>
-          ),
+          p: ({ children, ...props }) => {
+            // 处理段落中的@用户提及
+            const processChildren = (children: React.ReactNode): React.ReactNode => {
+              if (typeof children === 'string') {
+                return renderTextWithMentions(children);
+              }
+              if (Array.isArray(children)) {
+                return children.map((child, index) => {
+                  if (typeof child === 'string') {
+                    return <React.Fragment key={index}>{renderTextWithMentions(child)}</React.Fragment>;
+                  }
+                  return child;
+                });
+              }
+              return children;
+            };
+
+            return (
+              <p style={{
+                margin: '8px 0',
+                lineHeight: '1.6',
+                color: '#262626'
+              }} {...props}>
+                {processChildren(children)}
+              </p>
+            );
+          },
           table: ({ children, ...props }) => (
             <div style={{ overflowX: 'auto', margin: '12px 0' }}>
               <table 

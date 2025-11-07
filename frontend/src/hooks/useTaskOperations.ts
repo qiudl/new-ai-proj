@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { message } from 'antd';
 import { useTaskContext } from '../contexts/TaskContext';
-import { Task } from '../types/task';
+import { Task, TaskStatus } from '../types/task';
 import { errorLogger } from '../utils/ErrorLogger';
 
 /**
@@ -35,10 +35,11 @@ export const useTaskOperations = () => {
       'on_hold': 'in_progress'
     };
 
-    const newStatus = targetStatus || statusMap[task.status] || 'in_progress';
+    // ✅ FIXED - Cast to TaskStatus type (TS2322)
+    const newStatus = (targetStatus || statusMap[task.status] || 'in_progress') as TaskStatus;
 
     setLoading(`toggle-${taskId}`, true);
-    
+
     try {
       await actions.updateTask(taskId, { status: newStatus }, true);
       message.success(`任务状态已更新为: ${newStatus}`);
@@ -56,9 +57,10 @@ export const useTaskOperations = () => {
   }, [state.tasks, actions, setLoading]);
 
   // 设置任务优先级
-  const setTaskPriority = useCallback(async (taskId: number, priority: string) => {
+  // ✅ FIXED - Use specific priority type instead of string (TS2322)
+  const setTaskPriority = useCallback(async (taskId: number, priority: 'low' | 'medium' | 'high') => {
     setLoading(`priority-${taskId}`, true);
-    
+
     try {
       await actions.updateTask(taskId, { priority }, true);
       message.success(`优先级已设置为: ${priority}`);
@@ -129,9 +131,10 @@ export const useTaskOperations = () => {
   // 批量状态更新
   const batchUpdateStatus = useCallback(async (taskIds: number[], status: string) => {
     setLoading('batch-status', true);
-    
+
     try {
-      const updates = taskIds.map(id => ({ id, data: { status } }));
+      // ✅ FIXED - Type assertion to satisfy Partial<Task> requirement (TS2345)
+      const updates = taskIds.map(id => ({ id, data: { status } as Partial<Task> }));
       await actions.batchUpdateTasks(updates);
       message.success(`已将 ${taskIds.length} 个任务状态更新为: ${status}`);
       
@@ -150,9 +153,10 @@ export const useTaskOperations = () => {
   // 批量优先级更新
   const batchUpdatePriority = useCallback(async (taskIds: number[], priority: string) => {
     setLoading('batch-priority', true);
-    
+
     try {
-      const updates = taskIds.map(id => ({ id, data: { priority } }));
+      // ✅ FIXED - Type assertion to satisfy Partial<Task> requirement (TS2345)
+      const updates = taskIds.map(id => ({ id, data: { priority } as Partial<Task> }));
       await actions.batchUpdateTasks(updates);
       message.success(`已将 ${taskIds.length} 个任务优先级设置为: ${priority}`);
       

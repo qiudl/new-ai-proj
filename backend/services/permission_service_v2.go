@@ -2,12 +2,12 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
+	"ai-project-backend/database"
 	"ai-project-backend/interfaces"
 
 	"github.com/go-redis/redis/v8"
@@ -43,7 +43,7 @@ type PermissionServiceV2 interface {
 
 // permissionServiceV2Impl implements PermissionServiceV2
 type permissionServiceV2Impl struct {
-	db              *sql.DB
+	repo            database.PermissionServiceV2Repository
 	cache           *redis.Client
 	cacheTTL        time.Duration
 	systemRoleRepo  interfaces.SystemRoleRepository
@@ -52,7 +52,7 @@ type permissionServiceV2Impl struct {
 
 // PermissionServiceV2Config holds configuration for PermissionServiceV2
 type PermissionServiceV2Config struct {
-	DB              *sql.DB
+	Repo            database.PermissionServiceV2Repository
 	Cache           *redis.Client
 	CacheTTL        time.Duration // Default: 15 minutes
 	SystemRoleRepo  interfaces.SystemRoleRepository
@@ -66,7 +66,7 @@ func NewPermissionServiceV2(config *PermissionServiceV2Config) PermissionService
 	}
 
 	return &permissionServiceV2Impl{
-		db:              config.DB,
+		repo:            config.Repo,
 		cache:           config.Cache,
 		cacheTTL:        config.CacheTTL,
 		systemRoleRepo:  config.SystemRoleRepo,
@@ -90,22 +90,8 @@ func (s *permissionServiceV2Impl) CheckSystemPermission(identity interfaces.User
 		return cached, nil
 	}
 
-	// Query system_role_permissions via users.system_role_id
-	query := `
-		SELECT EXISTS(
-			SELECT 1
-			FROM users u
-			JOIN system_role_permissions srp ON u.system_role_id = srp.role_id
-			JOIN system_permissions sp ON srp.permission_id = sp.id
-			WHERE u.id = $1
-			AND sp.code = $2
-			AND u.status = 'active'
-			AND u.deleted_at IS NULL
-		)
-	`
-
-	var hasPermission bool
-	err := s.db.QueryRowContext(ctx, query, userID, permission).Scan(&hasPermission)
+	// Delegate to repository
+	hasPermission, err := s.repo.CheckSystemPermission(ctx, userID, permission)
 	if err != nil {
 		return false, fmt.Errorf("failed to check system permission: %w", err)
 	}
@@ -186,34 +172,10 @@ func (s *permissionServiceV2Impl) CheckEnterpriseAccess(identity interfaces.User
 func (s *permissionServiceV2Impl) GetUserSystemPermissions(userID uint) ([]string, error) {
 	ctx := context.Background()
 
-	query := `
-		SELECT DISTINCT sp.code
-		FROM users u
-		JOIN system_role_permissions srp ON u.system_role_id = srp.role_id
-		JOIN system_permissions sp ON srp.permission_id = sp.id
-		WHERE u.id = $1
-		AND u.status = 'active'
-		AND u.deleted_at IS NULL
-		ORDER BY sp.code
-	`
-
-	rows, err := s.db.QueryContext(ctx, query, userID)
+	// Delegate to repository
+	permissions, err := s.repo.GetUserSystemPermissions(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get system permissions: %w", err)
-	}
-	defer rows.Close()
-
-	var permissions []string
-	for rows.Next() {
-		var permission string
-		if err := rows.Scan(&permission); err != nil {
-			return nil, fmt.Errorf("failed to scan permission: %w", err)
-		}
-		permissions = append(permissions, permission)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
 	}
 
 	return permissions, nil
@@ -223,60 +185,26 @@ func (s *permissionServiceV2Impl) GetUserSystemPermissions(userID uint) ([]strin
 func (s *permissionServiceV2Impl) GetUserEnterprisePermissions(userID uint, enterpriseID uint) ([]string, error) {
 	ctx := context.Background()
 
-	// Get role-based permissions (supports multiple roles)
-	roleQuery := `
-		SELECT DISTINCT ep.code
-		FROM enterprise_user_roles eur
-		JOIN enterprise_role_permissions erp ON eur.role_id = erp.role_id
-		JOIN enterprise_permissions ep ON erp.permission_id = ep.id
-		WHERE eur.user_id = $1
-		AND eur.enterprise_id = $2
-		AND eur.is_active = true
-	`
-
-	rows, err := s.db.QueryContext(ctx, roleQuery, userID, enterpriseID)
+	// Get role-based permissions from repository
+	rolePermissions, err := s.repo.GetUserEnterpriseRolePermissions(ctx, userID, enterpriseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get role permissions: %w", err)
 	}
-	defer rows.Close()
 
+	// Build permission map from role permissions
 	permissionMap := make(map[string]bool)
-	for rows.Next() {
-		var permission string
-		if err := rows.Scan(&permission); err != nil {
-			return nil, fmt.Errorf("failed to scan role permission: %w", err)
-		}
+	for _, permission := range rolePermissions {
 		permissionMap[permission] = true
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("role permissions rows error: %w", err)
-	}
-
-	// Apply custom permission overrides
-	customQuery := `
-		SELECT ep.code, eucp.grant_type
-		FROM enterprise_user_custom_permissions eucp
-		JOIN enterprise_permissions ep ON eucp.permission_id = ep.id
-		WHERE eucp.user_id = $1
-		AND eucp.enterprise_id = $2
-		AND (eucp.expires_at IS NULL OR eucp.expires_at > NOW())
-	`
-
-	customRows, err := s.db.QueryContext(ctx, customQuery, userID, enterpriseID)
+	// Get custom permission overrides from repository
+	customPermissions, err := s.repo.GetUserEnterpriseCustomPermissions(ctx, userID, enterpriseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get custom permissions: %w", err)
 	}
-	defer customRows.Close()
 
-	for customRows.Next() {
-		var permission string
-		var grantType string
-		if err := customRows.Scan(&permission, &grantType); err != nil {
-			return nil, fmt.Errorf("failed to scan custom permission: %w", err)
-		}
-
-		// Custom permissions override role permissions
+	// Apply custom permission overrides
+	for permission, grantType := range customPermissions {
 		if grantType == "grant" {
 			permissionMap[permission] = true
 		} else if grantType == "deny" {
@@ -285,11 +213,7 @@ func (s *permissionServiceV2Impl) GetUserEnterprisePermissions(userID uint, ente
 		}
 	}
 
-	if err := customRows.Err(); err != nil {
-		return nil, fmt.Errorf("custom permissions rows error: %w", err)
-	}
-
-	// Convert map to sorted slice
+	// Convert map to slice
 	permissions := make([]string, 0, len(permissionMap))
 	for permission := range permissionMap {
 		permissions = append(permissions, permission)
@@ -300,55 +224,14 @@ func (s *permissionServiceV2Impl) GetUserEnterprisePermissions(userID uint, ente
 
 // checkCustomPermissionOverride checks for explicit custom permission grants/denies
 func (s *permissionServiceV2Impl) checkCustomPermissionOverride(ctx context.Context, userID uint, enterpriseID uint, permission string) (bool, bool, error) {
-	query := `
-		SELECT eucp.grant_type
-		FROM enterprise_user_custom_permissions eucp
-		JOIN enterprise_permissions ep ON eucp.permission_id = ep.id
-		WHERE eucp.user_id = $1
-		AND eucp.enterprise_id = $2
-		AND ep.code = $3
-		AND (eucp.expires_at IS NULL OR eucp.expires_at > NOW())
-		ORDER BY eucp.created_at DESC
-		LIMIT 1
-	`
-
-	var grantType string
-	err := s.db.QueryRowContext(ctx, query, userID, enterpriseID, permission).Scan(&grantType)
-	if err == sql.ErrNoRows {
-		// No custom override exists
-		return false, false, nil
-	}
-	if err != nil {
-		return false, false, err
-	}
-
-	// Custom override exists
-	isGranted := grantType == "grant"
-	return true, isGranted, nil
+	// Delegate to repository
+	return s.repo.CheckCustomPermissionOverride(ctx, userID, enterpriseID, permission)
 }
 
 // checkEnterpriseRolePermissions checks permissions from enterprise roles (supports multiple roles)
 func (s *permissionServiceV2Impl) checkEnterpriseRolePermissions(ctx context.Context, userID uint, enterpriseID uint, permission string) (bool, error) {
-	query := `
-		SELECT EXISTS(
-			SELECT 1
-			FROM enterprise_user_roles eur
-			JOIN enterprise_role_permissions erp ON eur.role_id = erp.role_id
-			JOIN enterprise_permissions ep ON erp.permission_id = ep.id
-			WHERE eur.user_id = $1
-			AND eur.enterprise_id = $2
-			AND ep.code = $3
-			AND eur.is_active = true
-		)
-	`
-
-	var hasPermission bool
-	err := s.db.QueryRowContext(ctx, query, userID, enterpriseID, permission).Scan(&hasPermission)
-	if err != nil {
-		return false, err
-	}
-
-	return hasPermission, nil
+	// Delegate to repository
+	return s.repo.CheckEnterpriseRolePermission(ctx, userID, enterpriseID, permission)
 }
 
 // buildCacheKey generates a Redis cache key for permissions

@@ -64,6 +64,19 @@ interface Company {
   companyName: string;
   name?: string;
   companyCode?: string;
+  companyType?: string; // ✅ FIXED - 公司类型 (TS2353)
+  companyTypeText?: string; // ✅ FIXED - 公司类型文本 (TS2353)
+  industry?: string; // ✅ ADDED - 行业类型
+  address?: string; // ✅ FIXED - 公司地址 (TS2353)
+  mainPhone?: string; // ✅ FIXED - 主要电话 (TS2353)
+  mainEmail?: string; // ✅ FIXED - 主要邮箱 (TS2353)
+  status?: string; // ✅ FIXED - 状态 (TS2353)
+  statusText?: string; // ✅ ADDED - 状态文本
+  priority?: string; // ✅ FIXED - 优先级 (TS2353)
+  priorityText?: string; // ✅ FIXED - 优先级文本 (TS2353)
+  createdBy?: number; // ✅ FIXED - 创建者ID (TS2353)
+  createdAt?: string; // ✅ FIXED - 创建时间 (TS2353)
+  updatedAt?: string; // ✅ FIXED - 更新时间 (TS2353)
 }
 
 interface CompanyUser {

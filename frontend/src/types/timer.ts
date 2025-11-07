@@ -163,6 +163,7 @@ export interface TimerResumeResponse {
 }
 
 export interface TimerCurrentResponse {
+  id?: number; // 🎯 计时器ID (用于React key)
   is_running: boolean;
   is_paused?: boolean;
   task_id?: number;
@@ -172,6 +173,7 @@ export interface TimerCurrentResponse {
   start_time?: string;
   elapsed_seconds: number;
   formatted_time: string;
+  description?: string; // ✅ ADDED - 计时器描述
 }
 
 export interface RecentTimedTask {

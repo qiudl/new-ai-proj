@@ -477,43 +477,6 @@ export type ComponentPropsWithoutRef<T extends keyof JSX.IntrinsicElements | Rea
   React.ComponentPropsWithoutRef<T>;
 
 // ============================================================================
-// 导出所有类型
+// ✅ FIXED - 移除冗余的重复导出声明 (TS2484)
+// 所有类型已在上方定义处使用 export interface/type 导出
 // ============================================================================
-
-export type {
-  // 组件属性
-  UnifiedTaskDocumentAreaProps,
-  DocumentAreaAdapterProps,
-  
-  // 数据类型
-  SearchResult,
-  ShareData,
-  SharePermission,
-  ShareLinkData,
-  ShareOption,
-  DocumentComment,
-  
-  // 组件引用
-  UnifiedTaskDocumentAreaRef,
-  DocumentAreaAdapterRef,
-  
-  // 预设配置
-  AdapterPresetConfig,
-  AdapterPresets,
-  
-  // 迁移类型
-  LegacyTaskDocumentEditorProps,
-  LegacyDocumentViewerProps,
-  LegacyMarkdownEditorProps,
-  ComponentMigrationMapType,
-  MigrationGuideEntry,
-  MigrationGuide,
-  
-  // 工具类型
-  PartialBy,
-  RequiredBy,
-  ComponentPropsWithoutRef
-};
-
-// 默认导出主要类型
-export default UnifiedTaskDocumentAreaProps;

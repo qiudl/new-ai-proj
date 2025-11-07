@@ -104,7 +104,7 @@ const RequirementListPage: React.FC = () => {
    * 处理创建需求
    */
   const handleCreateRequirement = () => {
-    navigate('/requirements/create');
+    navigate('/requirements/new');
   };
 
   /**

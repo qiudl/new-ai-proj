@@ -174,11 +174,13 @@ class PerformanceMonitor {
     const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
     if (!navigation) return;
 
+    // ✅ FIXED - navigationStart is deprecated, use fetchStart or cast to any for backwards compatibility
+    const navAny = navigation as any;
     const metrics = {
       domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
       loadComplete: navigation.loadEventEnd - navigation.loadEventStart,
       ttfb: navigation.responseStart - navigation.requestStart,
-      domComplete: navigation.domComplete - navigation.navigationStart,
+      domComplete: navigation.domComplete - (navAny.navigationStart || navigation.fetchStart),
       networkLatency: navigation.responseEnd - navigation.fetchStart
     };
 

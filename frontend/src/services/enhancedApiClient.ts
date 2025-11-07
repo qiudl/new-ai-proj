@@ -131,13 +131,14 @@ export class EnhancedApiClient {
       }
     }
 
+    // ✅ FIXED - Convert AxiosHeaders to Record<string, string> (TS2322)
     // Prepare request config
     const requestConfig: RequestConfig = {
       url,
       method,
       params: axiosConfig.params,
       data,
-      headers: axiosConfig.headers,
+      headers: axiosConfig.headers as any as Record<string, string>,
       timeout: axiosConfig.timeout
     };
 
@@ -273,9 +274,12 @@ export class EnhancedApiClient {
 
     const { status, data } = error.response;
     
+    // ✅ FIXED - 对data进行类型断言以访问message属性
+    const errorData = data as { message?: string } | undefined;
+
     switch (status) {
       case 400:
-        return new AppError(data?.message || '请求参数错误', ErrorType.VALIDATION, status, data);
+        return new AppError(errorData?.message || '请求参数错误', ErrorType.VALIDATION, status, data);
       case 401:
         return new AppError('登录已过期', ErrorType.AUTHENTICATION, status);
       case 403:
@@ -287,7 +291,7 @@ export class EnhancedApiClient {
       case 503:
         return new AppError('服务器错误，请稍后重试', ErrorType.SYSTEM, status);
       default:
-        return new AppError(data?.message || `请求失败 (${status})`, ErrorType.UNKNOWN, status, data);
+        return new AppError(errorData?.message || `请求失败 (${status})`, ErrorType.UNKNOWN, status, data);
     }
   }
 

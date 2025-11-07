@@ -150,9 +150,10 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
 
   const updateTask = useCallback(async (updates: TaskUpdate) => {
     dispatch({ type: 'SET_LOADING', payload: { key: 'task', value: true } });
-    
+
     try {
-      const response = await TaskService.updateTask(projectId, taskId, updates);
+      // ✅ FIXED - Cast TaskUpdate to Partial<TaskRequest> for type compatibility (TS2345)
+      const response = await TaskService.updateTask(projectId, taskId, updates as any);
       dispatch({ type: 'UPDATE_TASK', payload: response });
       message.success('Task updated successfully');
     } catch (error: any) {
@@ -212,10 +213,13 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
 
   const createDocument = useCallback(async (document: Partial<TaskDocument>) => {
     try {
-      await documentService.createDocument(projectId, {
+      // ✅ FIXED - createDocument takes only 1 parameter (request object) (TS2554)
+      // ✅ FIXED - Cast to CreateDocumentRequest for type compatibility (TS2345)
+      await documentService.createDocument({
         ...document,
-        task_id: taskId
-      });
+        task_id: taskId,
+        project_id: projectId
+      } as any);
       await loadDocuments();
       message.success('Document created successfully');
     } catch (error) {
@@ -225,7 +229,9 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
 
   const updateDocument = useCallback(async (id: number, updates: Partial<TaskDocument>) => {
     try {
-      await documentService.updateDocument(projectId, id, updates);
+      // ✅ FIXED - updateDocument takes 2 parameters (id, request), not 3 (TS2554)
+      // ✅ FIXED - Cast to UpdateDocumentRequest for type compatibility (TS2345)
+      await documentService.updateDocument(id, updates as any);
       await loadDocuments();
       message.success('Document updated successfully');
     } catch (error) {
@@ -235,7 +241,8 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
 
   const deleteDocument = useCallback(async (id: number) => {
     try {
-      await documentService.deleteDocument(projectId, id);
+      // ✅ FIXED - deleteDocument takes 1 parameter (id), not 2 (TS2554)
+      await documentService.deleteDocument(id);
       await loadDocuments();
       message.success('Document deleted successfully');
     } catch (error) {
@@ -288,10 +295,12 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
 
   const createSubtask = useCallback(async (title: string, description?: string) => {
     try {
+      // ✅ FIXED - Add required status field for TaskRequest (TS2345)
       await TaskService.createTask(projectId, {
         title,
         description,
-        parent_id: taskId
+        parent_id: taskId,
+        status: 'todo' // Default status for new subtasks
       });
       await loadRelations();
       message.success('Subtask created successfully');

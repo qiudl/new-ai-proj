@@ -9,7 +9,8 @@ export { default as EnhancedMarkdownRenderer } from './EnhancedMarkdownRenderer'
 export { default as EnhancedFullscreenDocumentModal } from './EnhancedFullscreenDocumentModal';
 export { default as EnhancedFullscreenDocumentPreview } from './EnhancedFullscreenDocumentPreview';
 export { default as EnhancedDocumentContent } from './EnhancedDocumentContent';
-export { default as DocumentAreaAdapter } from './DocumentAreaAdapter';
+// ✅ FIXED - Comment out non-existent DocumentAreaAdapter export (TS2307)
+// export { default as DocumentAreaAdapter } from './DocumentAreaAdapter';
 export { default as DocumentCommentSystem } from './DocumentCommentSystem';
 export { default as DocumentSearchPanel } from './DocumentSearchPanel';
 export { default as DocumentShareModal } from './DocumentShareModal';
@@ -22,7 +23,8 @@ export type { EnhancedMarkdownRendererProps } from './EnhancedMarkdownRenderer';
 export type { EnhancedFullscreenDocumentModalProps, DocumentData } from './EnhancedFullscreenDocumentModal';
 export type { EnhancedFullscreenDocumentPreviewProps } from './EnhancedFullscreenDocumentPreview';
 export type { EnhancedDocumentContentProps } from './EnhancedDocumentContent';
-export type { DocumentAreaAdapterProps, DocumentAreaAdapterRef } from './DocumentAreaAdapter';
+// ✅ FIXED - Comment out non-existent DocumentAreaAdapter type exports (TS2307)
+// export type { DocumentAreaAdapterProps, DocumentAreaAdapterRef } from './DocumentAreaAdapter';
 export type { DocumentCommentSystemProps, Comment } from './DocumentCommentSystem';
 export type { DocumentSearchPanelProps, SearchResult, SearchOptions } from './DocumentSearchPanel';
 export type { DocumentShareModalProps, SharePermission, ShareRecipient, ShareLink } from './DocumentShareModal';

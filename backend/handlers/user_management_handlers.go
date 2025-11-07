@@ -17,14 +17,14 @@ import (
 
 // UserManagementHandler handles user management operations
 type UserManagementHandler struct {
-	userRepo    *database.UserManagementRepository
+	userRepo    database.UserService
 	projectRepo *database.PostgresProjectRepository
 	auditRepo   *database.PostgresAuditRepository
 	validator   *validator.Validate
 }
 
 // NewUserManagementHandler creates a new user management handler
-func NewUserManagementHandler(userRepo *database.UserManagementRepository, projectRepo *database.PostgresProjectRepository, auditRepo *database.PostgresAuditRepository) *UserManagementHandler {
+func NewUserManagementHandler(userRepo database.UserService, projectRepo *database.PostgresProjectRepository, auditRepo *database.PostgresAuditRepository) *UserManagementHandler {
 	return &UserManagementHandler{
 		userRepo:    userRepo,
 		projectRepo: projectRepo,

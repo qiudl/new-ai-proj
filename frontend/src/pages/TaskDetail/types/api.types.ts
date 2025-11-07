@@ -60,6 +60,10 @@ export interface RetryConfig {
   retryDelay: number;
   retryCondition?: (error: ApiError) => boolean;
   onRetry?: (retryCount: number, error: ApiError) => void;
+  // ✅ FIXED - Add missing properties used in baseService.ts (TS2339)
+  retryableStatuses?: number[];
+  baseDelay?: number;
+  maxDelay?: number;
 }
 
 // ========== Pagination Types ==========

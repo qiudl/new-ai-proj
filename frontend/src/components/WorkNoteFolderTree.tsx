@@ -16,6 +16,11 @@ import { useDebounce } from '../hooks/useDebounce';
 
 const { Search } = Input;
 
+// ✅ FIXED - Extend DataNode to include custom data property for storing folder info (TS2353)
+interface FolderTreeNode extends DataNode {
+  data?: WorkNoteFolder;
+}
+
 export interface WorkNoteFolderTreeProps {
   selectedFolderId?: number | null;
   onFolderSelect: (folderId: number | null, folder: WorkNoteFolder | null) => void;
@@ -216,7 +221,7 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
   }, [selectedFolderId, folders, onFolderCreate, onFolderEdit, onFolderDelete, onFolderMove]);
 
   // 将WorkNoteFolder转换为Tree DataNode
-  const folderToTreeNode = (folder: WorkNoteFolder): DataNode => {
+  const folderToTreeNode = (folder: WorkNoteFolder): FolderTreeNode => {
     const key = `folder-${folder.id}`;
     const hasChildren = folder.subfolders_count > 0;
     const isDragging = draggingKey === key;
@@ -265,8 +270,8 @@ const WorkNoteFolderTreeComponent: React.FC<WorkNoteFolderTreeProps> = ({
   };
 
   // 构建树数据
-  const treeData: DataNode[] = useMemo(() => {
-    const rootNode: DataNode = {
+  const treeData: FolderTreeNode[] = useMemo(() => {
+    const rootNode: FolderTreeNode = {
       key: 'root',
       title: (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>

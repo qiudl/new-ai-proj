@@ -113,8 +113,12 @@ class WeeklyReportService {
       const queryString = params.toString();
       const url = `/timer/weekly${queryString ? `?${queryString}` : ''}`;
       
-      const response = await api.get(url);
-      
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
+      const response = await api.get(url) as {
+        debug_info?: any;
+        [key: string]: any;
+      };
+
       // 验证响应结构
       if (!response || typeof response !== 'object') {
         console.warn('API响应格式无效:', response);
@@ -123,7 +127,7 @@ class WeeklyReportService {
 
       // Interceptor automatically unwraps response.data
       const rawData = response;
-      
+
       // 检查debug_info
       if (rawData.debug_info) {
         console.warn('API返回调试信息:', rawData.debug_info);

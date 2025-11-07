@@ -41,7 +41,8 @@ const VersionDetailModal: React.FC<VersionDetailModalProps> = ({
   onCompare,
   onRestore
 }) => {
-  const createdTime = dayjs(version.createdAt).format('YYYY-MM-DD HH:mm:ss');
+  // ✅ FIXED - Use snake_case property name (TS2551)
+  const createdTime = dayjs(version.created_at).format('YYYY-MM-DD HH:mm:ss');
 
   return (
     <Modal
@@ -89,7 +90,8 @@ const VersionDetailModal: React.FC<VersionDetailModalProps> = ({
         <Descriptions.Item label="创建人">
           <Space size="small">
             <UserOutlined />
-            <Text>{version.createdByName || version.createdBy}</Text>
+            {/* ✅ FIXED - Use snake_case property names (TS2551) */}
+            <Text>{version.created_by_name || version.created_by}</Text>
           </Space>
         </Descriptions.Item>
         {version.size && (

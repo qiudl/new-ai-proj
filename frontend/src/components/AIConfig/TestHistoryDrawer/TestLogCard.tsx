@@ -10,7 +10,7 @@ import {
   DownOutlined,
   RightOutlined
 } from '@ant-design/icons';
-import type { TestLog } from '@/types/aiConfig';
+import type { TestLog } from '../../../types/aiConfig';
 import dayjs from 'dayjs';
 
 const { Text, Paragraph } = Typography;

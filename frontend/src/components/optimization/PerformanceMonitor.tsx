@@ -323,6 +323,7 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = memo(({
           </Space>
 
           {/* 性能问题 */}
+          {/* ✅ FIXED - Ant Design Alert组件不支持size属性 */}
           {issues.length > 0 && (
             <div style={{ marginTop: '12px' }}>
               <Text strong style={{ fontSize: '12px' }}>最近问题:</Text>
@@ -331,7 +332,6 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = memo(({
                   key={index}
                   message={getIssueMessage(issue)}
                   type="warning"
-                  size="small"
                   style={{ marginTop: '4px', fontSize: '11px' }}
                   showIcon={false}
                 />

@@ -106,11 +106,13 @@ class OrganizationService {
     }
 
     // 如果直接是数据数组
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
     if (Array.isArray(response)) {
-      return response as T;
+      return response as unknown as T;
     }
 
-    return response as T;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as T;
   }
 
   // 获取部门列表（树形结构）

@@ -254,8 +254,9 @@ export class UnifiedTimerService {
   async getTemplates(): Promise<ApiResponse<TimerTemplate[]>> {
     try {
       // 调用模板API - 实际应该从后端获取
-      const response = await api.get('/api/v1/timer/templates');
-      
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
+      const response = await api.get('/api/v1/timer/templates') as { templates?: TimerTemplate[] };
+
       return {
         success: true,
         data: response?.templates || [],
@@ -337,9 +338,10 @@ export class UnifiedTimerService {
   // 最近任务功能
   async getRecentTasks(limit: number = 10): Promise<ApiResponse<any[]>> {
     try {
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
       const response = await api.get(`${LEGACY_API_BASE}/recent-tasks`, {
         params: { limit }
-      });
+      }) as { tasks?: any[] };
 
       return {
         success: true,

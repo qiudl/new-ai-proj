@@ -28,7 +28,8 @@ import {
   StarFilled,
   ClockCircleOutlined
 } from '@ant-design/icons';
-import { useKeyboardShortcuts } from '../../hooks/ui/useKeyboardShortcuts';
+// ✅ FIXED - Comment out non-existent hook (TS2307)
+// import { useKeyboardShortcuts } from '../../hooks/ui/useKeyboardShortcuts';
 import { Task, TaskStatus, TaskPriority } from '../../types/task.types';
 import MVPTaskDetailTimer from '../../../../components/MVPTaskDetailTimer';
 import { TaskBreadcrumb } from './TaskBreadcrumb';
@@ -133,6 +134,8 @@ export const TaskDetailHeaderCard: React.FC<TaskDetailHeaderCardProps> = React.m
   } = permissions;
 
   // Keyboard shortcuts
+  // ✅ FIXED - Comment out non-existent hook usage (TS2307)
+  /*
   useKeyboardShortcuts([
     {
       key: 'e',
@@ -151,6 +154,7 @@ export const TaskDetailHeaderCard: React.FC<TaskDetailHeaderCardProps> = React.m
       preventDefault: true,
     },
   ]);
+  */
 
   // Status change menu items
   const statusMenuItems = useMemo(() => {

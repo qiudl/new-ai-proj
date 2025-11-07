@@ -98,7 +98,27 @@ export class TimeManagementService {
   static async getTodayTaskStats(): Promise<TodayTaskStats> {
     try {
       // 优先尝试调用后端统计API
-      const response = await statsApi.get('/statistics/today-stats');
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
+      const response = await statsApi.get('/statistics/today-stats') as {
+        totalTasks?: number;
+        completedTasks?: number;
+        inProgressTasks?: number;
+        todoTasks?: number;
+        overdueTasks?: number;
+        completionRate?: number;
+        onTimeCompletionRate?: number;
+        totalPlannedTime?: number;
+        totalActualTime?: number;
+        totalRemainingTime?: number;
+        timeEfficiency?: number;
+        priorityDistribution?: { urgent: number; high: number; medium: number; low: number; unset: number };
+        estimatedWorkload?: number;
+        avgTaskDuration?: number;
+        yesterdayCompletion?: number;
+        weeklyTrend?: number;
+        urgentTasks?: any[];
+        upcomingDeadlines?: any[];
+      };
 
       if (response) {
         // 转换API数据为前端格式

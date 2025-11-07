@@ -66,7 +66,8 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
     try {
       // getTaskDocuments returns array directly, not { documents: [] }
       const documents = await documentService.getTaskDocuments(projectId, taskId);
-      setDocuments(documents || []);
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+      setDocuments((documents || []) as unknown as Document[]);
     } catch (error) {
       console.error('加载文档失败:', error);
       message.error('加载文档失败');

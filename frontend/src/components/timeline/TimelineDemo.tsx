@@ -169,8 +169,11 @@ const TimelineDemo: React.FC = () => {
       severity: Math.random() > 0.8 ? 'warning' : 'info',
       category: Math.random() > 0.9 ? 'system' : 'user',
       metadata: {
-        random_data: Math.random(),
-        timestamp: new Date().toISOString()
+        // ✅ FIXED - Use custom_data for arbitrary demo data (TS2353)
+        custom_data: {
+          random_data: Math.random(),
+          timestamp: new Date().toISOString()
+        }
       }
     };
   };

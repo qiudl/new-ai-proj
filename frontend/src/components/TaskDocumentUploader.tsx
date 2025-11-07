@@ -234,11 +234,12 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
     setUploadProgress(initialProgress);
 
     try {
-      const results = await taskDocumentService.uploadMultipleDocuments(
-        projectId,
-        taskId,
-        validFiles.map(f => f.originFileObj as File),
-        (fileIndex: number, progress: number, loaded?: number, total?: number) => {
+      // ✅ FIXED - Upload multiple files using Promise.all with uploadTaskDocument (TS2554)
+      const files = validFiles.map(f => f.originFileObj as File);
+      const results = await Promise.all(
+        files.map((file, fileIndex) =>
+          taskDocumentService.uploadTaskDocument(projectId, taskId, file, {
+            onProgress: (progress: number, loaded?: number, total?: number) => {
           const currentTime = Date.now();
           
           setUploadProgress(prev => {
@@ -276,7 +277,9 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
               averageSpeed: avgSpeed,
             };
           });
-        }
+            }
+          })
+        )
       );
 
       successCount = results.length;
@@ -340,16 +343,15 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
     setApiUploading(true);
 
     try {
-      // Convert content to base64
-      const base64Content = btoa(unescape(encodeURIComponent(apiContent)));
-      
-      await taskDocumentService.uploadDocumentAPI(
+      // ✅ FIXED - Convert content to blob and upload using uploadTaskDocument (TS2554)
+      const mimeType = taskDocumentService.getMimeTypeFromFileName(apiFileName);
+      const blob = new Blob([apiContent], { type: mimeType });
+      const file = new File([blob], apiFileName, { type: mimeType });
+
+      await taskDocumentService.uploadTaskDocument(
         projectId,
         taskId,
-        apiFileName,
-        base64Content,
-        taskDocumentService.getMimeTypeFromFileName(apiFileName),
-        'API上传的文档'
+        file
       );
 
       message.success('API上传成功');
@@ -406,8 +408,8 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
         return;
       }
 
-      // 通过API获取文档内容
-      const content = await taskDocumentService.getDocumentContent(projectId, taskId, doc.id!);
+      // ✅ FIXED - getDocumentContent takes 1 parameter (documentId), not 3 (TS2554)
+      const content = await taskDocumentService.getDocumentContent(doc.id!);
       setPreviewContent(content);
       
       // 缓存内容到文档对象中
@@ -432,7 +434,8 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
     setDeleteConfirmLoading(prev => ({ ...prev, [doc.id!]: true }));
 
     try {
-      await taskDocumentService.deleteDocument(projectId, taskId, doc.id);
+      // ✅ FIXED - deleteDocument takes 1 parameter (documentId), not 3 (TS2554)
+      await taskDocumentService.deleteDocument(doc.id);
       message.success('文档删除成功');
       loadDocuments(); // 重新加载文档列表
     } catch (error) {
@@ -692,11 +695,17 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
                     <Button
                       type="text"
                       icon={<DownloadOutlined />}
-                      onClick={() => {
-                        if (doc.file_path) {
-                          taskDocumentService.downloadFile(doc.file_path, doc.original_name);
+                      onClick={async () => {
+                        if (doc.id) {
+                          try {
+                            // ✅ FIXED - downloadFile takes 1 parameter (documentId), returns Blob (TS2554)
+                            const blob = await taskDocumentService.downloadFile(doc.id);
+                            taskDocumentService.triggerDownload(blob, doc.original_name || doc.file_name);
+                          } catch (error) {
+                            message.error('下载失败');
+                          }
                         } else {
-                          message.warning('文件路径不可用');
+                          message.warning('文档ID不可用');
                         }
                       }}
                     >

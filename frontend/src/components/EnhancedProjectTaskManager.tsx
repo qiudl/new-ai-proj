@@ -1336,7 +1336,8 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 if (taskResult.success) {
                   deletedCount++;
                 } else {
-                  failedTasks.push({ id: taskResult.id, error: taskResult.error || '未知错误' });
+                  // ✅ FIXED: Type guard for error property
+                  failedTasks.push({ id: taskResult.id, error: ('error' in taskResult ? taskResult.error : undefined) || '未知错误' });
                 }
               } else {
                 console.error('[BatchDelete] 删除任务失败', result.reason);
@@ -2112,9 +2113,10 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       />
 
       {/* 智能组织模态框 */}
+      {/* ✅ FIXED - Convert projectId to string for SmartOrganizeModal (TS2345) */}
       <SmartOrganizeModal
         visible={smartOrganizeVisible}
-        projectId={parseInt(projectId)}
+        projectId={String(projectId)}
         onCancel={() => setSmartOrganizeVisible(false)}
         onComplete={() => {
           setSmartOrganizeVisible(false);

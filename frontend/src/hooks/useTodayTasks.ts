@@ -38,13 +38,22 @@ interface UseTodayTasksReturn {
 
 const DEFAULT_STATS: TodayTasksStats = {
   total_count: 0,
+  completed_count: 0,
   in_progress_count: 0,
+  pending_count: 0,
+  overdue_count: 0,
   due_today_count: 0,
   created_today_count: 0,
   updated_today_count: 0,
-  overdue_count: 0,
   high_priority_count: 0,
-  
+
+  // 优先级统计
+  priority_stats: {
+    high: 0,
+    medium: 0,
+    low: 0
+  },
+
   // 精准时间统计默认值
   totalPlannedTime: 0,
   totalActualTime: 0,
@@ -58,7 +67,10 @@ const DEFAULT_STATS: TodayTasksStats = {
     medium: 0, // 2-8小时
     long: 0,   // 8小时以上
     huge: 0    // 1天以上
-  }
+  },
+
+  // 完成率
+  completion_rate: 0
 };
 
 export const useTodayTasks = (options: UseTodayTasksOptions = {}): UseTodayTasksReturn => {

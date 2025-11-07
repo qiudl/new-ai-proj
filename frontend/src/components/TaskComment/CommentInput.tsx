@@ -4,12 +4,11 @@
  */
 
 import React, { useState } from 'react';
-import { Input, Button, Space, message } from 'antd';
+import { Button, Space, message } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import { createComment } from '../../services/taskCommentService';
 import { COMMENT_CONSTANTS } from '../../types/taskComment';
-
-const { TextArea } = Input;
+import MentionInput from '../MentionInput';
 
 export interface CommentInputProps {
   taskId: number;
@@ -31,6 +30,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
 }) => {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mentionedUserIds, setMentionedUserIds] = useState<number[]>([]);
 
   // 字符计数
   const charCount = content.length;
@@ -55,9 +55,11 @@ const CommentInput: React.FC<CommentInputProps> = ({
 
     setLoading(true);
     try {
+      // TODO: Update createComment to support mentionedUserIds
       await createComment(taskId, trimmedContent);
       message.success('评论添加成功');
       setContent(''); // 清空输入框
+      setMentionedUserIds([]); // 清空提及用户
       onCommentAdded?.(); // 通知父组件刷新评论列表
     } catch (error: any) {
       console.error('Failed to create comment:', error);
@@ -67,25 +69,15 @@ const CommentInput: React.FC<CommentInputProps> = ({
     }
   };
 
-  /**
-   * 处理键盘事件 (Ctrl+Enter提交)
-   */
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
-
   return (
     <div className={`comment-input ${className}`} style={style}>
-      <TextArea
+      <MentionInput
         value={content}
-        onChange={(e) => setContent(e.target.value)}
-        onKeyDown={handleKeyDown}
+        onChange={setContent}
+        onMentionedUsersChange={setMentionedUserIds}
         placeholder={placeholder}
         autoSize={{ minRows: 2, maxRows: 6 }}
-        maxLength={maxLength + 1} // 允许输入超过限制以显示错误提示
+        maxLength={maxLength}
         disabled={loading}
       />
 
@@ -105,7 +97,10 @@ const CommentInput: React.FC<CommentInputProps> = ({
         <Space>
           <Button
             size="small"
-            onClick={() => setContent('')}
+            onClick={() => {
+              setContent('');
+              setMentionedUserIds([]);
+            }}
             disabled={!content || loading}
           >
             清空

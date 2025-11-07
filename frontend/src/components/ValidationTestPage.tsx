@@ -180,10 +180,11 @@ const ValidationTestPage: React.FC<ValidationTestPageProps> = () => {
 
   // 手动触发验证错误
   const triggerValidationError = () => {
+    // ✅ FIXED - Change string[] to string to match Record<string, string> type (TS2345)
     const mockErrors = {
-      title: ['标题不能为空', '标题格式不正确'],
-      priority: ['优先级必须选择'],
-      assignee_id: ['必须指定负责人'],
+      title: '标题不能为空',
+      priority: '优先级必须选择',
+      assignee_id: '必须指定负责人',
     };
     setValidationErrors(mockErrors);
   };

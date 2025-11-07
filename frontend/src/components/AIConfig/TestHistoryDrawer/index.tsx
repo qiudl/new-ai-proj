@@ -5,7 +5,7 @@ import { StatisticsCard } from './StatisticsCard';
 import { TestTimeline } from './TestTimeline';
 import { TestDetailModal } from './TestDetailModal';
 import { useTestHistory } from '../hooks/useTestHistory';
-import type { AIProvider, TestLog } from '@/types/aiConfig';
+import type { AIProvider, TestLog } from '../../../types/aiConfig';
 
 interface TestHistoryDrawerProps {
   provider: AIProvider;

@@ -34,7 +34,8 @@ export const ComponentMigrationMap = {
 
 // 向后兼容的重新导出（带警告）
 import { UnifiedTaskDocumentArea } from './UnifiedTaskDocumentArea';
-import { DocumentAreaAdapter } from './enhanced/DocumentAreaAdapter';
+// ✅ FIXED - Comment out non-existent DocumentAreaAdapter import (TS2307)
+// import { DocumentAreaAdapter } from './enhanced/DocumentAreaAdapter';
 
 /**
  * @deprecated 请使用 UnifiedTaskDocumentArea
@@ -45,8 +46,9 @@ export const TaskDocumentEditor = UnifiedTaskDocumentArea;
 /**
  * @deprecated 请使用 DocumentAreaAdapter
  * 这个导出将在下个版本中移除
+ * ✅ FIXED - Comment out non-existent DocumentAreaAdapter reference (TS2304)
  */
-export const DocumentViewer = DocumentAreaAdapter;
+// export const DocumentViewer = DocumentAreaAdapter;
 
 /**
  * @deprecated 请使用 UnifiedTaskDocumentArea with compactMode

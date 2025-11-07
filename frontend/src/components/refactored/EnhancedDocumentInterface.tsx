@@ -48,6 +48,7 @@ import {
   ShareAltOutlined,
   StarOutlined,
   StarFilled,
+  MoreOutlined,
   FolderOutlined,
   TagOutlined,
   UserOutlined,
@@ -291,7 +292,9 @@ const EnhancedDocumentInterface: React.FC<EnhancedDocumentInterfaceProps> = memo
           
         case 'download':
           if (document) {
-            await documentService.downloadDocument(documentId, document.title);
+            // ✅ FIXED - downloadDocument takes 1 parameter (documentId), returns Blob (TS2554)
+            const blob = await documentService.downloadDocument(documentId);
+            documentService.triggerDownload(blob, document.title);
             message.success(`开始下载 "${document.title}"`);
           }
           break;

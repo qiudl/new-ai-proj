@@ -53,4 +53,34 @@ export const userService = {
       timestamp: new Date().toISOString(),
     } as APIResponse<null>;
   },
+
+  // Search users by username or email
+  searchUsers: async (query: string, page: number = 1, pageSize: number = 20): Promise<{
+    users: User[];
+    total: number;
+  }> => {
+    try {
+      const response = await api.get('/api/v1/system/users', {
+        params: {
+          search: query,
+          page,
+          page_size: pageSize,
+        },
+      });
+
+      // Handle different response formats
+      const data = response.data || response;
+
+      return {
+        users: data.users || data.data || [],
+        total: data.total || 0,
+      };
+    } catch (error: any) {
+      console.error('Failed to search users:', error);
+      return {
+        users: [],
+        total: 0,
+      };
+    }
+  },
 };

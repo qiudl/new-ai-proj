@@ -2,23 +2,23 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
 
+	"ai-project-backend/database"
 	"ai-project-backend/models"
 )
 
 // PermissionService provides core permission management functionality
 type PermissionService struct {
-	db *sql.DB
+	repo database.PermissionServiceRepository
 }
 
 // NewPermissionService creates a new permission service instance
-func NewPermissionService(db *sql.DB) *PermissionService {
+func NewPermissionService(repo database.PermissionServiceRepository) *PermissionService {
 	return &PermissionService{
-		db: db,
+		repo: repo,
 	}
 }
 
@@ -604,19 +604,15 @@ func (s *PermissionService) GetUserEffectivePermissions(ctx context.Context, use
 
 // isSystemAdmin checks if a user is a system-level admin in users table
 func (s *PermissionService) isSystemAdmin(ctx context.Context, userID int) bool {
-	if userID == 0 || s.db == nil {
+	if userID == 0 {
 		return false
 	}
-	var role, status string
-	query := `SELECT role, status FROM users WHERE id = $1 LIMIT 1`
-	err := s.db.QueryRowContext(ctx, query, userID).Scan(&role, &status)
+
+	isAdmin, err := s.repo.IsSystemAdmin(ctx, userID)
 	if err != nil {
 		return false
 	}
-	if status != "active" {
-		return false
-	}
-	return role == "admin"
+	return isAdmin
 }
 
 // ============================================================================
@@ -663,35 +659,11 @@ func (s *PermissionService) FilterResourcesByPermission(ctx context.Context, use
 
 // GetUserAccessibleProjects returns projects that user has access to
 func (s *PermissionService) GetUserAccessibleProjects(ctx context.Context, userID int) ([]int, error) {
-	// Query to get all projects user has access to
-	query := `
-		SELECT DISTINCT p.id 
-		FROM project p
-		LEFT JOIN company_user_project_permission cupp ON p.id = cupp.project_id
-		LEFT JOIN company_user cu ON cupp.company_user_id = cu.id
-		WHERE cu.user_id = $1 AND cupp.can_view_project = true
-		OR p.id IN (
-			SELECT DISTINCT project_id 
-			FROM task 
-			WHERE assignee_id = $1
-		)
-	`
-
-	rows, err := s.db.QueryContext(ctx, query, userID)
+	// Delegate to repository
+	projectIDs, err := s.repo.GetUserAccessibleProjects(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query accessible projects: %w", err)
+		return nil, fmt.Errorf("failed to get accessible projects: %w", err)
 	}
-	defer rows.Close()
-
-	var projectIDs []int
-	for rows.Next() {
-		var projectID int
-		if err := rows.Scan(&projectID); err != nil {
-			return nil, fmt.Errorf("failed to scan project ID: %w", err)
-		}
-		projectIDs = append(projectIDs, projectID)
-	}
-
 	return projectIDs, nil
 }
 
@@ -706,21 +678,13 @@ func (s *PermissionService) buildPermissionCode(resourceType ResourceType, actio
 
 // checkCustomPermissions checks for user-specific permission overrides
 func (s *PermissionService) checkCustomPermissions(ctx context.Context, permCtx *UserPermissionContext, permissionCode string) (bool, string, string) {
-	// Query for custom permission overrides
-	query := `
-		SELECT is_granted 
-		FROM user_custom_permission 
-		WHERE user_id = $1 AND permission_code = $2 AND is_active = true
-		ORDER BY created_at DESC 
-		LIMIT 1
-	`
-
-	var isGranted bool
-	err := s.db.QueryRowContext(ctx, query, permCtx.UserID, permissionCode).Scan(&isGranted)
+	// Delegate to repository
+	isSet, isGranted, err := s.repo.CheckCustomPermission(ctx, permCtx.UserID, permissionCode)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, "", ""
-		}
+		return false, "", ""
+	}
+
+	if !isSet {
 		return false, "", ""
 	}
 
@@ -738,58 +702,44 @@ func (s *PermissionService) checkProjectPermissions(ctx context.Context, permCtx
 	}
 
 	// Get user's company_user_id first
-	var companyUserID int
-	err := s.db.QueryRowContext(ctx,
-		"SELECT id FROM company_user WHERE user_id = $1 LIMIT 1",
-		permCtx.UserID).Scan(&companyUserID)
+	companyUserID, err := s.repo.GetCompanyUserID(ctx, permCtx.UserID)
 	if err != nil {
 		return false, "", ""
 	}
 
-	// Check project-specific permissions
-	query := `
-		SELECT 
-			can_view_project, can_edit_project, can_delete_project,
-			can_manage_tasks, can_view_financials, can_manage_members
-		FROM company_user_project_permission 
-		WHERE company_user_id = $1 AND project_id = $2
-		AND (permission_end_date IS NULL OR permission_end_date > NOW())
-	`
-
-	var canView, canEdit, canDelete, canManageTasks, canViewFinancials, canManageMembers bool
-	err = s.db.QueryRowContext(ctx, query, companyUserID, *permCtx.ProjectID).Scan(
-		&canView, &canEdit, &canDelete, &canManageTasks, &canViewFinancials, &canManageMembers)
+	// Get project-specific permissions from repository
+	permissions, err := s.repo.GetProjectPermissions(ctx, companyUserID, *permCtx.ProjectID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, "", ""
-		}
+		return false, "", ""
+	}
+	if permissions == nil {
 		return false, "", ""
 	}
 
-	// Map permission codes to project permissions
+	// Map permission codes to project permissions (business logic stays in service)
 	switch permissionCode {
 	case "project.read":
-		if canView {
+		if permissions.CanViewProject {
 			return true, "project_permission", "granted by project-specific permission"
 		}
 	case "project.update":
-		if canEdit {
+		if permissions.CanEditProject {
 			return true, "project_permission", "granted by project-specific permission"
 		}
 	case "project.delete":
-		if canDelete {
+		if permissions.CanDeleteProject {
 			return true, "project_permission", "granted by project-specific permission"
 		}
 	case "task.read", "task.create", "task.update", "task.delete", "task.assign":
-		if canManageTasks {
+		if permissions.CanManageTasks {
 			return true, "project_permission", "granted by project task management permission"
 		}
 	case "finance.read", "finance.manage":
-		if canViewFinancials {
+		if permissions.CanViewFinancials {
 			return true, "project_permission", "granted by project financial permission"
 		}
 	case "user.read", "user.manage":
-		if canManageMembers {
+		if permissions.CanManageMembers {
 			return true, "project_permission", "granted by project member management permission"
 		}
 	}
@@ -799,35 +749,18 @@ func (s *PermissionService) checkProjectPermissions(ctx context.Context, permCtx
 
 // checkRolePermissions checks role-based permissions
 func (s *PermissionService) checkRolePermissions(ctx context.Context, permCtx *UserPermissionContext, permissionCode string) (bool, string, string) {
-	// Get user's role permissions
-	query := `
-		SELECT DISTINCT p.permission_code, rp.is_granted
-		FROM company_user cu
-		JOIN company_role cr ON cu.role_id = cr.id
-		JOIN role_permission rp ON cr.id = rp.role_id  
-		JOIN permission p ON rp.permission_id = p.id
-		WHERE cu.user_id = $1 AND cr.is_active = true AND p.is_active = true
-	`
-
-	rows, err := s.db.QueryContext(ctx, query, permCtx.UserID)
+	// Get user's role permissions from repository
+	permissions, err := s.repo.GetUserRolePermissions(ctx, permCtx.UserID)
 	if err != nil {
 		return false, "", ""
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var permCode string
-		var isGranted bool
-		if err := rows.Scan(&permCode, &isGranted); err != nil {
-			continue
-		}
-
-		if permCode == permissionCode {
-			if isGranted {
-				return true, "role_permission", "granted by user role"
-			} else {
-				return false, "role_permission", "denied by user role"
-			}
+	// Check if permission exists and is granted
+	if isGranted, exists := permissions[permissionCode]; exists {
+		if isGranted {
+			return true, "role_permission", "granted by user role"
+		} else {
+			return false, "role_permission", "denied by user role"
 		}
 	}
 
@@ -837,45 +770,23 @@ func (s *PermissionService) checkRolePermissions(ctx context.Context, permCtx *U
 // checkDynamicPermissions checks for delegated or temporary permissions
 func (s *PermissionService) checkDynamicPermissions(ctx context.Context, permCtx *UserPermissionContext, permissionCode string) (bool, string, string) {
 	// Check for active delegations
-	query := `
-		SELECT delegator_name, reason
-		FROM permission_delegation pd
-		WHERE pd.delegate_id = $1 
-		AND pd.is_active = true 
-		AND pd.valid_from <= NOW() 
-		AND pd.valid_until > NOW()
-		AND $2 = ANY(pd.permission_codes)
-	`
-
 	if permCtx.ProjectID != nil {
-		query += " AND (pd.resource_type = 'project' AND pd.resource_id = $3)"
-
-		var delegatorName, reason string
-		err := s.db.QueryRowContext(ctx, query, permCtx.UserID, permissionCode, *permCtx.ProjectID).Scan(&delegatorName, &reason)
-		if err == nil {
+		// Check delegation with project context
+		found, delegatorName, reason, err := s.repo.CheckPermissionDelegationWithProject(ctx, permCtx.UserID, permissionCode, *permCtx.ProjectID)
+		if err == nil && found {
 			return true, "delegation", fmt.Sprintf("delegated by %s: %s", delegatorName, reason)
 		}
 	} else {
-		var delegatorName, reason string
-		err := s.db.QueryRowContext(ctx, query, permCtx.UserID, permissionCode).Scan(&delegatorName, &reason)
-		if err == nil {
+		// Check delegation without project context
+		found, delegatorName, reason, err := s.repo.CheckPermissionDelegationWithoutProject(ctx, permCtx.UserID, permissionCode)
+		if err == nil && found {
 			return true, "delegation", fmt.Sprintf("delegated by %s: %s", delegatorName, reason)
 		}
 	}
 
 	// Check for temporary permissions from approved requests
-	tempQuery := `
-		SELECT pr.justification
-		FROM permission_request pr
-		WHERE pr.requester_id = $1 
-		AND pr.permission_code = $2
-		AND pr.status = 'approved'
-		AND pr.expires_at > NOW()
-	`
-
-	var justification string
-	err := s.db.QueryRowContext(ctx, tempQuery, permCtx.UserID, permissionCode).Scan(&justification)
-	if err == nil {
+	found, justification, err := s.repo.CheckTemporaryPermission(ctx, permCtx.UserID, permissionCode)
+	if err == nil && found {
 		return true, "temporary_permission", fmt.Sprintf("temporary permission: %s", justification)
 	}
 
@@ -903,81 +814,43 @@ func (s *PermissionService) checkPolicyPermissions(ctx context.Context, permCtx 
 func (s *PermissionService) InitializeSystemPermissions(ctx context.Context) error {
 	permissions := s.GetSystemPermissions()
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
+	// Delegate each permission upsert to repository
 	for _, perm := range permissions {
-		// Insert or update permission
-		query := `
-			INSERT INTO permission (
-				permission_code, permission_name, permission_description, 
-				module, resource, action, is_active, created_at
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-			ON CONFLICT (permission_code) DO UPDATE SET
-				permission_name = EXCLUDED.permission_name,
-				permission_description = EXCLUDED.permission_description,
-				module = EXCLUDED.module,
-				resource = EXCLUDED.resource,
-				action = EXCLUDED.action,
-				is_active = EXCLUDED.is_active
-		`
-
-		_, err := tx.ExecContext(ctx, query,
+		err := s.repo.UpsertPermission(ctx,
 			perm.Code, perm.Name, perm.Description,
 			string(perm.Category), string(perm.Resource), string(perm.Action), perm.IsActive)
 		if err != nil {
-			return fmt.Errorf("failed to insert permission %s: %w", perm.Code, err)
+			return fmt.Errorf("failed to upsert permission %s: %w", perm.Code, err)
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 // CreateRole creates a new role with specified permissions
 func (s *PermissionService) CreateRole(ctx context.Context, roleCode, roleName, description string, permissionCodes []string) (*models.CompanyRole, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Create role
-	var roleID int
-	err = tx.QueryRowContext(ctx, `
-		INSERT INTO company_role (role_code, role_name, role_description, is_system_role, is_active, created_at, updated_at)
-		VALUES ($1, $2, $3, false, true, NOW(), NOW())
-		RETURNING id
-	`, roleCode, roleName, description).Scan(&roleID)
+	// Create role record
+	roleID, err := s.repo.CreateRoleRecord(ctx, roleCode, roleName, description)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create role: %w", err)
 	}
 
 	// Add permissions to role
 	for _, permCode := range permissionCodes {
-		var permID int
-		err = tx.QueryRowContext(ctx,
-			"SELECT id FROM permission WHERE permission_code = $1", permCode).Scan(&permID)
-		if err != nil {
+		// Get permission ID
+		permID, err := s.repo.GetPermissionIDByCode(ctx, permCode)
+		if err != nil || permID == 0 {
 			continue // Skip invalid permissions
 		}
 
-		_, err = tx.ExecContext(ctx, `
-			INSERT INTO role_permission (role_id, permission_id, is_granted, created_at)
-			VALUES ($1, $2, true, NOW())
-		`, roleID, permID)
+		// Assign permission to role
+		err = s.repo.AssignPermissionToRole(ctx, roleID, permID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to assign permission %s to role: %w", permCode, err)
 		}
 	}
 
-	if err = tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	// Return the created role
+	// Return the created role (business logic stays in service)
 	role := &models.CompanyRole{
 		ID:              roleID,
 		RoleCode:        roleCode,
@@ -994,56 +867,34 @@ func (s *PermissionService) CreateRole(ctx context.Context, roleCode, roleName, 
 
 // AssignRoleToUser assigns a role to a user
 func (s *PermissionService) AssignRoleToUser(ctx context.Context, userID int, roleID int) error {
-	query := `
-		UPDATE company_user 
-		SET role_id = $1, updated_at = NOW()
-		WHERE user_id = $2
-	`
-
-	_, err := s.db.ExecContext(ctx, query, roleID, userID)
+	// Delegate to repository
+	err := s.repo.UpdateUserRole(ctx, userID, roleID)
 	if err != nil {
 		return fmt.Errorf("failed to assign role to user: %w", err)
 	}
-
 	return nil
 }
 
 // GrantProjectPermission grants specific permissions to a user for a project
 func (s *PermissionService) GrantProjectPermission(ctx context.Context, userID int, projectID int, permissions map[string]bool) error {
 	// Get user's company_user_id
-	var companyUserID int
-	err := s.db.QueryRowContext(ctx,
-		"SELECT id FROM company_user WHERE user_id = $1 LIMIT 1",
-		userID).Scan(&companyUserID)
+	companyUserID, err := s.repo.GetCompanyUserID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to get company user ID: %w", err)
 	}
 
-	// Insert or update project permissions
-	query := `
-		INSERT INTO company_user_project_permission (
-			company_user_id, project_id, can_view_project, can_edit_project,
-			can_delete_project, can_manage_tasks, can_view_financials, 
-			can_manage_members, permission_start_date, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), NOW())
-		ON CONFLICT (company_user_id, project_id) DO UPDATE SET
-			can_view_project = EXCLUDED.can_view_project,
-			can_edit_project = EXCLUDED.can_edit_project,
-			can_delete_project = EXCLUDED.can_delete_project,
-			can_manage_tasks = EXCLUDED.can_manage_tasks,
-			can_view_financials = EXCLUDED.can_view_financials,
-			can_manage_members = EXCLUDED.can_manage_members,
-			updated_at = NOW()
-	`
+	// Convert map to ProjectPermissionData struct (business logic stays in service)
+	permData := &database.ProjectPermissionData{
+		CanViewProject:    permissions["can_view_project"],
+		CanEditProject:    permissions["can_edit_project"],
+		CanDeleteProject:  permissions["can_delete_project"],
+		CanManageTasks:    permissions["can_manage_tasks"],
+		CanViewFinancials: permissions["can_view_financials"],
+		CanManageMembers:  permissions["can_manage_members"],
+	}
 
-	_, err = s.db.ExecContext(ctx, query, companyUserID, projectID,
-		permissions["can_view_project"],
-		permissions["can_edit_project"],
-		permissions["can_delete_project"],
-		permissions["can_manage_tasks"],
-		permissions["can_view_financials"],
-		permissions["can_manage_members"])
-
+	// Delegate to repository
+	err = s.repo.UpsertProjectPermissions(ctx, companyUserID, projectID, permData)
 	if err != nil {
 		return fmt.Errorf("failed to grant project permission: %w", err)
 	}

@@ -1,6 +1,7 @@
 import api from './api';
 
-import { ValidationHelper, AppError } from '../utils/errorTypes';
+// ✅ FIXED - Add ErrorType to imports (TS2304)
+import { ValidationHelper, AppError, ErrorType } from '../utils/errorTypes';
 import { logApiError, logTaskAction, logPerformance } from '../utils/logger';
 import { API_ENDPOINTS, apiConfig } from '../config/apiConfig';
 import { validateTaskRequest, sanitizeForAPI, sanitizeFromAPI } from '../utils/dataValidator';
@@ -407,8 +408,9 @@ const mergedRaw = { ...(params || {}) } as any;
 
       // Case 2: Axios interceptor unwrapped to payload already
       // 2A) Direct PaginatedResponse shape
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
       if (response && typeof response === 'object' && Array.isArray(response.data) && response.pagination) {
-        return response as PaginatedResponse<Task>;
+        return response as unknown as PaginatedResponse<Task>;
       }
       // 2B) Nested inside a data field: { data: { data: Task[], pagination: {...} } }
       const nested = response?.data;
@@ -528,6 +530,35 @@ const mergedRaw = { ...(params || {}) } as any;
       throw error;
     }
   }
+
+  /**
+   * Get a task by ID (without needing project ID)
+   * ✅ ADDED - 通过任务ID获取任务(不需要项目ID)
+   */
+  static async getTaskById(taskId: number): Promise<Task> {
+    try {
+      // Use the /tasks endpoint with task ID filter
+      const response: any = await api.get(`/tasks`, {
+        params: {
+          ids: taskId,
+          page: 1,
+          page_size: 1
+        }
+      });
+
+      // Handle paginated response
+      if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+        return response.data[0] as Task;
+      }
+
+      // If no task found, throw error
+      throw new Error(`Task with ID ${taskId} not found`);
+    } catch (error) {
+      console.error('TaskService.getTaskById error:', error);
+      throw error;
+    }
+  }
+
   /**
    * Create a new task
    */
@@ -577,9 +608,10 @@ const mergedRaw = { ...(params || {}) } as any;
           const taskIdMatch = errorMessage.match(/任务ID[：:]\s*(\d+)/);
           const existingTaskId = taskIdMatch ? taskIdMatch[1] : '';
 
+          // ✅ FIXED - Use ErrorType.BUSINESS_LOGIC instead of string literal (TS2345)
           const friendlyError = new AppError(
             `任务创建失败：标题 "${task.title}" 已存在于当前项目中${existingTaskId ? `（已存在任务ID: ${existingTaskId}）` : ''}。\n\n建议解决方案：\n1. 修改任务标题，使其更具体或添加编号\n2. 检查已存在的任务是否可以复用\n3. 如需要，可以将其作为已存在任务的子任务`,
-            'DUPLICATE_TITLE',
+            ErrorType.BUSINESS_LOGIC,
             409
           );
 
@@ -702,7 +734,8 @@ const mergedRaw = { ...(params || {}) } as any;
     targetProjectId: number
   ): Promise<Task> {
     try {
-      logTaskAction('updateTaskProject', { projectId, taskId, targetProjectId });
+      // ✅ FIXED - logTaskAction expects (action, taskId, projectId, error?) (TS2554)
+      logTaskAction('updateTaskProject', taskId, projectId);
 
       const response: any = await api.put(
         `/projects/${projectId}/tasks/${taskId}/project`,
@@ -1086,9 +1119,10 @@ const mergedRaw = { ...(params || {}) } as any;
         return { data: response as TimelineEvent[], pagination: buildPagination((response as TimelineEvent[]).length) };
       }
       // 2B) PaginatedResponse shape { data: TimelineEvent[], pagination }
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
       if (response && typeof response === 'object' && Array.isArray((response as any).data) && (response as any).pagination) {
         console.log(`[TaskService] getTaskTimeline case 2B: unwrapped paginated response`);
-        return response as PaginatedResponse<TimelineEvent>;
+        return response as unknown as PaginatedResponse<TimelineEvent>;
       }
       // 2C) Nested shape { data: { data: TimelineEvent[], pagination } }
       const nested = (response as any)?.data;
@@ -1166,8 +1200,9 @@ const mergedRaw = { ...(params || {}) } as any;
       if (Array.isArray(response)) {
         return { data: response as TimelineEvent[], pagination: buildPagination((response as TimelineEvent[]).length) };
       }
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
       if (response && typeof response === 'object' && Array.isArray((response as any).data) && (response as any).pagination) {
-        return response as PaginatedResponse<TimelineEvent>;
+        return response as unknown as PaginatedResponse<TimelineEvent>;
       }
       const nested = (response as any)?.data;
       if (nested && typeof nested === 'object' && Array.isArray(nested.data) && nested.pagination) {

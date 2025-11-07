@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useImpersonation } from '../contexts/ImpersonationContext';
-import { 
-  ImpersonationWarning, 
+import {
+  ImpersonationWarning,
   ImpersonationWarningType,
-  ImpersonationPermissions 
+  ImpersonationPermissions
 } from '../types/impersonation';
 import impersonationService from '../services/impersonationService';
+import { getCurrentUser, isSystemAdmin } from '../utils/userUtils';
 
 /**
  * 模拟状态管理的自定义Hook
@@ -33,13 +34,18 @@ export const useImpersonationState = () => {
       });
     } catch (error) {
       console.error('检查权限失败:', error);
-      // 设置默认权限
+
+      // 权限检查失败时，根据用户角色设置默认权限
+      const currentUser = getCurrentUser();
+      const isSysAdmin = isSystemAdmin(currentUser);
+
+      // 系统管理员默认有模拟权限
       setPermissions({
-        canStartImpersonation: false,
+        canStartImpersonation: isSysAdmin && !context.isImpersonating,
         canExitImpersonation: context.isImpersonating,
-        canViewHistory: false,
-        canAccessSensitiveOperations: false,
-        restrictedActions: ['*']
+        canViewHistory: isSysAdmin,
+        canAccessSensitiveOperations: !context.isImpersonating,
+        restrictedActions: isSysAdmin ? [] : ['*']
       });
     }
   }, [context.isImpersonating]);

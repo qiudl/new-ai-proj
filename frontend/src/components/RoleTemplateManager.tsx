@@ -100,10 +100,14 @@ const RoleTemplateManager: React.FC<RoleTemplateManagerProps> = ({
   const loadTemplates = useCallback(async (params?: Partial<RoleTemplateListParams>) => {
     setLoading(true);
     try {
+      // ✅ FIXED - Filter out empty string from category to match TemplateCategory type (TS2322)
+      const { category, ...otherFilters } = filters;
       const queryParams: RoleTemplateListParams = {
         page: pagination.current,
         page_size: pagination.pageSize,
-        ...filters,
+        ...otherFilters,
+        // Only include category if it's not an empty string
+        ...(category && category !== '' ? { category } : {}),
         ...params
       };
 
@@ -140,13 +144,18 @@ const RoleTemplateManager: React.FC<RoleTemplateManagerProps> = ({
       // const statsData = await roleTemplateService.getTemplateStats();
       // setStats(statsData);
 
+      // ✅ FIXED - Add missing fields with proper types for RoleTemplateStats (TS2345)
       // 临时使用模拟数据
       setStats({
         total_templates: 0,
         system_templates: 0,
         business_templates: 0,
-        custom_templates: 0
-      });
+        custom_templates: 0,
+        active_templates: 0,
+        inactive_templates: 0,
+        template_usage_count: 0,
+        most_used_templates: [] as Array<{ template: RoleTemplate; usage_count: number }>
+      } as RoleTemplateStats);
     } catch (error: any) {
       console.error('Failed to load template stats:', error);
     }

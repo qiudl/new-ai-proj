@@ -2,8 +2,15 @@
  * Task-related type definitions
  */
 
+// ✅ FIXED - Import Task from central types to avoid type duplication (TS2322, TS2304)
+import type { Task } from '../../../types/task';
+export type { Task };
+
 // ========== Core Task Types ==========
 
+// Note: Task interface now imported from central types
+// Keeping this commented for reference of what fields were here
+/*
 export interface Task {
   id: number;
   project_id: number;
@@ -18,7 +25,7 @@ export interface Task {
   custom_fields?: Record<string, any>;
   created_at: string;
   updated_at: string;
-  
+
   // Additional fields
   task_level?: number;
   sort_order?: number;
@@ -30,6 +37,7 @@ export interface Task {
   actual_hours?: number;
   completion_percentage?: number;
 }
+*/
 
 export type TaskStatus = 
   | 'draft'

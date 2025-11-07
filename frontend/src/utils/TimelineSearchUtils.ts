@@ -293,8 +293,9 @@ export class TimelineSearchUtils {
     let filtered = events;
 
     // 事件类型过滤
-    if (filter.eventTypes && filter.eventTypes.length > 0) {
-      filtered = filtered.filter(event => filter.eventTypes!.includes(event.event_type));
+    // ✅ FIXED - Use snake_case property name event_types (TS2551)
+    if (filter.event_types && filter.event_types.length > 0) {
+      filtered = filtered.filter(event => filter.event_types!.includes(event.event_type));
     }
 
     // 严重性过滤
@@ -312,9 +313,10 @@ export class TimelineSearchUtils {
     }
 
     // 用户名过滤
-    if (filter.users && filter.users.length > 0) {
-      filtered = filtered.filter(event => 
-        event.username && filter.users!.includes(event.username)
+    // ✅ FIXED - Use user_id (number) instead of username (string) for userIds filter (TS2345)
+    if (filter.userIds && filter.userIds.length > 0) {
+      filtered = filtered.filter(event =>
+        event.user_id && filter.userIds!.includes(event.user_id)
       );
     }
 
@@ -539,8 +541,9 @@ export class TimelineSearchUtils {
 
       // 关键词提取
       const text = `${event.description} ${event.task_title || ''}`;
-      const words = text.match(/[\u4e00-\u9fa5]+|[a-zA-Z]+/g) || [];
-      
+      // ✅ FIXED - 显式类型标注避免类型收窄为never
+      const words: string[] = text.match(/[\u4e00-\u9fa5]+|[a-zA-Z]+/g) || [];
+
       words.forEach(word => {
         if (word.length > 1) {
           suggestions.add(word);

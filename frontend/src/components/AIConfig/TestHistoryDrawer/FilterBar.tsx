@@ -1,7 +1,7 @@
 import React from 'react';
 import { Row, Col, Select, Input } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
-import type { TestHistoryFilters } from '@/types/aiConfig';
+import type { TestHistoryFilters } from '../../../types/aiConfig';
 
 const { Option } = Select;
 

@@ -11,6 +11,7 @@ interface ShortcutHelpProps {
     key: string;
     description: string;
     category: string;
+    icon?: string;
   }>;
 }
 

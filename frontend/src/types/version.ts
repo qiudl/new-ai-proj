@@ -13,18 +13,23 @@ export interface DocumentVersion {
   id: number;
   document_id: number;
   version_number: number;
+  version: number; // 别名，向后兼容
   title: string;
   content?: string;
   file_url?: string;
   file_size: number;
+  size?: number; // 别名，向后兼容
   mime_type?: string;
   change_summary?: string;
+  summary?: string; // 别名，向后兼容
+  changeType?: 'major' | 'minor' | 'patch' | 'feature' | 'bugfix' | 'hotfix'; // 变更类型
   created_by: number;
   created_at: string;
   is_major_version: boolean;
+  isCurrent?: boolean; // 是否是当前版本
   tags: string[];
   metadata: Record<string, any>;
-  
+
   // Related fields
   document_title?: string;
   created_by_name?: string;

@@ -22,6 +22,8 @@ export interface CacheEvent {
   source?: string;
   /** 标签 */
   tags?: string[];
+  /** 触发键 - 用于标识触发此事件的操作或组件 */
+  triggerKey?: string;
 }
 
 export interface PerformanceMetrics {

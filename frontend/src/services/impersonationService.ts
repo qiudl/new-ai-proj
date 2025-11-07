@@ -19,13 +19,10 @@ class ImpersonationService {
    */
   async getStatus(): Promise<ImpersonationStatus> {
     try {
-      const response = await api.get<any>(`${this.baseUrl}/status`);
+      // ✅ FIXED - API拦截器已解包响应，使用双重类型断言 (TS2352)
+      const response = await api.get<any>(`${this.baseUrl}/status`) as unknown as ImpersonationStatus;
 
-      // 兼容两种响应格式:
-      // 1. API拦截器已解包: {is_impersonating: false}
-      // 2. 标准格式: {success: true, data: {is_impersonating: false}}
-
-      // 拦截器已自动解包response.data
+      // 拦截器已自动解包response.data，response就是业务数据
       if (response && typeof response.is_impersonating !== 'undefined') {
         return response;
       }
@@ -50,27 +47,38 @@ class ImpersonationService {
    */
   async startImpersonation(enterpriseId: number, reason: string): Promise<StartImpersonationResponse> {
     try {
-      
+
       const requestData: StartImpersonationRequest = { reason };
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
       const response = await api.post<any>(
         `${this.baseUrl}/enterprise/${enterpriseId}`,
         requestData
-      );
-      
-      
+      ) as {
+        token?: string;
+        enterprise?: any;
+        message?: string;
+        impersonation_info?: {
+          session_id?: string;
+          started_at?: string;
+          expires_at?: string;
+        };
+      };
+
+
       // API拦截器已经处理了标准响应格式，直接返回了data部分
       // 所以response就是data内容，包含 token, enterprise, message 等
+      // ✅ FIXED - Ensure all required session fields are present (TS2322)
       if (response && response.token && response.enterprise) {
         return {
           success: true,
           message: response.message || '模拟开始成功',
           token: response.token,
           enterprise: response.enterprise,
-          session: response.impersonation_info || {
-            id: response.impersonation_info?.session_id || '',
+          session: {
+            id: response.impersonation_info?.session_id || response.impersonation_info?.id || '',
             started_at: response.impersonation_info?.started_at || new Date().toISOString(),
             expires_at: response.impersonation_info?.expires_at || '',
-            reason: reason
+            reason: response.impersonation_info?.reason || reason
           }
         };
       } else {
@@ -87,10 +95,19 @@ class ImpersonationService {
    */
   async exitImpersonation(): Promise<ExitImpersonationResponse> {
     try {
-      
-      const response = await api.post<any>(`${this.baseUrl}/exit`);
-      
-      
+
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
+      const response = await api.post<any>(`${this.baseUrl}/exit`) as {
+        token?: string;
+        original_user?: {
+          id: number;
+          username: string;
+          role: string;
+        };
+        message?: string;
+      };
+
+
       // API拦截器已经处理了标准响应格式，直接返回了data部分
       if (response && (response.token || response.original_user)) {
         return {
@@ -143,7 +160,7 @@ class ImpersonationService {
         `${this.baseUrl}/history?${params.toString()}`
       );
       
-      return response;
+      return response.data;
     } catch (error: any) {
       console.error('❌ 获取模拟历史失败:', error);
       throw this.handleError(error, '获取模拟历史失败');
@@ -158,7 +175,7 @@ class ImpersonationService {
       
       const response = await api.post<ApiResponse>(`${this.baseUrl}/force-exit/${sessionId}`);
       
-      return response;
+      return response.data;
     } catch (error: any) {
       console.error('❌ 强制退出会话失败:', error);
       throw this.handleError(error, '强制退出会话失败');
@@ -231,7 +248,7 @@ class ImpersonationService {
       
       const response = await api.post<{ token: string }>(`${this.baseUrl}/refresh-token`);
       
-      return response;
+      return response.data;
     } catch (error: any) {
       console.error('❌ 刷新令牌失败:', error);
       throw this.handleError(error, '刷新令牌失败');
@@ -302,7 +319,7 @@ class ImpersonationService {
 
       const response = await api.get<any>(`${this.baseUrl}/stats?${params.toString()}`);
       
-      return response;
+      return response.data;
     } catch (error: any) {
       console.error('❌ 获取统计信息失败:', error);
       throw this.handleError(error, '获取统计信息失败');
@@ -314,12 +331,13 @@ class ImpersonationService {
    */
   async extendSession(minutes: number = 60): Promise<ImpersonationSession> {
     try {
-      
-      const response = await api.post<{ session: ImpersonationSession }>(
+
+      // ✅ FIXED - API拦截器已解包响应，使用双重类型断言 (TS2352)
+      const response = await api.post<any>(
         `${this.baseUrl}/extend`,
         { minutes }
-      );
-      
+      ) as unknown as { session: ImpersonationSession };
+
       return response.session;
     } catch (error: any) {
       console.error('❌ 延长会话失败:', error);
@@ -342,7 +360,7 @@ class ImpersonationService {
         enterpriseId
       });
       
-      return response;
+      return response.data;
     } catch (error: any) {
       console.error('❌ 权限验证失败:', error);
       throw this.handleError(error, '权限验证失败');
@@ -382,7 +400,7 @@ class ImpersonationService {
 
       const response = await api.get<any>(`${this.baseUrl}/audit-logs?${params.toString()}`);
       
-      return response;
+      return response.data;
     } catch (error: any) {
       console.error('❌ 获取审计日志失败:', error);
       throw this.handleError(error, '获取审计日志失败');
@@ -421,7 +439,7 @@ class ImpersonationService {
         enterpriseIds
       });
       
-      return response;
+      return response.data;
     } catch (error: any) {
       console.error('❌ 批量权限检查失败:', error);
       throw this.handleError(error, '批量权限检查失败');

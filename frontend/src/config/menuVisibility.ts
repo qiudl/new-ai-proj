@@ -62,29 +62,37 @@ export const MENU_VISIBILITY_CONFIG: MenuVisibilityConfig = {
     userType: UserType.BOTH,
     description: '任务列表 - 所有用户，但数据隔离' 
   },
-  '/enterprises': { 
+  '/enterprises': {
     userType: UserType.SYSTEM_USER,
-    description: '企业管理 - 仅系统用户' 
+    description: '企业管理 - 仅系统用户'
+  },
+  '/requirements': {
+    userType: UserType.BOTH,
+    description: '需求管理 - 所有用户，但数据隔离'
+  },
+  '/requirements/new': {
+    userType: UserType.BOTH,
+    description: '创建需求 - 所有用户'
   },
 
   // 批量导入 - 根据权限控制
-  '/bulk-import': { 
+  '/bulk-import': {
     userType: UserType.BOTH,
-    description: '批量导入 - 根据具体权限控制' 
+    description: '批量导入 - 根据具体权限控制'
   },
 
   // 文档管理 - 两种用户都需要
-  '/document-management': { 
+  '/document-management': {
     userType: UserType.BOTH,
-    description: '文档管理菜单组 - 所有用户' 
+    description: '文档管理菜单组 - 所有用户'
   },
-  '/work-note': { 
+  '/work-note': {
     userType: UserType.BOTH,
-    description: '工作笔记 - 所有用户' 
+    description: '工作笔记 - 所有用户'
   },
-  '/task-documents': { 
+  '/task-documents': {
     userType: UserType.BOTH,
-    description: '任务文档 - 所有用户' 
+    description: '任务文档 - 所有用户'
   },
 
   // 系统管理 - 主要面向系统用户，企业管理员有部分权限

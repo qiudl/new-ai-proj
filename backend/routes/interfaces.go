@@ -227,6 +227,11 @@ type ApplicationInterface interface {
 	// 需求管理处理器
 	GetRequirementHandler() *handlers.RequirementHandler
 	GetRequirementStatusHandler() *handlers.RequirementStatusHandler
+	GetRequirementCommentHandler() *handlers.RequirementCommentHandler
+	GetRequirementTaskHandler() *handlers.RequirementTaskHandler
+
+	// 通知处理器
+	GetNotificationHandler() *handlers.NotificationHandler
 
 	// Worktree管理处理器
 	GetWorktreeHandler() *handlers.WorktreeHandler
@@ -256,4 +261,9 @@ type ApplicationInterface interface {
 
 	// 导航管理处理器
 	GetNavigationHandler() *handlers.NavigationHandler
+
+	// 产品管理处理器 (SPU/SKU/Inventory)
+	GetSPUHandler() *handlers.SPUHandler
+	GetSKUHandler() *handlers.SKUHandler
+	GetInventoryHandler() *handlers.InventoryHandler
 }

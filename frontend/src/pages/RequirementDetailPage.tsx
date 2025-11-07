@@ -24,7 +24,9 @@ import {
   Timeline,
   Dropdown,
 } from 'antd';
-import type { ColumnsType, TabsProps, MenuProps } from 'antd';
+// ✅ FIXED - Import ColumnsType from antd/es/table, not antd (TS2305)
+import type { ColumnsType } from 'antd/es/table';
+import type { TabsProps, MenuProps } from 'antd';
 import {
   ArrowLeftOutlined,
   EditOutlined,
@@ -43,7 +45,6 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { requirementApi, RequirementTaskLink, getRequirementTasks } from '../services/requirementService';
-import { requirementCommentService } from '../services/requirementCommentService';
 import {
   Requirement,
   RequirementStatus,
@@ -53,12 +54,11 @@ import {
   REQUIREMENT_COMPLEXITY_CONFIG,
   RequirementComplexity,
 } from '../types/requirement';
-import { RequirementComment } from '../types/requirementComment';
-import CommentSection from '../components/CommentSection';
 import MarkdownRenderer from '../components/MarkdownRenderer';
 import RequirementReviewModal from '../components/RequirementReviewModal';
 import ConvertToTaskModal from '../components/ConvertToTaskModal';
 import LinkTaskModal from '../components/LinkTaskModal';
+import RequirementCommentSection from '../components/RequirementComment/RequirementCommentSection';
 import { useResponsive } from '../hooks/useResponsive';
 
 const { Title, Text, Paragraph } = Typography;
@@ -550,23 +550,23 @@ const RequirementDetailPage: React.FC = () => {
                 <Text type="secondary">无</Text>
               )}
             </Descriptions.Item>
-            <Descriptions.Item label="需求分类">
+            <Descriptions.Item label="需求分类" span={1}>
               {requirement?.category ? (
                 <Tag>{requirement.category}</Tag>
               ) : (
                 <Text type="secondary">未分类</Text>
               )}
             </Descriptions.Item>
-            <Descriptions.Item label="提交人">
+            <Descriptions.Item label="提交人" span={1}>
               {requirement?.submitter_name || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="评审人">
+            <Descriptions.Item label="评审人" span={1}>
               {requirement?.reviewer_name || <Text type="secondary">未分配</Text>}
             </Descriptions.Item>
-            <Descriptions.Item label="创建时间">
+            <Descriptions.Item label="创建时间" span={1}>
               {requirement?.created_at ? dayjs(requirement.created_at).format('YYYY-MM-DD HH:mm') : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="截止日期">
+            <Descriptions.Item label="截止日期" span={1}>
               {requirement?.due_date ? (
                 <Text
                   type={dayjs(requirement.due_date).isBefore(dayjs(), 'day') ? 'danger' : undefined}
@@ -577,7 +577,7 @@ const RequirementDetailPage: React.FC = () => {
                 <Text type="secondary">无</Text>
               )}
             </Descriptions.Item>
-            <Descriptions.Item label="最后更新">
+            <Descriptions.Item label="最后更新" span={1}>
               {requirement?.updated_at ? dayjs(requirement.updated_at).format('YYYY-MM-DD HH:mm') : '-'}
             </Descriptions.Item>
           </Descriptions>
@@ -610,7 +610,7 @@ const RequirementDetailPage: React.FC = () => {
           {requirement?.review_status && (
             <>
               <Divider orientation="left">评审信息</Divider>
-              <Descriptions bordered column={{ xs: 1, sm: 2 }}>
+              <Descriptions bordered column={1}>
                 <Descriptions.Item label="评审状态">
                   {requirement.review_status}
                 </Descriptions.Item>
@@ -632,12 +632,12 @@ const RequirementDetailPage: React.FC = () => {
                   </Descriptions.Item>
                 )}
                 {requirement?.review_comment && (
-                  <Descriptions.Item label="评审意见" span={2}>
+                  <Descriptions.Item label="评审意见">
                     <MarkdownRenderer content={requirement.review_comment} />
                   </Descriptions.Item>
                 )}
                 {requirement?.reviewed_at && (
-                  <Descriptions.Item label="评审时间" span={2}>
+                  <Descriptions.Item label="评审时间">
                     {dayjs(requirement.reviewed_at).format('YYYY-MM-DD HH:mm')}
                   </Descriptions.Item>
                 )}
@@ -678,28 +678,13 @@ const RequirementDetailPage: React.FC = () => {
         </Space>
       ),
       children: requirement ? (
-        <CommentSection<RequirementComment>
-          entityId={requirementId}
-          entityType="requirement"
-          commentService={{
-            list: (filters) => requirementCommentService.listComments(requirementId, filters),
-            create: (data) => requirementCommentService.createComment(requirementId, {
-              requirement_id: requirementId,
-              content: data.content,
-              parent_comment_id: data.parent_comment_id,
-              mentioned_user_ids: data.mentioned_user_ids,
-              comment_type: data.comment_type,
-              is_internal: data.is_internal,
-            }),
-            update: (commentId, data) => requirementCommentService.updateComment(requirementId, commentId, data),
-            delete: (commentId) => requirementCommentService.deleteComment(requirementId, commentId),
-          }}
+        <RequirementCommentSection
+          requirementId={requirementId}
           currentUserId={1} // TODO: 从认证上下文获取
+          currentUserType="client"
           showStats={true}
-          allowReply={true}
-          allowMention={true}
-          allowPin={true}
-          allowInternal={true}
+          defaultPageSize={20}
+          enableTabs={false}
         />
       ) : null,
     },

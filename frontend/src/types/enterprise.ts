@@ -28,6 +28,8 @@ export interface Enterprise {
   updated_by?: number;
   created_at: string;
   updated_at: string;
+  // 🎯 Optional wrapper for API responses (支持 .data 访问模式)
+  data?: Enterprise;
 }
 
 // Enterprise request for create operations
@@ -88,6 +90,8 @@ export interface EnterpriseUser {
   last_login_at?: string;
   created_at: string;
   updated_at: string;
+  // 🎯 Optional wrapper for API responses (支持 .data 访问模式)
+  data?: EnterpriseUser;
 }
 
 // Enterprise User request

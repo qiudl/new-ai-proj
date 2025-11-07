@@ -27,8 +27,10 @@ import type { Dayjs } from 'dayjs';
 
 const { Title, Text } = Typography;
 
+// ✅ FIXED - Added taskId property (TS2322)
 interface TaskStatsTabProps {
-  dateRange: [Dayjs, Dayjs];
+  taskId?: number;
+  dateRange?: [Dayjs, Dayjs];
   projectId?: number;
 }
 

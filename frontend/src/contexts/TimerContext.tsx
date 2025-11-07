@@ -45,12 +45,16 @@ interface TimerContextType {
   timerState: TimerState;
   isLoading: boolean;
   connectionStatus: 'connected' | 'disconnected' | 'checking';
-  
+
   // 🎯 SSE连接状态
   sseConnectionStatus: SSEConnectionStatus;
   sseEnabled: boolean;
   sseError: string | null;
-  
+
+  // 🎯 当前计时器和活动计时器列表
+  currentTimer?: TimerCurrentResponse | null;
+  activeTimers?: TimerCurrentResponse[];
+
   // 🎯 新增：模式配置
   mode: 'full' | 'simplified';
   setMode: (mode: 'full' | 'simplified') => void;
@@ -1269,12 +1273,38 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
     isLoading,
     // 🎯 简化模式下优化连接状态 (减少网络检查)
     connectionStatus: currentMode === 'simplified' ? 'connected' : connectionStatus,
-    
+
     // 🎯 SSE连接状态
     sseConnectionStatus,
     sseEnabled,
     sseError,
-    
+
+    // 🎯 当前计时器和活动计时器列表
+    currentTimer: finalTimerState.isRunning ? {
+      id: finalTimerState.taskId, // 使用task_id作为id
+      is_running: finalTimerState.isRunning,
+      is_paused: finalTimerState.isPaused,
+      task_id: finalTimerState.taskId,
+      task_title: finalTimerState.taskTitle,
+      task_type: finalTimerState.taskType,
+      project_id: finalTimerState.projectId,
+      start_time: finalTimerState.startTime?.toISOString(),
+      elapsed_seconds: finalTimerState.elapsedSeconds,
+      formatted_time: finalTimerState.formattedTime,
+    } : null,
+    activeTimers: finalTimerState.isRunning && finalTimerState.taskId ? [{
+      id: finalTimerState.taskId, // 使用task_id作为id
+      is_running: finalTimerState.isRunning,
+      is_paused: finalTimerState.isPaused,
+      task_id: finalTimerState.taskId,
+      task_title: finalTimerState.taskTitle,
+      task_type: finalTimerState.taskType,
+      project_id: finalTimerState.projectId,
+      start_time: finalTimerState.startTime?.toISOString(),
+      elapsed_seconds: finalTimerState.elapsedSeconds,
+      formatted_time: finalTimerState.formattedTime,
+    }] : [],
+
     // 🎯 新增：模式配置
     mode: currentMode,
     setMode: setCurrentMode,

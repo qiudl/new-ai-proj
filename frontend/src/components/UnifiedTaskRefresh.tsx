@@ -115,8 +115,18 @@ export const UnifiedTaskRefresh: React.FC<UnifiedTaskRefreshProps> = ({
         
         if (entityType === 'task' && projectId) {
           const event = await enhancedCacheManager.invalidateTask(projectId, entityId, changeType);
-          results.cacheEvents?.push(event);
-          
+          // ✅ FIXED - Transform InvalidationEvent to CacheEvent (TS2345)
+          results.cacheEvents?.push({
+            type: 'invalidate',
+            key: event.triggerKey,
+            timestamp: event.timestamp,
+            data: {
+              invalidatedKeys: event.invalidatedKeys,
+              reason: event.reason,
+              cascadeDepth: event.cascadeDepth
+            }
+          });
+
           if (onCacheEvent) {
             onCacheEvent({
               type: 'invalidate',
@@ -128,7 +138,17 @@ export const UnifiedTaskRefresh: React.FC<UnifiedTaskRefreshProps> = ({
           }
         } else if (entityType === 'user') {
           const events = await enhancedCacheManager.invalidateUserData(entityId, 'task');
-          results.cacheEvents?.push(...events);
+          // ✅ FIXED - Transform InvalidationEvent[] to CacheEvent[] (TS2345)
+          results.cacheEvents?.push(...events.map(e => ({
+            type: 'invalidate' as const,
+            key: e.triggerKey,
+            timestamp: e.timestamp,
+            data: {
+              invalidatedKeys: e.invalidatedKeys,
+              reason: e.reason,
+              cascadeDepth: e.cascadeDepth
+            }
+          })));
         }
       }
       

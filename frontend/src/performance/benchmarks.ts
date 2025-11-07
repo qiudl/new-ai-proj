@@ -108,7 +108,8 @@ class PerformanceBenchmark {
     // 测试1: 模拟状态检查
     const statusCheckResult = await this.benchmark(
       'impersonation-status-check',
-      () => {
+      // ✅ FIXED - Change return type from Promise<mockStatus> to Promise<void> (TS2345)
+      async () => {
         const mockStatus = {
           is_impersonating: true,
           session: {
@@ -118,9 +119,9 @@ class PerformanceBenchmark {
             expiresAt: new Date(Date.now() + 3600000).toISOString()
           }
         };
-        
-        // 模拟状态解析逻辑
-        return Promise.resolve(mockStatus);
+
+        // 模拟状态解析逻辑 (just run the logic, don't return)
+        await Promise.resolve(mockStatus);
       },
       5000,
       500
@@ -130,6 +131,7 @@ class PerformanceBenchmark {
     // 测试2: 企业数据渲染
     const enterpriseRenderResult = await this.benchmark(
       'enterprise-data-rendering',
+      // ✅ FIXED - Remove return statement to match void return type (TS2345)
       () => {
         const enterprises = Array.from({ length: 100 }, (_, i) => ({
           id: i + 1,
@@ -138,9 +140,9 @@ class PerformanceBenchmark {
           status: Math.random() > 0.5 ? 'active' : 'inactive'
         }));
 
-        // 模拟React渲染逻辑
+        // 模拟React渲染逻辑 (just run the logic, don't return)
         const rendered = enterprises.map(ent => `<div key="${ent.id}">${ent.name}</div>`);
-        return rendered.join('');
+        rendered.join(''); // Run but don't return
       },
       2000,
       200
@@ -150,6 +152,7 @@ class PerformanceBenchmark {
     // 测试3: 搜索过滤
     const searchFilterResult = await this.benchmark(
       'enterprise-search-filter',
+      // ✅ FIXED - Remove return statement to match void return type (TS2345)
       () => {
         const enterprises = Array.from({ length: 1000 }, (_, i) => ({
           id: i + 1,
@@ -158,11 +161,12 @@ class PerformanceBenchmark {
         }));
 
         const searchTerm = '测试';
-        const filtered = enterprises.filter(ent => 
+        const filtered = enterprises.filter(ent =>
           ent.name.includes(searchTerm) || ent.code.includes(searchTerm)
         );
-        
-        return filtered;
+
+        // Run the filter but don't return
+        filtered.length; // Access to ensure it runs
       },
       1000,
       100
@@ -172,6 +176,7 @@ class PerformanceBenchmark {
     // 测试4: 权限检查
     const permissionCheckResult = await this.benchmark(
       'permission-validation',
+      // ✅ FIXED - Remove return statement to match void return type (TS2345)
       () => {
         const permissions = {
           canStartImpersonation: true,
@@ -181,10 +186,11 @@ class PerformanceBenchmark {
         };
 
         const action = 'start_impersonation';
-        const hasPermission = permissions.canStartImpersonation && 
+        const hasPermission = permissions.canStartImpersonation &&
                              !permissions.restrictedActions.includes(action);
-        
-        return hasPermission;
+
+        // Run the check but don't return
+        Boolean(hasPermission); // Ensure the check runs
       },
       10000,
       1000
@@ -265,6 +271,7 @@ class PerformanceBenchmark {
     // 测试1: JSON解析
     const jsonParseResult = await this.benchmark(
       'json-parsing',
+      // ✅ FIXED - Remove return statement to match void return type (TS2345)
       () => {
         const largeObject = {
           enterprises: Array.from({ length: 1000 }, (_, i) => ({
@@ -277,10 +284,11 @@ class PerformanceBenchmark {
             }))
           }))
         };
-        
+
         const json = JSON.stringify(largeObject);
         const parsed = JSON.parse(json);
-        return parsed;
+        // Run the parse but don't return
+        Object.keys(parsed); // Ensure it runs
       },
       100
     );
@@ -289,6 +297,7 @@ class PerformanceBenchmark {
     // 测试2: 数组操作
     const arrayProcessingResult = await this.benchmark(
       'array-processing',
+      // ✅ FIXED - Remove return statement to match void return type (TS2345)
       () => {
         const data = Array.from({ length: 10000 }, (_, i) => ({
           id: i + 1,
@@ -303,12 +312,13 @@ class PerformanceBenchmark {
           acc[item.category].push(item);
           return acc;
         }, {} as Record<number, any[]>);
-        
-        const sorted = Object.values(grouped).map(group => 
+
+        const sorted = Object.values(grouped).map(group =>
           group.sort((a, b) => b.value - a.value)
         );
-        
-        return sorted;
+
+        // Run the operations but don't return
+        sorted.length; // Ensure it runs
       },
       50
     );
@@ -317,6 +327,7 @@ class PerformanceBenchmark {
     // 测试3: 正则表达式
     const regexResult = await this.benchmark(
       'regex-validation',
+      // ✅ FIXED - Remove return statement to match void return type (TS2345)
       () => {
         const patterns = {
           email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -338,7 +349,8 @@ class PerformanceBenchmark {
           };
         });
 
-        return results;
+        // Run the validation but don't return
+        results.length; // Ensure it runs
       },
       2000
     );

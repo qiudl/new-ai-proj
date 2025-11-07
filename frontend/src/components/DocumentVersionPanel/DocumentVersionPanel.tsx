@@ -73,7 +73,8 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
     try {
       const result = await documentVersionService.getVersionHistory(documentId);
 
-      setVersions(result.versions || []);
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+      setVersions((result.versions || []) as unknown as DocumentVersion[]);
       setTotalCount(result.totalCount || 0);
       setCurrentVersion(result.currentVersion || '');
 
@@ -127,7 +128,8 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
     if (!documentId) return;
 
     try {
-      await documentVersionService.restoreVersion(documentId, version.id);
+      // ✅ FIXED - Convert version.id (number) to string for restoreVersion API (TS2345)
+      await documentVersionService.restoreVersion(documentId, String(version.id));
       message.success(`已恢复到版本 ${version.version}`);
       setRestoreConfirmVisible(false);
 

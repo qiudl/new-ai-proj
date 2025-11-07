@@ -63,7 +63,8 @@ const VersionCard: React.FC<VersionCardProps> = ({
   };
 
   const changeTypeConfig = getChangeTypeConfig(version.changeType);
-  const createdTime = dayjs(version.createdAt);
+  // ✅ FIXED - Use snake_case property name (TS2551)
+  const createdTime = dayjs(version.created_at);
   const relativeTimeText = createdTime.fromNow();
   const fullTimeText = createdTime.format('YYYY-MM-DD HH:mm:ss');
 
@@ -102,7 +103,8 @@ const VersionCard: React.FC<VersionCardProps> = ({
             </Text>
           </Tooltip>
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            <UserOutlined /> {version.createdByName || version.createdBy}
+            {/* ✅ FIXED - Use snake_case property names (TS2551) */}
+            <UserOutlined /> {version.created_by_name || version.created_by}
           </Text>
         </Space>
       </div>

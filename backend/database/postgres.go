@@ -115,6 +115,11 @@ func (pdb *PostgresDB) Enterprises() EnterpriseRepository {
 	return NewEnterpriseRepository(pdb.db)
 }
 
+// Identity returns the identity repository for user identity verification
+func (pdb *PostgresDB) Identity() IdentityRepository {
+	return NewIdentityRepository(pdb.db)
+}
+
 // Permissions returns the permission repository (enterprise permission management)
 func (pdb *PostgresDB) Permissions() PermissionRepository {
 	return NewPermissionRepository(pdb.db)
@@ -252,6 +257,11 @@ func (pdb *PostgresDB) RequirementComments() RequirementCommentRepository {
 // RequirementHistory returns the requirement history repository
 func (pdb *PostgresDB) RequirementHistory() RequirementHistoryRepository {
 	return NewRequirementHistoryRepository(pdb.db)
+}
+
+// RequirementTasks returns the requirement-task link repository
+func (pdb *PostgresDB) RequirementTasks() RequirementTaskRepository {
+	return NewRequirementTaskRepository(pdb.db)
 }
 
 // WorktreeConfigs returns the worktree configuration repository
@@ -419,6 +429,11 @@ func (ptx *PostgresTx) Enterprises() EnterpriseRepository {
 	return NewEnterpriseRepository(ptx.tx)
 }
 
+// Identity returns the identity repository for transaction
+func (ptx *PostgresTx) Identity() IdentityRepository {
+	return NewIdentityRepository(ptx.tx)
+}
+
 // Permissions returns the permission repository for transaction (enterprise permission management)
 func (ptx *PostgresTx) Permissions() PermissionRepository {
 	return NewPermissionRepository(ptx.tx)
@@ -504,6 +519,11 @@ func (ptx *PostgresTx) RequirementComments() RequirementCommentRepository {
 // RequirementHistory returns the requirement history repository for transaction
 func (ptx *PostgresTx) RequirementHistory() RequirementHistoryRepository {
 	return NewRequirementHistoryRepository(ptx.tx)
+}
+
+// RequirementTasks returns the requirement-task link repository for transaction
+func (ptx *PostgresTx) RequirementTasks() RequirementTaskRepository {
+	return NewRequirementTaskRepository(ptx.tx)
 }
 
 // WorktreeConfigs returns the worktree configuration repository for transaction

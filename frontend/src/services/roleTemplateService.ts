@@ -23,7 +23,7 @@ class RoleTemplateService {
   async getRoleTemplates(params?: RoleTemplateListParams): Promise<RoleTemplateListResponse> {
     try {
 const response = await api.get(this.baseURL, { params });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Failed to fetch role templates:', error);
       throw this.handleError(error);
@@ -36,7 +36,7 @@ const response = await api.get(this.baseURL, { params });
   async getRoleTemplateById(id: number): Promise<RoleTemplateResponse> {
     try {
 const response = await api.get(`${this.baseURL}/${id}`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Failed to fetch role template ${id}:`, error);
       throw this.handleError(error);
@@ -49,7 +49,7 @@ const response = await api.get(`${this.baseURL}/${id}`);
   async createRoleTemplate(data: CreateRoleTemplateRequest): Promise<RoleTemplateResponse> {
     try {
 const response = await api.post(this.baseURL, data);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Failed to create role template:', error);
       throw this.handleError(error);
@@ -62,7 +62,7 @@ const response = await api.post(this.baseURL, data);
   async updateRoleTemplate(id: number, data: UpdateRoleTemplateRequest): Promise<RoleTemplateResponse> {
     try {
 const response = await api.put(`${this.baseURL}/${id}`, data);
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Failed to update role template ${id}:`, error);
       throw this.handleError(error);
@@ -75,7 +75,7 @@ const response = await api.put(`${this.baseURL}/${id}`, data);
   async deleteRoleTemplate(id: number): Promise<{ success: boolean; message?: string }> {
     try {
 const response = await api.delete(`${this.baseURL}/${id}`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Failed to delete role template ${id}:`, error);
       throw this.handleError(error);
@@ -88,7 +88,7 @@ const response = await api.delete(`${this.baseURL}/${id}`);
   async getTemplatePermissions(id: number): Promise<TemplatePermissionsResponse> {
     try {
 const response = await api.get(`${this.baseURL}/${id}/permissions`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Failed to fetch template permissions for ${id}:`, error);
       throw this.handleError(error);
@@ -101,7 +101,7 @@ const response = await api.get(`${this.baseURL}/${id}/permissions`);
   async applyTemplateToRole(id: number, data: ApplyTemplateToRoleRequest): Promise<TemplateApplyResult> {
     try {
 const response = await api.post(`${this.baseURL}/${id}/apply`, data);
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Failed to apply template ${id} to role:`, error);
       throw this.handleError(error);
@@ -114,7 +114,7 @@ const response = await api.post(`${this.baseURL}/${id}/apply`, data);
   async cloneTemplate(id: number, data: CloneTemplateRequest): Promise<RoleTemplateResponse> {
     try {
 const response = await api.post(`${this.baseURL}/${id}/clone`, data);
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Failed to clone template ${id}:`, error);
       throw this.handleError(error);
@@ -127,7 +127,7 @@ const response = await api.post(`${this.baseURL}/${id}/clone`, data);
   async getTemplatesByCategory(category: TemplateCategory): Promise<RoleTemplateListResponse> {
     try {
 const response = await api.get(`${this.baseURL}/category/${category}`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Failed to fetch templates by category ${category}:`, error);
       throw this.handleError(error);
@@ -140,7 +140,7 @@ const response = await api.get(`${this.baseURL}/category/${category}`);
   async getDefaultTemplates(): Promise<RoleTemplateListResponse> {
     try {
 const response = await api.get(`${this.baseURL}/defaults`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Failed to fetch default templates:', error);
       throw this.handleError(error);
@@ -153,7 +153,7 @@ const response = await api.get(`${this.baseURL}/defaults`);
   async getTemplateStats(): Promise<RoleTemplateStats> {
     try {
 const response = await api.get(`${this.baseURL}/stats`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Failed to fetch template stats:', error);
       throw this.handleError(error);
@@ -166,7 +166,7 @@ const response = await api.get(`${this.baseURL}/stats`);
   async batchDeleteTemplates(ids: number[]): Promise<{ success: boolean; message?: string; results?: any[] }> {
     try {
 const response = await api.post(`${this.baseURL}/batch-delete`, { ids });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Failed to batch delete templates:', error);
       throw this.handleError(error);
@@ -179,7 +179,7 @@ const response = await api.post(`${this.baseURL}/batch-delete`, { ids });
   async batchToggleTemplates(ids: number[], isActive: boolean): Promise<{ success: boolean; message?: string; results?: any[] }> {
     try {
 const response = await api.post(`${this.baseURL}/batch-toggle`, { ids, is_active: isActive });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Failed to batch toggle templates:', error);
       throw this.handleError(error);
@@ -192,7 +192,7 @@ const response = await api.post(`${this.baseURL}/batch-toggle`, { ids, is_active
   async getTemplateUsageHistory(id: number, params?: { page?: number; page_size?: number }) {
     try {
 const response = await api.get(`${this.baseURL}/${id}/usage-history`, { params });
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Failed to fetch template usage history for ${id}:`, error);
       throw this.handleError(error);
@@ -205,7 +205,7 @@ const response = await api.get(`${this.baseURL}/${id}/usage-history`, { params }
   async getTemplateVersions(id: number) {
     try {
 const response = await api.get(`${this.baseURL}/${id}/versions`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Failed to fetch template versions for ${id}:`, error);
       throw this.handleError(error);
@@ -218,7 +218,7 @@ const response = await api.get(`${this.baseURL}/${id}/versions`);
   async revertTemplateToVersion(id: number, version: number): Promise<RoleTemplateResponse> {
     try {
 const response = await api.post(`${this.baseURL}/${id}/revert`, { version });
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Failed to revert template ${id} to version ${version}:`, error);
       throw this.handleError(error);
@@ -236,7 +236,7 @@ const response = await api.get(`${this.baseURL}/${id}/export`, {
           'Accept': 'application/json, application/octet-stream'
         }
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Failed to export template ${id}:`, error);
       throw this.handleError(error);
@@ -256,7 +256,7 @@ const response = await api.post(`${this.baseURL}/import`, formData, {
           'Content-Type': 'multipart/form-data'
         }
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Failed to import template:', error);
       throw this.handleError(error);
@@ -269,7 +269,7 @@ const response = await api.post(`${this.baseURL}/import`, formData, {
   async validateTemplateCode(code: string): Promise<{ valid: boolean; message?: string }> {
     try {
 const response = await api.post(`${this.baseURL}/validate-code`, { template_code: code });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Failed to validate template code:', error);
       throw this.handleError(error);
@@ -283,7 +283,7 @@ const response = await api.post(`${this.baseURL}/validate-code`, { template_code
     try {
       const params = { search: query, ...filters };
 const response = await api.get(this.baseURL, { params });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Failed to search templates:', error);
       throw this.handleError(error);
@@ -296,7 +296,7 @@ const response = await api.get(this.baseURL, { params });
   async getAvailableTags(): Promise<{ tags: string[]; categories: string[] }> {
     try {
 const response = await api.get(`${this.baseURL}/tags`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Failed to fetch available tags:', error);
       throw this.handleError(error);
@@ -309,7 +309,7 @@ const response = await api.get(`${this.baseURL}/tags`);
   async getIndustriesAndDepartments(): Promise<{ industries: string[]; departments: string[] }> {
     try {
 const response = await api.get(`${this.baseURL}/industries-departments`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Failed to fetch industries and departments:', error);
       throw this.handleError(error);

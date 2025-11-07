@@ -25,5 +25,6 @@ export { default as TaskDetailModals } from './Modals/TaskDetailModals';
 export type { TaskDetailModalsProps } from './Modals/TaskDetailModals';
 
 // Export Layout components
-export { default as TaskDetailLayout } from './Layout/TaskDetailLayout';
+// ✅ FIXED - TaskDetailLayout is a named export, not default export (TS2305)
+export { TaskDetailLayout } from './Layout/TaskDetailLayout';
 export type { TaskDetailLayoutProps } from './Layout/TaskDetailLayout';

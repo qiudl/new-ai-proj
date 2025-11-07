@@ -21,18 +21,21 @@ class OKRService {
     console.log('🐛 [OKRService] createObjective called with:', data);
     const response = await api.post(`${this.baseUrl}/objectives`, data);
     console.log('🐛 [OKRService] createObjective response:', response);
-    return response as OKRObjective;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as OKRObjective;
   }
 
   async getObjectives(quarter?: string): Promise<OKRListResponse> {
     const params = quarter ? { quarter } : {};
     const response = await api.get(`${this.baseUrl}/objectives`, { params });
-    return response as OKRListResponse;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as OKRListResponse;
   }
 
   async getObjective(id: number): Promise<OKRObjective> {
     const response = await api.get(`${this.baseUrl}/objectives/${id}`);
-    return response as OKRObjective;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as OKRObjective;
   }
 
   async updateObjective(id: number, data: UpdateObjectiveRequest): Promise<OKRObjective> {
@@ -40,7 +43,8 @@ class OKRService {
     try {
       const response = await api.put(`${this.baseUrl}/objectives/${id}`, data);
       console.log('🐛 [OKRService] updateObjective response:', response);
-      return response as OKRObjective;
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+      return response as unknown as OKRObjective;
     } catch (error) {
       console.error('🐛 [OKRService] updateObjective error:', error);
       throw error;
@@ -54,12 +58,14 @@ class OKRService {
   // 关键结果管理
   async createKeyResult(objectiveId: number, data: Omit<KeyResult, 'id' | 'objectiveId' | 'createdAt' | 'updatedAt'>): Promise<KeyResult> {
     const response = await api.post(`${this.baseUrl}/objectives/${objectiveId}/key-results`, data);
-    return response as KeyResult;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as KeyResult;
   }
 
   async updateKeyResult(id: number, data: UpdateKeyResultRequest): Promise<KeyResult> {
     const response = await api.put(`${this.baseUrl}/key-results/${id}`, data);
-    return response as KeyResult;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as KeyResult;
   }
 
   async deleteKeyResult(id: number): Promise<void> {
@@ -70,7 +76,8 @@ class OKRService {
   async getOKRStats(quarter?: string): Promise<OKRStats> {
     const params = quarter ? { quarter } : {};
     const response = await api.get(`${this.baseUrl}/stats`, { params });
-    return response as OKRStats;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as OKRStats;
   }
 
   // 进度日志
@@ -173,7 +180,8 @@ class OKRService {
       weight: data.weight || 100,
       syncMode: data.syncMode || 'auto'
     });
-    return response as TaskKeyResultAssociation;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as TaskKeyResultAssociation;
   }
 
   // 获取任务的OKR关联
@@ -191,7 +199,8 @@ class OKRService {
   // 同步关键结果进度
   async syncKeyResultProgress(keyResultId: number): Promise<{ oldProgress: number; newProgress: number; keyResult: KeyResult }> {
     const response = await api.post(`${this.baseUrl}/key-results/${keyResultId}/sync-progress`);
-    return response as { oldProgress: number; newProgress: number; keyResult: KeyResult };
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as { oldProgress: number; newProgress: number; keyResult: KeyResult };
   }
 
   // 删除任务-关键结果关联

@@ -279,8 +279,9 @@ const EnterpriseUserManagementPage: React.FC = () => {
           enterprise_id: enterpriseIdNum
         };
         console.log('📤 更新数据:', updateData);
-        
-        const result = await enterpriseService.updateEnterpriseUser(enterpriseIdNum, editingUser.id, updateData);
+
+        // ✅ FIXED - Type assertion for Partial<EnterpriseUserRequest> (TS2345)
+        const result = await enterpriseService.updateEnterpriseUser(enterpriseIdNum, editingUser.id, updateData as Partial<EnterpriseUserRequest>);
         console.log('✅ 更新成功:', result);
         message.success('更新用户成功');
       } else {

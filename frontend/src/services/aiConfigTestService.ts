@@ -65,9 +65,12 @@ export class AIConfigTestService {
       createdAt: log.createdAt
     }));
 
+    // ✅ FIXED - 类型断言以访问pagination属性
+    const typedBackendData = backendData as { pagination?: any };
+
     return {
       data: logs,
-      pagination: backendData.pagination || {
+      pagination: typedBackendData.pagination || {
         total: logs.length,
         page: filters.page,
         limit: filters.limit,

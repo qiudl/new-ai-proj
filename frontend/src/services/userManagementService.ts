@@ -68,7 +68,7 @@ class UserManagementService {
   async createUser(userData: UserCreateRequest): Promise<User> {
     try {
       const response = await api.post('/admin/users', userData);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Error creating user:', error);
       throw new Error('Failed to create user');
@@ -81,7 +81,7 @@ class UserManagementService {
   async updateUser(id: number, userData: UserUpdateRequest): Promise<User> {
     try {
       const response = await api.put(`/admin/users/${id}`, userData);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Error updating user:', error);
       throw new Error('Failed to update user');
@@ -123,7 +123,7 @@ class UserManagementService {
       }
       
       const response = await api.put(`/admin/users/${id}/status`, { status });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Error updating user status:', error);
       if (error instanceof Error && error.message.includes('404')) {
@@ -159,10 +159,15 @@ class UserManagementService {
   }> {
     try {
       const response = await api.get('/admin/users/stats');
-      
+
       // API拦截器应该已经解包了标准的{success, data, message}格式
-      // 所以response应该直接是统计数据
-      return response as any;
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+      return response as unknown as {
+        total: number;
+        by_role: Record<string, number>;
+        by_status: Record<string, number>;
+        recent_registrations: number;
+      };
     } catch (error) {
       console.error('Error fetching user stats:', error);
       throw new Error('Failed to fetch user statistics');
@@ -192,7 +197,7 @@ class UserManagementService {
       const response = await api.get(`/admin/users/export?${queryParams.toString()}`, {
         responseType: 'blob'
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Error exporting users:', error);
       throw new Error('Failed to export user data');
@@ -242,9 +247,14 @@ class UserManagementService {
       if (params.page) queryParams.append('page', params.page.toString());
       if (params.page_size) queryParams.append('page_size', params.page_size.toString());
 
-      const response = await api.get(`/admin/users/${userId}/activity?${queryParams.toString()}`);
-      // 后端返回格式: { data: { data: [...], total: 0, page: 1, page_size: 10 } }
-      // 需要提取内层的 data 数组和 total
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
+      const response = await api.get(`/admin/users/${userId}/activity?${queryParams.toString()}`) as {
+        data?: any[];
+        total?: number;
+        page?: number;
+        page_size?: number;
+      };
+      // 后端返回格式已被拦截器解包为: { data: [...], total: 0, page: 1, page_size: 10 }
       const activities = response?.data || [];
       const total = response?.total || 0;
       return {
@@ -281,7 +291,7 @@ class UserManagementService {
   }> {
     try {
       const response = await api.put(`/users/${userId}/enterprise`, data);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Error updating user enterprise:', error);
       throw new Error('Failed to update user enterprise information');
@@ -326,7 +336,7 @@ class UserManagementService {
   }> {
     try {
       const response = await api.get(`/users/${userId}/enterprise-details`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Error fetching user enterprise details:', error);
       throw new Error('Failed to fetch user enterprise details');

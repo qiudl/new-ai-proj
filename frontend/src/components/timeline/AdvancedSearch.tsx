@@ -147,10 +147,11 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   }, [events]);
 
   // 预设过滤器
-  const presetFilters = useMemo(() => [
+  // ✅ FIXED - Explicitly type preset filters to avoid union type inference (TS2345)
+  const presetFilters: Array<{ name: string; filter: Partial<AdvancedSearchFilter>; icon: React.ReactNode; color: string }> = useMemo(() => [
     {
       name: '最近活动',
-      filter: { 
+      filter: {
         relativeDateRange: 'last_day' as const,
         searchTerm: ''
       },
@@ -159,7 +160,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     },
     {
       name: '错误和警告',
-      filter: { 
+      filter: {
         severities: ['warning', 'error'],
         searchTerm: ''
       },
@@ -168,7 +169,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     },
     {
       name: '系统自动化',
-      filter: { 
+      filter: {
         categories: ['system'],
         patternType: 'automation_patterns' as const,
         searchTerm: ''
@@ -178,7 +179,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     },
     {
       name: '用户操作',
-      filter: { 
+      filter: {
         categories: ['user'],
         includeSystemEvents: false,
         searchTerm: ''
@@ -188,7 +189,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     },
     {
       name: '任务完成',
-      filter: { 
+      filter: {
         eventTypes: ['completed', 'status_changed'],
         searchTerm: '完成|完结|结束'
       },
@@ -198,10 +199,11 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   ], []);
 
   // 应用过滤器
-  const applyFilter = (newFilter: AdvancedSearchFilter) => {
+  // ✅ FIXED - Accept Partial<AdvancedSearchFilter> to match preset usage (TS2345)
+  const applyFilter = (newFilter: Partial<AdvancedSearchFilter>) => {
     setFilter(newFilter);
     form.setFieldsValue(newFilter);
-    onFilterChange(newFilter);
+    onFilterChange(newFilter as AdvancedSearchFilter);
   };
 
   // 清除过滤器
@@ -265,11 +267,12 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         color: 'cyan'
       });
     }
-    
-    if (filter.eventTypes?.length) {
-      tags.push({ 
-        key: 'eventTypes', 
-        label: `事件类型: ${filter.eventTypes.length}个`,
+
+    // ✅ FIXED - Use snake_case property name event_types (TS2551)
+    if (filter.event_types?.length) {
+      tags.push({
+        key: 'eventTypes',
+        label: `事件类型: ${filter.event_types.length}个`,
         color: 'purple'
       });
     }

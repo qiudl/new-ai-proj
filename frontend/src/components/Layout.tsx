@@ -242,6 +242,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/bulk-import')) return ['/bulk-import'];
     if (path === '/projects') return ['/projects'];
     if (path.includes('/enterprises')) return ['/enterprises'];
+    if (path.includes('/requirements')) return ['/requirements'];
     if (path.includes('/work-note')) return ['/work-note'];
     if (path.includes('/task-documents')) return ['/task-documents'];
     if (path.includes('/api-keys')) return ['/api-keys'];
@@ -259,7 +260,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const getOpenKeys = () => {
     // 如果侧边栏被折叠，不展开任何子菜单
     if (collapsed) return [];
-    
+
     const path = location.pathname;
     if (path === '/' || path === '/dashboard' || path.includes('/time-weekly-report') || path.includes('/task-dashboard')) {
       return ['/workspace-management'];
@@ -342,6 +343,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           label: '企业客户',
         },
       ],
+    },
+    {
+      key: '/requirements',
+      icon: <FileTextOutlined />,
+      label: '需求管理',
     },
     {
       key: '/bulk-import',
@@ -470,7 +476,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     const userType = getUserType(currentUser.user_type);
     let filteredItems = filterMenuItems(baseSidebarItems, userType, currentUser.role, roleV2);
-    
+
     // 如果处于模拟状态，调整菜单显示
     if (isImpersonating) {
       // 移除系统管理菜单和企业客户菜单

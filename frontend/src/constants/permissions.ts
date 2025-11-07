@@ -29,7 +29,8 @@ export const COMPANY_PERMISSIONS = {
   USERS_CREATE: 'company.users.create',
   USERS_UPDATE: 'company.users.update',
   USERS_DELETE: 'company.users.delete',
-  ROLES_MANAGE: 'company.roles.manage'
+  ROLES_MANAGE: 'company.roles.manage',
+  READ: 'company.info.read' // ✅ ADDED - Alias for INFO_READ (backward compatibility)
 } as const;
 
 // 企业权限(别名,向后兼容)
@@ -40,7 +41,8 @@ export const USER_PERMISSIONS = {
   READ: 'user.read',
   CREATE: 'user.create',
   UPDATE: 'user.update',
-  DELETE: 'user.delete'
+  DELETE: 'user.delete',
+  ADMIN: 'user.admin'  // 用户管理员权限
 } as const;
 
 // 权限管理权限(暂无数据库对应,保留用于未来扩展)
@@ -110,6 +112,26 @@ export const DOCUMENT_PERMISSIONS = {
   OLD_READ: 'document_read',
   /** @deprecated 使用 CREATE 代替 */
   OLD_CREATE: 'document_create'
+} as const;
+
+// 需求管理权限
+export const REQUIREMENT_PERMISSIONS = {
+  LIST_READ: 'requirement.list.read',     // 查看需求列表
+  DETAIL_READ: 'requirement.detail.read', // 查看需求详情
+  CREATE: 'requirement.create',           // 创建需求
+  UPDATE: 'requirement.update',           // 编辑需求
+  DELETE: 'requirement.delete',           // 删除需求
+  STATUS_UPDATE: 'requirement.status.update', // 更新需求状态
+  SUBMIT: 'requirement.submit',           // 提交需求
+  APPROVE: 'requirement.approve',         // 审批需求
+  REJECT: 'requirement.reject',           // 拒绝需求
+  COMMENT: 'requirement.comment',         // 评论需求
+  CONVERT_TASK: 'requirement.convert_task', // 转换为任务
+
+  // 使用冒号格式 (备用格式)
+  READ: 'requirement:read',               // 读取需求 (通用权限)
+  WRITE: 'requirement:write',             // 修改需求
+  MANAGE: 'requirement:manage'            // 管理需求
 } as const;
 
 // 时间追踪/计时器权限
@@ -283,10 +305,14 @@ export const ORGANIZATION_PERMISSIONS = {
   INFO_READ: 'company.info.read',
   INFO_UPDATE: 'company.info.update',
   USERS_READ: 'company.users.read',
+  USER_READ: 'company.users.read',  // 别名，向后兼容
   USERS_CREATE: 'company.users.create',
   USERS_UPDATE: 'company.users.update',
   USERS_DELETE: 'company.users.delete',
-  ROLES_MANAGE: 'company.roles.manage'
+  ROLES_MANAGE: 'company.roles.manage',
+  ROLE_READ: 'company.roles.manage',  // 别名，向后兼容
+  STRUCTURE_READ: 'company.info.read',  // 组织结构读取权限
+  POSITION_READ: 'company.info.read'    // 职位读取权限
 } as const;
 
 // 工作笔记权限

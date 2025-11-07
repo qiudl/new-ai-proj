@@ -265,7 +265,8 @@ const EnhancedDocumentContent: React.FC<EnhancedDocumentContentProps> = ({
         </div>
       )
     },
-    { type: 'divider' },
+    // ✅ FIXED - Ant Design Menu divider needs key property (TS2322)
+    { type: 'divider' as const, key: 'divider-1' },
     {
       key: 'showToc',
       label: (

@@ -44,9 +44,12 @@ import dayjs from 'dayjs';
 const { Title, Text, Paragraph } = Typography;
 const { RangePicker } = DatePicker;
 
+// ✅ FIXED - Added task and subtasks properties (TS2322)
 interface TaskAnalysisPanelProps {
   projectId?: number;
   taskId?: number;
+  task?: any; // Task object can be passed directly
+  subtasks?: any; // Subtasks data
   className?: string;
   allTasks?: any[]; // 从父组件传入的任务数据
 }

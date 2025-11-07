@@ -15,11 +15,13 @@ export const cleanupModalDOMs = (): void => {
   const allWraps = document.querySelectorAll('.ant-modal-wrap');
   allWraps.forEach(wrap => {
     const hasModal = wrap.querySelector('.ant-modal, .ant-modal-confirm');
-    const isHidden = wrap.style.display === 'none' || 
-                     wrap.style.visibility === 'hidden' ||
+    // ✅ FIXED - 类型断言为HTMLElement以访问style属性
+    const htmlWrap = wrap as HTMLElement;
+    const isHidden = htmlWrap.style.display === 'none' ||
+                     htmlWrap.style.visibility === 'hidden' ||
                      wrap.getAttribute('style')?.includes('display: none') ||
                      wrap.getAttribute('style')?.includes('visibility: hidden');
-    
+
     if (!hasModal || isHidden) {
       wrap.remove();
     }

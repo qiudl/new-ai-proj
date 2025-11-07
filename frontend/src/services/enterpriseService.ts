@@ -28,6 +28,8 @@ export interface Enterprise {
   updated_by?: number;
   created_at: string;
   updated_at: string;
+  // ✅ ADDED - Optional wrapper for API responses (支持 .data 访问模式)
+  data?: Enterprise;
 }
 
 // Enterprise User data types
@@ -48,6 +50,8 @@ export interface EnterpriseUser {
   last_login_at?: string;
   created_at: string;
   updated_at: string;
+  // ✅ ADDED - Optional wrapper for API responses (支持 .data 访问模式)
+  data?: EnterpriseUser;
 }
 
 // Enterprise Department data types
@@ -217,8 +221,8 @@ class EnterpriseService {
     // 处理API返回的 { data: [] } 直接数组格式（拦截器已解包）
     // 这种情况在上面的条件中已处理，这里保留作为后备
 
-    // 直接返回响应数据，API拦截器已经处理了标准响应格式
-    return response as T;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as T;
   }
 
   // 获取企业列表

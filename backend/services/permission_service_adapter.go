@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 
+	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"github.com/go-redis/redis/v8"
 )
@@ -34,8 +35,11 @@ func NewPermissionServiceAdapter(config *PermissionServiceAdapterConfig) (*Permi
 		return nil, fmt.Errorf("adapter config is required")
 	}
 
+	// Create permission service repository for legacy service
+	permissionRepo := database.NewPermissionServiceRepository(config.DB)
+
 	adapter := &PermissionServiceAdapter{
-		legacyService: NewPermissionService(config.DB),
+		legacyService: NewPermissionService(permissionRepo),
 		enabled:       config.UseUnifiedService,
 	}
 

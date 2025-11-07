@@ -124,10 +124,10 @@ api.interceptors.response.use(
     }
 
     // Impersonation API needs standard unwrapping
-    const isImpersonationAPI = url.includes('/admin/impersonate/status');
+    const isImpersonationAPI = url.includes('/admin/impersonate/');
     if (isImpersonationAPI && body && typeof body === 'object' && 'success' in body && 'data' in body) {
       console.log('API interceptor - Impersonation API detected, unwrapping data:', body.data);
-      return body.data;  // Unwrap to {is_impersonating: false, ...}
+      return body.data;  // Unwrap to {is_impersonating: false, ...} or {token, enterprise, ...}
     }
 
     if (body && typeof body === 'object' && 'success' in body && 'data' in body) {

@@ -12,7 +12,8 @@ import {
 import { Link } from 'react-router-dom';
 import RoleTemplateManager from '../components/RoleTemplateManager';
 import roleTemplateService from '../services/roleTemplateService';
-import { RoleTemplateStats } from '../types/roleTemplate';
+// ✅ FIXED - Add RoleTemplate import for type safety (TS2304)
+import { RoleTemplateStats, RoleTemplate } from '../types/roleTemplate';
 
 const { TabPane } = Tabs;
 
@@ -33,13 +34,18 @@ const RoleTemplatesPage: React.FC = () => {
       // const statsData = await roleTemplateService.getTemplateStats();
       // setStats(statsData);
 
+      // ✅ FIXED - Add missing fields with proper types for RoleTemplateStats (TS2345)
       // 临时使用模拟数据
       setStats({
         total_templates: 0,
         system_templates: 0,
         business_templates: 0,
-        custom_templates: 0
-      });
+        custom_templates: 0,
+        active_templates: 0,
+        inactive_templates: 0,
+        template_usage_count: 0,
+        most_used_templates: [] as Array<{ template: RoleTemplate; usage_count: number }>
+      } as RoleTemplateStats);
     } catch (error: any) {
       console.error('Failed to load template stats:', error);
     }

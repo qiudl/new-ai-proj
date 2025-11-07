@@ -550,11 +550,12 @@ const EnterpriseRoleManagementPage: React.FC = () => {
       label: '角色层级',
       children: (
         <Card title="角色层级结构">
+          {/* ✅ FIXED - Wrap setExpandedKeys in proper callback signature (TS2322) */}
           {roles.length > 0 && (
             <Tree
               showLine
               expandedKeys={expandedKeys}
-              onExpand={setExpandedKeys}
+              onExpand={(keys) => setExpandedKeys(keys as string[])}
               treeData={convertToTreeData(roles)}
             />
           )}

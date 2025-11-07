@@ -120,7 +120,7 @@ class TaskAnalysisService {
    */
   async analyzeTaskTags(projectId: number, taskId: number): Promise<TagAnalysisResult> {
     const response = await request.get(`/projects/${projectId}/tasks/${taskId}/analysis/tags`);
-    return response;
+    return response.data;
   }
 
   /**
@@ -140,7 +140,7 @@ class TaskAnalysisService {
     count: number;
   }> {
     const response = await request.post(`/analysis/tasks/batch-analyze`, analysisRequest);
-    return response;
+    return response.data;
   }
 
   /**
@@ -155,7 +155,7 @@ class TaskAnalysisService {
    */
   async generateWeeklyReport(reportRequest: WeeklyReportRequest): Promise<WeeklyReportResponse> {
     const response = await request.post(`/analysis/reports/weekly`, reportRequest);
-    return response;
+    return response.data;
   }
 
   /**
@@ -163,7 +163,7 @@ class TaskAnalysisService {
    */
   async getTagStatistics(): Promise<TagStatistics> {
     const response = await request.get(`/analysis/tags/statistics`);
-    return response;
+    return response.data;
   }
 
   /**

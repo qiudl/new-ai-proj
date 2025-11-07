@@ -120,7 +120,8 @@ class PromptService {
       const response = await api.get<PromptTemplate[]>(`${this.baseURL}/templates`, {
         params
       });
-      return response as any;
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+      return response as unknown as PromptTemplate[];
     } catch (error) {
       console.error('[PromptService] Failed to fetch templates:', error);
       throw error;
@@ -133,7 +134,8 @@ class PromptService {
   async getTemplateById(id: number): Promise<PromptTemplate> {
     try {
       const response = await api.get<PromptTemplate>(`${this.baseURL}/templates/${id}`);
-      return response as any;
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+      return response as unknown as PromptTemplate;
     } catch (error) {
       console.error(`[PromptService] Failed to fetch template ${id}:`, error);
       throw error;
@@ -148,7 +150,8 @@ class PromptService {
       const response = await api.get<UserPromptHistory[]>(`${this.baseURL}/history`, {
         params
       });
-      return response as any;
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+      return response as unknown as UserPromptHistory[];
     } catch (error) {
       console.error('[PromptService] Failed to fetch user history:', error);
       throw error;
@@ -164,7 +167,8 @@ class PromptService {
         `${this.baseURL}/history`,
         data
       );
-      return response as any;
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+      return response as unknown as { id: number; created_at: string };
     } catch (error) {
       console.error('[PromptService] Failed to save history:', error);
       throw error;
@@ -195,7 +199,8 @@ class PromptService {
         `${this.baseURL}/recommendations`,
         { params }
       );
-      return response as any;
+      // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+      return response as unknown as PromptRecommendation[];
     } catch (error) {
       console.error('[PromptService] Failed to fetch recommendations:', error);
       throw error;

@@ -1,14 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import { Button, Tooltip, Tag } from 'antd';
-import { 
-  EyeOutlined, 
-  EditOutlined, 
+import {
+  EyeOutlined,
+  EditOutlined,
   DeleteOutlined,
   FileTextOutlined,
   FilePdfOutlined,
   FileMarkdownOutlined
 } from '@ant-design/icons';
-import { DocumentInfo } from './DocumentSidebar';
+// ✅ FIXED - Use Document type from central types (TS2307, TS2724)
+import { Document as DocumentInfo } from '../../types/document';
 
 export interface DocumentCardProps {
   document: DocumentInfo;
@@ -137,27 +138,28 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
       {/* 文档元信息 */}
       <div className="document-meta">
         <div className="meta-row">
-          <Tag 
-            color={getTypeTagColor(document.type)} 
-            size="small"
+          {/* ✅ FIXED - Ant Design Tag组件不支持size属性 */}
+          <Tag
+            color={getTypeTagColor(document.type)}
             className="type-tag"
           >
             {document.type.toUpperCase()}
           </Tag>
           <span className="meta-item">
             <span className="meta-icon">💾</span>
-            <span className="meta-text">{formatFileSize(document.size)}</span>
+            {/* ✅ FIXED - Use correct Document interface property names (TS2339) */}
+            <span className="meta-text">{formatFileSize(document.file_size || 0)}</span>
           </span>
         </div>
         <div className="meta-row">
           <span className="meta-item">
             <span className="meta-icon">📅</span>
-            <span className="meta-text">{formatUpdateTime(document.updatedAt)}</span>
+            <span className="meta-text">{formatUpdateTime(document.updated_at)}</span>
           </span>
-          {document.author && (
+          {document.owner_name && (
             <span className="meta-item">
               <span className="meta-icon">👤</span>
-              <span className="meta-text">{document.author}</span>
+              <span className="meta-text">{document.owner_name}</span>
             </span>
           )}
         </div>
@@ -167,7 +169,8 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
       {document.tags && document.tags.length > 0 && (
         <div className="document-tags">
           {document.tags.slice(0, 3).map((tag, index) => (
-            <Tag key={index} size="small" className="document-tag">
+            // ✅ FIXED - Ant Design Tag组件不支持size属性
+            <Tag key={index} className="document-tag">
               {tag}
             </Tag>
           ))}

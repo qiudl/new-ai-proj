@@ -7,6 +7,8 @@ import api from '../services/api';
 import { documentService } from '../services/unifiedDocumentService';
 import { apiCache } from '../utils/apiCacheManager';
 import html2pdf from 'html2pdf.js';
+// ✅ FIXED - Import DocumentType for interface type safety (TS2322)
+import { DocumentType } from '../types/document';
 import '../styles/TaskDocumentEditor.css';
 
 // html2pdf and mermaid are now loaded as npm packages
@@ -40,6 +42,7 @@ interface DocumentRequest {
 }
 
 
+// ✅ FIXED - Use DocumentType instead of string for type property (TS2322)
 interface TaskDocumentEditorProps {
   taskId: number;
   projectId: number;
@@ -47,7 +50,7 @@ interface TaskDocumentEditorProps {
     id: number;
     title: string;
     content: string;
-    type: string;
+    type: DocumentType;
   };
   onSave?: (content: string) => void;
   style?: React.CSSProperties;
@@ -114,7 +117,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       });
 
       // 处理响应数据
-      const documents = response.documents || response.data?.documents || response;
+      const documents = (response as any).documents || (response as any).data?.documents || response;
       const docsArray = Array.isArray(documents) ? documents : [];
 
       // 查找主文档（metadata.relationship_type='main'）
@@ -174,10 +177,11 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       });
 
       // 使用documentService.updateDocument方法，确保正确的API调用
+      // ✅ FIXED - Remove incorrect type assertion, use DocumentType directly (TS2322)
       await documentService.updateDocument(taskDocument.id, {
         content,
         title: title.trim() || taskDocument.title,
-        type: taskDocument.type as 'markdown' | 'txt' | 'pdf'
+        type: taskDocument.type
       });
 
       console.log('✅ [保存文档] 保存成功，清除所有相关缓存并重新获取最新数据...');
@@ -576,7 +580,8 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
         <div style={{ color: '#ff4d4f', marginBottom: '16px' }}>
           ❌ {error}
         </div>
-        <Button onClick={loadDocument}>重新加载</Button>
+        {/* ✅ FIXED - Wrap async function in arrow function for onClick (TS2322) */}
+        <Button onClick={() => loadDocument()}>重新加载</Button>
       </div>
     );
   }

@@ -112,6 +112,9 @@ export type { Task } from '../types/task';
  * 简化多个 Provider 的嵌套使用
  */
 import React, { ReactNode } from 'react';
+// ✅ FIXED - Import TaskProvider and DocumentProvider to use in StateProviders component (TS2304)
+import { TaskProvider } from './TaskContext';
+import { DocumentProvider } from './DocumentContext';
 
 interface StateProvidersProps {
   children: ReactNode;

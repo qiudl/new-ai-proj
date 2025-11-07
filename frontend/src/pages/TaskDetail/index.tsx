@@ -38,10 +38,8 @@ const TaskDetail: React.FC = () => {
         </div>
       }
     >
-      <TaskDetailPage 
-        projectId={parseInt(projectId, 10)} 
-        taskId={parseInt(taskId, 10)} 
-      />
+      {/* ✅ FIXED - TaskDetailPage uses useParams internally, no props needed (TS2322) */}
+      <TaskDetailPage />
     </Suspense>
   );
 };

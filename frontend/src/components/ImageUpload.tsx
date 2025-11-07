@@ -73,11 +73,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   const uploadToServer = async (file: File): Promise<string> => {
     try {
       // 使用真实的API上传图片
-      const response = await unifiedDocumentService.uploadImage({
-        file
-        // Note: project_id is not supported in current uploadImage API
-      });
-      return response.url;
+      const response = await unifiedDocumentService.uploadFile(file);
+      return response.file_url || '';
     } catch (error) {
       // 如果API失败，回退到本地预览URL（开发阶段）
       console.warn('API upload failed, using local URL:', error);

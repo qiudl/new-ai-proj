@@ -145,7 +145,7 @@ const RequirementReviewModal: React.FC<RequirementReviewModalProps> = ({
           {actionConfig.label}
         </Button>,
       ]}
-      destroyOnClose
+      destroyOnHidden
     >
       {requirement && (
         <div style={{ marginBottom: '16px' }}>

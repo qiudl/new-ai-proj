@@ -90,21 +90,30 @@ export interface DocumentItem extends Omit<Document, 'type'> {
 }
 
 // 组件属性接口
+// ✅ FIXED - Added missing props to match usage in EnhancedFullscreenDocumentPreview (TS2322)
 export interface UnifiedTaskDocumentAreaProps {
   projectId: number;
   taskId: number;
+  currentDocumentId?: string; // 当前选中的文档ID
   height?: number | string;
   className?: string;
   style?: React.CSSProperties;
   defaultViewMode?: ViewMode;
+  fullscreenMode?: boolean; // 全屏模式
   showToolbar?: boolean;
   showDocumentList?: boolean;
   compactMode?: boolean;
   headerVisible?: boolean; // 是否显示头部标题与统计徽章
   includeSubtaskDocuments?: boolean; // 是否包含子任务的文档
+  enableComments?: boolean; // 是否启用评论
+  enableSearch?: boolean; // 是否启用搜索
+  enableShare?: boolean; // 是否启用分享
+  fullscreenExitOnEsc?: boolean; // 是否允许ESC退出全屏
   onDocumentChange?: (documents: DocumentItem[]) => void;
+  onDocumentSelect?: (docId: string) => void; // 文档选择回调
   onViewModeChange?: (mode: ViewMode) => void;
   onSaveDocument?: () => Promise<void>; // 保存文档回调
+  onFullscreenToggle?: (isFullscreen: boolean) => void; // 全屏切换回调
 }
 
 // 文档列表项组件 - 使用memo优化性能
@@ -647,19 +656,21 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
           const descendantDocArrays = await Promise.all(
             descendantIds.map(async (descTaskId) => {
               try {
-                // getTaskDocuments returns array directly
+                // getTaskDocuments returns UploadedDocumentInfo[] directly
                 const documents = await documentService.getTaskDocuments(projectId, descTaskId);
-                return (documents || []).map((d: Document) => ({ ...d, selected: false, sourceTaskId: descTaskId }));
+                // ✅ FIXED - Use UploadedDocumentInfo type and cast to DocumentItem[] (TS2345)
+                return (documents || []).map((d: any) => ({ ...d, selected: false, sourceTaskId: descTaskId })) as DocumentItem[];
               } catch (e) {
                 return [] as DocumentItem[];
               }
             })
           );
           const allDescDocs = descendantDocArrays.flat();
+          // ✅ FIXED - Type assertion for mixed DocumentItem properties (TS2322)
           docs = [
             ...docs,
             ...allDescDocs.map(d => ({ ...d, description: d.description || `来自子任务 #${d.sourceTaskId}` }))
-          ];
+          ] as DocumentItem[];
         } catch (e) {
           // 忽略递归失败
         }
@@ -1721,11 +1732,19 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
               </div>
             ) : (
               <Suspense fallback={<Spin size="large" style={{ display: 'block', margin: '40px auto' }} />}>
+                {/* ✅ FIXED - Map DocumentItem to TaskDocumentEditor's expected shape (TS2322) */}
                 <TaskDocumentEditor
                   key={selectedDocument.id}
                   taskId={taskId}
                   projectId={projectId}
-                  taskDocument={selectedDocument}
+                  taskDocument={{
+                    id: selectedDocument.id,
+                    title: selectedDocument.title,
+                    content: selectedDocument.content || '',
+                    type: ((selectedDocument.type === 'image' || selectedDocument.type === 'file')
+                      ? 'markdown'
+                      : selectedDocument.type) as any
+                  }}
                   onSave={(content) => {
                     loadDocuments(true); // 强制从API重新加载最新数据
                     if (onSaveDocument) {
@@ -2101,9 +2120,10 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
 
               {/* 刷新按钮 */}
               <Tooltip title="刷新">
+                {/* ✅ FIXED - Wrap async function in arrow function for onClick (TS2322) */}
                 <Button
                   icon={<SyncOutlined />}
-                  onClick={loadDocuments}
+                  onClick={() => loadDocuments()}
                   loading={loading}
                 />
               </Tooltip>

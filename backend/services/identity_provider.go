@@ -2,10 +2,10 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
+	"ai-project-backend/database"
 	"ai-project-backend/interfaces"
 
 	"github.com/go-redis/redis/v8"
@@ -29,16 +29,16 @@ type IdentityProvider interface {
 
 // identityProviderImpl implements IdentityProvider
 type identityProviderImpl struct {
-	db       *sql.DB
-	cache    *redis.Client
-	cacheTTL time.Duration
+	identityRepo database.IdentityRepository
+	cache        *redis.Client
+	cacheTTL     time.Duration
 }
 
 // IdentityProviderConfig holds configuration for IdentityProvider
 type IdentityProviderConfig struct {
-	DB       *sql.DB
-	Cache    *redis.Client
-	CacheTTL time.Duration // Default: 15 minutes
+	IdentityRepo database.IdentityRepository
+	Cache        *redis.Client
+	CacheTTL     time.Duration // Default: 15 minutes
 }
 
 // NewIdentityProvider creates a new identity provider
@@ -48,9 +48,9 @@ func NewIdentityProvider(config *IdentityProviderConfig) IdentityProvider {
 	}
 
 	return &identityProviderImpl{
-		db:       config.DB,
-		cache:    config.Cache,
-		cacheTTL: config.CacheTTL,
+		identityRepo: config.IdentityRepo,
+		cache:        config.Cache,
+		cacheTTL:     config.CacheTTL,
 	}
 }
 
@@ -68,20 +68,10 @@ func (p *identityProviderImpl) GetSystemUserIdentity(userID uint) (interfaces.Us
 		}
 	}
 
-	// Query database to verify user is a system user
-	query := `
-		SELECT user_type
-		FROM users
-		WHERE id = $1 AND deleted_at IS NULL
-	`
-
-	var userType string
-	err := p.db.QueryRowContext(ctx, query, userID).Scan(&userType)
+	// Delegate to repository to get user type
+	userType, err := p.identityRepo.GetUserType(ctx, userID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user %d not found", userID)
-		}
-		return nil, fmt.Errorf("failed to query user: %w", err)
+		return nil, err
 	}
 
 	if userType != "system" {
@@ -110,32 +100,17 @@ func (p *identityProviderImpl) GetEnterpriseUserIdentity(userID uint, enterprise
 		}
 	}
 
-	// Query database to verify:
-	// 1. User exists and is enterprise type
-	// 2. User is a member of the specified enterprise
-	query := `
-		SELECT u.user_type, COUNT(eu.id) as membership_count
-		FROM users u
-		LEFT JOIN enterprise_users eu ON u.id = eu.user_id AND eu.enterprise_id = $2 AND eu.deleted_at IS NULL
-		WHERE u.id = $1 AND u.deleted_at IS NULL
-		GROUP BY u.user_type
-	`
-
-	var userType string
-	var membershipCount int
-	err := p.db.QueryRowContext(ctx, query, userID, enterpriseID).Scan(&userType, &membershipCount)
+	// Delegate to repository to check enterprise membership
+	userType, isMember, err := p.identityRepo.CheckEnterpriseMembership(ctx, userID, enterpriseID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user %d not found", userID)
-		}
-		return nil, fmt.Errorf("failed to query user: %w", err)
+		return nil, err
 	}
 
 	if userType != "enterprise" {
 		return nil, fmt.Errorf("user %d is not an enterprise user (type: %s)", userID, userType)
 	}
 
-	if membershipCount == 0 {
+	if !isMember {
 		return nil, fmt.Errorf("user %d is not a member of enterprise %d", userID, enterpriseID)
 	}
 
@@ -151,33 +126,20 @@ func (p *identityProviderImpl) GetEnterpriseUserIdentity(userID uint, enterprise
 func (p *identityProviderImpl) GetUserIdentityAuto(userID uint) (interfaces.UserIdentity, error) {
 	ctx := context.Background()
 
-	// Query user type and enterprise membership
-	query := `
-		SELECT u.user_type, eu.enterprise_id
-		FROM users u
-		LEFT JOIN enterprise_users eu ON u.id = eu.user_id AND eu.deleted_at IS NULL
-		WHERE u.id = $1 AND u.deleted_at IS NULL
-		LIMIT 1
-	`
-
-	var userType string
-	var enterpriseID sql.NullInt64
-	err := p.db.QueryRowContext(ctx, query, userID).Scan(&userType, &enterpriseID)
+	// Delegate to repository to get user type and enterprise ID
+	userType, enterpriseID, err := p.identityRepo.GetUserTypeAndEnterprise(ctx, userID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user %d not found", userID)
-		}
-		return nil, fmt.Errorf("failed to query user: %w", err)
+		return nil, err
 	}
 
 	if userType == "system" {
 		return interfaces.NewSystemUserIdentity(userID), nil
 	}
 
-	if userType == "enterprise" && enterpriseID.Valid {
-		return interfaces.NewEnterpriseUserIdentity(userID, uint(enterpriseID.Int64)), nil
+	if userType == "enterprise" && enterpriseID != nil {
+		return interfaces.NewEnterpriseUserIdentity(userID, *enterpriseID), nil
 	}
 
 	return nil, fmt.Errorf("unable to determine user identity for user %d (type: %s, enterprise: %v)",
-		userID, userType, enterpriseID.Valid)
+		userID, userType, enterpriseID != nil)
 }

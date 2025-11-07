@@ -25,7 +25,9 @@ func (m *MockTaskRepository) SearchParentTasks(ctx context.Context, projectID in
 
 		// Filter by keyword
 		if keyword != "" {
-			if !contains(task.Title, keyword) && !contains(task.Description, keyword) {
+			titleMatch := contains(task.Title, keyword)
+			descMatch := task.Description != nil && contains(*task.Description, keyword)
+			if !titleMatch && !descMatch {
 				continue
 			}
 		}
@@ -164,11 +166,11 @@ func TestSearchParentTasks(t *testing.T) {
 	parentID2 := 2
 
 	testTasks := []models.Task{
-		{ID: 1, ProjectID: 1, Title: "Root Task", Description: "Root level task", TaskLevel: level0},
-		{ID: 2, ProjectID: 1, Title: "Design Task", Description: "UI Design work", TaskLevel: level1, ParentID: &parentID1},
-		{ID: 3, ProjectID: 1, Title: "Implementation", Description: "Code implementation", TaskLevel: level2, ParentID: &parentID2},
-		{ID: 4, ProjectID: 1, Title: "Deep Task", Description: "Very deep task", TaskLevel: level3, ParentID: &parentID2},
-		{ID: 5, ProjectID: 2, Title: "Other Project Task", Description: "Different project", TaskLevel: level0},
+		{ID: 1, ProjectID: 1, Title: "Root Task", Description: stringPtr("Root level task"), TaskLevel: level0},
+		{ID: 2, ProjectID: 1, Title: "Design Task", Description: stringPtr("UI Design work"), TaskLevel: level1, ParentID: &parentID1},
+		{ID: 3, ProjectID: 1, Title: "Implementation", Description: stringPtr("Code implementation"), TaskLevel: level2, ParentID: &parentID2},
+		{ID: 4, ProjectID: 1, Title: "Deep Task", Description: stringPtr("Very deep task"), TaskLevel: level3, ParentID: &parentID2},
+		{ID: 5, ProjectID: 2, Title: "Other Project Task", Description: stringPtr("Different project"), TaskLevel: level0},
 	}
 
 	repo := &MockTaskRepository{tasks: testTasks}

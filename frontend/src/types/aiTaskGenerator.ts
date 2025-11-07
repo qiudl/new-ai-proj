@@ -40,6 +40,18 @@ export interface AITaskGenerationResponse {
     message: string;
     details?: any;
   };
+  // Top-level aliases for backward compatibility
+  generationTime?: number; // Alias for data.generationTime
+  usedProvider?: AIProvider; // Alias for data.usedProvider
+  usedModel?: string; // Alias for data.usedModel
+  generatedTasks?: GeneratedSubTask[]; // Alias for data.generatedTasks
+  estimatedQuality?: number; // Alias for data.estimatedQuality
+  tokensUsed?: {
+    input: number;
+    output: number;
+    total: number;
+  }; // Alias for data.tokensUsed
+  estimatedCost?: number; // Alias for data.estimatedCost
 }
 
 // 生成的子任务结构

@@ -155,7 +155,7 @@ const UserManagementPage: React.FC = () => {
       }
       
       // 回退到旧的公司系统API
-      const response = await CompanyService.getCompanies(
+      const response = await enterpriseService.getCompanies(
         { page: 1, pageSize: 100 }, // 获取前100个企业，足够用于选择器
         { status: 'active' } // 只获取活跃企业
       );
@@ -192,7 +192,7 @@ const UserManagementPage: React.FC = () => {
 
     try {
       setCompaniesLoading(true);
-      const searchResults = await CompanyService.searchCompanies(keyword);
+      const searchResults = await enterpriseService.searchCompanies(keyword);
       
       // 转换为前端期望的格式
       const companiesList = searchResults.map(company => ({
@@ -227,8 +227,9 @@ const UserManagementPage: React.FC = () => {
   const [columnSettingsVisible, setColumnSettingsVisible] = useState(false);
 
   // 排序状态
+  // ✅ FIXED - Allow empty string in sortOrder type (TS2345)
   const [sortField, setSortField] = useState<string>('');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | ''>('');
 
   // 获取用户列表数据
   const fetchUsers = useCallback(async () => {
@@ -1272,16 +1273,14 @@ const UserManagementPage: React.FC = () => {
                   <EnterpriseSelector 
                     placeholder="请选择企业"
                     onChange={(value, enterprise) => {
-                      // 保持兼容性，同时支持新旧字段
+                      // ✅ FIXED - Removed duplicate enterprise_id properties (TS1117)
                       if (createModalVisible) {
                         createForm.setFieldsValue({
-                          enterprise_id: value,
                           enterprise_id: value
                         });
                       }
                       if (editModalVisible) {
                         editForm.setFieldsValue({
-                          enterprise_id: value,
                           enterprise_id: value
                         });
                       }
@@ -1450,16 +1449,14 @@ const UserManagementPage: React.FC = () => {
                   <EnterpriseSelector 
                     placeholder="请选择企业"
                     onChange={(value, enterprise) => {
-                      // 保持兼容性，同时支持新旧字段
+                      // ✅ FIXED - Removed duplicate enterprise_id properties (TS1117)
                       if (createModalVisible) {
                         createForm.setFieldsValue({
-                          enterprise_id: value,
                           enterprise_id: value
                         });
                       }
                       if (editModalVisible) {
                         editForm.setFieldsValue({
-                          enterprise_id: value,
                           enterprise_id: value
                         });
                       }

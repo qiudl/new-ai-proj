@@ -10,24 +10,25 @@ import {
 
 class NavigationService {
   // 菜单项管理
+  // ✅ FIXED - Add .data to unpack AxiosResponse (TS2322)
   async getMenuItems(): Promise<MenuItem[]> {
     const response = await api.get('/system/menu-items');
-    return response || [];
+    return response.data || [];
   }
 
   async getMenuItem(id: string): Promise<MenuItem> {
     const response = await api.get(`/system/menu-items/${id}`);
-    return response;
+    return response.data;
   }
 
   async createMenuItem(menuItem: MenuItemRequest): Promise<MenuItem> {
     const response = await api.post('/system/menu-items', menuItem);
-    return response;
+    return response.data;
   }
 
   async updateMenuItem(id: string, menuItem: Partial<MenuItemRequest>): Promise<MenuItem> {
     const response = await api.put(`/system/menu-items/${id}`, menuItem);
-    return response;
+    return response.data;
   }
 
   async deleteMenuItem(id: string): Promise<void> {
@@ -39,19 +40,20 @@ class NavigationService {
   }
 
   // 菜单分组管理
+  // ✅ FIXED - Add .data to unpack AxiosResponse (TS2322)
   async getMenuGroups(): Promise<MenuGroup[]> {
     const response = await api.get('/system/menu-groups');
-    return response || [];
+    return response.data || [];
   }
 
   async createMenuGroup(group: Omit<MenuGroup, 'id' | 'created_at' | 'updated_at' | 'menu_items'>): Promise<MenuGroup> {
     const response = await api.post('/system/menu-groups', group);
-    return response;
+    return response.data;
   }
 
   async updateMenuGroup(id: string, group: Partial<MenuGroup>): Promise<MenuGroup> {
     const response = await api.put(`/system/menu-groups/${id}`, group);
-    return response;
+    return response.data;
   }
 
   async deleteMenuGroup(id: string): Promise<void> {
@@ -59,24 +61,25 @@ class NavigationService {
   }
 
   // 路由配置管理
+  // ✅ FIXED - Add .data to unpack AxiosResponse (TS2322)
   async getRoutes(): Promise<RouteConfig[]> {
     const response = await api.get('/system/routes');
-    return response || [];
+    return response.data || [];
   }
 
   async getRoute(id: string): Promise<RouteConfig> {
     const response = await api.get(`/system/routes/${id}`);
-    return response;
+    return response.data;
   }
 
   async createRoute(route: Omit<RouteConfig, 'id' | 'created_at' | 'updated_at'>): Promise<RouteConfig> {
     const response = await api.post('/system/routes', route);
-    return response;
+    return response.data;
   }
 
   async updateRoute(id: string, route: Partial<RouteConfig>): Promise<RouteConfig> {
     const response = await api.put(`/system/routes/${id}`, route);
-    return response;
+    return response.data;
   }
 
   async deleteRoute(id: string): Promise<void> {
@@ -84,9 +87,10 @@ class NavigationService {
   }
 
   // 权限管理
+  // ✅ FIXED - Add .data to unpack AxiosResponse (TS2322)
   async getMenuPermissions(): Promise<MenuPermission[]> {
     const response = await api.get('/system/menu-permissions');
-    return response || [];
+    return response.data || [];
   }
 
   async updateMenuPermission(menuItemId: string, permissions: Partial<MenuPermission>[]): Promise<void> {
@@ -96,7 +100,7 @@ class NavigationService {
   // 完整配置管理
   async getNavigationConfig(): Promise<NavigationConfig> {
     const response = await api.get('/system/navigation-config');
-    return response;
+    return response.data;
   }
 
   async updateNavigationConfig(config: Partial<NavigationConfig>): Promise<void> {
@@ -106,7 +110,7 @@ class NavigationService {
   // 导入导出
   async exportNavigationConfig(): Promise<NavigationConfig> {
     const response = await api.get('/system/navigation-config/export');
-    return response;
+    return response.data;
   }
 
   async importNavigationConfig(config: NavigationConfig): Promise<void> {
@@ -114,14 +118,15 @@ class NavigationService {
   }
 
   // 预览和测试
+  // ✅ FIXED - Add .data to unpack AxiosResponse (TS2322)
   async previewNavigation(): Promise<MenuItem[]> {
     const response = await api.get('/system/navigation-config/preview');
-    return response || [];
+    return response.data || [];
   }
 
   async validateRoutes(): Promise<{ valid: boolean; errors: string[] }> {
     const response = await api.post('/system/routes/validate');
-    return response;
+    return response.data;
   }
 
   // 应用配置
@@ -134,9 +139,10 @@ class NavigationService {
   }
 
   // 获取当前用户的菜单（根据权限过滤）
+  // ✅ FIXED - Add .data to unpack AxiosResponse (TS2322)
   async getUserNavigation(): Promise<MenuItem[]> {
     const response = await api.get('/navigation/user-menu');
-    return response || [];
+    return response.data || [];
   }
 
   // 批量操作
@@ -156,7 +162,7 @@ class NavigationService {
   }): Promise<MenuItem[]> {
     const params = new URLSearchParams();
     params.append('q', query);
-    
+
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined) {
@@ -165,8 +171,9 @@ class NavigationService {
       });
     }
 
+    // ✅ FIXED - Add .data to unpack AxiosResponse (TS2322)
     const response = await api.get(`/system/menu-items/search?${params}`);
-    return response || [];
+    return response.data || [];
   }
 
   // 菜单项移动
@@ -186,7 +193,7 @@ class NavigationService {
     total_routes: number;
   }> {
     const response = await api.get('/system/navigation-config/stats');
-    return response;
+    return response.data;
   }
 }
 

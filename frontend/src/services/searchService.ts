@@ -130,7 +130,7 @@ export class SearchService {
       if (filter.size_max) params.append('size_max', filter.size_max.toString());
 
       const response = await api.get(`/search?${params.toString()}`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('搜索失败:', error);
       throw this.enhanceError(error, '搜索');
@@ -152,7 +152,7 @@ export class SearchService {
       params.append('limit', limit.toString());
 
       const response = await api.get(`/search/autocomplete?${params.toString()}`);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('获取搜索建议失败:', error);
       throw this.enhanceError(error, '获取搜索建议');
@@ -167,7 +167,7 @@ export class SearchService {
       const response = await api.get('/search/stats', {
         params: { period }
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('获取搜索统计失败:', error);
       throw this.enhanceError(error, '获取搜索统计');
@@ -180,7 +180,7 @@ export class SearchService {
   async getSavedSearches(): Promise<SavedSearch[]> {
     try {
       const response = await api.get('/search/saved');
-      return response;
+      return response.data;
     } catch (error) {
       console.error('获取保存的搜索失败:', error);
       throw this.enhanceError(error, '获取保存的搜索');
@@ -201,7 +201,7 @@ export class SearchService {
         query,
         filters
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('保存搜索失败:', error);
       throw this.enhanceError(error, '保存搜索');
@@ -237,7 +237,7 @@ export class SearchService {
         query,
         ...options
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('高级搜索失败:', error);
       throw this.enhanceError(error, '高级搜索');
@@ -260,7 +260,7 @@ export class SearchService {
           limit
         }
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('相似内容搜索失败:', error);
       throw this.enhanceError(error, '相似内容搜索');
@@ -279,7 +279,7 @@ export class SearchService {
       const response = await api.get('/search/history', {
         params: { limit }
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('获取搜索历史失败:', error);
       throw this.enhanceError(error, '获取搜索历史');
@@ -310,7 +310,7 @@ export class SearchService {
       const response = await api.get('/search/trending', {
         params: { limit }
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('获取热门搜索失败:', error);
       throw this.enhanceError(error, '获取热门搜索');
@@ -329,7 +329,7 @@ export class SearchService {
   }> {
     try {
       const response = await api.get('/search/index/status');
-      return response;
+      return response.data;
     } catch (error) {
       console.error('获取索引状态失败:', error);
       throw this.enhanceError(error, '获取索引状态');
@@ -346,7 +346,7 @@ export class SearchService {
   }> {
     try {
       const response = await api.post('/search/index/rebuild');
-      return response;
+      return response.data;
     } catch (error) {
       console.error('重建索引失败:', error);
       throw this.enhanceError(error, '重建索引');
@@ -371,7 +371,7 @@ export class SearchService {
       const response = await api.get(`/search/export?${params.toString()}`, {
         responseType: 'blob'
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('导出搜索结果失败:', error);
       throw this.enhanceError(error, '导出搜索结果');
@@ -396,7 +396,7 @@ export class SearchService {
         operation,
         params
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('批量操作失败:', error);
       throw this.enhanceError(error, '批量操作');

@@ -238,7 +238,8 @@ export const UserFeedbackCard: React.FC<UserFeedbackCardProps> = ({
                             </li>
                           )) : (
                             <li>
-                              <Text type="secondary">{errors}</Text>
+                              {/* ✅ FIXED - Type assertion for unknown to ReactNode (TS2322) */}
+                              <Text type="secondary">{String(errors)}</Text>
                             </li>
                           )}
                         </ul>

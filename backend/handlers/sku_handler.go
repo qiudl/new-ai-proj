@@ -505,7 +505,7 @@ func (h *SKUHandler) ListSKUsWithDetails(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/v1/products/spus/{spu_id}/skus [get]
 func (h *SKUHandler) ListSKUsBySPU(c *gin.Context) {
-	spuIDStr := c.Param("spu_id")
+	spuIDStr := c.Param("id")
 	spuID, err := strconv.ParseUint(spuIDStr, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的SPU ID"})

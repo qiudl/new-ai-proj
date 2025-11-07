@@ -332,7 +332,7 @@ const DocumentCommentSystem: React.FC<DocumentCommentSystemProps> = ({
         <Button
           type="text"
           size="small"
-          icon={<ReplyArrowOutlined />}
+          icon={<RollbackOutlined />}
           onClick={() => handleReply(comment.id)}
         >
           回复
@@ -396,13 +396,15 @@ const DocumentCommentSystem: React.FC<DocumentCommentSystemProps> = ({
                 <Text strong>{comment.author.name}</Text>
                 {comment.position && (
                   <Tooltip title={`行 ${comment.position.line}, 列 ${comment.position.column}`}>
-                    <Tag size="small" color="blue">
+                    {/* ✅ FIXED - Ant Design Tag组件不支持size属性 */}
+                    <Tag color="blue">
                       L{comment.position.line}
                     </Tag>
                   </Tooltip>
                 )}
                 {comment.isResolved && (
-                  <Tag size="small" color="green">已解决</Tag>
+                  // ✅ FIXED - Ant Design Tag组件不支持size属性
+                  <Tag color="green">已解决</Tag>
                 )}
                 <Text type="secondary" style={{ fontSize: '12px' }}>
                   {dayjs(comment.createdAt).fromNow()}

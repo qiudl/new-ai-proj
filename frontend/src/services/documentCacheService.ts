@@ -446,7 +446,12 @@ export class DocumentCacheService {
         return;
       }
 
-      const result = response;
+      // ✅ FIXED - 使用类型断言定义响应结构
+      const result = response as {
+        documents?: any[];
+        work_notes?: any[];
+        uploaded_files?: any[];
+      };
       console.log(`📊 [CACHE-PREFETCH] 解析数据:`, {
         hasDocuments: !!result.documents,
         hasWorkNotes: !!result.work_notes,

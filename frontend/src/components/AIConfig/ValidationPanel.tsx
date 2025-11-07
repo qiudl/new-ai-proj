@@ -6,7 +6,7 @@ import {
   LoadingOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons';
-import type { ValidationTestResponse } from '@/types/aiConfig';
+import type { ValidationTestResponse } from '../../types/aiConfig';
 
 interface ValidationPanelProps {
   validating: boolean;
@@ -38,7 +38,7 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
         <Alert
           message="等待验证"
           description='点击"保存并验证"按钮开始测试配置'
-          type="default"
+          type="info"
           icon={<ClockCircleOutlined />}
           showIcon
         />

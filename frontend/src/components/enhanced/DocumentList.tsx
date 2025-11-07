@@ -2,7 +2,8 @@ import React, { useCallback, useRef, useEffect } from 'react';
 import { Button, Empty } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import DocumentCard from './DocumentCard';
-import { DocumentInfo } from './DocumentSidebar';
+// ✅ FIXED - Use Document type from central types (TS2307, TS2724)
+import { Document as DocumentInfo } from '../../types/document';
 
 export interface DocumentListProps {
   documents: DocumentInfo[];
@@ -92,8 +93,9 @@ const DocumentList: React.FC<DocumentListProps> = ({
     <div className={`document-list ${className}`} ref={listRef}>
       {documents.map((document, index) => {
         const isLast = index === documents.length - 1;
-        const isSelected = currentDocumentId === document.id;
-        
+        // ✅ FIXED - Convert Document.id (number) to string for comparison (TS2367)
+        const isSelected = currentDocumentId === String(document.id);
+
         return (
           <div
             key={document.id}
@@ -103,11 +105,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
             <DocumentCard
               document={document}
               isSelected={isSelected}
-              isLoading={document.isLoading || false}
-              onSelect={() => handleCardSelect(document.id)}
-              onEdit={onDocumentEdit ? () => handleCardEdit(document.id) : undefined}
-              onDelete={onDocumentDelete ? () => handleCardDelete(document.id) : undefined}
-              onPreview={() => handleCardPreview(document.id)}
+              // ✅ FIXED - Remove isLoading (not a Document property), use loading prop (TS2339)
+              isLoading={loading || false}
+              // ✅ FIXED - Convert Document.id to string for callbacks (TS2345)
+              onSelect={() => handleCardSelect(String(document.id))}
+              onEdit={onDocumentEdit ? () => handleCardEdit(String(document.id)) : undefined}
+              onDelete={onDocumentDelete ? () => handleCardDelete(String(document.id)) : undefined}
+              onPreview={() => handleCardPreview(String(document.id))}
             />
           </div>
         );

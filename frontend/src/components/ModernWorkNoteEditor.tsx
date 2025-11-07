@@ -39,11 +39,13 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
+// ✅ FIXED - Added initialNote alias and flexible onSave signature (TS2322)
 interface ModernWorkNoteEditorProps {
   visible: boolean;
   note?: WorkNote | null;
+  initialNote?: any; // Alias for note
   onClose: () => void;
-  onSave: (noteData: any) => void;
+  onSave: ((noteData: any) => void) | (() => void);
 }
 
 const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
@@ -91,12 +93,12 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
   const notePermissions = note ? {
     canEdit: canEditNote({
       id: note.id,
-      creatorId: note.creator_id || 0,
+      creatorId: note.created_by || 0,
       visibility: note.visibility as 'private' | 'team' | 'public'
     }),
     canPublish: canPublishNote({
       id: note.id,
-      creatorId: note.creator_id || 0,
+      creatorId: note.created_by || 0,
       visibility: note.visibility as 'private' | 'team' | 'public'
     })
   } : {

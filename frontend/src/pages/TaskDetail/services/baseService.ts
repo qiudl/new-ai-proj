@@ -1,12 +1,21 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import TokenManager from '../../../utils/tokenManager';
-import { 
-  ApiClientConfig, 
-  ServiceError, 
+import {
+  ApiClientConfig,
+  ServiceError,
   CacheEntry,
   RetryConfig,
   AuthConfig
 } from './types';
+
+// ✅ ADDED - Extend InternalAxiosRequestConfig to support custom metadata
+declare module 'axios' {
+  export interface InternalAxiosRequestConfig {
+    metadata?: {
+      requestId: string;
+    };
+  }
+}
 
 // Service cache implementation
 export class ServiceCache {
@@ -18,6 +27,8 @@ export class ServiceCache {
       data,
       timestamp: Date.now(),
       ttl: ttl ?? this.DEFAULT_TTL,
+      // ✅ FIXED - Add missing hits property for CacheEntry (TS2345)
+      hits: 0,
     });
   }
 
@@ -311,14 +322,18 @@ export abstract class BaseService {
       });
     } else if (error.request) {
       // Network error
+      // ✅ FIXED - Add missing code property for ServiceError (TS2345)
       return new CustomServiceError({
+        code: 'NETWORK_ERROR',
         type: 'network',
         message: 'Network error occurred',
         retryable: true,
       });
     } else if (error.name === 'ValidationError') {
       // Validation error
+      // ✅ FIXED - Add missing code property for ServiceError (TS2345)
       return new CustomServiceError({
+        code: 'VALIDATION_ERROR',
         type: 'validation',
         message: error.message || 'Validation error occurred',
         details: error.details,
@@ -326,7 +341,9 @@ export abstract class BaseService {
       });
     } else {
       // Unknown error
+      // ✅ FIXED - Add missing code property for ServiceError (TS2345)
       return new CustomServiceError({
+        code: 'UNKNOWN_ERROR',
         type: 'unknown',
         message: error.message || 'Unknown error occurred',
         retryable: false,

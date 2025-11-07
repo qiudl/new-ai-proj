@@ -64,11 +64,13 @@ const { Search } = Input;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
+// ✅ FIXED - Added onDocumentChange callback (TS2322)
 interface TaskDocumentManagerProps {
   projectId: number;
   taskId: number;
   visible?: boolean;
   onClose?: () => void;
+  onDocumentChange?: (documents: any) => void;
   mode?: 'embedded' | 'modal'; // embedded for task detail page, modal for standalone
 }
 
@@ -436,8 +438,10 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
   const handlePreview = async (doc: DocumentInfo) => {
     if (doc.mime_type === 'application/pdf') {
       // PDF 文件直接下载
-      if (doc.file_path) {
-        await taskDocumentService.downloadFile(doc.file_path, doc.original_name);
+      // ✅ FIXED - downloadFile takes 1 parameter (documentId), returns Blob (TS2554)
+      if (doc.id) {
+        const blob = await taskDocumentService.downloadFile(doc.id);
+        taskDocumentService.triggerDownload(blob, doc.original_name || doc.file_name);
       }
       return;
     }
@@ -452,7 +456,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
       }
 
       if (doc.id) {
-        const content = await taskDocumentService.getDocumentContent(projectId, taskId, doc.id);
+        const content = await taskDocumentService.getDocumentContent(doc.id);
         setPreviewContent(content);
         
         // 缓存内容
@@ -471,7 +475,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     if (!doc.id) return;
     
     try {
-      await taskDocumentService.deleteDocument(projectId, taskId, doc.id);
+      await taskDocumentService.deleteDocument(doc.id);
       loadDocumentStats(); // 重新加载
     } catch (error) {
       console.error('Delete failed:', error);
@@ -552,32 +556,21 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     
     try {
       let updatedOp = updateBatchOperation(operation, { status: 'running' });
-      
+
       const selectedDocuments = documents.filter(doc => selectedRowKeys.includes(doc.id!));
+
+      // ✅ FIXED - Use new server-side batchOperation API (TS2554)
+      const documentIds = selectedDocuments
+        .map(doc => doc.id)
+        .filter((id): id is number => id !== undefined);
+
+      const results = await taskDocumentService.batchOperation({
+        operation: 'delete',
+        document_ids: documentIds
+      });
       
-      // 使用 taskDocumentService 的批量操作功能
-      const results = await taskDocumentService.batchOperation(
-        selectedDocuments,
-        async (doc) => {
-          if (doc.id) {
-            await taskDocumentService.deleteDocument(projectId, taskId, doc.id);
-          }
-        },
-        {
-          concurrency: 3,
-          onProgress: (completed, total) => {
-            const progress = Math.round((completed / total) * 100);
-            updatedOp = updateBatchOperation(updatedOp, { 
-              progress,
-              completedItems: completed 
-            });
-          },
-          stopOnError: false
-        }
-      );
-      
-      const failedCount = results.filter(r => !r.success).length;
-      const completedCount = results.filter(r => r.success).length;
+      const failedCount = results.results.filter(r => !r.success).length;
+      const completedCount = results.results.filter(r => r.success).length;
       
       updateBatchOperation(updatedOp, {
         status: failedCount > 0 ? 'failed' : 'completed',
@@ -635,27 +628,40 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
       let updatedOp = updateBatchOperation(operation, { status: 'running' });
       
       const selectedDocuments = documents.filter(doc => selectedRowKeys.includes(doc.id!));
-      
-      const results = await taskDocumentService.batchOperation(
-        selectedDocuments,
-        async (doc) => {
-          if (doc.file_path) {
-            await taskDocumentService.downloadFile(doc.file_path, doc.original_name);
+
+      // ✅ FIXED - Implement client-side batch download with progress (TS2554)
+      const results: Array<{ document_id: number; success: boolean; error?: string }> = [];
+
+      for (let i = 0; i < selectedDocuments.length; i++) {
+        const doc = selectedDocuments[i];
+        try {
+          if (doc.id) {
+            const blob = await taskDocumentService.downloadFile(doc.id);
+            taskDocumentService.triggerDownload(blob, doc.original_name || doc.file_name);
+            results.push({ document_id: doc.id, success: true });
+          } else {
+            results.push({ document_id: 0, success: false, error: 'No document ID' });
           }
-        },
-        {
-          concurrency: 2, // 下载并发数较少
-          onProgress: (completed, total) => {
-            const progress = Math.round((completed / total) * 100);
-            updatedOp = updateBatchOperation(updatedOp, { 
-              progress,
-              completedItems: completed 
-            });
-          },
-          stopOnError: false
+        } catch (error) {
+          results.push({
+            document_id: doc.id || 0,
+            success: false,
+            error: error instanceof Error ? error.message : 'Download failed'
+          });
         }
-      );
-      
+
+        // Update progress
+        const completed = i + 1;
+        const progress = Math.round((completed / selectedDocuments.length) * 100);
+        updatedOp = updateBatchOperation(updatedOp, {
+          progress,
+          completedItems: completed
+        });
+        setBatchOperations(prev =>
+          prev.map(op => op.id === operation.id ? updatedOp : op)
+        );
+      }
+
       const failedCount = results.filter(r => !r.success).length;
       const completedCount = results.filter(r => r.success).length;
       
@@ -1324,11 +1330,20 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             <Tooltip title="下载">
               <Button
                 type="text"
-                
+
                 icon={<DownloadOutlined />}
-                onClick={() => {
-                  if (record.file_path) {
-                    taskDocumentService.downloadFile(record.file_path, record.original_name);
+                onClick={async () => {
+                  // ✅ FIXED - downloadFile takes 1 parameter (documentId), returns Blob (TS2554)
+                  if (record.id) {
+                    try {
+                      const blob = await taskDocumentService.downloadFile(record.id);
+                      taskDocumentService.triggerDownload(blob, record.original_name || record.file_name);
+                    } catch (error) {
+                      notification.error({
+                        message: '下载失败',
+                        description: error instanceof Error ? error.message : '文档下载失败'
+                      });
+                    }
                   }
                 }}
                 aria-label={`下载文档 ${record.original_name}`}

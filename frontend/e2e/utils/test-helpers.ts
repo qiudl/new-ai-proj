@@ -6,7 +6,7 @@ import { Page, Locator, expect } from '@playwright/test';
  */
 
 export class TestHelpers {
-  constructor(private page: Page) {}
+  constructor(protected page: Page) {}
 
   /**
    * 等待元素出现并获取
@@ -235,7 +235,7 @@ export class SecurityTestHelpers extends TestHelpers {
  * 性能测试工具
  */
 export class PerformanceTestHelpers extends TestHelpers {
-  
+
   /**
    * 测量页面加载时间
    */
@@ -244,7 +244,7 @@ export class PerformanceTestHelpers extends TestHelpers {
     await this.page.goto(url);
     await this.waitForNetworkIdle();
     const endTime = Date.now();
-    
+
     return endTime - startTime;
   }
 
@@ -253,11 +253,11 @@ export class PerformanceTestHelpers extends TestHelpers {
    */
   async measureImpersonationResponseTime(): Promise<number> {
     const startTime = Date.now();
-    
+
     // 执行模拟操作
     await this.safeClick('[data-testid="impersonate-button"]');
     await this.verifyElementExists('[data-testid="impersonation-warning-banner"]');
-    
+
     const endTime = Date.now();
     return endTime - startTime;
   }
@@ -282,6 +282,286 @@ export class PerformanceTestHelpers extends TestHelpers {
 
       // 验证内存使用不超过合理限制 (50MB)
       expect(metrics.usedJSHeapSize).toBeLessThan(50 * 1024 * 1024);
+    }
+  }
+}
+
+/**
+ * 需求管理测试工具
+ */
+export class RequirementTestHelpers extends TestHelpers {
+
+  /**
+   * 创建新需求
+   */
+  async createRequirement(title: string, description: string, priority: 'low' | 'medium' | 'high' = 'medium'): Promise<string> {
+    // 导航到需求管理页面
+    await this.page.goto('/requirements');
+    await this.waitForNetworkIdle();
+
+    // 点击创建需求按钮
+    await this.safeClick('[data-testid="create-requirement-button"]');
+
+    // 填写需求表单
+    await this.safeFill('[data-testid="requirement-title-input"]', title);
+    await this.safeFill('[data-testid="requirement-description-input"]', description);
+
+    // 选择优先级
+    await this.safeClick(`[data-testid="requirement-priority-${priority}"]`);
+
+    // 提交创建
+    await this.safeClick('[data-testid="submit-create-requirement"]');
+    await this.waitForNetworkIdle();
+
+    // 获取并返回新创建的需求ID
+    const requirementId = await this.page.locator('[data-testid="requirement-id"]').textContent();
+    return requirementId || '';
+  }
+
+  /**
+   * 添加评论（支持@提及用户）
+   */
+  async addComment(requirementId: string, content: string, mentionUsers?: string[]): Promise<void> {
+    // 导航到需求详情页
+    await this.page.goto(`/requirements/${requirementId}`);
+    await this.waitForNetworkIdle();
+
+    // 找到评论输入框
+    const commentInput = await this.waitAndGet('[data-testid="comment-input"]');
+
+    // 如果需要@用户
+    if (mentionUsers && mentionUsers.length > 0) {
+      let commentText = content;
+      for (const user of mentionUsers) {
+        // 输入@触发提及功能
+        await commentInput.fill('@');
+        await this.page.waitForSelector('[data-testid="mention-dropdown"]');
+
+        // 搜索并选择用户
+        await this.page.locator(`[data-testid="mention-user-${user}"]`).click();
+
+        // 继续输入评论内容
+        await commentInput.fill(`@${user} ${commentText}`);
+      }
+    } else {
+      await commentInput.fill(content);
+    }
+
+    // 提交评论
+    await this.safeClick('[data-testid="submit-comment-button"]');
+    await this.waitForNetworkIdle();
+
+    // 验证评论已添加
+    await this.verifyElementExists(`[data-testid="comment-content"]:has-text("${content}")`);
+  }
+
+  /**
+   * 提交需求审批
+   */
+  async submitForReview(requirementId: string, reviewers: string[]): Promise<void> {
+    // 导航到需求详情页
+    await this.page.goto(`/requirements/${requirementId}`);
+    await this.waitForNetworkIdle();
+
+    // 点击提交审批按钮
+    await this.safeClick('[data-testid="submit-for-review-button"]');
+
+    // 选择审批人
+    for (const reviewer of reviewers) {
+      await this.safeClick(`[data-testid="reviewer-checkbox-${reviewer}"]`);
+    }
+
+    // 确认提交
+    await this.safeClick('[data-testid="confirm-submit-review"]');
+    await this.waitForNetworkIdle();
+
+    // 验证状态变更为"审批中"
+    await this.verifyTextContent('[data-testid="requirement-status"]', '审批中');
+  }
+
+  /**
+   * 审批需求（通过）
+   */
+  async approveRequirement(requirementId: string, comment?: string): Promise<void> {
+    // 导航到需求详情页
+    await this.page.goto(`/requirements/${requirementId}`);
+    await this.waitForNetworkIdle();
+
+    // 点击审批按钮
+    await this.safeClick('[data-testid="approve-requirement-button"]');
+
+    // 添加审批意见（如果有）
+    if (comment) {
+      await this.safeFill('[data-testid="approval-comment-input"]', comment);
+    }
+
+    // 确认审批
+    await this.safeClick('[data-testid="confirm-approve"]');
+    await this.waitForNetworkIdle();
+
+    // 验证状态变更为"已批准"
+    await this.verifyTextContent('[data-testid="requirement-status"]', '已批准');
+  }
+
+  /**
+   * 拒绝需求
+   */
+  async rejectRequirement(requirementId: string, reason: string): Promise<void> {
+    // 导航到需求详情页
+    await this.page.goto(`/requirements/${requirementId}`);
+    await this.waitForNetworkIdle();
+
+    // 点击拒绝按钮
+    await this.safeClick('[data-testid="reject-requirement-button"]');
+
+    // 填写拒绝原因
+    await this.safeFill('[data-testid="rejection-reason-input"]', reason);
+
+    // 确认拒绝
+    await this.safeClick('[data-testid="confirm-reject"]');
+    await this.waitForNetworkIdle();
+
+    // 验证状态变更为"已拒绝"
+    await this.verifyTextContent('[data-testid="requirement-status"]', '已拒绝');
+  }
+
+  /**
+   * 将需求转换为任务
+   */
+  async convertToTask(requirementId: string, taskDetails: {
+    projectId: string;
+    title?: string;
+    assignee?: string;
+  }): Promise<string> {
+    // 导航到需求详情页
+    await this.page.goto(`/requirements/${requirementId}`);
+    await this.waitForNetworkIdle();
+
+    // 点击转换为任务按钮
+    await this.safeClick('[data-testid="convert-to-task-button"]');
+
+    // 选择项目
+    await this.safeClick(`[data-testid="project-select"]`);
+    await this.safeClick(`[data-testid="project-option-${taskDetails.projectId}"]`);
+
+    // 修改任务标题（如果提供）
+    if (taskDetails.title) {
+      await this.safeFill('[data-testid="task-title-input"]', taskDetails.title);
+    }
+
+    // 分配任务（如果提供）
+    if (taskDetails.assignee) {
+      await this.safeClick(`[data-testid="assignee-select"]`);
+      await this.safeClick(`[data-testid="assignee-option-${taskDetails.assignee}"]`);
+    }
+
+    // 确认转换
+    await this.safeClick('[data-testid="confirm-convert-to-task"]');
+    await this.waitForNetworkIdle();
+
+    // 验证转换成功
+    await this.verifyElementExists('[data-testid="conversion-success-message"]');
+
+    // 获取并返回新创建的任务ID
+    const taskId = await this.page.locator('[data-testid="created-task-id"]').textContent();
+    return taskId || '';
+  }
+
+  /**
+   * 关联需求到现有任务
+   */
+  async linkToTask(requirementId: string, taskId: string): Promise<void> {
+    // 导航到需求详情页
+    await this.page.goto(`/requirements/${requirementId}`);
+    await this.waitForNetworkIdle();
+
+    // 点击关联任务按钮
+    await this.safeClick('[data-testid="link-to-task-button"]');
+
+    // 搜索任务
+    await this.safeFill('[data-testid="task-search-input"]', taskId);
+    await this.waitForNetworkIdle();
+
+    // 选择任务
+    await this.safeClick(`[data-testid="task-option-${taskId}"]`);
+
+    // 确认关联
+    await this.safeClick('[data-testid="confirm-link-task"]');
+    await this.waitForNetworkIdle();
+
+    // 验证关联成功
+    await this.verifyElementExists(`[data-testid="linked-task-${taskId}"]`);
+  }
+
+  /**
+   * 验证需求状态
+   */
+  async verifyRequirementStatus(requirementId: string, expectedStatus: string): Promise<void> {
+    await this.page.goto(`/requirements/${requirementId}`);
+    await this.waitForNetworkIdle();
+    await this.verifyTextContent('[data-testid="requirement-status"]', expectedStatus);
+  }
+
+  /**
+   * 验证需求详情
+   */
+  async verifyRequirementDetails(requirementId: string, expectedDetails: {
+    title?: string;
+    description?: string;
+    priority?: string;
+    status?: string;
+  }): Promise<void> {
+    await this.page.goto(`/requirements/${requirementId}`);
+    await this.waitForNetworkIdle();
+
+    if (expectedDetails.title) {
+      await this.verifyTextContent('[data-testid="requirement-title"]', expectedDetails.title);
+    }
+
+    if (expectedDetails.description) {
+      await this.verifyTextContent('[data-testid="requirement-description"]', expectedDetails.description);
+    }
+
+    if (expectedDetails.priority) {
+      await this.verifyTextContent('[data-testid="requirement-priority"]', expectedDetails.priority);
+    }
+
+    if (expectedDetails.status) {
+      await this.verifyTextContent('[data-testid="requirement-status"]', expectedDetails.status);
+    }
+  }
+
+  /**
+   * 验证评论中的@提及
+   */
+  async verifyMentionInComment(requirementId: string, mentionedUser: string): Promise<void> {
+    await this.page.goto(`/requirements/${requirementId}`);
+    await this.waitForNetworkIdle();
+
+    // 验证评论中包含@用户
+    await this.verifyElementExists(`[data-testid="comment-mention-${mentionedUser}"]`);
+  }
+
+  /**
+   * 获取需求列表
+   */
+  async getRequirementsList(filters?: {
+    status?: string;
+    priority?: string;
+  }): Promise<void> {
+    await this.page.goto('/requirements');
+    await this.waitForNetworkIdle();
+
+    if (filters?.status) {
+      await this.safeClick('[data-testid="status-filter"]');
+      await this.safeClick(`[data-testid="status-option-${filters.status}"]`);
+      await this.waitForNetworkIdle();
+    }
+
+    if (filters?.priority) {
+      await this.safeClick('[data-testid="priority-filter"]');
+      await this.safeClick(`[data-testid="priority-option-${filters.priority}"]`);
+      await this.waitForNetworkIdle();
     }
   }
 }

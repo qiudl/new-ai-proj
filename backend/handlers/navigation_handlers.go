@@ -29,8 +29,8 @@ func NewNavigationHandler(repo database.NavigationRepository) *NavigationHandler
 // @Tags System-Navigation
 // @Accept json
 // @Produce json
-// @Success 200 {object} models.Response{data=[]models.MenuItem}
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=[]models.MenuItem}
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/menu-items [get]
 // @Security BearerAuth
 func (h *NavigationHandler) GetMenuItems(c *gin.Context) {
@@ -52,10 +52,10 @@ func (h *NavigationHandler) GetMenuItems(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "菜单项ID"
-// @Success 200 {object} models.Response{data=models.MenuItem}
-// @Failure 400 {object} models.Response
-// @Failure 404 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=models.MenuItem}
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/menu-items/{id} [get]
 // @Security BearerAuth
 func (h *NavigationHandler) GetMenuItem(c *gin.Context) {
@@ -91,9 +91,9 @@ func (h *NavigationHandler) GetMenuItem(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param menuItem body models.MenuItemRequest true "菜单项信息"
-// @Success 201 {object} models.Response{data=models.MenuItem}
-// @Failure 400 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 201 {object} models.APIResponse{data=models.MenuItem}
+// @Failure 400 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/menu-items [post]
 // @Security BearerAuth
 func (h *NavigationHandler) CreateMenuItem(c *gin.Context) {
@@ -123,10 +123,10 @@ func (h *NavigationHandler) CreateMenuItem(c *gin.Context) {
 // @Produce json
 // @Param id path int true "菜单项ID"
 // @Param menuItem body models.MenuItemRequest true "菜单项信息"
-// @Success 200 {object} models.Response{data=models.MenuItem}
-// @Failure 400 {object} models.Response
-// @Failure 404 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=models.MenuItem}
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/menu-items/{id} [put]
 // @Security BearerAuth
 func (h *NavigationHandler) UpdateMenuItem(c *gin.Context) {
@@ -168,10 +168,10 @@ func (h *NavigationHandler) UpdateMenuItem(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "菜单项ID"
-// @Success 200 {object} models.Response
-// @Failure 400 {object} models.Response
-// @Failure 404 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/menu-items/{id} [delete]
 // @Security BearerAuth
 func (h *NavigationHandler) DeleteMenuItem(c *gin.Context) {
@@ -206,9 +206,9 @@ func (h *NavigationHandler) DeleteMenuItem(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param items body object{items=[]object{id=int,sort_order=int}} true "菜单项排序信息"
-// @Success 200 {object} models.Response
-// @Failure 400 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/menu-items/reorder [post]
 // @Security BearerAuth
 func (h *NavigationHandler) ReorderMenuItems(c *gin.Context) {
@@ -244,8 +244,8 @@ func (h *NavigationHandler) ReorderMenuItems(c *gin.Context) {
 // @Tags System-Navigation
 // @Accept json
 // @Produce json
-// @Success 200 {object} models.Response{data=[]models.MenuGroup}
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=[]models.MenuGroup}
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/menu-groups [get]
 // @Security BearerAuth
 func (h *NavigationHandler) GetMenuGroups(c *gin.Context) {
@@ -267,10 +267,10 @@ func (h *NavigationHandler) GetMenuGroups(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "菜单分组ID"
-// @Success 200 {object} models.Response{data=models.MenuGroup}
-// @Failure 400 {object} models.Response
-// @Failure 404 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=models.MenuGroup}
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/menu-groups/{id} [get]
 // @Security BearerAuth
 func (h *NavigationHandler) GetMenuGroup(c *gin.Context) {
@@ -306,9 +306,9 @@ func (h *NavigationHandler) GetMenuGroup(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param menuGroup body models.MenuGroupRequest true "菜单分组信息"
-// @Success 201 {object} models.Response{data=models.MenuGroup}
-// @Failure 400 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 201 {object} models.APIResponse{data=models.MenuGroup}
+// @Failure 400 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/menu-groups [post]
 // @Security BearerAuth
 func (h *NavigationHandler) CreateMenuGroup(c *gin.Context) {
@@ -338,10 +338,10 @@ func (h *NavigationHandler) CreateMenuGroup(c *gin.Context) {
 // @Produce json
 // @Param id path int true "菜单分组ID"
 // @Param menuGroup body models.MenuGroupRequest true "菜单分组信息"
-// @Success 200 {object} models.Response{data=models.MenuGroup}
-// @Failure 400 {object} models.Response
-// @Failure 404 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=models.MenuGroup}
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/menu-groups/{id} [put]
 // @Security BearerAuth
 func (h *NavigationHandler) UpdateMenuGroup(c *gin.Context) {
@@ -383,10 +383,10 @@ func (h *NavigationHandler) UpdateMenuGroup(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "菜单分组ID"
-// @Success 200 {object} models.Response
-// @Failure 400 {object} models.Response
-// @Failure 404 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/menu-groups/{id} [delete]
 // @Security BearerAuth
 func (h *NavigationHandler) DeleteMenuGroup(c *gin.Context) {
@@ -422,8 +422,8 @@ func (h *NavigationHandler) DeleteMenuGroup(c *gin.Context) {
 // @Tags System-Navigation
 // @Accept json
 // @Produce json
-// @Success 200 {object} models.Response{data=[]models.RouteConfig}
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=[]models.RouteConfig}
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/routes [get]
 // @Security BearerAuth
 func (h *NavigationHandler) GetRoutes(c *gin.Context) {
@@ -445,10 +445,10 @@ func (h *NavigationHandler) GetRoutes(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "路由配置ID"
-// @Success 200 {object} models.Response{data=models.RouteConfig}
-// @Failure 400 {object} models.Response
-// @Failure 404 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=models.RouteConfig}
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/routes/{id} [get]
 // @Security BearerAuth
 func (h *NavigationHandler) GetRoute(c *gin.Context) {
@@ -484,9 +484,9 @@ func (h *NavigationHandler) GetRoute(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param route body models.RouteConfigRequest true "路由配置信息"
-// @Success 201 {object} models.Response{data=models.RouteConfig}
-// @Failure 400 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 201 {object} models.APIResponse{data=models.RouteConfig}
+// @Failure 400 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/routes [post]
 // @Security BearerAuth
 func (h *NavigationHandler) CreateRoute(c *gin.Context) {
@@ -516,10 +516,10 @@ func (h *NavigationHandler) CreateRoute(c *gin.Context) {
 // @Produce json
 // @Param id path int true "路由配置ID"
 // @Param route body models.RouteConfigRequest true "路由配置信息"
-// @Success 200 {object} models.Response{data=models.RouteConfig}
-// @Failure 400 {object} models.Response
-// @Failure 404 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=models.RouteConfig}
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/routes/{id} [put]
 // @Security BearerAuth
 func (h *NavigationHandler) UpdateRoute(c *gin.Context) {
@@ -561,10 +561,10 @@ func (h *NavigationHandler) UpdateRoute(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "路由配置ID"
-// @Success 200 {object} models.Response
-// @Failure 400 {object} models.Response
-// @Failure 404 {object} models.Response
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/routes/{id} [delete]
 // @Security BearerAuth
 func (h *NavigationHandler) DeleteRoute(c *gin.Context) {
@@ -600,8 +600,8 @@ func (h *NavigationHandler) DeleteRoute(c *gin.Context) {
 // @Tags System-Navigation
 // @Accept json
 // @Produce json
-// @Success 200 {object} models.Response{data=models.NavigationStats}
-// @Failure 500 {object} models.Response
+// @Success 200 {object} models.APIResponse{data=models.NavigationStats}
+// @Failure 500 {object} models.APIResponse
 // @Router /api/v1/system/navigation-config/stats [get]
 // @Security BearerAuth
 func (h *NavigationHandler) GetNavigationStats(c *gin.Context) {

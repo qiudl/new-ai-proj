@@ -32,7 +32,8 @@ import {
   API_KEY_PERMISSIONS,
   AUDIT_PERMISSIONS,
   NAVIGATION_PERMISSIONS,
-  ORGANIZATION_PERMISSIONS
+  ORGANIZATION_PERMISSIONS,
+  REQUIREMENT_PERMISSIONS
 } from './constants/permissions';
 import './App.css';
 import './styles/task-hierarchy.css';
@@ -92,6 +93,9 @@ const EnterpriseUsersRedirectPage = React.lazy(() => import('./pages/EnterpriseU
 
 const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
 // const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage')); // 已归档
+const RequirementListPage = React.lazy(() => import('./pages/RequirementListPage'));
+const RequirementDetailPage = React.lazy(() => import('./pages/RequirementDetailPage'));
+const RequirementFormPage = React.lazy(() => import('./pages/RequirementFormPage'));
 const DropdownTestPage = React.lazy(() => import('./pages/DropdownTestPage'));
 const TaskDocumentListPage = React.lazy(() => import('./pages/TaskDocumentListPage'));
 const FullscreenDocumentPreviewPage = React.lazy(() => import('./pages/FullscreenDocumentPreviewPage'));
@@ -362,6 +366,31 @@ const AppContent: React.FC = () => {
 
 
                 <Route path="/task-documents" element={<TaskDocumentListPage />} />
+
+                {/* Requirement management routes */}
+                <Route path="/requirements" element={
+                  <PermissionRoute permissions={[REQUIREMENT_PERMISSIONS.LIST_READ, REQUIREMENT_PERMISSIONS.READ]}>
+                    <RequirementListPage />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/requirements/new" element={
+                  <PermissionRoute permission={REQUIREMENT_PERMISSIONS.CREATE}>
+                    <RequirementFormPage />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/requirements/:id" element={
+                  <PermissionRoute permissions={[REQUIREMENT_PERMISSIONS.DETAIL_READ, REQUIREMENT_PERMISSIONS.READ]}>
+                    <RequirementDetailPage />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/requirements/:id/edit" element={
+                  <PermissionRoute permission={REQUIREMENT_PERMISSIONS.UPDATE}>
+                    <RequirementFormPage />
+                  </PermissionRoute>
+                } />
 
                 {/* Fullscreen document preview route */}
                 <Route path="/projects/:projectId/tasks/:taskId/document-preview" element={<FullscreenDocumentPreviewPage />} />

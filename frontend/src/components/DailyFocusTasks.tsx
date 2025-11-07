@@ -43,12 +43,15 @@ import { taskService, TaskService } from '../services/taskService';
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
 
+// ✅ FIXED - Added enableBulkActions and maxTasks properties (TS2322)
 interface DailyFocusTasksProps {
   title?: string;
   showHeader?: boolean;
   maxHeight?: number;
   compact?: boolean;
   showStats?: boolean;
+  enableBulkActions?: boolean;
+  maxTasks?: number;
 }
 
 const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({

@@ -62,6 +62,7 @@ class RealVersionHistoryService {
     const { limit = 20, offset = 0, includeContent = true } = options;
 
     try {
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
       const response = await api.get(
         `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions`,
         {
@@ -71,15 +72,15 @@ class RealVersionHistoryService {
             include_content: includeContent
           }
         }
-      );
+      ) as { document_id?: number; versions?: any[]; stats?: any } | any[];
 
       console.log('版本历史API响应:', response);
 
       // axios拦截器已解包响应，response直接是data对象
       // 后端返回: {success: true, data: {...}}
       // axios解包后: {document_id, versions, stats, ...}
-      let versionData;
-      if (response.versions !== undefined) {
+      let versionData: { versions?: any[] };
+      if (!Array.isArray(response) && response.versions !== undefined) {
         // 标准格式: { document_id, versions: [...], stats: {...} }
         versionData = response;
       } else if (Array.isArray(response)) {
@@ -166,6 +167,7 @@ class RealVersionHistoryService {
     version2Id: number
   ): Promise<DiffResult[]> {
     try {
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
       const response = await api.get(
         `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/compare`,
         {
@@ -174,7 +176,14 @@ class RealVersionHistoryService {
             version2: version2Id
           }
         }
-      );
+      ) as {
+        differences?: any;
+        version1?: any;
+        version2?: any;
+        deletions?: string[];
+        additions?: string[];
+        modifications?: any[];
+      };
 
       console.log('版本对比API响应:', response);
 
@@ -279,6 +288,7 @@ class RealVersionHistoryService {
     const { reason, strategy = 'replace' } = options;
 
     try {
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
       const response = await api.post(
         `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/restore`,
         {
@@ -286,7 +296,7 @@ class RealVersionHistoryService {
           restore_reason: reason,
           strategy
         }
-      );
+      ) as { new_version_id?: number; [key: string]: any };
 
       // axios拦截器已解包响应
       if (!response || typeof response !== 'object') {
@@ -357,7 +367,7 @@ class RealVersionHistoryService {
         throw new Error('Invalid version statistics response');
       }
 
-      return response;
+      return response.data;
 
     } catch (error) {
       console.error('获取版本统计失败:', error);
@@ -407,7 +417,7 @@ class RealVersionHistoryService {
       }
 
       console.log('新版本创建成功');
-      return response;
+      return response.data;
 
     } catch (error) {
       console.error('创建版本失败:', error);
@@ -434,7 +444,7 @@ class RealVersionHistoryService {
         throw new Error('Invalid version detail response');
       }
 
-      return response;
+      return response.data;
 
     } catch (error) {
       console.error('获取版本详情失败:', error);

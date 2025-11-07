@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { Task } from '../types/task';
-import { taskService } from '../services/taskService';
+// ✅ FIXED - Import TaskService class instead of instance (TS2576)
+import { TaskService } from '../services/taskService';
 import { errorLogger } from '../utils/ErrorLogger';
 
 // 任务状态接口

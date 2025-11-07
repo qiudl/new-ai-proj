@@ -222,16 +222,14 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     switch (docDetail.file_type) {
       case 'markdown':
         return (
-          <div 
+          <div
             className="markdown-content"
             onMouseDown={(e) => {
               // 确保文本选择事件不被阻止
               e.stopPropagation();
             }}
-            onSelectStart={(e) => {
-              // 确保选择开始事件不被阻止
-              e.stopPropagation();
-            }}
+            // ✅ FIXED - onSelectStart is not a valid HTML event for div (TS2322)
+            // Text selection is already handled by onMouseDown
           >
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkBreaks]}

@@ -45,12 +45,14 @@ class TestDataService {
   }
 
   async getWorkPatterns(): Promise<Record<string, WorkPattern>> {
-    const response = await this.makeRequest<Record<string, WorkPattern>>('/work-patterns');
+    // ✅ FIXED - makeRequest返回包装对象，使用类型断言
+    const response = await this.makeRequest<any>('/work-patterns') as { patterns?: Record<string, WorkPattern> };
     return response.patterns || {};
   }
 
   async getTaskTemplates(): Promise<TaskTemplate[]> {
-    const response = await this.makeRequest<TaskTemplate[]>('/task-templates');
+    // ✅ FIXED - makeRequest返回包装对象，使用类型断言
+    const response = await this.makeRequest<any>('/task-templates') as { templates?: TaskTemplate[] };
     return response.templates || [];
   }
 
@@ -64,7 +66,8 @@ class TestDataService {
       message.success(response.message || '测试数据生成成功');
     }
 
-    return response as GenerateTimerDataResponse;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as GenerateTimerDataResponse;
   }
 
   async quickGenerate(request: QuickGenerateRequest): Promise<GenerateTimerDataResponse> {
@@ -77,11 +80,13 @@ class TestDataService {
       message.success(response.message || '快速生成测试数据成功');
     }
 
-    return response as GenerateTimerDataResponse;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as GenerateTimerDataResponse;
   }
 
   async getGenerationStatus(): Promise<TestDataStats> {
-    const response = await this.makeRequest<TestDataStats>('/status');
+    // ✅ FIXED - makeRequest返回包装对象，使用类型断言
+    const response = await this.makeRequest<any>('/status') as { stats?: TestDataStats };
     return response.stats || {
       total_timer_sessions: 0,
       total_hours: 0,

@@ -4,13 +4,17 @@
     "target": "es2020",
     "lib": [
       "dom",
-      "dom.iterable", 
+      "dom.iterable",
       "es2020",
       "es2021",
       "es2022"
     ],
     "module": "esnext",
     "moduleResolution": "node",
+    "baseUrl": "src",
+    "paths": {
+      "@/*": ["./*"]
+    },
     
     /* 严格类型检查 - 暂时放宽以修复编译问题 */
     "strict": false,

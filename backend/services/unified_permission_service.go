@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"ai-project-backend/database"
 	"github.com/go-redis/redis/v8"
 )
 
@@ -15,16 +16,17 @@ import (
 type UnifiedPermissionService struct {
 	db    *sql.DB
 	cache *redis.Client
-	
+	repo  database.PermissionCalculatorRepository
+
 	// Configuration
 	config *PermissionServiceConfig
-	
+
 	// Sub-services for different permission sources
 	// These will be implemented later
-	// enterprisePermissions *EnterprisePermissionService  
+	// enterprisePermissions *EnterprisePermissionService
 	// systemPermissions     *SystemPermissionService
 	// legacyPermissions     *LegacyPermissionService
-	
+
 	// Permission calculators for different inheritance levels
 	calculators      map[PermissionLevel]PermissionCalculator
 	hierarchyManager *PermissionHierarchyManager
@@ -244,6 +246,7 @@ func NewUnifiedPermissionService(db *sql.DB, cache *redis.Client, config *Permis
 	service := &UnifiedPermissionService{
 		db:               db,
 		cache:            cache,
+		repo:             database.NewPermissionCalculatorRepository(db),
 		config:           config,
 		calculators:      make(map[PermissionLevel]PermissionCalculator),
 		hierarchyManager: NewPermissionHierarchyManager(db, cache),
@@ -404,19 +407,19 @@ func (s *UnifiedPermissionService) calculatePermission(ctx context.Context, chec
 // registerCalculators registers all permission calculators
 func (s *UnifiedPermissionService) registerCalculators() {
 	// Register calculators for each permission level
-	s.calculators[LevelSystem] = NewSystemPermissionCalculator(s.db, s.cache)
-	s.calculators[LevelEnterprise] = NewEnterprisePermissionCalculator(s.db, s.cache)
-	s.calculators[LevelDepartment] = NewDepartmentPermissionCalculator(s.db, s.cache)
-	s.calculators[LevelPosition] = NewPositionPermissionCalculator(s.db, s.cache)
-	s.calculators[LevelProject] = NewProjectPermissionCalculator(s.db, s.cache)
-	s.calculators[LevelUser] = NewUserPermissionCalculator(s.db, s.cache)
-	
+	s.calculators[LevelSystem] = NewSystemPermissionCalculator(s.repo, s.cache)
+	s.calculators[LevelEnterprise] = NewEnterprisePermissionCalculator(s.repo, s.cache)
+	s.calculators[LevelDepartment] = NewDepartmentPermissionCalculator(s.repo, s.cache)
+	s.calculators[LevelPosition] = NewPositionPermissionCalculator(s.repo, s.cache)
+	s.calculators[LevelProject] = NewProjectPermissionCalculator(s.repo, s.cache)
+	s.calculators[LevelUser] = NewUserPermissionCalculator(s.repo, s.cache)
+
 	if s.config.EnableDelegation {
-		s.calculators[LevelDelegated] = NewDelegatedPermissionCalculator(s.db, s.cache)
+		s.calculators[LevelDelegated] = NewDelegatedPermissionCalculator(s.repo, s.cache)
 	}
-	
+
 	if s.config.EnableRiskAnalysis {
-		s.calculators[LevelPolicy] = NewPolicyPermissionCalculator(s.db, s.cache)
+		s.calculators[LevelPolicy] = NewPolicyPermissionCalculator(s.repo, s.cache)
 	}
 }
 

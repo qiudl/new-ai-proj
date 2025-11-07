@@ -174,7 +174,8 @@ export class EnhancedValidators {
   static confirmPassword(passwordField: string, message?: string): RuleObject {
     return {
       validator: (_: RuleObject, value: string, callback: any) => {
-        const form = _.getFieldsValue && _.getFieldsValue();
+        // ✅ FIXED - 类型断言，运行时rule对象有getFieldsValue方法
+        const form = (_ as any).getFieldsValue && (_ as any).getFieldsValue();
         if (value && value !== form[passwordField]) {
           callback(message || '两次输入的密码不一致');
         } else {
@@ -242,7 +243,8 @@ export class EnhancedValidators {
   static dateRange(startField: string, message?: string): RuleObject {
     return {
       validator: (rule: RuleObject, value: any, callback: any) => {
-        const form = rule.getFieldsValue && rule.getFieldsValue();
+        // ✅ FIXED - 类型断言，运行时rule对象有getFieldsValue方法
+        const form = (rule as any).getFieldsValue && (rule as any).getFieldsValue();
         if (value && form[startField] && value.isBefore(form[startField])) {
           callback(message || '结束时间不能早于开始时间');
         } else {
@@ -286,9 +288,10 @@ export class EnhancedValidators {
   ): RuleObject {
     return {
       validator: (rule: RuleObject, value: any, callback: any) => {
-        const form = rule.getFieldsValue && rule.getFieldsValue();
+        // ✅ FIXED - 类型断言，运行时rule对象有getFieldsValue方法
+        const form = (rule as any).getFieldsValue && (rule as any).getFieldsValue();
         const dependentValue = form[dependentField];
-        
+
         if (condition(dependentValue) && !value) {
           callback(message || `当${dependentField}满足条件时，此字段为必填`);
         } else {
@@ -417,11 +420,13 @@ export const useFormValidation = <T extends Record<string, any>>(
     try {
       for (const rule of rules) {
         if (rule.required && (!value || (typeof value === 'string' && !value.trim()))) {
-          return rule.message || '此字段为必填项';
+          // ✅ FIXED - Ensure return type is string (TS2322)
+          return typeof rule.message === 'string' ? rule.message : '此字段为必填项';
         }
 
         if (rule.pattern && value && !rule.pattern.test(value.toString())) {
-          return rule.message || '格式不正确';
+          // ✅ FIXED - Ensure return type is string (TS2322)
+          return typeof rule.message === 'string' ? rule.message : '格式不正确';
         }
 
         if (rule.validator) {

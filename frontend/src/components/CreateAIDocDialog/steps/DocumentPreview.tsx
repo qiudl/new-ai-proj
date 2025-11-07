@@ -106,8 +106,14 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ content }) => {
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
-              // 代码块高亮
-              code({ node, inline, className, children, ...props }) {
+              // ✅ FIXED - 明确定义code组件的props类型
+              code({ node, inline, className, children, ...props }: {
+                node?: any;
+                inline?: boolean;
+                className?: string;
+                children?: React.ReactNode;
+                [key: string]: any;
+              }) {
                 const match = /language-(\w+)/.exec(className || '');
                 return !inline && match ? (
                   <SyntaxHighlighter
@@ -291,22 +297,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ content }) => {
                   </blockquote>
                 );
               },
-              // 内联代码样式
-              inlineCode({ children }) {
-                return (
-                  <code
-                    style={{
-                      backgroundColor: '#f5f5f5',
-                      padding: '2px 6px',
-                      borderRadius: 3,
-                      fontSize: '0.9em',
-                      fontFamily: 'monospace',
-                    }}
-                  >
-                    {children}
-                  </code>
-                );
-              },
+              // ✅ FIXED - Removed redundant inlineCode (handled by code component with inline prop) (TS2353)
             }}
           >
             {content}

@@ -90,7 +90,7 @@ class CollaborationService {
     // 对于任务文档，需要先获取文档ID，这里简化处理
     const documentId = `${projectId}-${taskId}`; // 简化的文档ID映射
     const response = await api.post(`/projects/${projectId}/documents/${documentId}/comments`, request);
-    return response;
+    return response.data;
   }
 
   async getComments(projectId: number, taskId: number, params?: {
@@ -113,12 +113,12 @@ class CollaborationService {
     const url = `/projects/${projectId}/documents/${documentId}/comments${queryString ? `?${queryString}` : ''}`;
     
     const response = await api.get(url);
-    return response;
+    return response.data;
   }
 
   async updateComment(commentId: number, content: string): Promise<Comment> {
     const response = await api.put(`/comments/${commentId}`, { content });
-    return response;
+    return response.data;
   }
 
   async deleteComment(commentId: number): Promise<void> {
@@ -127,14 +127,14 @@ class CollaborationService {
 
   async resolveComment(commentId: number): Promise<Comment> {
     const response = await api.patch(`/comments/${commentId}/resolve`);
-    return response;
+    return response.data;
   }
 
   // 协作者管理
   async addCollaborator(projectId: number, taskId: number, request: AddCollaboratorRequest): Promise<Collaborator> {
     const documentId = `${projectId}-${taskId}`;
     const response = await api.post(`/projects/${projectId}/documents/${documentId}/collaborators`, request);
-    return response;
+    return response.data;
   }
 
   async getCollaborators(projectId: number, taskId: number): Promise<{
@@ -143,7 +143,7 @@ class CollaborationService {
   }> {
     const documentId = `${projectId}-${taskId}`;
     const response = await api.get(`/projects/${projectId}/documents/${documentId}/collaborators`);
-    return response;
+    return response.data;
   }
 
   async updateCollaborator(
@@ -154,7 +154,7 @@ class CollaborationService {
   ): Promise<Collaborator> {
     const documentId = `${projectId}-${taskId}`;
     const response = await api.put(`/projects/${projectId}/documents/${documentId}/collaborators/${userId}`, request);
-    return response;
+    return response.data;
   }
 
   async removeCollaborator(projectId: number, taskId: number, userId: number): Promise<void> {
@@ -183,7 +183,7 @@ class CollaborationService {
     const url = `/projects/${projectId}/documents/${documentId}/history${queryString ? `?${queryString}` : ''}`;
     
     const response = await api.get(url);
-    return response;
+    return response.data;
   }
 
   // 实时协作
@@ -195,7 +195,7 @@ class CollaborationService {
   }> {
     const documentId = `${projectId}-${taskId}`;
     const response = await api.post(`/projects/${projectId}/documents/${documentId}/collaboration/start`);
-    return response;
+    return response.data;
   }
 
   async getActiveCollaborators(projectId: number, taskId: number): Promise<{
@@ -205,19 +205,19 @@ class CollaborationService {
   }> {
     const documentId = `${projectId}-${taskId}`;
     const response = await api.get(`/projects/${projectId}/documents/${documentId}/collaboration/active`);
-    return response;
+    return response.data;
   }
 
   // 统计信息
   async getStats(projectId: number, taskId: number): Promise<CollaborationStats> {
     const documentId = `${projectId}-${taskId}`;
     const response = await api.get(`/projects/${projectId}/documents/${documentId}/collaboration/stats`);
-    return response;
+    return response.data;
   }
 
   async getUserDashboard(): Promise<UserCollaborationDashboard> {
     const response = await api.get('/collaboration/dashboard');
-    return response;
+    return response.data;
   }
 
   // 通知和消息
@@ -246,13 +246,13 @@ class CollaborationService {
   }> {
     const documentId = `${projectId}-${taskId}`;
     const response = await api.get(`/projects/${projectId}/documents/${documentId}/permissions/check?action=${action}`);
-    return response;
+    return response.data;
   }
 
   // 批量操作
   async bulkResolveComments(commentIds: number[]): Promise<{ resolved_count: number }> {
     const response = await api.post('/comments/bulk-resolve', { comment_ids: commentIds });
-    return response;
+    return response.data;
   }
 
   async bulkUpdateCollaborators(
@@ -267,7 +267,7 @@ class CollaborationService {
     const response = await api.post(`/projects/${projectId}/documents/${documentId}/collaborators/bulk-update`, {
       updates
     });
-    return response;
+    return response.data;
   }
 
   // 搜索和过滤
@@ -290,7 +290,7 @@ class CollaborationService {
     });
     
     const response = await api.get(`/projects/${projectId}/documents/${documentId}/comments/search?${queryParams.toString()}`);
-    return response;
+    return response.data;
   }
 
   // 导出功能
@@ -299,7 +299,7 @@ class CollaborationService {
     const response = await api.get(`/projects/${projectId}/documents/${documentId}/comments/export?format=${format}`, {
       responseType: 'blob'
     });
-    return response;
+    return response.data;
   }
 
   async exportChangeHistory(projectId: number, taskId: number, format: 'json' | 'csv' | 'pdf'): Promise<Blob> {
@@ -307,7 +307,7 @@ class CollaborationService {
     const response = await api.get(`/projects/${projectId}/documents/${documentId}/history/export?format=${format}`, {
       responseType: 'blob'
     });
-    return response;
+    return response.data;
   }
 }
 

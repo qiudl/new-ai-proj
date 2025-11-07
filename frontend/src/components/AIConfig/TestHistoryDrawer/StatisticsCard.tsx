@@ -5,7 +5,7 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons';
-import type { TestStatistics } from '@/types/aiConfig';
+import type { TestStatistics } from '../../../types/aiConfig';
 
 interface StatisticsCardProps {
   statistics: TestStatistics | null;

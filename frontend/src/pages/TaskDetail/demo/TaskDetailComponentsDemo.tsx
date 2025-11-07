@@ -61,6 +61,9 @@ const createMockTask = (status: TaskStatus, isArchived: boolean): Task => ({
   custom_fields: {
     task_summary: 'TaskDetail组件系统的完整演示，包含所有功能模块的集成展示',
   },
+  // ✅ FIXED - Add required Task properties (TS2739)
+  task_level: 1,
+  sort_order: 0,
 });
 
 const mockParentTask: Task = {
@@ -74,6 +77,9 @@ const mockParentTask: Task = {
   due_date: null,
   created_at: '2025-10-01T00:00:00Z',
   updated_at: '2025-10-03T00:00:00Z',
+  // ✅ FIXED - Add required Task properties (TS2739)
+  task_level: 0,
+  sort_order: 0,
 };
 
 // 状态配置

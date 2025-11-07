@@ -80,6 +80,9 @@ const EnhancedTaskHeaderCardDemo: React.FC = () => {
     due_date: '2025-10-10T00:00:00Z',
     created_at: '2025-10-03T00:00:00Z',
     updated_at: '2025-10-03T11:46:00Z',
+    // ✅ FIXED - Add required Task properties (TS2739)
+    task_level: 0,
+    sort_order: 0,
   };
 
   // Add assignee_name for display

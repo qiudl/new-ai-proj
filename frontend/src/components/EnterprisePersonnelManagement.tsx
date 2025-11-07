@@ -390,7 +390,8 @@ const EnterprisePersonnelManagement: React.FC<EnterprisePersonnelManagementProps
             showSearch
             optionFilterProp="children"
             filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              // ✅ FIXED: Convert ReactNode to string before calling toLowerCase
+              String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
             }
           >
             {departments.map(dept => (
@@ -455,7 +456,8 @@ const EnterprisePersonnelManagement: React.FC<EnterprisePersonnelManagementProps
             showSearch
             optionFilterProp="children"
             filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              // ✅ FIXED: Convert ReactNode to string before calling toLowerCase
+              String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
             }
           >
             {departments.map(dept => (

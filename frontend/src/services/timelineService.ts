@@ -86,7 +86,14 @@ class TimelineService {
       const queryString = params.toString();
       const url = `/tasks/${taskId}/timeline${queryString ? `?${queryString}` : ''}`;
 
-      const response = await api.get(url);
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
+      const response = await api.get(url) as {
+        task_id?: number;
+        task_title?: string;
+        events?: any[];
+        total?: number;
+        pagination?: any;
+      };
 
       if (!response) {
         throw new Error('Invalid API response');
@@ -161,7 +168,8 @@ class TimelineService {
       const queryString = params.toString();
       const url = `/tasks/timeline/batch?${queryString}`;
 
-      const response = await api.get(url);
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
+      const response = await api.get(url) as any[];
 
       if (!response) {
         throw new Error('Invalid API response');
@@ -217,7 +225,8 @@ class TimelineService {
       const queryString = params.toString();
       const url = `/projects/${projectId}/tasks/timeline${queryString ? `?${queryString}` : ''}`;
 
-      const response = await api.get(url);
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
+      const response = await api.get(url) as any[];
 
       if (!response) {
         throw new Error('Invalid API response');
@@ -263,18 +272,29 @@ class TimelineService {
       const taskParam = taskId ? taskId.toString() : 'all';
       const url = `/tasks/${taskParam}/timeline/stats${queryString ? `?${queryString}` : ''}`;
 
-      const response = await api.get(url);
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
+      const response = await api.get(url) as {
+        total_events?: number;
+        events_by_type?: Record<string, number>;
+        events_by_category?: Record<string, number>;
+        recent_activity_count?: number;
+        top_users?: Array<{ username: string; count: number }>;
+      };
 
       if (!response) {
         throw new Error('Invalid API response');
       }
 
+      // ✅ FIXED - Map 'count' to 'eventCount' for topUsers (TS2322)
       return {
         totalEvents: response.total_events || 0,
         eventsByType: response.events_by_type || {},
         eventsByCategory: response.events_by_category || {},
         recentActivityCount: response.recent_activity_count || 0,
-        topUsers: response.top_users || []
+        topUsers: (response.top_users || []).map((user: any) => ({
+          username: user.username,
+          eventCount: user.count || user.eventCount || 0
+        }))
       };
     } catch (error) {
       console.error('获取时间轴统计信息失败:', error);
@@ -310,7 +330,21 @@ class TimelineService {
         category: options?.category || 'user'
       };
 
-      const response = await api.post(`/tasks/${taskId}/timeline`, payload);
+      // ✅ FIXED - API拦截器已解包响应，使用类型断言
+      // ✅ FIXED - Use specific union types for severity and category (TS2322)
+      const response = await api.post(`/tasks/${taskId}/timeline`, payload) as {
+        success?: boolean;
+        data?: any;
+        id: number;
+        task_id: number;
+        event_type: string;
+        event_date: string;
+        description: string;
+        username?: string;
+        severity: 'info' | 'warning' | 'error' | 'success';
+        category: 'user' | 'system' | 'timer' | 'status';
+        metadata?: any;
+      };
 
       if (!response?.success || !response?.data) {
         throw new Error('Failed to create timeline event');

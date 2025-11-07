@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { message } from 'antd';
 import { useDocumentContext } from '../contexts/DocumentContext';
-import { Document } from '../types/document';
+// ✅ FIXED - Import DocumentStatus and CreateDocumentRequest for type safety (TS2322, TS2304)
+import { Document, DocumentStatus, CreateDocumentRequest } from '../types/document';
 import { errorLogger } from '../utils/ErrorLogger';
 
 /**
@@ -91,6 +92,7 @@ export const useDocumentOperations = () => {
     setLoading(`duplicate-${documentId}`, true);
     
     try {
+      // ✅ FIXED - Type assertion for CreateDocumentRequest (TS2345)
       const newDocumentData = {
         title: `${document.title} (副本)`,
         content: document.content,
@@ -100,7 +102,7 @@ export const useDocumentOperations = () => {
         task_id: document.task_id,
         status: 'draft',
         ...modifications
-      };
+      } as CreateDocumentRequest;
 
       const newDocument = await actions.createDocument(newDocumentData);
       message.success(`文档已复制: ${newDocument.title}`);
@@ -157,9 +159,10 @@ export const useDocumentOperations = () => {
   }, [actions, setLoading]);
 
   // 设置文档可见性
-  const setDocumentVisibility = useCallback(async (documentId: number, visibility: string) => {
+  // ✅ FIXED - Use specific visibility type instead of string (TS2322)
+  const setDocumentVisibility = useCallback(async (documentId: number, visibility: 'private' | 'team' | 'public') => {
     setLoading(`visibility-${documentId}`, true);
-    
+
     try {
       await actions.updateDocument(documentId, { visibility });
       message.success(`文档可见性已设置为: ${visibility}`);
@@ -176,9 +179,10 @@ export const useDocumentOperations = () => {
   }, [actions, setLoading]);
 
   // 批量状态更新
-  const batchUpdateStatus = useCallback(async (documentIds: number[], status: string) => {
+  // ✅ FIXED - Use DocumentStatus type instead of string (TS2322)
+  const batchUpdateStatus = useCallback(async (documentIds: number[], status: DocumentStatus) => {
     setLoading('batch-status', true);
-    
+
     try {
       await Promise.all(
         documentIds.map(id => actions.updateDocument(id, { status }))
@@ -198,9 +202,10 @@ export const useDocumentOperations = () => {
   }, [actions, setLoading]);
 
   // 批量可见性更新
-  const batchUpdateVisibility = useCallback(async (documentIds: number[], visibility: string) => {
+  // ✅ FIXED - Use specific visibility type instead of string (TS2322)
+  const batchUpdateVisibility = useCallback(async (documentIds: number[], visibility: 'private' | 'team' | 'public') => {
     setLoading('batch-visibility', true);
-    
+
     try {
       await Promise.all(
         documentIds.map(id => actions.updateDocument(id, { visibility }))

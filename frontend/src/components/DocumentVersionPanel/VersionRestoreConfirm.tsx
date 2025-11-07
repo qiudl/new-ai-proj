@@ -32,7 +32,8 @@ const VersionRestoreConfirm: React.FC<VersionRestoreConfirmProps> = ({
   onConfirm,
   onCancel
 }) => {
-  const createdTime = dayjs(version.createdAt).format('YYYY-MM-DD HH:mm:ss');
+  // ✅ FIXED - Use snake_case property name (TS2551)
+  const createdTime = dayjs(version.created_at).format('YYYY-MM-DD HH:mm:ss');
 
   return (
     <Modal
@@ -87,7 +88,8 @@ const VersionRestoreConfirm: React.FC<VersionRestoreConfirmProps> = ({
           </Space>
         </Descriptions.Item>
         <Descriptions.Item label="创建人">
-          <Text>{version.createdByName || version.createdBy}</Text>
+          {/* ✅ FIXED - Use snake_case property names (TS2551) */}
+          <Text>{version.created_by_name || version.created_by}</Text>
         </Descriptions.Item>
         {version.summary && (
           <Descriptions.Item label="摘要">

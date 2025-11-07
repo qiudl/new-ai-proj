@@ -14,7 +14,9 @@ export type TaskTimelineEventType =
   | 'time_logged' | 'estimate_updated'
   // 内容变更
   | 'title_changed' | 'description_updated' | 'priority_changed'
-  | 'tags_updated' | 'attachment_added' | 'attachment_removed'
+  // ✅ FIXED - 添加细粒度标签事件类型
+  | 'tags_updated' | 'tag_added' | 'tag_removed'
+  | 'attachment_added' | 'attachment_removed'
   // 关系变更
   | 'dependency_added' | 'dependency_removed' | 'parent_changed'
   | 'child_added' | 'child_removed'
@@ -23,7 +25,8 @@ export type TaskTimelineEventType =
   | 'mention_added' | 'review_requested' | 'approval_given'
   // 系统操作
   | 'bulk_updated' | 'imported' | 'exported' | 'archived'
-  | 'template_applied' | 'automation_triggered';
+  // ✅ FIXED - 添加错误事件类型
+  | 'template_applied' | 'automation_triggered' | 'error_occurred';
 
 // 变更来源类型 - 与后端 ChangeSource 一致
 export type ChangeSource = 'manual' | 'api' | 'bulk' | 'automation' | 'integration';
@@ -43,35 +46,41 @@ export interface TaskTimelineEventMetadata {
   old_value?: any;
   new_value?: any;
   changed_fields?: string[];
-  
+
   // 变更上下文
   change_reason?: string;
   change_source?: ChangeSource;
   batch_id?: string;  // 批量操作标识
-  
+
   // 用户上下文
   ip_address?: string;
   user_agent?: string;
   session_id?: string;
-  
+
   // 业务上下文
   project_phase?: string;
   workflow_step?: string;
   approval_chain?: any[];
-  
+
   // 影响范围
   affected_tasks?: number[];
   cascade_changes?: boolean;
-  
+
   // 时间相关
   duration_ms?: number;
   scheduled_at?: string;
-  
+
   // 优先级和状态信息
   priority?: 'low' | 'medium' | 'high';
   new_status?: TaskStatus;
   old_status?: TaskStatus;
-  
+
+  // 关联实体信息
+  assignee_name?: string;  // 分配对象名称
+  comment_content?: string;  // 评论内容
+  dependency_task_title?: string;  // 依赖任务标题
+  child_task_title?: string;  // 子任务标题
+
   // 额外信息
   custom_data?: Record<string, any>;
 }
@@ -225,6 +234,9 @@ export const EventTypeDescriptions: Record<TaskTimelineEventType, string> = {
   description_updated: '描述更新',
   priority_changed: '优先级变更',
   tags_updated: '标签更新',
+  // ✅ FIXED - Add missing tag event descriptions (TS2739)
+  tag_added: '添加标签',
+  tag_removed: '删除标签',
   attachment_added: '添加附件',
   attachment_removed: '删除附件',
   
@@ -249,7 +261,9 @@ export const EventTypeDescriptions: Record<TaskTimelineEventType, string> = {
   exported: '导出',
   archived: '归档',
   template_applied: '应用模板',
-  automation_triggered: '自动化触发'
+  automation_triggered: '自动化触发',
+  // ✅ FIXED - Add missing error event description (TS2739)
+  error_occurred: '发生错误'
 };
 
 // 事件分类描述映射

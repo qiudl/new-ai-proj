@@ -157,10 +157,15 @@ export function withCacheAware<P extends object>(
     // 注册依赖关系
     React.useEffect(() => {
       if (disableCache || !mergedOptions.dependencies) return;
-      
+
       const dependencies = mergedOptions.dependencies(props);
       dependencies.forEach(dep => {
-        cacheContext.cacheManager.registerDependency(dep);
+        // ✅ FIXED - Transform CacheDependency to simplified format (TS2345)
+        cacheContext.cacheManager.registerDependency({
+          key: dep.primaryKey,
+          dependsOn: dep.dependentKeys,
+          tags: [] // CacheDependency doesn't have tags, so use empty array
+        });
       });
     }, [props, mergedOptions.dependencies, disableCache, cacheContext.cacheManager]);
     

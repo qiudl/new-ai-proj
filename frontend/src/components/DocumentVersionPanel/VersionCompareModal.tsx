@@ -54,10 +54,11 @@ const VersionCompareModal: React.FC<VersionCompareModalProps> = ({
     setError(null);
 
     try {
+      // ✅ FIXED - Convert version IDs (number) to string for compareVersions API (TS2345)
       const result = await documentVersionService.compareVersions(
         documentId,
-        fromVersion.id,
-        toVersion.id
+        String(fromVersion.id),
+        String(toVersion.id)
       );
       setDiff(result);
     } catch (err) {

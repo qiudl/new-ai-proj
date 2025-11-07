@@ -92,13 +92,13 @@ class AIDescriptionService {
     taskId: number,
     model: string = 'deepseek'
   ): Promise<DescriptionSuggestion[]> {
-    // api interceptor已经解包了响应，直接返回data内容
+    // ✅ FIXED - API interceptor已经解包了响应，直接返回data内容，使用类型断言
     const data = await api.get(
       `/tasks/${taskId}/ai/description-suggestions`,
       {
         params: { model },
       }
-    );
+    ) as { suggestions?: DescriptionSuggestion[] };
 
     return data.suggestions || [];
   }

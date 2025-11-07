@@ -1,13 +1,6 @@
 // AI配置管理相关类型定义
-
-/**
- * AI Provider枚举
- */
-export enum AIProvider {
-  OpenAI = 'openai',
-  Claude = 'claude',
-  DeepSeek = 'deepseek'
-}
+// ✅ FIXED - Import AIProvider from types/ai.ts to avoid type conflict (TS2322)
+import { AIProvider } from './ai';
 
 /**
  * AI配置接口
@@ -63,6 +56,7 @@ export interface TestLog {
   configId: number;
   provider: AIProvider;
   testQuestion: string;
+  testText?: string; // 别名，向后兼容
   aiResponse: string;
   testStatus: TestLogStatus;
   responseTimeMs: number;

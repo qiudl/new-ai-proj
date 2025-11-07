@@ -81,7 +81,9 @@ class TaskDetailPerformanceMonitor {
           const entries = list.getEntries();
           entries.forEach((entry) => {
             if (entry.name === 'first-input') {
-              const fid = entry.processingStart - entry.startTime;
+              // ✅ FIXED - processingStart is on PerformanceEventTiming, cast to any
+              const entryAny = entry as any;
+              const fid = entryAny.processingStart - entry.startTime;
               this.pageLoadMetrics.firstInputDelay = fid;
               this.recordMetric('fid', fid);
             }
@@ -132,7 +134,9 @@ class TaskDetailPerformanceMonitor {
         const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
         if (navEntries.length > 0) {
           const nav = navEntries[0];
-          this.pageLoadMetrics.navigationStart = nav.navigationStart || nav.fetchStart;
+          // ✅ FIXED - navigationStart is deprecated, use fetchStart or cast to any
+          const navAny = nav as any;
+          this.pageLoadMetrics.navigationStart = navAny.navigationStart || nav.fetchStart;
           this.recordMetric('navigation_start', this.pageLoadMetrics.navigationStart);
         }
       }

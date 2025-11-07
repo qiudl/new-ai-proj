@@ -13,13 +13,21 @@ import {
 import { Task } from '../types/task';
 import { APIResponse } from '../types/task';
 
+// ✅ ADDED - 后端响应格式接口
+interface BackendDailyFocusResponse {
+  total_count: number;
+  active_count: number;
+  completed_count: number;
+  tasks: any[];
+}
+
 class DailyFocusTasksService {
   private readonly basePath = '/daily-focus-tasks';
 
   async getDailyFocusTasks(filters?: DailyFocusTaskFilter): Promise<DailyFocusTaskResponse> {
     try {
       const params = new URLSearchParams();
-      
+
       if (filters?.priority) {
         params.append('priority', filters.priority);
       }
@@ -32,9 +40,10 @@ class DailyFocusTasksService {
 
       const queryString = params.toString();
       const url = queryString ? `${this.basePath}?${queryString}` : this.basePath;
-      
-      const response = await api.get<any>(url);
-      
+
+      // ✅ FIXED - API拦截器已unwrapped响应，使用双重类型断言 (TS2352)
+      const response = await api.get<any>(url) as unknown as BackendDailyFocusResponse;
+
       // API interceptor已经unwrapped响应，需要将后端格式转换为前端期望的格式
       // 后端返回: {total_count, active_count, completed_count, tasks: [...]}
       // 前端期望: {tasks: [...], stats: {...}}
@@ -43,7 +52,7 @@ class DailyFocusTasksService {
       const activeCount = response.active_count || 0;
       const pendingCount = totalCount - completedCount;
       const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-      
+
       // 计算优先级分布
       const tasks = response.tasks || [];
       const priorityDistribution = tasks.reduce((acc: any, task: any) => {
@@ -76,7 +85,7 @@ class DailyFocusTasksService {
 
   async getDailyFocusTasksStats(filters?: DailyFocusTaskFilter): Promise<DailyFocusTaskStats> {
     const params = new URLSearchParams();
-    
+
     if (filters?.priority) {
       params.append('priority', filters.priority);
     }
@@ -86,56 +95,43 @@ class DailyFocusTasksService {
 
     const queryString = params.toString();
     const url = queryString ? `${this.basePath}/stats?${queryString}` : `${this.basePath}/stats`;
-    
-    const response = await api.get<APIResponse<DailyFocusTaskStats>>(url);
 
-    if (!response || !response.success) {
-      throw new Error(response?.error?.message || '获取统计信息失败');
-    }
-
-    return response.data!;
+    // ✅ FIXED - API拦截器已unwrapped响应，使用双重类型断言 (TS2352)
+    const response = await api.get<any>(url) as unknown as DailyFocusTaskStats;
+    return response;
   }
 
   async getDailyFocusTask(id: number): Promise<DailyFocusTask> {
-    const response = await api.get<APIResponse<DailyFocusTask>>(`${this.basePath}/${id}`);
-
-    if (!response || !response.success) {
-      throw new Error(response?.error?.message || '获取任务详情失败');
-    }
-
-    return response.data!;
+    // ✅ FIXED - API拦截器已unwrapped响应，使用双重类型断言 (TS2352)
+    const response = await api.get<any>(`${this.basePath}/${id}`) as unknown as DailyFocusTask;
+    return response;
   }
 
   async addDailyFocusTask(request: DailyFocusTaskRequest): Promise<DailyFocusTask> {
-    const response = await api.post<DailyFocusTask>(this.basePath, request);
-    
-    // API interceptor已经unwrapped响应，直接返回数据
+    // ✅ FIXED - API interceptor已unwrapped响应，使用双重类型断言 (TS2352)
+    const response = await api.post<any>(this.basePath, request) as unknown as DailyFocusTask;
     return response;
   }
 
   async updateDailyFocusTask(id: number, update: DailyFocusTaskUpdate): Promise<DailyFocusTask> {
-    const response = await api.put<DailyFocusTask>(`${this.basePath}/${id}`, update);
-    
-    // API interceptor已经unwrapped响应，直接返回数据
+    // ✅ FIXED - API interceptor已unwrapped响应，使用双重类型断言 (TS2352)
+    const response = await api.put<any>(`${this.basePath}/${id}`, update) as unknown as DailyFocusTask;
     return response;
   }
 
   async deleteDailyFocusTask(id: number): Promise<void> {
     await api.delete(`${this.basePath}/${id}`);
-    
     // API interceptor已经unwrapped响应，无需检查success字段
   }
 
   async reorderDailyFocusTasks(items: DailyFocusTaskReorderItem[]): Promise<void> {
     await api.put(`${this.basePath}/reorder`, { items });
-    
     // API interceptor已经unwrapped响应，无需检查success字段
   }
 
   async markCompleted(id: number): Promise<DailyFocusTask> {
-    const response = await api.post<DailyFocusTask>(`${this.basePath}/${id}/complete`);
-    
-    // API interceptor已经unwrapped响应，直接返回数据
+    // ✅ FIXED - API interceptor已unwrapped响应，使用双重类型断言 (TS2352)
+    const response = await api.post<any>(`${this.basePath}/${id}/complete`) as unknown as DailyFocusTask;
     return response;
   }
 
@@ -145,27 +141,27 @@ class DailyFocusTasksService {
       if (searchKeyword) {
         params.append('search', searchKeyword);
       }
-      
+
       const url = params.toString() ? `${this.basePath}/recommendations?${params}` : `${this.basePath}/recommendations`;
-      const response = await api.get(url);
-      
-      // Handle the actual API response structure: {data: {suggestions: [{task: ...}]}}
+      // ✅ FIXED - API interceptor已unwrapped，response直接是数据类型
+      const response = await api.get<any>(url) as any;
+
+      // Handle the actual API response structure: {suggestions: [{task: ...}]}
       if (response && response.suggestions && Array.isArray(response.suggestions)) {
         const tasks = response.suggestions.map((suggestion: any) => suggestion.task).filter(Boolean);
         return tasks;
       }
-      
+
       return [];
     } catch (error: any) {
-      // Re-throw error to let hook handle authentication errors  
+      // Re-throw error to let hook handle authentication errors
       throw error;
     }
   }
 
   async batchAddDailyFocusTasks(request: DailyFocusTaskBatchRequest): Promise<DailyFocusTaskBatchResponse> {
-    const response = await api.post<DailyFocusTaskBatchResponse>(`${this.basePath}/batch`, request);
-    
-    // API interceptor已经unwrapped响应，直接返回数据
+    // ✅ FIXED - API interceptor已unwrapped，使用双重类型断言 (TS2352)
+    const response = await api.post<any>(`${this.basePath}/batch`, request) as unknown as DailyFocusTaskBatchResponse;
     return response;
   }
 
@@ -174,15 +170,14 @@ class DailyFocusTasksService {
       from_date: fromDate,
       to_date: toDate
     };
-    
+
     if (taskIds && taskIds.length > 0) {
       request.task_ids = taskIds;
     }
-    
+
     try {
-      const response = await api.post<DailyFocusTaskBatchResponse>(`${this.basePath}/carry-over`, request);
-      
-      // API interceptor已经unwrapped响应，直接返回数据
+      // ✅ FIXED - API interceptor已unwrapped，使用双重类型断言 (TS2352)
+      const response = await api.post<any>(`${this.basePath}/carry-over`, request) as unknown as DailyFocusTaskBatchResponse;
       return response;
     } catch (error: any) {
       // Enhanced error handling

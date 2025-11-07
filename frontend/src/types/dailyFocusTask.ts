@@ -76,4 +76,7 @@ export interface DailyFocusTaskBatchResponse {
   failure_count: number;
   failed_task_ids: number[];
   success_task_ids: number[];
+  // ✅ ADDED - 用于carry-over操作的处理计数（兼容后端多种命名格式）
+  processed_count?: number;
+  ProcessedCount?: number;
 }

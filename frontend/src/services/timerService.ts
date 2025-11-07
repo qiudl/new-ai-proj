@@ -15,36 +15,36 @@ class TimerService {
   static async startTimer(taskId: number): Promise<TimerStartResponse> {
     const request: TimerStartRequest = { task_id: taskId };
     const response = await api.post('/timer/start', request);
-    // Interceptor automatically unwraps response.data
-    return response as TimerStartResponse;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as TimerStartResponse;
   }
 
   // Stop current timer (Phase 4: Use unified API)
   static async stopTimer(): Promise<TimerStopResponse> {
     const response = await api.post('/user/timer/stop');
-    // Interceptor automatically unwraps response.data
-    return response as TimerStopResponse;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as TimerStopResponse;
   }
 
   // Pause current timer (Phase 4: Use unified API)
   static async pauseTimer(): Promise<TimerPauseResponse> {
     const response = await api.post('/user/timer/pause');
-    // Interceptor automatically unwraps response.data
-    return response as TimerPauseResponse;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as TimerPauseResponse;
   }
 
   // Resume current timer (Phase 4: Use unified API)
   static async resumeTimer(): Promise<TimerResumeResponse> {
     const response = await api.post('/user/timer/resume');
-    // Interceptor automatically unwraps response.data
-    return response as TimerResumeResponse;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as TimerResumeResponse;
   }
 
   // Get current timer status (Phase 4: Use unified API)
   static async getCurrentTimer(): Promise<TimerCurrentResponse> {
     const response = await api.get('/user/timer/current');
-    // Interceptor automatically unwraps response.data
-    return response as TimerCurrentResponse;
+    // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
+    return response as unknown as TimerCurrentResponse;
   }
 
   // Get timer statistics

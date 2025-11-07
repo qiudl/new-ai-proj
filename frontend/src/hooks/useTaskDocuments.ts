@@ -145,12 +145,13 @@ export const useTaskDocuments = ({
           onProgress?.(progress);
         });
       };
-      
-      const result = await documentService.uploadDocument(
+
+      // ✅ FIXED - Use uploadTaskDocument with correct signature (TS2554)
+      const result = await documentService.uploadTaskDocument(
         projectId,
         taskId,
         file,
-        smoothProgress
+        { onProgress: smoothProgress }
       );
 
       stopTimer();
@@ -202,27 +203,29 @@ export const useTaskDocuments = ({
 
     try {
       const stopTimer = performanceMonitor.startTimer('upload_multiple_documents');
-      
-      const results = await documentService.uploadMultipleDocuments(
-        projectId,
-        taskId,
-        files,
-        (fileIndex: number, progress: number) => {
-          // Optimized progress update with RAF for smooth UI
-          requestAnimationFrame(() => {
-            setUploadProgress(prev => {
-              const newProgress = [...prev];
-              if (newProgress[fileIndex]) {
-                newProgress[fileIndex] = {
-                  ...newProgress[fileIndex],
-                  progress
-                };
-              }
-              return newProgress;
-            });
-            onProgress?.(fileIndex, progress);
-          });
-        }
+
+      // ✅ FIXED - Upload multiple files using Promise.all with uploadTaskDocument (TS2554)
+      const results = await Promise.all(
+        files.map((file, fileIndex) =>
+          documentService.uploadTaskDocument(projectId, taskId, file, {
+            onProgress: (progress: number) => {
+              // Optimized progress update with RAF for smooth UI
+              requestAnimationFrame(() => {
+                setUploadProgress(prev => {
+                  const newProgress = [...prev];
+                  if (newProgress[fileIndex]) {
+                    newProgress[fileIndex] = {
+                      ...newProgress[fileIndex],
+                      progress
+                    };
+                  }
+                  return newProgress;
+                });
+                onProgress?.(fileIndex, progress);
+              });
+            }
+          })
+        )
       );
 
       stopTimer();
@@ -271,14 +274,16 @@ export const useTaskDocuments = ({
 
     try {
       const stopTimer = performanceMonitor.startTimer('upload_document_api');
-      
-      const result = await documentService.uploadDocumentAPI(
+
+      // ✅ FIXED - Create document from content using createDocument API (TS2554)
+      // Convert content to blob and then to file for upload
+      const blob = new Blob([content], { type: mimeType });
+      const file = new File([blob], fileName, { type: mimeType });
+
+      const result = await documentService.uploadTaskDocument(
         projectId,
         taskId,
-        fileName,
-        content,
-        mimeType,
-        description
+        file
       );
 
       stopTimer();

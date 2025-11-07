@@ -119,6 +119,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册需求管理路由
 	RegisterRequirementRoutes(authorized, app)
 
+	// 注册通知路由
+	RegisterNotificationRoutes(authorized, app)
+
 	// 注册Worktree管理路由
 	RegisterWorktreeRoutes(authorized, app)
 
@@ -184,6 +187,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
 	// 注册管理员路由
 	RegisterAdminRoutes(authorized, app)
+
+	// 注册产品管理路由（SPU、SKU、库存）
+	RegisterProductRoutes(authorized, app)
 
 	// 注册简化的API路由
 	RegisterAPIRoutes(router, authorized, app)

@@ -203,7 +203,7 @@ export class HistoryTaskService {
       const response = await api.get(`/tasks/${taskId}/time-history`);
       
       if (response) {
-        return response;
+        return response.data;
       }
       
       return null;

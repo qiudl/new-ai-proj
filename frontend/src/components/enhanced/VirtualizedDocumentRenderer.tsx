@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { List as FixedSizeList } from 'react-window';
+// ✅ FIXED - react-window v2 exports List directly (TS2307, TS2305)
+import { List } from 'react-window';
 import { Skeleton, Typography, Alert, Progress, BackTop } from 'antd';
 import { EnhancedMarkdownRenderer } from './';
 import './VirtualizedDocumentRenderer.css';
@@ -324,7 +325,7 @@ const VirtualizedDocumentRenderer: React.FC<VirtualizedDocumentRendererProps> = 
     <div className={`virtualized-document-renderer ${theme} ${className}`} style={style}>
       {chunks.length > 0 ? (
         <>
-          <FixedSizeList
+          <List
             ref={listRef}
             height={windowHeight}
             itemCount={chunks.length}
@@ -334,7 +335,7 @@ const VirtualizedDocumentRenderer: React.FC<VirtualizedDocumentRendererProps> = 
             overscanCount={5} // 预渲染额外的项目
           >
             {Row}
-          </FixedSizeList>
+          </List>
           
           {/* 性能信息显示 */}
           <div className="performance-info">

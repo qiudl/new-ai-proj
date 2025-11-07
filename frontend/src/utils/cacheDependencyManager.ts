@@ -68,26 +68,32 @@ export class CacheDependencyManager {
     const taskListKey = CacheKeyBuilder.taskList(projectId);
 
     // 任务数据变更会影响的缓存
+    // ✅ FIXED - Add required createdAt field for CacheDependency (TS2345)
     this.registerDependency({
       primaryKey: taskKey,
       dependentKeys: [taskStatsKey, taskListKey, taskDocumentsKey],
       type: 'cascade',
+      createdAt: Date.now(),
       weight: 10
     });
 
     // 子任务变更会影响父任务统计
+    // ✅ FIXED - Add required createdAt field for CacheDependency (TS2345)
     this.registerDependency({
       primaryKey: taskChildrenKey,
       dependentKeys: [taskKey, taskStatsKey, taskListKey],
       type: 'related',
+      createdAt: Date.now(),
       weight: 8
     });
 
     // 任务文档变更影响任务详情
+    // ✅ FIXED - Add required createdAt field for CacheDependency (TS2345)
     this.registerDependency({
       primaryKey: taskDocumentsKey,
       dependentKeys: [taskKey],
       type: 'child',
+      createdAt: Date.now(),
       weight: 5
     });
   }
@@ -102,18 +108,22 @@ export class CacheDependencyManager {
     const taskListKey = CacheKeyBuilder.taskList(projectId);
 
     // 用户任务列表依赖
+    // ✅ FIXED - Add required createdAt field for CacheDependency (TS2345)
     this.registerDependency({
       primaryKey: userTasksKey,
       dependentKeys: [taskListKey],
       type: 'related',
+      createdAt: Date.now(),
       weight: 6
     });
 
     // 计时器依赖
+    // ✅ FIXED - Add required createdAt field for CacheDependency (TS2345)
     this.registerDependency({
       primaryKey: currentTimerKey,
       dependentKeys: [activeTimersKey, userTasksKey],
       type: 'related',
+      createdAt: Date.now(),
       weight: 7
     });
   }

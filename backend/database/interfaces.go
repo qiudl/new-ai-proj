@@ -35,6 +35,10 @@ type UserRepository interface {
 	UpdatePassword(ctx context.Context, userID int, passwordHash string) error
 	UpdateLastLogin(ctx context.Context, userID int) error
 
+	// User listing and statistics
+	ListUsers(ctx context.Context, params *models.UserListParams) ([]*models.User, int, error)
+	GetUserStats(ctx context.Context) (*models.UserStats, error)
+
 	// Timer management
 	GetUsersTimingTask(ctx context.Context, taskID int) ([]models.User, error)
 }
@@ -218,6 +222,92 @@ type EnterpriseRepository interface {
 	// Enterprise User-Department operations
 	GetUnassignedUsers(ctx context.Context, enterpriseID int, limit, offset int) ([]*models.EnterpriseUser, int, error)
 	UpdateUserDepartment(ctx context.Context, enterpriseID, userID int, departmentID *int) error
+}
+
+// IdentityRepository defines the interface for user identity verification operations
+type IdentityRepository interface {
+	// GetUserType retrieves the user type for a given user ID
+	// Returns the user_type (e.g., "system", "enterprise") or error if user not found
+	GetUserType(ctx context.Context, userID uint) (string, error)
+
+	// CheckEnterpriseMembership verifies if a user is a member of an enterprise
+	// Returns true if user is an enterprise user and member of the specified enterprise
+	CheckEnterpriseMembership(ctx context.Context, userID uint, enterpriseID uint) (userType string, isMember bool, err error)
+
+	// GetUserTypeAndEnterprise retrieves user type and their enterprise ID (if applicable)
+	// Returns user_type and enterprise_id (nil if not an enterprise user or no membership)
+	GetUserTypeAndEnterprise(ctx context.Context, userID uint) (userType string, enterpriseID *uint, err error)
+}
+
+// PermissionCalculatorRepository defines the interface for permission calculation data access
+type PermissionCalculatorRepository interface {
+	// System permission queries
+	CheckSystemAdminRole(ctx context.Context, userID int) (bool, error)
+
+	// Enterprise permission queries
+	CheckEnterpriseRolePermissions(ctx context.Context, userID int, enterpriseID int, permissionCode string) (bool, error)
+
+	// User-specific permission queries
+	CheckCustomPermission(ctx context.Context, userID int, permissionCode string) (isSet bool, isGranted bool, err error)
+
+	// Project permission queries
+	GetProjectIDForResource(ctx context.Context, resourceType string, resourceID int) (*int, error)
+	CheckProjectPermission(ctx context.Context, userID int, projectID int, action string) (bool, error)
+}
+
+// PermissionServiceV2Repository defines the interface for permission service v2 data access
+type PermissionServiceV2Repository interface {
+	// System permission queries
+	CheckSystemPermission(ctx context.Context, userID uint, permission string) (bool, error)
+	GetUserSystemPermissions(ctx context.Context, userID uint) ([]string, error)
+
+	// Enterprise role permission queries
+	GetUserEnterpriseRolePermissions(ctx context.Context, userID uint, enterpriseID uint) ([]string, error)
+	CheckEnterpriseRolePermission(ctx context.Context, userID uint, enterpriseID uint, permission string) (bool, error)
+
+	// Custom permission override queries
+	GetUserEnterpriseCustomPermissions(ctx context.Context, userID uint, enterpriseID uint) (map[string]string, error)
+	CheckCustomPermissionOverride(ctx context.Context, userID uint, enterpriseID uint, permission string) (hasOverride bool, isGranted bool, err error)
+}
+
+// ProjectPermissionData represents project-specific permissions for a user
+type ProjectPermissionData struct {
+	CanViewProject      bool
+	CanEditProject      bool
+	CanDeleteProject    bool
+	CanManageTasks      bool
+	CanViewFinancials   bool
+	CanManageMembers    bool
+}
+
+// PermissionServiceRepository defines the interface for legacy permission service data access
+type PermissionServiceRepository interface {
+	// User identification and admin checks
+	IsSystemAdmin(ctx context.Context, userID int) (bool, error)
+	GetCompanyUserID(ctx context.Context, userID int) (int, error)
+
+	// Project access queries
+	GetUserAccessibleProjects(ctx context.Context, userID int) ([]int, error)
+	GetProjectPermissions(ctx context.Context, companyUserID int, projectID int) (*ProjectPermissionData, error)
+
+	// Custom permission queries
+	CheckCustomPermission(ctx context.Context, userID int, permissionCode string) (isSet bool, isGranted bool, err error)
+
+	// Role permission queries
+	GetUserRolePermissions(ctx context.Context, userID int) (map[string]bool, error)
+
+	// Dynamic permission queries
+	CheckPermissionDelegationWithProject(ctx context.Context, userID int, permissionCode string, projectID int) (found bool, delegatorName string, reason string, err error)
+	CheckPermissionDelegationWithoutProject(ctx context.Context, userID int, permissionCode string) (found bool, delegatorName string, reason string, err error)
+	CheckTemporaryPermission(ctx context.Context, userID int, permissionCode string) (found bool, justification string, err error)
+
+	// Administrative operations (using execer for transaction support)
+	UpsertPermission(ctx context.Context, code, name, description, module, resource, action string, isActive bool) error
+	CreateRoleRecord(ctx context.Context, roleCode, roleName, description string) (int, error)
+	GetPermissionIDByCode(ctx context.Context, permissionCode string) (int, error)
+	AssignPermissionToRole(ctx context.Context, roleID int, permissionID int) error
+	UpdateUserRole(ctx context.Context, userID int, roleID int) error
+	UpsertProjectPermissions(ctx context.Context, companyUserID int, projectID int, permissions *ProjectPermissionData) error
 }
 
 // PermissionRepository defines the interface for permission operations
@@ -545,6 +635,7 @@ type DB interface {
 	Projects() ProjectRepository
 	Tasks() TaskRepository
 	Enterprises() EnterpriseRepository // Pure enterprise system
+	Identity() IdentityRepository      // User identity verification
 	Permissions() PermissionRepository // Enterprise permission management
 	// PermissionApprovals() PermissionApprovalRepository // Temporarily disabled
 	System() SystemRepository
@@ -564,6 +655,7 @@ type DB interface {
 	Requirements() RequirementRepository // Requirement management
 	RequirementComments() RequirementCommentRepository // Requirement comments
 	RequirementHistory() RequirementHistoryRepository // Requirement history/audit
+	RequirementTasks() RequirementTaskRepository // Requirement-Task links
 	WorktreeConfigs() WorktreeConfigRepository // Worktree configuration management
 	Worktrees() WorktreeRepository // Worktree management
 	WorktreeTaskBindings() WorktreeTaskBindingRepository // Worktree-task bindings
@@ -590,6 +682,7 @@ type Tx interface {
 	Projects() ProjectRepository
 	Tasks() TaskRepository
 	Enterprises() EnterpriseRepository
+	Identity() IdentityRepository
 	Permissions() PermissionRepository
 	// PermissionApprovals() PermissionApprovalRepository // Temporarily disabled
 	Audit() AuditRepository
@@ -605,6 +698,7 @@ type Tx interface {
 	Requirements() RequirementRepository
 	RequirementComments() RequirementCommentRepository
 	RequirementHistory() RequirementHistoryRepository
+	RequirementTasks() RequirementTaskRepository
 	WorktreeConfigs() WorktreeConfigRepository
 	Worktrees() WorktreeRepository
 	WorktreeTaskBindings() WorktreeTaskBindingRepository

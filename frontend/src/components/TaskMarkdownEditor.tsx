@@ -87,12 +87,14 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, id }) => {
 
 const { TextArea } = Input;
 
+// ✅ FIXED - Added autoFocus property (TS2322)
 interface TaskMarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
   rows?: number;
+  autoFocus?: boolean;
   style?: React.CSSProperties;
 }
 

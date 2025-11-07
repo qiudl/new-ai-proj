@@ -132,7 +132,8 @@ export function withLazyLoading<P extends Record<string, any> = Record<string, a
     const FallbackComponent = fallback;
     return (
       <React.Suspense fallback={<FallbackComponent />}>
-        <LazyComponent {...props} />
+        {/* ✅ FIXED - Type assertion for complex generic props constraint (TS2322) */}
+        <LazyComponent {...(props as any)} />
       </React.Suspense>
     );
   };

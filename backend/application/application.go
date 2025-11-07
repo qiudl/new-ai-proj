@@ -75,6 +75,10 @@ type Application struct {
 	roleManagementHandlerV2  *handlers.RoleManagementHandlerV2  // RBAC v2 dual-layer role management handler
 	// Navigation Management Handler
 	navigationHandler        *handlers.NavigationHandler        // Navigation management handler instance
+	// Product Management Handlers (SPU/SKU/Inventory)
+	spuHandler               *handlers.SPUHandler               // SPU handler instance
+	skuHandler               *handlers.SKUHandler               // SKU handler instance
+	inventoryHandler         *handlers.InventoryHandler         // Inventory handler instance
 	mirrorWritable           bool
 }
 
@@ -110,6 +114,11 @@ func NewApplication() (*Application, error) {
 
 	// Initialize logger
 	logger := log.New(log.Writer(), "[API] ", log.LstdFlags)
+
+	// Declare product management handlers (will be initialized conditionally later)
+	var spuHandler *handlers.SPUHandler
+	var skuHandler *handlers.SKUHandler
+	var inventoryHandler *handlers.InventoryHandler
 
 	// Initialize JWT token service
 	jwtServiceConfig := &services.JWTServiceConfig{
@@ -223,10 +232,11 @@ func NewApplication() (*Application, error) {
 	// Initialize RBAC v2 Repositories
 	systemRoleRepo := database.NewSystemRoleRepository(sqlDB)
 	enterpriseRoleRepo := database.NewEnterpriseRoleRepository(sqlDB)
+	permissionServiceV2Repo := database.NewPermissionServiceV2Repository(sqlDB)
 
 	// Initialize PermissionServiceV2
 	permissionServiceV2 := services.NewPermissionServiceV2(&services.PermissionServiceV2Config{
-		DB:                 sqlDB,
+		Repo:               permissionServiceV2Repo,
 		Cache:              redisClient, // Can be nil if Redis not available
 		CacheTTL:           15 * time.Minute,
 		SystemRoleRepo:     systemRoleRepo,
@@ -235,9 +245,9 @@ func NewApplication() (*Application, error) {
 
 	// Initialize IdentityProvider
 	identityProvider := services.NewIdentityProvider(&services.IdentityProviderConfig{
-		DB:       sqlDB,
-		Cache:    redisClient, // Can be nil if Redis not available
-		CacheTTL: 15 * time.Minute,
+		IdentityRepo: db.Identity(),
+		Cache:        redisClient, // Can be nil if Redis not available
+		CacheTTL:     15 * time.Minute,
 	})
 
 	// Initialize PermissionMiddlewareV2
@@ -298,14 +308,30 @@ func NewApplication() (*Application, error) {
 	systemAdminHandler := handlers.NewSystemAdminHandler(sqlDB)
 
 	// Initialize RBAC v2 Handlers
-	systemUserHandler := handlers.NewSystemUserHandler(sqlDB, identityProvider)
+	// Create SystemUserManagementRepository for system user operations
+	systemUserRepo := database.NewPostgresSystemUserManagementRepository(sqlDB)
+
+	// Create UserManagementService with the repository
+	userMgmtService := services.NewUserManagementService(systemUserRepo)
+
+	// Create SystemUserHandler with the service (no longer directly using sqlDB)
+	systemUserHandler := handlers.NewSystemUserHandler(userMgmtService, identityProvider)
 	systemRoleHandler := handlers.NewSystemRoleHandler(sqlDB, systemRoleRepo, identityProvider)
 	systemPermissionHandler := handlers.NewSystemPermissionHandler(sqlDB, identityProvider)
-	enterpriseUserHandler := handlers.NewEnterpriseUserHandler(sqlDB, identityProvider, enterpriseRoleRepo)
+
+	// Create EnterpriseUserManagementRepository for enterprise user operations
+	enterpriseUserRepo := database.NewPostgresEnterpriseUserManagementRepository(sqlDB)
+
+	// Create EnterpriseUserManagementService with the repository and role repository
+	enterpriseUserService := services.NewEnterpriseUserManagementService(enterpriseUserRepo, enterpriseRoleRepo)
+
+	// Create EnterpriseUserHandler with the service (no longer directly using sqlDB or enterpriseRoleRepo)
+	enterpriseUserHandler := handlers.NewEnterpriseUserHandler(identityProvider, enterpriseUserService)
+
 	enterpriseRoleHandler := handlers.NewEnterpriseRoleHandler(sqlDB, enterpriseRoleRepo, identityProvider)
 	roleManagementHandlerV2 := handlers.NewRoleManagementHandlerV2(db.Permissions())
 
-	logger.Println("✅ RBAC v2 handlers initialized (SystemUserHandler, SystemRoleHandler, SystemPermissionHandler, EnterpriseUserHandler, EnterpriseRoleHandler, RoleManagementHandlerV2)")
+	logger.Println("✅ RBAC v2 handlers initialized with three-layer architecture (Handler → Service → Repository)")
 
 	// Initialize Navigation Management Handler
 	// Convert *sql.DB to *sqlx.DB for navigation repository
@@ -313,6 +339,21 @@ func NewApplication() (*Application, error) {
 	navigationRepo := database.NewNavigationRepository(sqlxDB)
 	navigationHandler := handlers.NewNavigationHandler(navigationRepo)
 	logger.Println("✅ Navigation management handler initialized")
+
+	// Initialize Product Management System (SPU/SKU/Inventory)
+	// Get GORM DB instance
+	productDB, ok := db.GetDB().(*gorm.DB)
+	if !ok {
+		logger.Println("⚠️  Product management handlers skipped: GORM DB not available")
+	} else {
+		spuRepo := database.NewSPURepository(productDB)
+		skuRepo := database.NewSKURepository(productDB)
+		inventoryRepo := database.NewInventoryRepository(productDB)
+		spuHandler = handlers.NewSPUHandler(spuRepo)
+		skuHandler = handlers.NewSKUHandler(skuRepo, spuRepo)
+		inventoryHandler = handlers.NewInventoryHandler(inventoryRepo, skuRepo)
+		logger.Println("✅ Product management handlers initialized (SPU/SKU/Inventory)")
+	}
 
 	// Initialize WebSocket Hub (temporarily disabled)
 	// wsHub := ws.NewHub(logger)
@@ -375,6 +416,10 @@ func NewApplication() (*Application, error) {
 		roleManagementHandlerV2:  roleManagementHandlerV2,  // RBAC v2 dual-layer role management handler
 		// Navigation Management Handler
 		navigationHandler:        navigationHandler,        // Navigation management handler
+		// Product Management Handlers
+		spuHandler:               spuHandler,               // SPU handler
+		skuHandler:               skuHandler,               // SKU handler
+		inventoryHandler:         inventoryHandler,         // Inventory handler
 	}
 
 	// Perform startup permission/volume checks
@@ -935,14 +980,60 @@ func (app *Application) GetRequirementStatusHandler() *handlers.RequirementStatu
 		return nil
 	}
 
+	// Initialize PermissionServiceRepository
+	permissionServiceRepo := database.NewPermissionServiceRepository(sqlDB)
+
 	// Initialize PermissionService (required by RequirementPermissionService)
-	permissionService := services.NewPermissionService(sqlDB)
+	permissionService := services.NewPermissionService(permissionServiceRepo)
 
 	// Initialize RequirementPermissionService
 	reqPermService := services.NewRequirementPermissionService(permissionService, sqlDB)
 
 	// Create and return the status handler
 	return handlers.NewRequirementStatusHandler(app.db, reqPermService)
+}
+
+// GetRequirementCommentHandler returns the requirement comment handler
+func (app *Application) GetRequirementCommentHandler() *handlers.RequirementCommentHandler {
+	// Get underlying *sql.DB
+	sqlDB, ok := app.db.GetDB().(*sql.DB)
+	if !ok {
+		app.logger.Printf("Warning: RequirementCommentHandler requires *sql.DB but got %T", app.db.GetDB())
+		return handlers.NewRequirementCommentHandler(app.db, nil, nil, nil, app.logger, app.validator)
+	}
+
+	// Initialize NotificationRepository and NotificationService
+	notificationRepo := database.NewNotificationRepository(sqlDB)
+	notificationService := services.NewNotificationService(notificationRepo)
+
+	// Initialize ContentSecurityService
+	contentSecurityService := services.NewContentSecurityService()
+
+	// Initialize CommentModerationService
+	moderationService := services.NewCommentModerationService(app.db, contentSecurityService)
+
+	return handlers.NewRequirementCommentHandler(app.db, notificationService, contentSecurityService, moderationService, app.logger, app.validator)
+}
+
+// GetRequirementTaskHandler returns the requirement-task link handler
+func (app *Application) GetRequirementTaskHandler() *handlers.RequirementTaskHandler {
+	return handlers.NewRequirementTaskHandler(app.db, app.logger, app.validator)
+}
+
+// GetNotificationHandler returns the notification handler
+func (app *Application) GetNotificationHandler() *handlers.NotificationHandler {
+	// Get underlying *sql.DB
+	sqlDB, ok := app.db.GetDB().(*sql.DB)
+	if !ok {
+		app.logger.Printf("Warning: NotificationHandler requires *sql.DB but got %T", app.db.GetDB())
+		return nil
+	}
+
+	// Initialize NotificationRepository and NotificationService
+	notificationRepo := database.NewNotificationRepository(sqlDB)
+	notificationService := services.NewNotificationService(notificationRepo)
+
+	return handlers.NewNotificationHandler(notificationService)
 }
 
 // GetWorktreeHandler returns the worktree handler
