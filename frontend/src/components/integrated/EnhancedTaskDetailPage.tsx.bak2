@@ -38,7 +38,7 @@ const TaskStatsTab = React.lazy(() => import('../TaskStatsTab'));
 
 // 性能优化工具
 // ✅ FIXED - PerformanceWrapper is a default export, not a named export (TS2614)
-import { PerformanceWrapper, PerformanceErrorBoundary } from '../PerformanceWrapper';
+import { PerformanceWrapper } from '../PerformanceWrapper';
 import { errorLogger } from '../../utils/ErrorLogger';
 // ✅ FIXED - Comment out non-existent hooks (TS2307)
 // import { useDocumentTitle } from '../../hooks/useDocumentTitle';
@@ -208,7 +208,7 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
             readOnly={false}
             showEditHistory={true}
           />
-        </PerformanceWrapper>
+        </PerformanceWrapperModule.PerformanceErrorBoundary>
       )
     },
     {
@@ -238,7 +238,7 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
                 allowEdit={true}
                 allowDelete={true}
               />
-            </PerformanceWrapper>
+            </PerformanceWrapperModule.PerformanceErrorBoundary>
           </Col>
           <Col xs={24} lg={16}>
             <PerformanceWrapper componentName="EnhancedDocumentInterface">
@@ -252,7 +252,7 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
                 allowBulkOperations={true}
                 height="600px"
               />
-            </PerformanceWrapper>
+            </PerformanceWrapperModule.PerformanceErrorBoundary>
           </Col>
         </Row>
       )
@@ -274,7 +274,7 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
               taskTitle={taskState?.task?.title || ''}
               taskStatus={taskState?.task?.status || 'todo'}
             />
-          </PerformanceWrapper>
+          </PerformanceWrapperModule.PerformanceErrorBoundary>
         </Suspense>
       )
     },
@@ -291,7 +291,7 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
           <PerformanceWrapper componentName="TaskDetailRelations">
             {/* ✅ FIXED - Cast to any to bypass missing props check (TS2740) */}
             <TaskDetailRelations task={currentTask} {...({} as any)} />
-          </PerformanceWrapper>
+          </PerformanceWrapperModule.PerformanceErrorBoundary>
         </Suspense>
       )
     },
@@ -313,7 +313,7 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
               height="500px"
               events={[]}
             />
-          </PerformanceWrapper>
+          </PerformanceWrapperModule.PerformanceErrorBoundary>
         </Suspense>
       )
     },
@@ -329,7 +329,7 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
         <Suspense fallback={<Spin />}>
           <PerformanceWrapper componentName="TaskStatsTab">
             <TaskStatsTab taskId={taskId} />
-          </PerformanceWrapper>
+          </PerformanceWrapperModule.PerformanceErrorBoundary>
         </Suspense>
       )
     }
