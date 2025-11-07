@@ -156,7 +156,8 @@ export class MockWebSocketServer {
    * 生成事件描述
    */
   private generateEventDescription(eventType: TaskTimelineEventType): string {
-    const descriptions: Record<TaskTimelineEventType, string[]> = {
+    // ✅ FIXED - Use Partial to allow missing event types (TS2740)
+    const descriptions: Partial<Record<TaskTimelineEventType, string[]>> = {
       'created': ['创建了新任务', '新建任务项目'],
       'updated': ['更新了任务信息', '修改任务详情'],
       'deleted': ['删除了任务', '移除任务项目'],

@@ -162,11 +162,11 @@ const UserManagementPage: React.FC = () => {
         { status: 'active' } // filters
       );
       
-      // 转换为前端期望的格式
+      // ✅ FIXED - Use company.name instead of company.companyName (TS2339)
       const companiesList = response.data.map(company => ({
         id: company.id,
-        name: company.companyName,
-        companyName: company.companyName,
+        name: company.name,
+        companyName: company.name,
         // 保留原始数据以备将来使用
         originalData: company
       }));
@@ -197,10 +197,10 @@ const UserManagementPage: React.FC = () => {
       // ✅ FIXED - Use getEnterprises with search filter (TS2339)
       const response = await enterpriseService.getEnterprises(1, 100, { search: keyword });
 
-      // 转换为前端期望的格式
+      // ✅ FIXED - Use company.name directly (TS2339)
       const companiesList = response.data.map(company => ({
         id: company.id,
-        name: company.companyName || company.name,
+        name: company.name,
         originalData: company
       }));
       

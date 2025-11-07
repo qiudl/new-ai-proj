@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef, ReactNode } from 'react';
-import { Task } from '../types/task';
+// ✅ FIXED - Import TaskStatus type for proper type checking (TS2345)
+import { Task, TaskStatus } from '../types/task';
 // ✅ FIXED - Import TaskService class instead of instance (TS2576)
 import { TaskService } from '../services/taskService';
 import { errorLogger } from '../utils/ErrorLogger';
@@ -11,8 +12,10 @@ interface TaskState {
   loading: boolean;
   error: string | null;
   filters: {
-    status?: string;
-    priority?: string;
+    // ✅ FIXED - Use TaskStatus type instead of string (TS2345)
+    status?: TaskStatus;
+    // ✅ FIXED - Use specific priority union type instead of string (TS2345)
+    priority?: 'low' | 'medium' | 'high';
     assignee?: number;
     project?: number;
     search?: string;

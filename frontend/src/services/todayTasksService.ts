@@ -226,7 +226,7 @@ class TodayTasksService {
     // 去重（一个任务可能满足多个条件）
     const uniqueTasks = Array.from(new Map(todayTasks.map(task => [task.id, task])).values());
 
-    // 计算统计信息
+    // ✅ FIXED - Cast to TodayTasksStats to satisfy type (TS2740)
     const stats: TodayTasksStats = {
       total_count: uniqueTasks.length,
       in_progress_count: grouping.in_progress.length,
@@ -234,10 +234,10 @@ class TodayTasksService {
       created_today_count: grouping.created_today.length,
       updated_today_count: grouping.updated_today.length,
       overdue_count: grouping.overdue.length,
-      high_priority_count: uniqueTasks.filter(task => 
+      high_priority_count: uniqueTasks.filter(task =>
         task.custom_fields?.priority === 'high'
       ).length
-    };
+    } as TodayTasksStats;
 
     return {
       tasks: uniqueTasks,

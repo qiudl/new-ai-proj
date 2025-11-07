@@ -106,8 +106,8 @@ const RoleTemplateManager: React.FC<RoleTemplateManagerProps> = ({
         page: pagination.current,
         page_size: pagination.pageSize,
         ...otherFilters,
-        // Only include category if it's not an empty string
-        ...(category && category !== '' ? { category } : {}),
+        // ✅ FIXED - Only check truthiness, not compare with empty string (TS2367)
+        ...(category ? { category } : {}),
         ...params
       };
 

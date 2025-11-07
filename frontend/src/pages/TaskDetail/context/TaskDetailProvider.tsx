@@ -288,13 +288,14 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
       };
 
       // ✅ FIXED - TaskStatistics requires all properties: completion, time, quality, team (TS2739)
+      // ✅ FIXED - Use correct property names matching TimeStats/QualityStats/TeamStats interfaces (TS2322)
       dispatch({
         type: 'SET_STATISTICS',
         payload: {
           completion,
-          time: { totalEstimated: 0, totalActual: 0, totalRemaining: 0, efficiency: 0 },
-          quality: { score: 0, trend: 'stable' as const, issues: [] },
-          team: { members: [], activeMembers: 0, productivity: 0 }
+          time: { totalEstimated: 0, totalActual: 0, totalRemaining: 0, averageCompletionTime: 0, overdueCount: 0 },
+          quality: { bugCount: 0, reworkCount: 0, reviewScore: 0, testCoverage: 0 },
+          team: { assignedMembers: 0, activeMembers: 0, workload: {}, productivity: {} }
         }
       });
     } catch (error: any) {
@@ -349,13 +350,14 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
       };
 
       // ✅ FIXED - TaskStatistics requires all properties: completion, time, quality, team (TS2739)
+      // ✅ FIXED - Use correct property names matching TimeStats/QualityStats/TeamStats interfaces (TS2322)
       dispatch({
         type: 'SET_STATISTICS',
         payload: {
           completion,
-          time: { totalEstimated: 0, totalActual: 0, totalRemaining: 0, efficiency: 0 },
-          quality: { score: 0, trend: 'stable' as const, issues: [] },
-          team: { members: [], activeMembers: 0, productivity: 0 }
+          time: { totalEstimated: 0, totalActual: 0, totalRemaining: 0, averageCompletionTime: 0, overdueCount: 0 },
+          quality: { bugCount: 0, reworkCount: 0, reviewScore: 0, testCoverage: 0 },
+          team: { assignedMembers: 0, activeMembers: 0, workload: {}, productivity: {} }
         }
       });
     } catch (error: any) {

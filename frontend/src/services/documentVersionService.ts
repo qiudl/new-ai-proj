@@ -243,6 +243,7 @@ class DocumentVersionService {
         id: 1,
         document_id: documentId,
         version_number: 3,
+        version: 3, // ✅ FIXED - version should be number, not string (TS2322)
         title: '最新版本 - 功能优化',
         content: '# 版本 1.3.0\n\n本版本主要优化了用户体验和性能...',
         file_size: 2048,
@@ -261,6 +262,7 @@ class DocumentVersionService {
         id: 2,
         document_id: documentId,
         version_number: 2,
+        version: 2, // ✅ FIXED - version should be number, not string (TS2322)
         title: '中间版本 - 功能增加',
         content: '# 版本 1.2.0\n\n添加了新的搜索功能...',
         file_size: 1536,
@@ -279,6 +281,7 @@ class DocumentVersionService {
         id: 3,
         document_id: documentId,
         version_number: 1,
+        version: 1, // ✅ FIXED - version should be number, not string (TS2322)
         title: '初始版本',
         content: '# 版本 1.0.0\n\n项目初始化...',
         file_size: 1024,

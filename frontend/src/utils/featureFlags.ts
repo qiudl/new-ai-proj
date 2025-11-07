@@ -26,7 +26,8 @@ export interface FeatureFlagConfig {
   environmentOverride?: boolean;
 }
 
-type FeatureFlagConfigs = Record<FeatureFlag, FeatureFlagConfig>;
+// ✅ FIXED - Export FeatureFlagConfigs type so it can be imported by other modules (TS2724)
+export type FeatureFlagConfigs = Record<FeatureFlag, FeatureFlagConfig>;
 
 const STORAGE_KEY = 'featureFlags';
 

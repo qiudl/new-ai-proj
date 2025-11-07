@@ -237,8 +237,9 @@ const UserProfilePage: React.FC = () => {
             <div style={{ fontSize: '14px' }}>
               <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
                 <Text type="secondary">用户角色：</Text>
-                <Tag color={user.role === 'admin' ? 'red' : user.role === 'user' ? 'blue' : 'default'}>
-                  {user.role === 'admin' ? '管理员' : user.role === 'user' ? '普通用户' : user.role}
+                {/* ✅ FIXED - Use 'company_user' instead of 'user' which doesn't exist in role type (TS2367) */}
+                <Tag color={user.role === 'admin' ? 'red' : user.role === 'company_user' ? 'blue' : 'default'}>
+                  {user.role === 'admin' ? '管理员' : user.role === 'company_user' ? '普通用户' : user.role}
                 </Tag>
               </div>
               <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>

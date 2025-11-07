@@ -341,6 +341,37 @@ export const LazyImage: React.FC<LazyImageProps> = memo(({
 LazyImage.displayName = 'LazyImage';
 
 /**
+ * ✅ FIXED - Add PerformanceWrapper component for wrapping children with performance monitoring (TS2552/TS2304)
+ * 性能监控包装器组件
+ */
+interface PerformanceWrapperProps {
+  componentName: string;
+  children: React.ReactNode;
+  enableProfiling?: boolean;
+}
+
+export const PerformanceWrapper: React.FC<PerformanceWrapperProps> = memo(({
+  componentName,
+  children,
+  enableProfiling = true
+}) => {
+  const { startProfiler, endProfiler } = usePerformanceProfiler(componentName);
+
+  useEffect(() => {
+    if (enableProfiling) {
+      startProfiler();
+      return () => {
+        endProfiler();
+      };
+    }
+  }, [enableProfiling, startProfiler, endProfiler]);
+
+  return <>{children}</>;
+});
+
+PerformanceWrapper.displayName = 'PerformanceWrapper';
+
+/**
  * 错误边界组件
  */
 interface ErrorBoundaryState {
@@ -467,6 +498,7 @@ export default {
   withLazyLoading,
   VirtualizedList,
   LazyImage,
+  PerformanceWrapper,
   PerformanceErrorBoundary,
   usePerformanceProfiler,
   useMemoryMonitor

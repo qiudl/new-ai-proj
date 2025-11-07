@@ -507,9 +507,9 @@ export class IntelligentEventGrouper {
       });
     }
 
-    // 完成事件集群
-    const completionEvents = events.filter(event => 
-      event.event_type === 'completed' || event.event_type === 'approved'
+    // ✅ FIXED - Remove 'approved' as it's not a valid TaskTimelineEventType (TS2367)
+    const completionEvents = events.filter(event =>
+      event.event_type === 'completed'
     );
     
     if (completionEvents.length >= 2) {

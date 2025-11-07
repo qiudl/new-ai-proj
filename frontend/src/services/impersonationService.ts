@@ -75,10 +75,12 @@ class ImpersonationService {
           token: response.token,
           enterprise: response.enterprise,
           session: {
-            id: response.impersonation_info?.session_id || response.impersonation_info?.id || '',
+            // ✅ FIXED - Remove access to non-existent 'id' property (TS2339)
+            id: response.impersonation_info?.session_id || '',
             started_at: response.impersonation_info?.started_at || new Date().toISOString(),
             expires_at: response.impersonation_info?.expires_at || '',
-            reason: response.impersonation_info?.reason || reason
+            // ✅ FIXED - Remove access to non-existent 'reason' property (TS2339)
+            reason: reason
           }
         };
       } else {

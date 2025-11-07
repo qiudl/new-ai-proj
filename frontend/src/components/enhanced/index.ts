@@ -20,7 +20,8 @@ export { default as PerformanceMonitor } from './PerformanceMonitor';
 // 类型导出
 export type { EnhancedCodeBlockProps } from './EnhancedCodeBlock';
 export type { EnhancedMarkdownRendererProps } from './EnhancedMarkdownRenderer';
-export type { EnhancedFullscreenDocumentModalProps, DocumentData } from './EnhancedFullscreenDocumentModal';
+// ✅ FIXED - Export FullscreenDocumentData instead of DocumentData (TS2614)
+export type { EnhancedFullscreenDocumentModalProps, FullscreenDocumentData } from './EnhancedFullscreenDocumentModal';
 export type { EnhancedFullscreenDocumentPreviewProps } from './EnhancedFullscreenDocumentPreview';
 export type { EnhancedDocumentContentProps } from './EnhancedDocumentContent';
 // ✅ FIXED - Comment out non-existent DocumentAreaAdapter type exports (TS2307)

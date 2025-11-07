@@ -33,7 +33,8 @@ export const ComponentMigrationMap = {
 };
 
 // 向后兼容的重新导出（带警告）
-import { UnifiedTaskDocumentArea } from './UnifiedTaskDocumentArea';
+// ✅ FIXED - UnifiedTaskDocumentArea is a default export, not a named export (TS2724)
+import UnifiedTaskDocumentArea from './UnifiedTaskDocumentArea';
 // ✅ FIXED - Comment out non-existent DocumentAreaAdapter import (TS2307)
 // import { DocumentAreaAdapter } from './enhanced/DocumentAreaAdapter';
 

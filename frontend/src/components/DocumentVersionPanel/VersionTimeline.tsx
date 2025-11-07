@@ -79,7 +79,8 @@ const VersionTimeline: React.FC<VersionTimelineProps> = ({
 
   // Timeline items
   const timelineItems = displayedVersions.map((version, index) => {
-    const isCurrent = version.version === currentVersion || index === 0;
+    // ✅ FIXED - Convert number to string for comparison (TS2367)
+    const isCurrent = String(version.version) === currentVersion || index === 0;
     const isSelected = selectedForCompare?.id === version.id;
 
     return {
