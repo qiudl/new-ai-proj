@@ -2113,10 +2113,10 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       />
 
       {/* 智能组织模态框 */}
-      {/* ✅ FIXED - Convert projectId to string for SmartOrganizeModal (TS2345) */}
+      {/* ✅ FIXED - SmartOrganizeModal expects number projectId (TS2322) */}
       <SmartOrganizeModal
         visible={smartOrganizeVisible}
-        projectId={String(projectId)}
+        projectId={projectId}
         onCancel={() => setSmartOrganizeVisible(false)}
         onComplete={() => {
           setSmartOrganizeVisible(false);

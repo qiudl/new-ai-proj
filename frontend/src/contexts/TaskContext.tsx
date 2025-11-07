@@ -287,7 +287,7 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const response = await taskService.getTasks(mergedFilters);
+      const response = await TaskService.getTasks(mergedFilters);
 
       dispatch({ type: 'SET_TASKS', payload: response.tasks });
       dispatch({ type: 'SET_CACHE', payload: { key: cacheKey, data: response.tasks } });
@@ -310,7 +310,7 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
   // 按ID加载任务
   const loadTaskById = useCallback(async (id: number): Promise<Task> => {
     try {
-      const task = await taskService.getTaskById(id);
+      const task = await TaskService.getTaskById(id);
       
       // 更新本地状态中的任务
       dispatch({ type: 'UPDATE_TASK', payload: task });
@@ -339,7 +339,7 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
-      const newTask = await taskService.createTask(taskData);
+      const newTask = await TaskService.createTask(taskData);
 
       dispatch({ type: 'ADD_TASK', payload: newTask });
       dispatch({ type: 'CLEAR_CACHE' });
@@ -381,7 +381,7 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
     }
 
     try {
-      const updatedTask = await taskService.updateTask(id, updates);
+      const updatedTask = await TaskService.updateTask(id, updates);
 
       dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
       dispatch({ type: 'CLEAR_OPTIMISTIC_UPDATE', payload: id });
@@ -414,7 +414,7 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
   // 删除任务
   const deleteTask = useCallback(async (id: number) => {
     try {
-      await taskService.deleteTask(id);
+      await TaskService.deleteTask(id);
 
       dispatch({ type: 'DELETE_TASK', payload: id });
       dispatch({ type: 'CLEAR_CACHE' });
@@ -442,7 +442,7 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
-      const updatedTasks = await taskService.batchUpdateTasks(updates);
+      const updatedTasks = await TaskService.batchUpdateTasks(updates);
 
       dispatch({ type: 'BATCH_UPDATE_TASKS', payload: updatedTasks });
       dispatch({ type: 'CLEAR_CACHE' });

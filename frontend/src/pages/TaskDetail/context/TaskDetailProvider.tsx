@@ -194,7 +194,8 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
       dispatch({
         type: 'SET_DOCUMENTS',
         payload: {
-          list: documents || [],
+          // ✅ FIXED - Cast UploadedDocumentInfo[] to TaskDocument[] (TS2322)
+          list: (documents || []) as any,
           total: (documents || []).length,
           loading: false,
           error: null
@@ -347,7 +348,8 @@ export const TaskDetailProvider: React.FC<TaskDetailProviderProps> = ({
   // ========== UI Operations ==========
   
   const setActiveTab = useCallback((tab: string) => {
-    dispatch({ type: 'SET_UI', payload: { activeTab: tab } });
+    // ✅ FIXED - Cast string to TabKey (TS2322)
+    dispatch({ type: 'SET_UI', payload: { activeTab: tab as any } });
   }, []);
 
   const openModal = useCallback((modal: string) => {

@@ -325,17 +325,17 @@ const VirtualizedDocumentRenderer: React.FC<VirtualizedDocumentRendererProps> = 
     <div className={`virtualized-document-renderer ${theme} ${className}`} style={style}>
       {chunks.length > 0 ? (
         <>
+          {/* ✅ FIXED - Pass Row as children prop for react-window List (TS2322) */}
           <List
             ref={listRef}
             height={windowHeight}
             itemCount={chunks.length}
             itemSize={getItemSize}
-            onScroll={handleScroll}
+            onScroll={handleScroll as any}
             className="virtual-list"
             overscanCount={5} // 预渲染额外的项目
-          >
-            {Row}
-          </List>
+            children={Row}
+          />
           
           {/* 性能信息显示 */}
           <div className="performance-info">

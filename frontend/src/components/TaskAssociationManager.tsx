@@ -24,7 +24,8 @@ import {
   SyncOutlined,
   ExclamationCircleOutlined
 } from '@ant-design/icons';
-import { taskService } from '../services/taskService';
+// ✅ FIXED - Import TaskService class instead of instance (TS2576)
+import { TaskService } from '../services/taskService';
 import { workNotesService, AssociatedTask } from '../services/workNotesService';
 import dayjs from 'dayjs';
 
@@ -93,7 +94,7 @@ const TaskAssociationManager: React.FC<TaskAssociationManagerProps> = ({
     try {
       setSearching(true);
       // 使用项目ID 1 进行搜索，实际使用时应该动态获取
-      const result = await taskService.getTasks(1, {
+      const result = await TaskService.getTasks(1, {
         search: keyword,
         page: 1,
         limit: 20

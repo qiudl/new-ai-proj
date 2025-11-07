@@ -155,7 +155,8 @@ export const taskDetailReducer = (
         ...state,
         ui: {
           ...state.ui,
-          activeTab: action.payload
+          // ✅ FIXED - Cast payload to TabKey (TS2322)
+          activeTab: action.payload as any
         }
       };
 

@@ -714,6 +714,10 @@ func (h *RequirementHandler) ConvertRequirementToTask(c *gin.Context) {
 		Tags:               models.Tags{},         // Initialize empty tags
 		TimeTrackingMode:   "manual",              // Set default time tracking mode
 		TimeUnitPreference: "auto",                // Set default time unit preference
+		WorkHoursPerDay:    8.0,                   // Set default work hours per day
+		TaskLevel:          0,                     // Set default task level
+		EstimatedMinutes:   0,                     // Set default estimated minutes
+		ActualMinutes:      0,                     // Set default actual minutes
 	}
 
 	if req.AssigneeID != nil {
