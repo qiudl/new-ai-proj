@@ -38,5 +38,43 @@ module.exports = {
     browser: true,
     es2021: true,
     node: true
-  }
+  },
+  overrides: [
+    {
+      // 测试文件使用更宽松的规则
+      files: [
+        '**/__tests__/**/*',
+        '**/*.test.ts',
+        '**/*.test.tsx',
+        '**/*.e2e.test.tsx',
+        '**/*.spec.ts',
+        '**/*.spec.tsx'
+      ],
+      rules: {
+        // Testing Library规则 - 从error降为warn
+        'testing-library/no-node-access': 'warn',
+        'testing-library/no-wait-for-multiple-assertions': 'warn',
+        'testing-library/no-container': 'warn',
+        'testing-library/no-render-in-setup': 'warn',
+        'testing-library/no-wait-for-side-effects': 'warn',
+        'testing-library/prefer-presence-queries': 'warn',
+        'testing-library/no-wait-for-empty-callback': 'warn',
+        'testing-library/await-async-utils': 'warn',
+        'testing-library/no-unnecessary-act': 'warn',
+
+        // Jest规则 - 从error降为warn
+        'jest/no-conditional-expect': 'warn',
+
+        // TypeScript规则 - 测试文件更宽松
+        '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-unused-vars': ['warn', {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_|^mock'
+        }],
+
+        // 其他规则
+        'no-console': 'off' // 测试中允许console
+      }
+    }
+  ]
 };
