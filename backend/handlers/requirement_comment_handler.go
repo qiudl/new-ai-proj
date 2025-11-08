@@ -60,6 +60,14 @@ func (h *RequirementCommentHandler) CreateComment(c *gin.Context) {
 		return
 	}
 
+	// 支持从路径参数获取requirement_id（RESTful风格）
+	if idParam := c.Param("id"); idParam != "" {
+		requirementID, err := strconv.Atoi(idParam)
+		if err == nil {
+			req.RequirementID = requirementID
+		}
+	}
+
 	// Validate required fields
 	if req.Content == "" {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation, "评论内容不能为空", nil))
@@ -275,7 +283,16 @@ func (h *RequirementCommentHandler) CreateComment(c *gin.Context) {
 // @Router /api/v1/requirements/comments [get]
 // @Security BearerAuth
 func (h *RequirementCommentHandler) GetComments(c *gin.Context) {
-	requirementIDStr := c.Query("requirement_id")
+	// 支持两种方式获取requirement_id：路径参数（新的RESTful风格）或查询参数（兼容旧API）
+	var requirementIDStr string
+	if idParam := c.Param("id"); idParam != "" {
+		// RESTful style: /requirements/:id/comments
+		requirementIDStr = idParam
+	} else {
+		// Legacy style: /requirements/comments?requirement_id=X
+		requirementIDStr = c.Query("requirement_id")
+	}
+
 	if requirementIDStr == "" {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "缺少requirement_id参数", nil))
 		return

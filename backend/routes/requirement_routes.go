@@ -66,24 +66,25 @@ func RegisterRequirementRoutes(authorized *gin.RouterGroup, app ApplicationInter
 			requirements.GET("/:id/tasks", requirementTaskHandler.GetRequirementTasks)
 		}
 
-		// Comment routes
+		// Comment routes - RESTful nested resource style
 		if requirementCommentHandler != nil {
+			// Per-requirement comment routes (RESTful nested resource)
+			requirements.POST("/:id/comments", requirementCommentHandler.CreateComment)
+			requirements.GET("/:id/comments", requirementCommentHandler.GetComments)
+
+			// Global comment routes (for cross-requirement queries)
 			comments := requirements.Group("/comments")
 			{
-				// Create and list comments
-				comments.POST("", requirementCommentHandler.CreateComment)
-				comments.GET("", requirementCommentHandler.GetComments) // ?requirement_id=X
-
 				// Get comments where current user was @mentioned
 				comments.GET("/mentions/me", requirementCommentHandler.GetMentionedComments)
 
 				// Individual comment operations
-				comments.GET("/:id", requirementCommentHandler.GetComment)
-				comments.PUT("/:id", requirementCommentHandler.UpdateComment)
-				comments.DELETE("/:id", requirementCommentHandler.DeleteComment)
+				comments.GET("/:comment_id", requirementCommentHandler.GetComment)
+				comments.PUT("/:comment_id", requirementCommentHandler.UpdateComment)
+				comments.DELETE("/:comment_id", requirementCommentHandler.DeleteComment)
 
 				// Pin/unpin comment (admin only)
-				comments.PUT("/:id/pin", requirementCommentHandler.TogglePin)
+				comments.PUT("/:comment_id/pin", requirementCommentHandler.TogglePin)
 			}
 		}
 	}

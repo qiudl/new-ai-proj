@@ -21,7 +21,7 @@ import { setupModalCleanup } from './utils/modalCleanup';
 import { enableGlobalModalHeightManagement, disableGlobalModalHeightManagement } from './utils/modalHeightManager';
 import { initSecurityCheck } from './utils/securityCheck';
 import {
-  ENTERPRISE_PERMISSIONS,
+  // ENTERPRISE_PERMISSIONS, // ✅ FIXED - Removed unused import (ESLint)
   USER_PERMISSIONS,
   PERMISSION_PERMISSIONS,
   SYSTEM_PERMISSIONS,
@@ -60,8 +60,9 @@ const BulkImportPage = React.lazy(() => import('./pages/BulkImportPage'));
 const RecycleBinPage = React.lazy(() => import('./pages/RecycleBinPage'));
 const AuditLogPage = React.lazy(() => import('./pages/AuditLogPage'));
 const UserProfilePage = React.lazy(() => import('./pages/UserProfilePage'));
-const PermissionManagementPage = React.lazy(() => import('./pages/PermissionManagementPage'));
-const EnhancedPermissionManagementPage = React.lazy(() => import('./pages/EnhancedPermissionManagementPage'));
+// ✅ FIXED - Commented out unused lazy-loaded pages (ESLint)
+// const PermissionManagementPage = React.lazy(() => import('./pages/PermissionManagementPage'));
+// const EnhancedPermissionManagementPage = React.lazy(() => import('./pages/EnhancedPermissionManagementPage'));
 const PermissionOverviewPage = React.lazy(() => import('./pages/PermissionOverviewPage'));
 const RoleManagementPage = React.lazy(() => import('./pages/RoleManagementPage'));
 const AdminRoleListPage = React.lazy(() => import('./pages/AdminRoleListPage'));
@@ -180,7 +181,9 @@ const AppContent: React.FC = () => {
         console.warn('Failed to load auth fix tool:', error);
       });
       // 加载API集成测试
-      import('./test/apiIntegrationTest').then(({ runAllApiTests }) => {
+      // ✅ FIXED - Added underscore prefix to unused parameter (ESLint)
+      import('./test/apiIntegrationTest').then(({ runAllApiTests: _runAllApiTests }) => {
+        // API测试模块已加载，函数可通过window.runAllApiTests调用
       }).catch(error => {
         console.warn('API测试加载失败:', error);
       });
