@@ -1,5 +1,7 @@
 import organizationService from '../organizationService';
 
+import api from '../api';
+
 // Mock the api module used inside organizationService
 jest.mock('../api', () => ({
   __esModule: true,
@@ -10,8 +12,6 @@ jest.mock('../api', () => ({
     delete: jest.fn(),
   },
 }));
-
-import api from '../api';
 
 const mockedGet = api.get as jest.Mock;
 

@@ -13,11 +13,6 @@ import {
 } from '@ant-design/icons';
 import { ErrorHandler } from '../utils/error';
 import type { DataNode as AntdDataNode } from 'antd/es/tree';
-
-// 扩展DataNode以包含自定义data属性
-interface DataNode extends AntdDataNode {
-  data?: WorkNoteFolder;
-}
 import {
   workNotesService,
   WorkNoteFolder,
@@ -26,6 +21,11 @@ import {
 import { useDebounce } from '../hooks/useDebounce';
 import FolderContextMenu, { FolderAction } from './FolderContextMenu';
 import { useWorkNotePermissions } from '../hooks/useWorkNotePermissions';
+
+// 扩展DataNode以包含自定义data属性
+interface DataNode extends AntdDataNode {
+  data?: WorkNoteFolder;
+}
 
 const { Search } = Input;
 const { TabPane } = Tabs;

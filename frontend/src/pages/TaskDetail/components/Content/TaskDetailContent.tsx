@@ -54,12 +54,12 @@ import { aiTaskService, buildGenerateRequest } from '../../../../services/aiTask
 import { TaskComments } from '../../../../components/TaskComment';
 import RequirementLinkCard from '../../../../components/RequirementLinkCard';
 
-const { Text } = Typography;
-
 // Use UnifiedTaskDocumentArea for complete document editing/viewing functionality
 // Replaced TaskDocumentWidget (limited features) with UnifiedTaskDocumentArea (full features)
 // UnifiedTaskDocumentArea includes: Markdown editor, document viewer, full-screen mode, PDF export, version history, AI generation
 import UnifiedTaskDocumentArea from '../../../../components/UnifiedTaskDocumentArea';
+
+const { Text } = Typography;
 
 // Lazy load TaskAnalysisPanel
 const TaskAnalysisPanel = lazy(

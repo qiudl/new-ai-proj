@@ -1,6 +1,9 @@
 import { notification, message } from 'antd';
 import { ArgsProps } from 'antd/es/notification';
 
+// React Hook：用于组件中的错误处理
+import { useCallback } from 'react';
+
 // 错误类型枚举
 export enum ErrorType {
   VALIDATION = 'validation',
@@ -304,9 +307,6 @@ export const showMessage = ErrorHandler.showMessage;
 export const showValidationErrors = ErrorHandler.showValidationErrors;
 export const handleAsyncError = ErrorHandler.handleAsyncError.bind(ErrorHandler);
 export const parseApiError = ErrorHandler.parseApiError;
-
-// React Hook：用于组件中的错误处理
-import { useCallback } from 'react';
 
 export const useErrorHandler = () => {
   const handleError = useCallback((error: any, customMessage?: string) => {

@@ -224,7 +224,7 @@ describe('ImpersonationWarningBanner', () => {
       const { rerender, container } = render(<ImpersonationWarningBanner />);
       
       // 正常状态 - 绿色
-      let progressBar = container.querySelector('.ant-progress-bg');
+      const progressBar = container.querySelector('.ant-progress-bg');
       expect(progressBar).toHaveStyle({ background: expect.stringContaining('#52c41a') });
       
       // 即将过期 - 橙色

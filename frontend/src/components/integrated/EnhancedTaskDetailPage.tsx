@@ -30,16 +30,16 @@ import { TaskInfoEditor, TaskDocumentWidget, EnhancedDocumentInterface } from '.
 // Context和Hooks
 import { useTaskContext, useDocumentContext, useTaskOperations } from '../../contexts';
 
+// 性能优化工具
+// ✅ FIXED - PerformanceWrapper is a default export, not a named export (TS2614)
+import { PerformanceWrapper, PerformanceErrorBoundary } from '../PerformanceWrapper';
+import { errorLogger } from '../../utils/ErrorLogger';
+
 // 原有组件（懒加载）
 const TaskDetailTimer = React.lazy(() => import('../TaskDetailTimer'));
 const TaskDetailRelations = React.lazy(() => import('../TaskDetailRelations'));
 const EnhancedTaskTimeline = React.lazy(() => import('../timeline/EnhancedTaskTimelineV2'));
 const TaskStatsTab = React.lazy(() => import('../TaskStatsTab'));
-
-// 性能优化工具
-// ✅ FIXED - PerformanceWrapper is a default export, not a named export (TS2614)
-import { PerformanceWrapper, PerformanceErrorBoundary } from '../PerformanceWrapper';
-import { errorLogger } from '../../utils/ErrorLogger';
 // ✅ FIXED - Comment out non-existent hooks (TS2307)
 // import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 // import { useFullscreen } from '../../hooks/useFullscreen';

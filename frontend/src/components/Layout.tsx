@@ -8,13 +8,6 @@ import { TaskService } from '../services/taskService';
 import { filterMenuItems, getUserType } from '../config/menuVisibility';
 import EnterpriseImpersonation from './EnterpriseImpersonation';
 import { useImpersonation } from '../contexts/ImpersonationContext';
-
-// 开发环境下加载菜单测试工具
-if (process.env.NODE_ENV === 'development') {
-  import('../utils/testMenuVisibility').catch(error => {
-    console.warn('Failed to load menu visibility test tool:', error);
-  });
-}
 import {
   DashboardOutlined,
   ProjectOutlined,
@@ -43,6 +36,13 @@ import {
   ContactsOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
+
+// 开发环境下加载菜单测试工具
+if (process.env.NODE_ENV === 'development') {
+  import('../utils/testMenuVisibility').catch(error => {
+    console.warn('Failed to load menu visibility test tool:', error);
+  });
+}
 
 const { Header, Sider, Content } = AntLayout;
 

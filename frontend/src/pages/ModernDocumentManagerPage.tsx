@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect , useRef } from 'react';
 import { 
   Layout, 
   Card, 
@@ -50,7 +50,6 @@ import ModernWorkNoteEditor from '../components/ModernWorkNoteEditor';
 import ModernWorkNoteViewer from '../components/ModernWorkNoteViewer';
 import WorkNoteConversionModal from '../components/conversion/WorkNoteConversionModal';
 import FolderTree from '../components/FolderTree';
-import { useRef } from 'react';
 import '../styles/ModernDocumentManager.css';
 import { useSearchParams } from 'react-router-dom';
 import type { MenuProps } from 'antd';

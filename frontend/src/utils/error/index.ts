@@ -51,6 +51,9 @@
  */
 
 // 类型定义（先导出类型）
+// 默认导出错误处理器（最常用）
+import { ErrorHandler } from './handler';
+
 export { ErrorType, BusinessErrorCode } from './types';
 export type { AppError, ErrorHandlerConfig } from './types';
 
@@ -59,7 +62,4 @@ export { ErrorIdentifier } from './identifier';
 
 // 错误处理器（确保完整导出）
 export { ErrorHandler } from './handler';
-
-// 默认导出错误处理器（最常用）
-import { ErrorHandler } from './handler';
 export default ErrorHandler;

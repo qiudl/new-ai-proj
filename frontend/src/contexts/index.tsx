@@ -11,35 +11,6 @@
  */
 
 // Context Providers
-export { 
-  DocumentProvider, 
-  useDocumentContext,
-  useDocuments,
-  useSelectedDocument,
-  useDocumentStatistics,
-  useDocumentLoading,
-  useDocumentError 
-} from './DocumentContext';
-
-export { 
-  TaskProvider, 
-  useTaskContext,
-  useTasks,
-  useSelectedTask,
-  useTaskStatistics,
-  useTaskLoading,
-  useTaskError,
-  useTaskFilters 
-} from './TaskContext';
-
-// Custom Hooks for Operations
-export { useTaskOperations } from '../hooks/useTaskOperations';
-export { useDocumentOperations } from '../hooks/useDocumentOperations';
-
-// Types
-export type { DocumentFilter } from '../types/document';
-export type { Task } from '../types/task';
-
 /**
  * 使用指南：
  * 
@@ -115,6 +86,35 @@ import React, { ReactNode } from 'react';
 // ✅ FIXED - Import TaskProvider and DocumentProvider to use in StateProviders component (TS2304)
 import { TaskProvider } from './TaskContext';
 import { DocumentProvider } from './DocumentContext';
+
+export { 
+  DocumentProvider, 
+  useDocumentContext,
+  useDocuments,
+  useSelectedDocument,
+  useDocumentStatistics,
+  useDocumentLoading,
+  useDocumentError 
+} from './DocumentContext';
+
+export { 
+  TaskProvider, 
+  useTaskContext,
+  useTasks,
+  useSelectedTask,
+  useTaskStatistics,
+  useTaskLoading,
+  useTaskError,
+  useTaskFilters 
+} from './TaskContext';
+
+// Custom Hooks for Operations
+export { useTaskOperations } from '../hooks/useTaskOperations';
+export { useDocumentOperations } from '../hooks/useDocumentOperations';
+
+// Types
+export type { DocumentFilter } from '../types/document';
+export type { Task } from '../types/task';
 
 interface StateProvidersProps {
   children: ReactNode;

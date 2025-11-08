@@ -10,8 +10,7 @@ import {
   DailyFocusTaskBatchRequest,
   DailyFocusTaskBatchResponse
 } from '../types/dailyFocusTask';
-import { Task } from '../types/task';
-import { APIResponse } from '../types/task';
+import { Task , APIResponse } from '../types/task';
 
 // ✅ ADDED - 后端响应格式接口
 interface BackendDailyFocusResponse {

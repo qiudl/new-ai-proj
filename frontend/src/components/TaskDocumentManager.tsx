@@ -555,7 +555,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     setBatchProgressVisible(true);
     
     try {
-      let updatedOp = updateBatchOperation(operation, { status: 'running' });
+      const updatedOp = updateBatchOperation(operation, { status: 'running' });
 
       const selectedDocuments = documents.filter(doc => selectedRowKeys.includes(doc.id!));
 

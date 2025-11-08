@@ -1311,7 +1311,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         try {
           const taskIds = selectedRowKeys.map(id => Number(id));
           let deletedCount = 0;
-          let failedTasks: Array<{id: number, error: string}> = [];
+          const failedTasks: Array<{id: number, error: string}> = [];
 
           // 尝试使用批量删除API
           try {

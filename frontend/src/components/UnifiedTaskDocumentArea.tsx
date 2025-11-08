@@ -51,13 +51,6 @@ import {
   RightOutlined,
   RobotOutlined
 } from '@ant-design/icons';
-
-// 懒加载组件以减少初始渲染负担
-const TaskDocumentEditor = lazy(() => import('./TaskDocumentEditor'));
-const TaskDocumentManager = lazy(() => import('./TaskDocumentManager'));
-const TaskDocumentVersionHistoryButton = lazy(() => import('./TaskDocumentVersionHistoryButton'));
-const TaskMarkdownEditor = lazy(() => import('./TaskMarkdownEditor'));
-const CreateAIDocDialog = lazy(() => import('./CreateAIDocDialog'));
 import { documentService } from '../services/unifiedDocumentService';
 import { Document } from '../types/document';
 import { TaskService } from '../services/taskService';
@@ -73,6 +66,13 @@ import { useDragAndDrop } from '../hooks/useDragAndDrop';
 
 // 导入样式
 import '../styles/UnifiedTaskDocumentArea.css';
+
+// 懒加载组件以减少初始渲染负担
+const TaskDocumentEditor = lazy(() => import('./TaskDocumentEditor'));
+const TaskDocumentManager = lazy(() => import('./TaskDocumentManager'));
+const TaskDocumentVersionHistoryButton = lazy(() => import('./TaskDocumentVersionHistoryButton'));
+const TaskMarkdownEditor = lazy(() => import('./TaskMarkdownEditor'));
+const CreateAIDocDialog = lazy(() => import('./CreateAIDocDialog'));
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;

@@ -58,15 +58,15 @@ export const DOCUMENT_TEMPLATES: Record<DocumentTemplateType, DocumentTemplate> 
  * 步骤配置
  */
 export const STEP_CONFIG = {
-  [1]: {
+  1: {
     title: '选择AI模型',
     description: '选择AI模型和文档模板',
   },
-  [2]: {
+  2: {
     title: '预览文档',
     description: 'AI正在生成文档，请稍候...',
   },
-  [3]: {
+  3: {
     title: '编辑文档',
     description: '编辑和完善文档内容',
   },

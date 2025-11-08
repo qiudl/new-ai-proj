@@ -46,8 +46,7 @@ import {
   HomeOutlined,
   BuildOutlined
 } from '@ant-design/icons';
-import { EnterpriseUser, Enterprise } from '../services/enterpriseService';
-import enterpriseService from '../services/enterpriseService';
+import enterpriseService, { EnterpriseUser, Enterprise } from '../services/enterpriseService';
 import enterpriseUserService from '../services/enterpriseUserService';
 import { formatDistance } from 'date-fns';
 import { zhCN } from 'date-fns/locale';

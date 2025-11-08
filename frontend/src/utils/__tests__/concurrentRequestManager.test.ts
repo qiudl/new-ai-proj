@@ -354,7 +354,7 @@ describe('ConcurrentRequestManager', () => {
         { url: '/api/test', method: 'GET' }
       );
 
-      let statusBefore = manager.getStatus();
+      const statusBefore = manager.getStatus();
       expect(statusBefore.currentConcurrent).toBe(1);
 
       // 快进超过去重TTL时间
@@ -363,7 +363,7 @@ describe('ConcurrentRequestManager', () => {
       // 手动触发清理
       manager.cleanup();
 
-      let statusAfter = manager.getStatus();
+      const statusAfter = manager.getStatus();
       expect(statusAfter.currentConcurrent).toBe(0);
     });
 

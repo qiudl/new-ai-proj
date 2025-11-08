@@ -6,7 +6,7 @@
  */
 
 // Modal状态追踪
-let openModals: Set<string> = new Set();
+const openModals: Set<string> = new Set();
 let observer: MutationObserver | null = null;
 
 /**

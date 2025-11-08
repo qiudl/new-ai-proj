@@ -6,6 +6,10 @@
  */
 
 // 废弃警告
+// 向后兼容的重新导出（带警告）
+// ✅ FIXED - UnifiedTaskDocumentArea is a default export, not a named export (TS2724)
+import UnifiedTaskDocumentArea from './UnifiedTaskDocumentArea';
+
 if (process.env.NODE_ENV === 'development') {
   console.warn(`
     📦 组件迁移提醒：
@@ -31,10 +35,6 @@ export const ComponentMigrationMap = {
   'taskDocumentService': 'unifiedDocumentService',
   'documentService': 'unifiedDocumentService'
 };
-
-// 向后兼容的重新导出（带警告）
-// ✅ FIXED - UnifiedTaskDocumentArea is a default export, not a named export (TS2724)
-import UnifiedTaskDocumentArea from './UnifiedTaskDocumentArea';
 // ✅ FIXED - Comment out non-existent DocumentAreaAdapter import (TS2307)
 // import { DocumentAreaAdapter } from './enhanced/DocumentAreaAdapter';
 

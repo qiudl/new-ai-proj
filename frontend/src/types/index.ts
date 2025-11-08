@@ -4,6 +4,17 @@
  */
 
 // ===== Core Types =====
+// ===== Re-export commonly used types with aliases =====
+import type { UnifiedTaskNode, TaskDescendantsApiResponse } from './UnifiedTaskNode';
+import type { TaskHierarchyDisplayMode, TaskSortMode, TaskHierarchyFilter } from './TaskHierarchy';
+import type { UseTaskHierarchyOptions, UseTaskHierarchyReturn } from '../hooks/useTaskHierarchy';
+import type { 
+  TaskDetailDescendantsTreeV2Props,
+  EnhancedHierarchicalTaskTreeV2Props,
+  TaskTreeUnifiedProps,
+  TaskTreeNodeData
+} from './TaskHierarchyComponents';
+
 export * from './task';
 export * from './project';
 export * from './user';
@@ -21,17 +32,6 @@ export { EventTypes } from './TaskHierarchyUtilities';
 
 // ===== Hook Types =====
 export * from '../hooks/useTaskHierarchy';
-
-// ===== Re-export commonly used types with aliases =====
-import type { UnifiedTaskNode, TaskDescendantsApiResponse } from './UnifiedTaskNode';
-import type { TaskHierarchyDisplayMode, TaskSortMode, TaskHierarchyFilter } from './TaskHierarchy';
-import type { UseTaskHierarchyOptions, UseTaskHierarchyReturn } from '../hooks/useTaskHierarchy';
-import type { 
-  TaskDetailDescendantsTreeV2Props,
-  EnhancedHierarchicalTaskTreeV2Props,
-  TaskTreeUnifiedProps,
-  TaskTreeNodeData
-} from './TaskHierarchyComponents';
 
 // Common aliases for frequently used types
 export type {

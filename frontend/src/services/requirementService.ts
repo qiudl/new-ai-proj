@@ -1,6 +1,5 @@
-import api from './api';
+import api, { cachedGet, cachedGetWithTTL } from './api';
 import { logApiError } from '../utils/logger';
-import { cachedGet, cachedGetWithTTL } from './api';
 import {
   Requirement,
   RequirementListResponse,
