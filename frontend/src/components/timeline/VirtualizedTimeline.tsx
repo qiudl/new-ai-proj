@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-// ✅ FIXED - react-window v2 exports List directly, not FixedSizeList (TS2305)
+import React, { useState, useMemo, useCallback, useRef, useEffect, ReactElement } from 'react';
+// ✅ FIXED - react-window v2 uses List component (not VariableSizeList) (TS2305)
 import { List } from 'react-window';
 import { Card, Space, Typography, Button, Spin, Empty, message } from 'antd';
 import { ReloadOutlined, ExpandOutlined, CompressOutlined } from '@ant-design/icons';
@@ -34,15 +34,25 @@ interface VirtualTimelineItemData {
   onToggleExpanded?: (eventId: number) => void;
 }
 
-// 虚拟化列表项渲染器
-const VirtualTimelineItem: React.FC<{ index: number; style: React.CSSProperties; data: VirtualTimelineItemData[] }> = ({
+// 虚拟化列表项渲染器 (react-window v2 API)
+const VirtualTimelineItem = ({
   index,
   style,
+  ariaAttributes,
   data
-}) => {
+}: {
+  index: number;
+  style: React.CSSProperties;
+  ariaAttributes: {
+    'aria-posinset': number;
+    'aria-setsize': number;
+    role: 'listitem';
+  };
+  data: VirtualTimelineItemData[];
+}): ReactElement => {
   const item = data[index];
-  
-  if (!item) return <div style={style}></div>;
+
+  if (!item) return <div style={style} {...ariaAttributes}></div>;
 
   const renderEvent = (event: TaskTimelineEvent, isExpanded = false) => {
     const renderer = EventRendererFactory.getRenderer(event.event_type);
@@ -173,7 +183,7 @@ const VirtualTimelineItem: React.FC<{ index: number; style: React.CSSProperties;
   );
 
   return (
-    <div style={style}>
+    <div style={style} {...ariaAttributes}>
       {item.type === 'event' && item.event && renderEvent(item.event, item.isExpanded)}
       {item.type === 'group-header' && item.group && renderGroupHeader(item.group)}
       {item.type === 'group-separator' && renderGroupSeparator()}
@@ -194,8 +204,8 @@ const VirtualizedTimeline: React.FC<VirtualizedTimelineProps> = ({
   onRefresh
 }) => {
   const [expandedEvents, setExpandedEvents] = useState<Set<number>>(new Set());
-  // ✅ FIXED - Use typeof List for ref type (TS2749)
-  const listRef = useRef<InstanceType<typeof List>>(null);
+  // ✅ FIXED - Use any type for react-window List ref (TS2344)
+  const listRef = useRef<any>(null);
 
   // 切换事件展开状态
   const toggleEventExpansion = useCallback((eventId: number) => {
@@ -348,16 +358,15 @@ const VirtualizedTimeline: React.FC<VirtualizedTimelineProps> = ({
       style={{ height: height + 100 }}
       styles={{ body: { height, padding: 0  }}}
     >
-      {/* ✅ FIXED - Pass VirtualTimelineItem as children prop for react-window List (TS2322) */}
-      <List
-        ref={listRef}
-        height={height}
-        itemCount={virtualListData.length}
-        itemSize={getItemSize}
-        itemData={virtualListData}
+      {/* ✅ FIXED - react-window v2 List API (TS2305, TS2322) */}
+      <List<{ data: VirtualTimelineItemData[] }>
+        listRef={listRef}
+        rowComponent={VirtualTimelineItem as any}
+        rowCount={virtualListData.length}
+        rowHeight={getItemSize as any}
+        rowProps={{ data: virtualListData }}
+        style={{ height, width: '100%' }}
         overscanCount={overscanCount}
-        style={{ width: '100%' }}
-        children={VirtualTimelineItem}
       />
     </Card>
   );

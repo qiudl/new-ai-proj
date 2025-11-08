@@ -50,12 +50,9 @@ import {
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-interface RouteParams {
-  enterpriseId?: string;
-}
-
+// ✅ FIXED - Remove type parameter and use type assertion for useParams (TS2344)
 const EnterpriseUserManagementPage: React.FC = () => {
-  const { enterpriseId } = useParams<RouteParams>();
+  const { enterpriseId } = useParams() as { enterpriseId: string };
   const navigate = useNavigate();
   const [enterprise, setEnterprise] = useState<Enterprise | null>(null);
   const [users, setUsers] = useState<EnterpriseUser[]>([]);

@@ -736,15 +736,10 @@ export class UnifiedDocumentService {
    */
   private async getFromCache<T>(key: string): Promise<T | null> {
     try {
-      // 优先使用apiCache（内存缓存）
+      // ✅ FIXED - Only use apiCache since documentCacheService.get() requires projectId/taskId, not a key (TS2558)
+      // 使用apiCache（内存缓存）
       const cached = apiCache.get<T>(key);
-      if (cached) {
-        return cached;
-      }
-
-      // ✅ FIXED - Type assertion for generic cache retrieval (TS2322)
-      // 尝试从documentCacheService获取
-      return (await documentCacheService.get<T>(key)) as T | null;
+      return cached || null;
     } catch (error) {
       console.warn('[getFromCache] Failed:', error);
       return null;

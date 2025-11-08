@@ -288,7 +288,13 @@ const TaskDetailPageContent: React.FC = () => {
             onDocsChange={handleDocsChange}
           />
         }
-        sidebar={<TaskDetailSidebar projectId={parsedProjectId} />}
+        sidebar={
+          <TaskDetailSidebar
+            projectId={parsedProjectId}
+            onCreateSubtask={() => {}}
+            onBulkImportSubtasks={() => {}}
+          />
+        }
       />
 
       {/* Modals */}

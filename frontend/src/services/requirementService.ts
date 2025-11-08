@@ -114,16 +114,13 @@ export async function getRequirementTasks(
   }
 ): Promise<RequirementTaskListResponse> {
   try {
-    const response = await api.get<APIResponse<RequirementTaskListResponse>>(
+    // API拦截器已经自动解包了响应 {success, data} -> data
+    const response = await api.get<RequirementTaskListResponse>(
       `/requirements/${requirementId}/tasks`,
       { params }
     );
 
-    if (response.data.success) {
-      return response.data.data;
-    } else {
-      throw new Error(response.data.error?.message || '获取需求关联任务失败');
-    }
+    return response.data;
   } catch (error: any) {
     logApiError(error, 'getRequirementTasks');
     throw error;

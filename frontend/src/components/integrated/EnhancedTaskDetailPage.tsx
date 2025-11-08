@@ -268,11 +268,11 @@ const EnhancedTaskDetailPage: React.FC<EnhancedTaskDetailPageProps> = memo(({
       children: (
         <Suspense fallback={<Spin />}>
           <PerformanceWrapper componentName="TaskDetailTimer">
-            {/* ✅ FIXED - Add required taskTitle and taskStatus props (TS2739) */}
+            {/* ✅ FIXED - Use currentTask instead of taskState.task (TS2551) */}
             <TaskDetailTimer
               taskId={taskId}
-              taskTitle={taskState?.task?.title || ''}
-              taskStatus={taskState?.task?.status || 'todo'}
+              taskTitle={currentTask?.title || ''}
+              taskStatus={currentTask?.status || 'todo'}
             />
           </PerformanceWrapper>
         </Suspense>

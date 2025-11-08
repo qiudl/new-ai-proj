@@ -264,7 +264,13 @@ const TaskDetailComponentsDemo: React.FC = () => {
                   onDocsChange={() => {}}
                 />
               }
-              sidebar={<TaskDetailSidebar />}
+              sidebar={
+                <TaskDetailSidebar
+                  projectId={1}
+                  onCreateSubtask={() => {}}
+                  onBulkImportSubtasks={() => {}}
+                />
+              }
             />
           </TaskDetailProvider>
         </Card>

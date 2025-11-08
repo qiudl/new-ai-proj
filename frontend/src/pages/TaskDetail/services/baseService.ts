@@ -66,10 +66,11 @@ export class ServiceCache {
 }
 
 // Custom service error class
+// ✅ FIXED - Make code required to match ServiceError interface (TS2420)
 export class CustomServiceError extends Error implements ServiceError {
   public readonly type: 'api' | 'network' | 'validation' | 'unknown';
   public readonly status?: number;
-  public readonly code?: string;
+  public readonly code: string;
   public readonly details?: any;
   public readonly retryable?: boolean;
 

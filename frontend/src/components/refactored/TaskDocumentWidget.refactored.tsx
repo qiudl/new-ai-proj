@@ -113,14 +113,14 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = memo(({
       // getTaskDocuments returns array directly, not { documents: [] }
       const documents = await documentService.getTaskDocuments(projectId, taskId);
 
-      // ✅ FIXED - Type assertion for state updater function return type (TS2345)
+      // ✅ FIXED - Cast to unknown first then to DocumentState (TS2352)
       setDocumentState((prev: DocumentState) => ({
         ...prev,
         documents: (documents || []) as UploadedDocumentInfo[],
         loading: false,
         error: null,
         lastRefresh: new Date()
-      } as DocumentState));
+      } as unknown as DocumentState));
 
       // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
       onDocumentChange?.((documents || []) as unknown as Document[]);

@@ -47,6 +47,36 @@ const LazyComponentLoader: React.FC<LazyComponentLoaderProps> = memo(({
     isRetrying: false
   });
 
+  // ✅ FIXED - Move handleRetry before defaultErrorFallback to fix TS2448
+  // 重试处理
+  const handleRetry = async () => {
+    if (state.retryCount >= maxRetries) return;
+
+    setState(prev => ({ ...prev, isRetrying: true }));
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+
+      setState(prev => ({
+        hasError: false,
+        retryCount: prev.retryCount + 1,
+        isRetrying: false
+      }));
+
+      errorLogger.info('performance', 'LazyComponentLoader: 重试成功', {
+        componentName,
+        retryCount: state.retryCount + 1
+      });
+    } catch (error) {
+      setState(prev => ({ ...prev, isRetrying: false }));
+
+      errorLogger.error('performance', 'LazyComponentLoader: 重试失败', {
+        componentName,
+        error
+      });
+    }
+  };
+
   // 默认加载占位符
   const defaultFallback = (
     <div style={{ 
@@ -93,35 +123,7 @@ const LazyComponentLoader: React.FC<LazyComponentLoaderProps> = memo(({
     />
   );
 
-  // 重试处理
-  const handleRetry = async () => {
-    if (state.retryCount >= maxRetries) return;
-
-    setState(prev => ({ ...prev, isRetrying: true }));
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, retryDelay));
-      
-      setState(prev => ({
-        hasError: false,
-        retryCount: prev.retryCount + 1,
-        isRetrying: false
-      }));
-      
-      errorLogger.info('performance', 'LazyComponentLoader: 重试成功', {
-        componentName,
-        retryCount: state.retryCount + 1
-      });
-    } catch (error) {
-      setState(prev => ({ ...prev, isRetrying: false }));
-      
-      errorLogger.error('performance', 'LazyComponentLoader: 重试失败', {
-        componentName,
-        retryCount: state.retryCount + 1,
-        error: error instanceof Error ? error.message : '未知错误'
-      });
-    }
-  };
+  // ✅ FIXED - Removed duplicate handleRetry definition (TS2448)
 
   // 错误处理
   useEffect(() => {

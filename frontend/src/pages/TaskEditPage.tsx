@@ -152,7 +152,8 @@ const TaskEditPage: React.FC = () => {
 
     try {
       setLoadingProjects(true);
-      const response = await projectService.getProjects({ page: 1, page_size: 1000 });
+      // ✅ FIXED - Use pageSize instead of page_size (TS2561)
+      const response = await projectService.getProjects({ page: 1, pageSize: 1000 });
       setProjects(response.data || []);
     } catch (error) {
       console.error('Error loading projects:', error);

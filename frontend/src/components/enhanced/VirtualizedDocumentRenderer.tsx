@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-// ✅ FIXED - react-window v2 exports List directly (TS2307, TS2305)
+// ✅ FIXED - react-window v2 uses List component (not VariableSizeList) (TS2305)
 import { List } from 'react-window';
 import { Skeleton, Typography, Alert, Progress, BackTop } from 'antd';
 import { EnhancedMarkdownRenderer } from './';
@@ -213,12 +213,20 @@ const VirtualizedDocumentRenderer: React.FC<VirtualizedDocumentRendererProps> = 
     return rendered;
   }, [compact, theme]);
 
-  // 列表项渲染器
-  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+  // 列表项渲染器 (react-window v2 API)
+  const Row = ({ index, style, ariaAttributes }: {
+    index: number;
+    style: React.CSSProperties;
+    ariaAttributes: {
+      'aria-posinset': number;
+      'aria-setsize': number;
+      role: 'listitem';
+    };
+  }) => {
     const chunk = chunks[index];
     if (!chunk) {
       return (
-        <div style={style} className="chunk-placeholder">
+        <div style={style} className="chunk-placeholder" {...ariaAttributes}>
           <Skeleton active paragraph={{ rows: 2 }} />
         </div>
       );
@@ -226,14 +234,15 @@ const VirtualizedDocumentRenderer: React.FC<VirtualizedDocumentRendererProps> = 
 
     // 只渲染可见区域附近的内容
     const isVisible = index >= visibleRange.start - 2 && index <= visibleRange.end + 2;
-    
+
     return (
-      <div 
-        style={style} 
+      <div
+        style={style}
         className={`chunk-item chunk-${chunk.type} ${compact ? 'compact' : 'normal'}`}
         data-chunk-id={chunk.id}
         data-start-line={chunk.startLine}
         data-end-line={chunk.endLine}
+        {...ariaAttributes}
       >
         {isVisible ? (
           renderChunk(chunk)
@@ -249,19 +258,6 @@ const VirtualizedDocumentRenderer: React.FC<VirtualizedDocumentRendererProps> = 
     );
   };
 
-  // 滚动处理
-  const handleScroll = useCallback(({ scrollTop }: { scrollTop: number; scrollLeft: number; scrollUpdateWasRequested: boolean }) => {
-    const direction = scrollTop > lastScrollTop.current ? 'down' : 'up';
-    lastScrollTop.current = scrollTop;
-
-    // 计算可见范围
-    const startIndex = Math.floor(scrollTop / itemHeight);
-    const endIndex = Math.min(chunks.length - 1, startIndex + Math.ceil(windowHeight / itemHeight));
-    
-    setVisibleRange({ start: startIndex, end: endIndex });
-    onScroll?.(scrollTop, direction);
-  }, [itemHeight, windowHeight, chunks.length, onScroll]);
-
   // 动态计算项目高度
   const getItemSize = useCallback((index: number) => {
     const chunk = chunks[index];
@@ -270,7 +266,7 @@ const VirtualizedDocumentRenderer: React.FC<VirtualizedDocumentRendererProps> = 
     // 根据内容类型调整高度
     const baseHeight = compact ? 25 : 30;
     const lineCount = chunk.content.split('\n').length;
-    
+
     switch (chunk.type) {
       case 'code':
         return Math.max(baseHeight * 3, lineCount * 20 + 40);
@@ -282,6 +278,23 @@ const VirtualizedDocumentRenderer: React.FC<VirtualizedDocumentRendererProps> = 
         return Math.max(baseHeight, lineCount * (compact ? 18 : 22));
     }
   }, [chunks, itemHeight, compact]);
+
+  // 行可见性变化处理 (react-window v2 使用 onRowsRendered)
+  const handleRowsRendered = useCallback((
+    visibleRows: { startIndex: number; stopIndex: number },
+    allRows: { startIndex: number; stopIndex: number }
+  ) => {
+    setVisibleRange({ start: visibleRows.startIndex, end: visibleRows.stopIndex });
+
+    // 如果提供了 onScroll 回调,估算滚动位置并调用
+    if (onScroll) {
+      const estimatedScrollTop = Array.from({ length: visibleRows.startIndex })
+        .reduce<number>((sum, _, idx) => sum + getItemSize(idx), 0);
+      const direction = estimatedScrollTop > lastScrollTop.current ? 'down' : 'up';
+      lastScrollTop.current = estimatedScrollTop;
+      onScroll(estimatedScrollTop, direction);
+    }
+  }, [onScroll, getItemSize]);
 
   // 计算总高度
   const totalHeight = useMemo(() => {
@@ -325,16 +338,17 @@ const VirtualizedDocumentRenderer: React.FC<VirtualizedDocumentRendererProps> = 
     <div className={`virtualized-document-renderer ${theme} ${className}`} style={style}>
       {chunks.length > 0 ? (
         <>
-          {/* ✅ FIXED - Pass Row as children prop for react-window List (TS2322) */}
+          {/* ✅ FIXED - react-window v2 List API (TS2305, TS2322) */}
           <List
-            ref={listRef}
-            height={windowHeight}
-            itemCount={chunks.length}
-            itemSize={getItemSize}
-            onScroll={handleScroll as any}
+            listRef={listRef}
+            rowComponent={Row}
+            rowCount={chunks.length}
+            rowHeight={getItemSize as any}
+            rowProps={{}}
+            onRowsRendered={handleRowsRendered}
+            style={{ height: windowHeight, width: '100%' }}
             className="virtual-list"
-            overscanCount={5} // 预渲染额外的项目
-            children={Row}
+            overscanCount={5}
           />
           
           {/* 性能信息显示 */}

@@ -3,11 +3,9 @@
  * ✅ FIXED - Created missing types file (TS2307)
  */
 
-// ✅ FIXED - Import then re-export types from api.types to fix TS2304
-import type { RetryConfig as RetryConfigType, CacheEntry as CacheEntryType } from '../types/api.types';
-export type { RetryConfigType as RetryConfig, CacheEntryType as CacheEntry };
-export type RetryConfig = RetryConfigType;
-export type CacheEntry = CacheEntryType;
+// ✅ FIXED - Import and re-export types properly (TS2484, TS2304)
+import type { RetryConfig, CacheEntry } from '../types/api.types';
+export type { RetryConfig, CacheEntry };
 
 /**
  * API Client Configuration

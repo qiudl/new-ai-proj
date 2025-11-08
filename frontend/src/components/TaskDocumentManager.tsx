@@ -657,9 +657,11 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           progress,
           completedItems: completed
         });
-        setBatchOperations(prev =>
-          prev.map(op => op.id === operation.id ? updatedOp : op)
-        );
+        // ✅ FIXED - Access .operations property on BatchOperationHistory (TS2552, TS2339)
+        setBatchOperationHistory(prev => ({
+          ...prev,
+          operations: prev.operations.map(op => op.id === operation.id ? updatedOp : op)
+        }));
       }
 
       const failedCount = results.filter(r => !r.success).length;

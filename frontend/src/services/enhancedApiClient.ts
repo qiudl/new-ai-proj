@@ -3,7 +3,15 @@
  * 整合缓存、并发控制、智能重试和错误处理
  */
 
-import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+// ✅ FIXED - Import additional types to fix TS2322 (TS2503)
+import axios, {
+  AxiosRequestConfig,
+  AxiosResponse,
+  AxiosError,
+  AxiosInstance,
+  InternalAxiosRequestConfig,
+  AxiosRequestHeaders
+} from 'axios';
 import { apiCache, CacheOptions } from '../utils/apiCacheManager';
 import { concurrentRequest, RequestConfig } from '../utils/concurrentRequestManager';
 import { AppError, ErrorType, withRetry } from '../utils/errorTypes';
@@ -47,7 +55,8 @@ export interface ResponseInterceptor {
 }
 
 export class EnhancedApiClient {
-  private axiosInstance: axios.AxiosInstance;
+  // ✅ FIXED - Use AxiosInstance type directly (TS2503)
+  private axiosInstance: AxiosInstance;
   private requestInterceptors: RequestInterceptor[] = [];
   private responseInterceptors: ResponseInterceptor[] = [];
   
@@ -322,17 +331,19 @@ export class EnhancedApiClient {
         // Add auth token
         const token = TokenManager.getToken();
         if (token) {
-          config.headers = config.headers || {};
+          // ✅ FIXED - Properly cast headers to AxiosRequestHeaders (TS2322)
+          config.headers = (config.headers || {}) as AxiosRequestHeaders;
           config.headers.Authorization = `Bearer ${token}`;
         }
-        
+
         // Apply custom request interceptors
         for (const interceptor of this.requestInterceptors) {
           if (interceptor.onRequest) {
-            config = interceptor.onRequest(config) as AxiosRequestConfig;
+            // ✅ FIXED - Cast to InternalAxiosRequestConfig (TS2322)
+            config = interceptor.onRequest(config) as InternalAxiosRequestConfig;
           }
         }
-        
+
         return config;
       },
       (error) => {
