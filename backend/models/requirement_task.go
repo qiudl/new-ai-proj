@@ -44,7 +44,7 @@ type RequirementTask struct {
 
 // CreateRequirementTaskLinkRequest represents a request to link a requirement to a task
 type CreateRequirementTaskLinkRequest struct {
-	RequirementID int     `json:"requirement_id" validate:"required"`
+	RequirementID int     `json:"requirement_id"` // Will be set from path parameter, not required in body
 	TaskID        int     `json:"task_id" validate:"required"`
 	LinkType      string  `json:"link_type" validate:"omitempty,oneof=manual converted related"`
 	LinkComment   *string `json:"link_comment,omitempty"`

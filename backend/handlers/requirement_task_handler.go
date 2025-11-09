@@ -59,14 +59,14 @@ func (h *RequirementTaskHandler) LinkTaskToRequirement(c *gin.Context) {
 		return
 	}
 
+	// Set requirement_id from path parameter (takes precedence over body)
+	req.RequirementID = requirementID
+
 	// Validate request
 	if err := h.validator.Struct(req); err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation, "数据验证失败", err.Error()))
 		return
 	}
-
-	// Override requirement_id from path parameter
-	req.RequirementID = requirementID
 
 	// Set default link type if not provided
 	if req.LinkType == "" {
