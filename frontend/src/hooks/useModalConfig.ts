@@ -101,7 +101,7 @@ export const useModalConfig = (
 
   return {
     centered,
-    width: getResponsiveModalWidth(width, responsive),
+    width: getResponsiveModalWidth(typeof width === 'string' ? 700 : width, responsive),
     style: { top: 80 }, // 调整顶部偏移，确保上下边距均衡
     styles: {
       body: bodyStyles,
