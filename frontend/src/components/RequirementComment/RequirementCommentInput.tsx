@@ -104,7 +104,10 @@ const RequirementCommentInput: React.FC<RequirementCommentInputProps> = ({
       setIsInternal(false);
 
       // 通知父组件刷新评论列表
-      onCommentAdded?.();
+      // 使用setTimeout避免与message.success的flushSync冲突
+      setTimeout(() => {
+        onCommentAdded?.();
+      }, 0);
     } catch (error: any) {
       console.error('Failed to create comment:', error);
       message.error(error?.message || '添加评论失败');
