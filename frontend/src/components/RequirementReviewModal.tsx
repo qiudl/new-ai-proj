@@ -188,68 +188,68 @@ const RequirementReviewModal: React.FC<RequirementReviewModalProps> = ({
             buttonStyle="solid"
             size="large"
           >
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space direction="horizontal" style={{ width: '100%', display: 'flex', gap: '8px' }}>
               <Radio.Button
                 value="approve"
                 style={{
-                  width: '100%',
+                  flex: 1,
                   height: 'auto',
-                  padding: '12px',
+                  padding: '12px 8px',
                   borderColor: selectedAction === 'approve' ? '#52c41a' : undefined,
                   backgroundColor: selectedAction === 'approve' ? '#f6ffed' : undefined,
                 }}
               >
-                <Space>
-                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '18px' }} />
+                <div style={{ textAlign: 'center' }}>
                   <div>
-                    <div style={{ fontWeight: 500 }}>通过</div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      需求满足要求，可以进入开发阶段
-                    </div>
+                    <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '18px' }} />
                   </div>
-                </Space>
+                  <div style={{ fontWeight: 500, marginTop: '4px' }}>通过</div>
+                  <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                    需求满足要求，可以进入开发阶段
+                  </div>
+                </div>
               </Radio.Button>
 
               <Radio.Button
                 value="need_more_info"
                 style={{
-                  width: '100%',
+                  flex: 1,
                   height: 'auto',
-                  padding: '12px',
+                  padding: '12px 8px',
                   borderColor: selectedAction === 'need_more_info' ? '#faad14' : undefined,
                   backgroundColor: selectedAction === 'need_more_info' ? '#fffbe6' : undefined,
                 }}
               >
-                <Space>
-                  <EditOutlined style={{ color: '#faad14', fontSize: '18px' }} />
+                <div style={{ textAlign: 'center' }}>
                   <div>
-                    <div style={{ fontWeight: 500 }}>需要补充</div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      需求需要补充更多信息
-                    </div>
+                    <EditOutlined style={{ color: '#faad14', fontSize: '18px' }} />
                   </div>
-                </Space>
+                  <div style={{ fontWeight: 500, marginTop: '4px' }}>需要补充</div>
+                  <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                    需求需要补充更多信息
+                  </div>
+                </div>
               </Radio.Button>
 
               <Radio.Button
                 value="reject"
                 style={{
-                  width: '100%',
+                  flex: 1,
                   height: 'auto',
-                  padding: '12px',
+                  padding: '12px 8px',
                   borderColor: selectedAction === 'reject' ? '#ff4d4f' : undefined,
                   backgroundColor: selectedAction === 'reject' ? '#fff2f0' : undefined,
                 }}
               >
-                <Space>
-                  <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: '18px' }} />
+                <div style={{ textAlign: 'center' }}>
                   <div>
-                    <div style={{ fontWeight: 500 }}>拒绝</div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      需求不符合要求，需要重新提交
-                    </div>
+                    <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: '18px' }} />
                   </div>
-                </Space>
+                  <div style={{ fontWeight: 500, marginTop: '4px' }}>拒绝</div>
+                  <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                    需求不符合要求，需要重新提交
+                  </div>
+                </div>
               </Radio.Button>
             </Space>
           </Radio.Group>
