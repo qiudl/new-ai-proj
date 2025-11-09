@@ -1,0 +1,38 @@
+/**
+ * CollaborativeEditor 样式
+ */
+
+.collaborative-editor-wrapper {
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background-color: #fff;
+}
+
+.collaboration-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  background-color: #fafafa;
+}
+
+.active-users-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.active-users-label {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 继承LexicalEditor的样式 */
+.collaborative-editor-wrapper .lexical-editor-container {
+  border: none;
+}
+
+.collaborative-editor-wrapper .lexical-editor-inner {
+  padding: 12px;
+}
