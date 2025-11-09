@@ -377,7 +377,7 @@ start_frontend() {
     > "$FRONTEND_LOG_FILE"
 
     # 启动前端（后台运行，不自动打开浏览器）
-    BROWSER=none nohup npm start > "$FRONTEND_LOG_FILE" 2>&1 &
+    PORT=$FRONTEND_PORT BROWSER=none nohup npm start > "$FRONTEND_LOG_FILE" 2>&1 &
     local pid=$!
     echo "$pid" > "$FRONTEND_PID_FILE"
 
