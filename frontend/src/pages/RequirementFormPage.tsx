@@ -196,10 +196,33 @@ const RequirementFormPage: React.FC = () => {
     if (isSystemAdminUser && !isEditMode) {
       const loadEnterprises = async () => {
         try {
+          console.log('🔄 Loading enterprises for system admin...');
           const response = await enterpriseService.getEnterprises(1, 100);
-          setEnterprises(response.data || []);
-        } catch (error) {
-          console.error('Error loading enterprises:', error);
+          console.log('✅ Enterprises response:', response);
+
+          // 处理不同的响应格式
+          let enterpriseList: Enterprise[] = [];
+          if (Array.isArray(response)) {
+            // 直接是数组
+            enterpriseList = response;
+          } else if (response && response.data && Array.isArray(response.data)) {
+            // 标准分页响应格式
+            enterpriseList = response.data;
+          } else if (response && Array.isArray((response as any).enterprises)) {
+            // 某些API可能使用 enterprises 字段
+            enterpriseList = (response as any).enterprises;
+          }
+
+          console.log(`📊 Loaded ${enterpriseList.length} enterprises:`, enterpriseList);
+          setEnterprises(enterpriseList);
+
+          if (enterpriseList.length === 0) {
+            message.warning('未找到可用的企业，请先创建企业');
+          }
+        } catch (error: any) {
+          console.error('❌ Error loading enterprises:', error);
+          message.error(`加载企业列表失败: ${error?.message || '未知错误'}`);
+          setEnterprises([]);
         }
       };
       loadEnterprises();
@@ -595,10 +618,13 @@ const RequirementFormPage: React.FC = () => {
                     placeholder="请选择企业"
                     showSearch
                     optionFilterProp="children"
+                    getPopupContainer={(trigger) => trigger.parentElement || document.body}
                     filterOption={(input, option) =>
                       // ✅ FIXED - Use double assertion through unknown for type conversion (TS2352)
                       (option?.children as unknown as string)?.toLowerCase().indexOf(input.toLowerCase()) >= 0
                     }
+                    loading={enterprises.length === 0 && isSystemAdminUser}
+                    notFoundContent={enterprises.length === 0 ? '暂无企业数据' : '未找到匹配的企业'}
                   >
                     {enterprises.map((enterprise) => (
                       <Option key={enterprise.id} value={enterprise.id}>
