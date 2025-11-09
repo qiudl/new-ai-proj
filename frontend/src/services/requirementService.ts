@@ -114,12 +114,14 @@ export async function getRequirementTasks(
 ): Promise<RequirementTaskListResponse> {
   try {
     // API拦截器已经自动解包了响应 {success, data} -> data
+    // 所以response直接就是RequirementTaskListResponse
     const response = await api.get<RequirementTaskListResponse>(
       `/requirements/${requirementId}/tasks`,
       { params }
     );
 
-    return response.data;
+    // 修复：拦截器已经解包，直接返回response（不是response.data）
+    return response as any as RequirementTaskListResponse;
   } catch (error: any) {
     logApiError(error, 'getRequirementTasks');
     throw error;

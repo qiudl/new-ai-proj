@@ -1,67 +1,26 @@
 /**
- * 需求详情页面
- * Requirement Detail Page
+ * 需求详情页面 - 重构版本
+ * Requirement Detail Page - Refactored Version
+ *
+ * 使用组件化架构，与任务详情页保持一致的设计风格
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Card,
-  Typography,
-  Button,
-  Space,
-  Tag,
-  message,
-  Spin,
-  Row,
-  Col,
-  Descriptions,
-  Tabs,
-  Divider,
-  Tooltip,
-  Modal,
-  Empty,
-  Table,
-  Timeline,
-  Dropdown,
-} from 'antd';
-// ✅ FIXED - Import ColumnsType from antd/es/table, not antd (TS2305)
-import type { ColumnsType } from 'antd/es/table';
-import type { TabsProps, MenuProps } from 'antd';
-import {
-  ArrowLeftOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  FileTextOutlined,
-  InfoCircleOutlined,
-  CommentOutlined,
-  LinkOutlined,
-  HistoryOutlined,
-  DownloadOutlined,
-  SwapOutlined,
-  MoreOutlined,
-} from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Button, message, Spin, Modal, Input } from 'antd';
+import { ArrowLeftOutlined, PlusOutlined, CloseOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import dayjs from 'dayjs';
 import { requirementApi, RequirementTaskLink, getRequirementTasks } from '../services/requirementService';
-import {
-  Requirement,
-  RequirementStatus,
-  RequirementPriority,
-  REQUIREMENT_STATUS_CONFIG,
-  REQUIREMENT_PRIORITY_CONFIG,
-  REQUIREMENT_COMPLEXITY_CONFIG,
-  RequirementComplexity,
-} from '../types/requirement';
-import MarkdownRenderer from '../components/MarkdownRenderer';
+import { Requirement } from '../types/requirement';
+import { useResponsive } from '../hooks/useResponsive';
 import RequirementReviewModal from '../components/RequirementReviewModal';
 import ConvertToTaskModal from '../components/ConvertToTaskModal';
 import LinkTaskModal from '../components/LinkTaskModal';
-import RequirementCommentSection from '../components/RequirementComment/RequirementCommentSection';
-import { useResponsive } from '../hooks/useResponsive';
-
-const { Title, Text, Paragraph } = Typography;
+import {
+  RequirementDetailLayout,
+  RequirementDetailHeader,
+  RequirementDetailContent,
+  RequirementDetailSidebar,
+} from './RequirementDetail';
 
 /**
  * 需求详情页面组件
@@ -71,17 +30,28 @@ const RequirementDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const responsive = useResponsive();
 
+  // 基础状态
   const [requirement, setRequirement] = useState<Requirement | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('basic');
+  const [activeTab, setActiveTab] = useState('comments');
   const [linkedTasks, setLinkedTasks] = useState<RequirementTaskLink[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+
+  // Modal 状态
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [convertModalVisible, setConvertModalVisible] = useState(false);
   const [convertLoading, setConvertLoading] = useState(false);
   const [linkModalVisible, setLinkModalVisible] = useState(false);
   const [linkLoading, setLinkLoading] = useState(false);
+  const [tagsModalVisible, setTagsModalVisible] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [previewType, setPreviewType] = useState<'image' | 'pdf'>('image');
+
+  // 标签编辑状态
+  const [editingTags, setEditingTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
 
   const requirementId = id ? parseInt(id) : 0;
 
@@ -124,7 +94,6 @@ const RequirementDetailPage: React.FC = () => {
       setLinkedTasks(response.data || []);
     } catch (error: any) {
       console.error('Error loading linked tasks:', error);
-      // 不显示错误消息，优雅降级
     } finally {
       setLoadingTasks(false);
     }
@@ -218,7 +187,7 @@ const RequirementDetailPage: React.FC = () => {
       loadRequirement();
     } catch (error: any) {
       console.error('Error reviewing requirement:', error);
-      throw error; // Re-throw to let modal handle error display
+      throw error;
     } finally {
       setReviewLoading(false);
     }
@@ -241,7 +210,7 @@ const RequirementDetailPage: React.FC = () => {
       return result;
     } catch (error: any) {
       console.error('Error converting to task:', error);
-      throw error; // Re-throw to let modal handle error display
+      throw error;
     } finally {
       setConvertLoading(false);
     }
@@ -250,7 +219,6 @@ const RequirementDetailPage: React.FC = () => {
   const handleConvertSuccess = (taskId: number) => {
     setConvertModalVisible(false);
     if (requirement?.project_id && taskId) {
-      // 跳转到任务详情页
       navigate(`/projects/${requirement.project_id}/tasks/${taskId}`);
     }
   };
@@ -271,7 +239,7 @@ const RequirementDetailPage: React.FC = () => {
       loadLinkedTasks();
     } catch (error: any) {
       console.error('Error linking task:', error);
-      throw error; // Re-throw to let modal handle error display
+      throw error;
     } finally {
       setLinkLoading(false);
     }
@@ -284,528 +252,89 @@ const RequirementDetailPage: React.FC = () => {
   };
 
   /**
-   * 获取状态配置
+   * 快速操作
    */
-  const statusConfig = useMemo(() => {
-    if (!requirement) return null;
-    return REQUIREMENT_STATUS_CONFIG[requirement.status as RequirementStatus] || {
-      label: requirement.status,
-      color: 'default',
-      icon: '❓',
-    };
-  }, [requirement?.status]);
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/requirements/${requirementId}`;
+    navigator.clipboard.writeText(url);
+    message.success('链接已复制到剪贴板');
+  };
 
-  /**
-   * 获取优先级配置
-   */
-  const priorityConfig = useMemo(() => {
-    if (!requirement) return null;
-    return REQUIREMENT_PRIORITY_CONFIG[requirement.priority as RequirementPriority] || {
-      label: requirement.priority,
-      color: 'default',
-      icon: '➡️',
-    };
-  }, [requirement?.priority]);
+  const handleExportPDF = () => {
+    window.print();
+    message.info('请使用浏览器打印功能保存为PDF');
+  };
 
-  /**
-   * 获取复杂度配置
-   */
-  const complexityConfig = useMemo(() => {
-    if (!requirement?.complexity) return null;
-    return REQUIREMENT_COMPLEXITY_CONFIG[requirement.complexity as RequirementComplexity] || {
-      label: requirement.complexity,
-      color: 'default',
-      icon: '🔵',
-    };
-  }, [requirement?.complexity]);
-
-  /**
-   * 渲染操作按钮组（响应式）
-   */
-  const renderActionButtons = () => {
-    if (!requirement) return null;
-
-    // 移动端使用下拉菜单
-    if (responsive.isMobile) {
-      const menuItems: MenuProps['items'] = [];
-
-      // 主要操作
-      if (requirement.status === RequirementStatus.Draft) {
-        menuItems.push({
-          key: 'submit',
-          label: '提交评审',
-          icon: <CheckCircleOutlined />,
-          onClick: handleSubmit,
-        });
-      }
-
-      if (requirement.status === RequirementStatus.Pending || requirement.status === RequirementStatus.Reviewing) {
-        menuItems.push({
-          key: 'review',
-          label: '评审',
-          icon: <CheckCircleOutlined />,
-          onClick: handleOpenReview,
-        });
-      }
-
-      if (requirement.status === RequirementStatus.Approved) {
-        menuItems.push({
-          key: 'convert',
-          label: '转换为任务',
-          icon: <SwapOutlined />,
-          onClick: handleOpenConvert,
-        });
-        menuItems.push({
-          key: 'link',
-          label: '关联任务',
-          icon: <LinkOutlined />,
-          onClick: handleOpenLink,
-        });
-      }
-
-      // 分隔线
-      if (menuItems.length > 0) {
-        menuItems.push({ type: 'divider' });
-      }
-
-      // 编辑和归档
-      if (requirement.status !== RequirementStatus.Converted && requirement.status !== RequirementStatus.Archived) {
-        menuItems.push({
-          key: 'edit',
-          label: '编辑',
-          icon: <EditOutlined />,
-          onClick: handleEdit,
-        });
-        menuItems.push({
-          key: 'archive',
-          label: '归档',
-          icon: <DownloadOutlined />,
-          onClick: handleArchive,
-        });
-      }
-
-      // 删除
-      if (requirement.status !== RequirementStatus.Converted) {
-        if (menuItems[menuItems.length - 1]?.type !== 'divider') {
-          menuItems.push({ type: 'divider' });
-        }
-        menuItems.push({
-          key: 'delete',
-          label: '删除',
-          icon: <DeleteOutlined />,
-          danger: true,
-          onClick: handleDelete,
-        });
-      }
-
-      return (
-        <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
-          <Button type="primary" icon={<MoreOutlined />}>
-            操作
-          </Button>
-        </Dropdown>
-      );
-    }
-
-    // 桌面端使用按钮组
-    return (
-      <Space>
-        {requirement.status === RequirementStatus.Draft && (
-          <Tooltip title="提交评审">
-            <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleSubmit}>
-              提交评审
-            </Button>
-          </Tooltip>
-        )}
-        {(requirement.status === RequirementStatus.Pending || requirement.status === RequirementStatus.Reviewing) && (
-          <Tooltip title="评审需求">
-            <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleOpenReview}>
-              评审
-            </Button>
-          </Tooltip>
-        )}
-        {requirement.status === RequirementStatus.Approved && (
-          <>
-            <Tooltip title="转换为任务">
-              <Button type="primary" icon={<SwapOutlined />} onClick={handleOpenConvert}>
-                转换为任务
-              </Button>
-            </Tooltip>
-            <Tooltip title="关联已有任务">
-              <Button icon={<LinkOutlined />} onClick={handleOpenLink}>
-                关联任务
-              </Button>
-            </Tooltip>
-          </>
-        )}
-        {requirement.status !== RequirementStatus.Converted && requirement.status !== RequirementStatus.Archived && (
-          <>
-            <Tooltip title="编辑">
-              <Button icon={<EditOutlined />} onClick={handleEdit}>
-                编辑
-              </Button>
-            </Tooltip>
-            <Tooltip title="归档">
-              <Button icon={<DownloadOutlined />} onClick={handleArchive}>
-                归档
-              </Button>
-            </Tooltip>
-          </>
-        )}
-        {requirement.status !== RequirementStatus.Converted && (
-          <Tooltip title="删除">
-            <Button danger icon={<DeleteOutlined />} onClick={handleDelete}>
-              删除
-            </Button>
-          </Tooltip>
-        )}
-      </Space>
-    );
+  const handlePrint = () => {
+    window.print();
   };
 
   /**
-   * 关联任务表格列
+   * 标签编辑
    */
-  const taskColumns: ColumnsType<RequirementTaskLink> = [
-    {
-      title: '任务标题',
-      dataIndex: 'task_title',
-      key: 'task_title',
-      ellipsis: true,
-      render: (text: string, record: RequirementTaskLink) => (
-        <a onClick={() => navigate(`/projects/${requirement?.project_id}/tasks/${record.task_id}`)}>
-          {text || `任务 #${record.task_id}`}
-        </a>
-      ),
-    },
-    {
-      title: '关联类型',
-      dataIndex: 'link_type',
-      key: 'link_type',
-      width: 120,
-      render: (type: string) => {
-        const typeConfig = {
-          manual: { label: '手动关联', color: 'blue' },
-          converted: { label: '需求转任务', color: 'green' },
-          related: { label: '相关任务', color: 'cyan' },
-        };
-        const config = typeConfig[type as keyof typeof typeConfig] || { label: type, color: 'default' };
-        return <Tag color={config.color}>{config.label}</Tag>;
-      },
-    },
-    {
-      title: '任务状态',
-      dataIndex: 'task_status',
-      key: 'task_status',
-      width: 100,
-      render: (status?: string) => {
-        if (!status) return '-';
-        const statusMap = {
-          todo: { label: '待开始', color: 'default' },
-          in_progress: { label: '进行中', color: 'processing' },
-          completed: { label: '已完成', color: 'success' },
-          cancelled: { label: '已取消', color: 'error' },
-        };
-        const config = statusMap[status as keyof typeof statusMap] || { label: status, color: 'default' };
-        return <Tag color={config.color}>{config.label}</Tag>;
-      },
-    },
-    {
-      title: '关联时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 150,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
-    },
-  ];
+  const handleOpenTagsModal = () => {
+    setEditingTags(requirement?.tags || []);
+    setTagInput('');
+    setTagsModalVisible(true);
+  };
+
+  const handleAddTag = () => {
+    const trimmedTag = tagInput.trim();
+    if (!trimmedTag) {
+      message.warning('标签不能为空');
+      return;
+    }
+    if (editingTags.includes(trimmedTag)) {
+      message.warning('标签已存在');
+      return;
+    }
+    setEditingTags([...editingTags, trimmedTag]);
+    setTagInput('');
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setEditingTags(editingTags.filter(tag => tag !== tagToRemove));
+  };
+
+  const handleSaveTags = async () => {
+    try {
+      await requirementApi.updateRequirement(requirementId, {
+        tags: editingTags
+      });
+      message.success('标签更新成功');
+      setTagsModalVisible(false);
+      loadRequirement();
+    } catch (error: any) {
+      console.error('Error updating tags:', error);
+      message.error(error?.message || '更新标签失败');
+    }
+  };
 
   /**
-   * Tab配置
+   * 附件预览
    */
-  const tabItems: TabsProps['items'] = [
-    {
-      key: 'basic',
-      label: (
-        <Space>
-          <InfoCircleOutlined />
-          <span>基本信息</span>
-        </Space>
-      ),
-      children: (
-        <div>
-          <Descriptions bordered column={{ xs: 1, sm: 2 }}>
-            <Descriptions.Item label="需求编号" span={1}>
-              <Text copyable>{requirement?.display_id}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="所属项目" span={1}>
-              {requirement?.project_name || <Text type="secondary">未关联</Text>}
-            </Descriptions.Item>
-            <Descriptions.Item label="需求标题" span={2}>
-              <Text strong>{requirement?.title}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="需求描述" span={2}>
-              {requirement?.description ? (
-                <MarkdownRenderer content={requirement.description} />
-              ) : (
-                <Text type="secondary">无</Text>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="需求分类" span={1}>
-              {requirement?.category ? (
-                <Tag>{requirement.category}</Tag>
-              ) : (
-                <Text type="secondary">未分类</Text>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="提交人" span={1}>
-              {requirement?.submitter_name || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="评审人" span={1}>
-              {requirement?.reviewer_name || <Text type="secondary">未分配</Text>}
-            </Descriptions.Item>
-            <Descriptions.Item label="创建时间" span={1}>
-              {requirement?.created_at ? dayjs(requirement.created_at).format('YYYY-MM-DD HH:mm') : '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="截止日期" span={1}>
-              {requirement?.due_date ? (
-                <Text
-                  type={dayjs(requirement.due_date).isBefore(dayjs(), 'day') ? 'danger' : undefined}
-                >
-                  {dayjs(requirement.due_date).format('YYYY-MM-DD')}
-                </Text>
-              ) : (
-                <Text type="secondary">无</Text>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="最后更新" span={1}>
-              {requirement?.updated_at ? dayjs(requirement.updated_at).format('YYYY-MM-DD HH:mm') : '-'}
-            </Descriptions.Item>
-          </Descriptions>
+  const handlePreviewAttachment = (url: string, fileName: string) => {
+    const getFileType = (name: string): 'image' | 'pdf' | 'other' => {
+      const ext = name.split('.').pop()?.toLowerCase();
+      if (!ext) return 'other';
+      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+      const pdfExts = ['pdf'];
+      if (imageExts.includes(ext)) return 'image';
+      if (pdfExts.includes(ext)) return 'pdf';
+      return 'other';
+    };
 
-          {/* 业务信息 */}
-          {(requirement?.business_value || requirement?.expected_outcome || requirement?.acceptance_criteria) && (
-            <>
-              <Divider orientation="left">业务信息</Divider>
-              <Descriptions bordered column={1}>
-                {requirement?.business_value && (
-                  <Descriptions.Item label="商业价值">
-                    <MarkdownRenderer content={requirement.business_value} />
-                  </Descriptions.Item>
-                )}
-                {requirement?.expected_outcome && (
-                  <Descriptions.Item label="预期结果">
-                    <MarkdownRenderer content={requirement.expected_outcome} />
-                  </Descriptions.Item>
-                )}
-                {requirement?.acceptance_criteria && (
-                  <Descriptions.Item label="验收标准">
-                    <MarkdownRenderer content={requirement.acceptance_criteria} />
-                  </Descriptions.Item>
-                )}
-              </Descriptions>
-            </>
-          )}
+    const type = getFileType(fileName);
+    if (type === 'image' || type === 'pdf') {
+      setPreviewUrl(url);
+      setPreviewType(type);
+      setPreviewVisible(true);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
 
-          {/* 评审信息 */}
-          {requirement?.review_status && (
-            <>
-              <Divider orientation="left">评审信息</Divider>
-              <Descriptions bordered column={1}>
-                <Descriptions.Item label="评审状态">
-                  {requirement.review_status}
-                </Descriptions.Item>
-                {requirement?.review_score && (
-                  <Descriptions.Item label="评审评分">
-                    {requirement.review_score} / 10
-                  </Descriptions.Item>
-                )}
-                {complexityConfig && (
-                  <Descriptions.Item label="复杂度">
-                    <Tag color={complexityConfig.color}>
-                      {complexityConfig.icon} {complexityConfig.label}
-                    </Tag>
-                  </Descriptions.Item>
-                )}
-                {requirement?.estimated_hours && (
-                  <Descriptions.Item label="预估工时">
-                    {requirement.estimated_hours} 小时
-                  </Descriptions.Item>
-                )}
-                {requirement?.review_comment && (
-                  <Descriptions.Item label="评审意见">
-                    <MarkdownRenderer content={requirement.review_comment} />
-                  </Descriptions.Item>
-                )}
-                {requirement?.reviewed_at && (
-                  <Descriptions.Item label="评审时间">
-                    {dayjs(requirement.reviewed_at).format('YYYY-MM-DD HH:mm')}
-                  </Descriptions.Item>
-                )}
-              </Descriptions>
-            </>
-          )}
-
-          {/* 附件 */}
-          {requirement?.attachments && requirement.attachments.length > 0 && (
-            <>
-              <Divider orientation="left">附件</Divider>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                {requirement.attachments.map((attachment, index) => (
-                  <Card key={index} size="small" type="inner">
-                    <Space>
-                      <DownloadOutlined />
-                      <a href={attachment.url} target="_blank" rel="noopener noreferrer">
-                        {attachment.name}
-                      </a>
-                      <Text type="secondary">
-                        ({(attachment.size / 1024).toFixed(2)} KB)
-                      </Text>
-                    </Space>
-                  </Card>
-                ))}
-              </Space>
-            </>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'comments',
-      label: (
-        <Space>
-          <CommentOutlined />
-          <span>评论</span>
-        </Space>
-      ),
-      children: requirement ? (
-        <RequirementCommentSection
-          requirementId={requirementId}
-          currentUserId={1} // TODO: 从认证上下文获取
-          currentUserType="client"
-          showStats={true}
-          defaultPageSize={20}
-          enableTabs={false}
-        />
-      ) : null,
-    },
-    {
-      key: 'tasks',
-      label: (
-        <Space>
-          <LinkOutlined />
-          <span>关联任务</span>
-        </Space>
-      ),
-      children: (
-        <div>
-          <Spin spinning={loadingTasks}>
-            {linkedTasks.length > 0 ? (
-              <Table
-                dataSource={linkedTasks}
-                columns={taskColumns}
-                rowKey="id"
-                pagination={false}
-                size="middle"
-              />
-            ) : (
-              <Empty
-                description="暂无关联任务"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            )}
-          </Spin>
-        </div>
-      ),
-    },
-    {
-      key: 'history',
-      label: (
-        <Space>
-          <HistoryOutlined />
-          <span>操作历史</span>
-        </Space>
-      ),
-      children: (
-        <div>
-          <Timeline
-            items={[
-              {
-                children: (
-                  <div>
-                    <Text strong>需求创建</Text>
-                    <br />
-                    <Text type="secondary">
-                      {requirement?.created_at
-                        ? dayjs(requirement.created_at).format('YYYY-MM-DD HH:mm')
-                        : '-'}
-                    </Text>
-                    <br />
-                    <Text type="secondary">由 {requirement?.submitter_name || '未知用户'} 创建</Text>
-                  </div>
-                ),
-              },
-              ...(requirement?.submitted_at
-                ? [
-                    {
-                      children: (
-                        <div>
-                          <Text strong>提交评审</Text>
-                          <br />
-                          <Text type="secondary">
-                            {dayjs(requirement.submitted_at).format('YYYY-MM-DD HH:mm')}
-                          </Text>
-                        </div>
-                      ),
-                    },
-                  ]
-                : []),
-              ...(requirement?.reviewed_at
-                ? [
-                    {
-                      children: (
-                        <div>
-                          <Text strong>评审完成</Text>
-                          <br />
-                          <Text type="secondary">
-                            {dayjs(requirement.reviewed_at).format('YYYY-MM-DD HH:mm')}
-                          </Text>
-                          <br />
-                          <Text type="secondary">由 {requirement?.reviewer_name || '未知评审人'} 评审</Text>
-                        </div>
-                      ),
-                    },
-                  ]
-                : []),
-              ...(requirement?.converted_at
-                ? [
-                    {
-                      children: (
-                        <div>
-                          <Text strong>转换为任务</Text>
-                          <br />
-                          <Text type="secondary">
-                            {dayjs(requirement.converted_at).format('YYYY-MM-DD HH:mm')}
-                          </Text>
-                          {requirement?.converted_task_id && (
-                            <>
-                              <br />
-                              <a onClick={() => navigate(`/projects/${requirement.project_id}/tasks/${requirement.converted_task_id}`)}>
-                                查看任务 #{requirement.converted_task_id}
-                              </a>
-                            </>
-                          )}
-                        </div>
-                      ),
-                    },
-                  ]
-                : []),
-            ]}
-          />
-        </div>
-      ),
-    },
-  ];
-
+  // Loading state
   if (loading) {
     return (
       <div style={{ padding: '100px 20px', textAlign: 'center', minHeight: '100vh' }}>
@@ -817,6 +346,7 @@ const RequirementDetailPage: React.FC = () => {
     );
   }
 
+  // Not found state
   if (!requirement) {
     return (
       <div style={{ padding: '100px 20px', textAlign: 'center', minHeight: '100vh' }}>
@@ -832,62 +362,51 @@ const RequirementDetailPage: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: responsive.isMobile ? '12px' : '24px', maxWidth: '1400px', margin: '0 auto' }}>
-      {/* 页面头部 */}
-      <Card style={{ marginBottom: '16px' }}>
-        <Row align="middle" justify="space-between" gutter={responsive.isMobile ? [0, 12] : 0}>
-          <Col xs={24} lg={18}>
-            <Space size={responsive.isMobile ? 'middle' : 'large'} style={{ width: '100%' }}>
-              <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
-                返回
-              </Button>
-              <div>
-                <Space>
-                  <FileTextOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-                  <Title level={3} style={{ margin: 0 }}>
-                    {requirement.display_id}
-                  </Title>
-                </Space>
-                <div style={{ marginTop: '8px' }}>
-                  <Space size="middle" wrap>
-                    {statusConfig && (
-                      <Tag color={statusConfig.color}>
-                        {statusConfig.icon} {statusConfig.label}
-                      </Tag>
-                    )}
-                    {priorityConfig && (
-                      <Tag color={priorityConfig.color}>
-                        {priorityConfig.icon} {priorityConfig.label}
-                      </Tag>
-                    )}
-                  </Space>
-                </div>
-              </div>
-            </Space>
-          </Col>
-          <Col xs={24} lg={6} style={{ textAlign: responsive.isMobile ? 'left' : 'right' }}>
-            {renderActionButtons()}
-          </Col>
-        </Row>
-      </Card>
+    <div style={{ padding: responsive.isMobile ? '12px' : '24px' }}>
+      {/* 返回按钮 */}
+      <div style={{ marginBottom: '16px' }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={handleBack} size="large">
+          返回需求列表
+        </Button>
+      </div>
 
-      {/* 需求标题 */}
-      <Card style={{ marginBottom: '16px' }}>
-        <Title level={4} style={{ margin: 0 }}>
-          {requirement.title}
-        </Title>
-      </Card>
+      {/* 顶部标题栏 */}
+      <RequirementDetailHeader
+        requirement={requirement}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onSubmit={handleSubmit}
+        onReview={handleOpenReview}
+        onConvert={handleOpenConvert}
+        onLink={handleOpenLink}
+        onArchive={handleArchive}
+      />
 
-      {/* Tabs内容 */}
-      <Card>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          type="card"
-          size="large"
-          items={tabItems}
-        />
-      </Card>
+      {/* 主内容区域 */}
+      <RequirementDetailLayout
+        content={
+          <RequirementDetailContent
+            requirement={requirement}
+            linkedTasks={linkedTasks}
+            loadingTasks={loadingTasks}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            requirementId={requirementId}
+          />
+        }
+        sidebar={
+          <RequirementDetailSidebar
+            requirement={requirement}
+            linkedTasksCount={linkedTasks.length}
+            onConvert={handleOpenConvert}
+            onCopyLink={handleCopyLink}
+            onExportPDF={handleExportPDF}
+            onPrint={handlePrint}
+            onEditTags={handleOpenTagsModal}
+            onPreviewAttachment={handlePreviewAttachment}
+          />
+        }
+      />
 
       {/* 评审对话框 */}
       <RequirementReviewModal
@@ -921,6 +440,102 @@ const RequirementDetailPage: React.FC = () => {
         loading={linkLoading}
         onSubmit={handleLinkSubmit}
       />
+
+      {/* 附件预览对话框 */}
+      <Modal
+        title={previewType === 'image' ? '图片预览' : 'PDF预览'}
+        open={previewVisible}
+        onCancel={() => setPreviewVisible(false)}
+        footer={null}
+        width={previewType === 'image' ? 800 : 1000}
+        centered
+        destroyOnClose
+      >
+        {previewType === 'image' ? (
+          <div style={{ textAlign: 'center' }}>
+            <img
+              src={previewUrl}
+              alt="Preview"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '70vh',
+                objectFit: 'contain'
+              }}
+            />
+          </div>
+        ) : (
+          <iframe
+            src={previewUrl}
+            title="PDF Preview"
+            style={{
+              width: '100%',
+              height: '70vh',
+              border: 'none'
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* 标签编辑对话框 */}
+      <Modal
+        title="编辑标签"
+        open={tagsModalVisible}
+        onCancel={() => setTagsModalVisible(false)}
+        onOk={handleSaveTags}
+        okText="保存"
+        cancelText="取消"
+        width={600}
+      >
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ marginBottom: '8px', color: '#8c8c8c' }}>添加标签</div>
+          <Input.Group compact style={{ display: 'flex' }}>
+            <Input
+              placeholder="输入标签名称"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onPressEnter={handleAddTag}
+              style={{ flex: 1 }}
+            />
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddTag}>
+              添加
+            </Button>
+          </Input.Group>
+        </div>
+
+        <div>
+          <div style={{ marginBottom: '8px', color: '#8c8c8c' }}>当前标签</div>
+          <div style={{ minHeight: '60px', padding: '8px', background: '#fafafa', borderRadius: '4px' }}>
+            {editingTags.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {editingTags.map((tag, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '4px 12px',
+                      background: '#1890ff',
+                      color: 'white',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <span>{tag}</span>
+                    <CloseOutlined
+                      style={{ marginLeft: '8px', cursor: 'pointer', fontSize: '12px' }}
+                      onClick={() => handleRemoveTag(tag)}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: '#bfbfbf' }}>
+                暂无标签，请添加
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

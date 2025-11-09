@@ -75,6 +75,9 @@ func RegisterRequirementRoutes(authorized *gin.RouterGroup, app ApplicationInter
 			// Global comment routes (for cross-requirement queries)
 			comments := requirements.Group("/comments")
 			{
+				// Statistics endpoint
+				comments.GET("/stats", requirementCommentHandler.GetCommentStats)
+
 				// Get comments where current user was @mentioned
 				comments.GET("/mentions/me", requirementCommentHandler.GetMentionedComments)
 

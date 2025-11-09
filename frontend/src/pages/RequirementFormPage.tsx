@@ -18,6 +18,8 @@ import {
   DatePicker,
   Upload,
   Spin,
+  Modal,
+  Space,
 } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
 import {
@@ -25,11 +27,12 @@ import {
   SaveOutlined,
   PlusOutlined,
   EditOutlined,
-  UploadOutlined,
   InboxOutlined,
+  ClockCircleOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import { requirementApi } from '../services/requirementService';
 import { projectService } from '../services/projectService';
 import enterpriseService, { Enterprise } from '../services/enterpriseService';
@@ -42,9 +45,13 @@ import {
   Attachment,
 } from '../types/requirement';
 import { Project } from '../types/project';
+import LexicalEditor from '../components/LexicalEditor';
+import { uploadImage, validateImageFile, compressImage } from '../services/uploadService';
+import { useAutoSave } from '../hooks/useAutoSave';
+import RequirementTemplateSelector from '../components/RequirementTemplateSelector';
+import { RequirementTemplate } from '../types/requirementTemplate';
 
 const { Title } = Typography;
-const { TextArea } = Input;
 const { Option } = Select;
 const { Dragger } = Upload;
 
@@ -61,10 +68,111 @@ const RequirementFormPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [descriptionContent, setDescriptionContent] = useState<string>('');
+  const [businessValueContent, setBusinessValueContent] = useState<string>('');
+  const [expectedOutcomeContent, setExpectedOutcomeContent] = useState<string>('');
+  const [acceptanceCriteriaContent, setAcceptanceCriteriaContent] = useState<string>('');
+  const [templateSelectorVisible, setTemplateSelectorVisible] = useState(false);
 
   const isEditMode = !!id;
   const currentUser = getCurrentUser();
   const isSystemAdminUser = isSystemAdmin(currentUser);
+
+  // 自动保存功能
+  const getDraftKey = () => {
+    return isEditMode && id
+      ? `requirement_draft_edit_${id}`
+      : 'requirement_draft_new';
+  };
+
+  // 收集表单数据用于自动保存
+  const getFormDataForDraft = () => {
+    const formValues = form.getFieldsValue();
+    return {
+      ...formValues,
+      description: descriptionContent,
+      business_value: businessValueContent,
+      expected_outcome: expectedOutcomeContent,
+      acceptance_criteria: acceptanceCriteriaContent,
+      attachments: fileList,
+      due_date: formValues.due_date ? formValues.due_date.format('YYYY-MM-DD') : undefined,
+    };
+  };
+
+  // 使用自动保存 hook
+  const {
+    status: autoSaveStatus,
+    manualSave,
+    loadDraft,
+    clearDraft,
+    checkDraft,
+  } = useAutoSave({
+    key: getDraftKey(),
+    data: getFormDataForDraft(),
+    interval: 30000, // 30秒自动保存
+    debounceDelay: 2000, // 2秒防抖
+    enabled: !submitting && !loading, // 提交或加载时禁用自动保存
+    onSave: () => {
+      // 保存成功的静默处理，不显示消息以避免干扰用户
+      console.log('Draft auto-saved at', new Date().toLocaleTimeString());
+    },
+    onError: (error) => {
+      console.error('Auto-save error:', error);
+    },
+  });
+
+  /**
+   * 检查并提示恢复草稿
+   */
+  useEffect(() => {
+    // 只在非编辑模式或编辑模式初次加载后检查草稿
+    const checkAndRestoreDraft = async () => {
+      const hasDraft = checkDraft();
+      if (hasDraft) {
+        Modal.confirm({
+          title: '发现未保存的草稿',
+          content: '是否恢复之前未保存的内容？',
+          okText: '恢复',
+          cancelText: '放弃',
+          onOk: () => {
+            const draft = loadDraft();
+            if (draft) {
+              // 恢复表单值
+              form.setFieldsValue({
+                ...draft,
+                due_date: draft.due_date ? dayjs(draft.due_date) : undefined,
+              });
+
+              // 恢复富文本编辑器内容
+              if (draft.description) setDescriptionContent(draft.description);
+              if (draft.business_value) setBusinessValueContent(draft.business_value);
+              if (draft.expected_outcome) setExpectedOutcomeContent(draft.expected_outcome);
+              if (draft.acceptance_criteria) setAcceptanceCriteriaContent(draft.acceptance_criteria);
+
+              // 恢复附件
+              if (draft.attachments) setFileList(draft.attachments);
+
+              message.success('草稿已恢复');
+            }
+          },
+          onCancel: () => {
+            clearDraft();
+            message.info('已放弃草稿');
+          },
+        });
+      }
+    };
+
+    // 延迟执行以确保表单已经初始化
+    const timer = setTimeout(() => {
+      if (!loading) {
+        checkAndRestoreDraft();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   /**
    * 加载项目列表
@@ -120,6 +228,20 @@ const RequirementFormPage: React.FC = () => {
             acceptance_criteria: requirement.acceptance_criteria,
             due_date: requirement.due_date ? dayjs(requirement.due_date) : undefined,
           });
+
+          // 设置富文本编辑器内容
+          if (requirement.description) {
+            setDescriptionContent(requirement.description);
+          }
+          if (requirement.business_value) {
+            setBusinessValueContent(requirement.business_value);
+          }
+          if (requirement.expected_outcome) {
+            setExpectedOutcomeContent(requirement.expected_outcome);
+          }
+          if (requirement.acceptance_criteria) {
+            setAcceptanceCriteriaContent(requirement.acceptance_criteria);
+          }
 
           // 处理附件
           if (requirement.attachments && requirement.attachments.length > 0) {
@@ -177,6 +299,7 @@ const RequirementFormPage: React.FC = () => {
         };
 
         await requirementApi.updateRequirement(parseInt(id), updateData);
+        clearDraft(); // 成功提交后清除草稿
         message.success('需求更新成功！');
         navigate(`/requirements/${id}`);
       } else {
@@ -196,6 +319,7 @@ const RequirementFormPage: React.FC = () => {
         };
 
         const newRequirement = await requirementApi.createRequirement(createData);
+        clearDraft(); // 成功提交后清除草稿
         message.success('需求创建成功！');
         navigate(`/requirements/${newRequirement.id}`);
       }
@@ -213,6 +337,10 @@ const RequirementFormPage: React.FC = () => {
   const handleReset = () => {
     form.resetFields();
     setFileList([]);
+    setDescriptionContent('');
+    setBusinessValueContent('');
+    setExpectedOutcomeContent('');
+    setAcceptanceCriteriaContent('');
     message.info('表单已重置');
   };
 
@@ -246,7 +374,88 @@ const RequirementFormPage: React.FC = () => {
   };
 
   /**
-   * 自定义上传
+   * 应用模板
+   */
+  const handleTemplateSelect = (template: RequirementTemplate) => {
+    Modal.confirm({
+      title: '应用模板',
+      content: `确定要应用"${template.name}"模板吗？当前填写的内容将被替换。`,
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => {
+        // 应用模板字段到表单
+        const templateFields = template.fields;
+
+        form.setFieldsValue({
+          title: templateFields.title || '',
+          priority: templateFields.priority || RequirementPriority.Medium,
+          category: templateFields.category || '',
+        });
+
+        // 应用富文本内容
+        if (templateFields.description) {
+          setDescriptionContent(templateFields.description);
+          form.setFieldValue('description', templateFields.description);
+        }
+
+        if (templateFields.business_value) {
+          setBusinessValueContent(templateFields.business_value);
+          form.setFieldValue('business_value', templateFields.business_value);
+        }
+
+        if (templateFields.expected_outcome) {
+          setExpectedOutcomeContent(templateFields.expected_outcome);
+          form.setFieldValue('expected_outcome', templateFields.expected_outcome);
+        }
+
+        if (templateFields.acceptance_criteria) {
+          setAcceptanceCriteriaContent(templateFields.acceptance_criteria);
+          form.setFieldValue('acceptance_criteria', templateFields.acceptance_criteria);
+        }
+
+        setTemplateSelectorVisible(false);
+        message.success(`已应用"${template.name}"模板`);
+      },
+    });
+  };
+
+  /**
+   * 处理图片上传（用于富文本编辑器）
+   */
+  const handleImageUpload = async (file: File): Promise<string> => {
+    try {
+      // 验证文件
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        message.error(validation.error);
+        throw new Error(validation.error);
+      }
+
+      // 压缩图片（如果文件大于1MB）
+      let uploadFile = file;
+      if (file.size > 1024 * 1024) {
+        message.info('正在压缩图片...');
+        const compressedBlob = await compressImage(file);
+        uploadFile = new File([compressedBlob], file.name, { type: file.type });
+      }
+
+      // 上传图片
+      message.loading({ content: '正在上传图片...', key: 'upload' });
+      const imageUrl = await uploadImage(uploadFile);
+      message.success({ content: '图片上传成功！', key: 'upload' });
+
+      // 返回完整URL
+      return `${window.location.origin}${imageUrl}`;
+    } catch (error: any) {
+      // 不显示错误消息,因为会降级到本地预览
+      message.destroy('upload');
+      // 重新抛出错误,让调用方处理降级
+      throw error;
+    }
+  };
+
+  /**
+   * 自定义上传（用于附件）
    */
   const customUpload = ({ file, onSuccess, onError }: any) => {
     // TODO: 实现实际的文件上传逻辑
@@ -293,6 +502,33 @@ const RequirementFormPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* 操作按钮 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {!isEditMode && (
+              <Button
+                type="dashed"
+                icon={<FileTextOutlined />}
+                onClick={() => setTemplateSelectorVisible(true)}
+              >
+                使用模板
+              </Button>
+            )}
+
+            {/* 自动保存状态指示 */}
+            <Space>
+              <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
+              <span style={{ color: '#8c8c8c', fontSize: '12px' }}>
+                {autoSaveStatus.isSaving ? (
+                  '保存中...'
+                ) : autoSaveStatus.lastSaved ? (
+                  `上次保存: ${autoSaveStatus.lastSaved.toLocaleTimeString()}`
+                ) : (
+                  '自动保存已启用'
+                )}
+              </span>
+            </Space>
+          </div>
         </div>
       </Card>
 
@@ -327,11 +563,16 @@ const RequirementFormPage: React.FC = () => {
 
             <Col span={24}>
               <Form.Item label="需求描述" name="description">
-                <TextArea
-                  rows={4}
+                <LexicalEditor
+                  value={descriptionContent}
+                  onChange={(value) => {
+                    setDescriptionContent(value);
+                    form.setFieldValue('description', value);
+                  }}
+                  onUploadImage={handleImageUpload}
                   placeholder="请输入需求详细描述（可选）"
-                  maxLength={5000}
-                  showCount
+                  minHeight={200}
+                  maxHeight={600}
                 />
               </Form.Item>
             </Col>
@@ -423,33 +664,48 @@ const RequirementFormPage: React.FC = () => {
 
             <Col span={24}>
               <Form.Item label="商业价值" name="business_value">
-                <TextArea
-                  rows={3}
+                <LexicalEditor
+                  value={businessValueContent}
+                  onChange={(value) => {
+                    setBusinessValueContent(value);
+                    form.setFieldValue('business_value', value);
+                  }}
+                  onUploadImage={handleImageUpload}
                   placeholder="描述该需求的商业价值和预期收益（可选）"
-                  maxLength={2000}
-                  showCount
+                  minHeight={150}
+                  maxHeight={400}
                 />
               </Form.Item>
             </Col>
 
             <Col span={24}>
               <Form.Item label="预期结果" name="expected_outcome">
-                <TextArea
-                  rows={3}
+                <LexicalEditor
+                  value={expectedOutcomeContent}
+                  onChange={(value) => {
+                    setExpectedOutcomeContent(value);
+                    form.setFieldValue('expected_outcome', value);
+                  }}
+                  onUploadImage={handleImageUpload}
                   placeholder="描述该需求的预期结果和目标（可选）"
-                  maxLength={2000}
-                  showCount
+                  minHeight={150}
+                  maxHeight={400}
                 />
               </Form.Item>
             </Col>
 
             <Col span={24}>
               <Form.Item label="验收标准" name="acceptance_criteria">
-                <TextArea
-                  rows={4}
+                <LexicalEditor
+                  value={acceptanceCriteriaContent}
+                  onChange={(value) => {
+                    setAcceptanceCriteriaContent(value);
+                    form.setFieldValue('acceptance_criteria', value);
+                  }}
+                  onUploadImage={handleImageUpload}
                   placeholder="定义该需求的验收标准，建议使用清单格式（可选）"
-                  maxLength={2000}
-                  showCount
+                  minHeight={180}
+                  maxHeight={500}
                 />
               </Form.Item>
             </Col>
@@ -485,10 +741,15 @@ const RequirementFormPage: React.FC = () => {
           </Row>
 
           {/* 表单操作按钮 */}
-          <Row gutter={16} style={{ marginTop: '24px' }}>
+          <Row gutter={16} style={{ marginTop: '24px' }} align="middle">
             <Col>
               <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={submitting}>
                 {isEditMode ? '保存修改' : '创建需求'}
+              </Button>
+            </Col>
+            <Col>
+              <Button onClick={manualSave} disabled={submitting || loading} icon={<SaveOutlined />}>
+                手动保存草稿
               </Button>
             </Col>
             <Col>
@@ -501,9 +762,30 @@ const RequirementFormPage: React.FC = () => {
                 取消
               </Button>
             </Col>
+            <Col flex="auto" style={{ textAlign: 'right' }}>
+              <Space>
+                <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
+                <span style={{ color: '#8c8c8c', fontSize: '12px' }}>
+                  {autoSaveStatus.isSaving ? (
+                    '保存中...'
+                  ) : autoSaveStatus.lastSaved ? (
+                    `上次保存: ${autoSaveStatus.lastSaved.toLocaleTimeString()}`
+                  ) : (
+                    '自动保存已启用'
+                  )}
+                </span>
+              </Space>
+            </Col>
           </Row>
         </Form>
       </Card>
+
+      {/* 需求模板选择器 */}
+      <RequirementTemplateSelector
+        visible={templateSelectorVisible}
+        onSelect={handleTemplateSelect}
+        onCancel={() => setTemplateSelectorVisible(false)}
+      />
     </div>
   );
 };

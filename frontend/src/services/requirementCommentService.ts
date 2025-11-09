@@ -21,7 +21,7 @@ import {
 export class RequirementCommentService {
   /**
    * 创建评论
-   * POST /api/v1/requirements/comments
+   * POST /api/v1/requirements/:id/comments
    */
   static async createComment(
     requirementId: number,
@@ -29,8 +29,8 @@ export class RequirementCommentService {
   ): Promise<RequirementComment> {
     try {
       const comment: RequirementComment = await api.post(
-        `/requirements/comments`,
-        { ...request, requirement_id: requirementId }
+        `/requirements/${requirementId}/comments`,
+        request
       );
       return comment;
     } catch (error: any) {
@@ -41,7 +41,7 @@ export class RequirementCommentService {
 
   /**
    * 获取评论列表(分页，支持筛选)
-   * GET /api/v1/requirements/comments
+   * GET /api/v1/requirements/:id/comments
    */
   static async listComments(
     requirementId: number,
@@ -49,14 +49,13 @@ export class RequirementCommentService {
   ): Promise<RequirementCommentListResponse> {
     try {
       const params = {
-        requirement_id: requirementId,
         page: filters?.page || 1,
         page_size: filters?.page_size || 20,
         ...filters,
       };
 
       const result: RequirementCommentListResponse = await api.get(
-        `/requirements/comments`,
+        `/requirements/${requirementId}/comments`,
         { params }
       );
 
@@ -76,7 +75,7 @@ export class RequirementCommentService {
 
   /**
    * 获取单个评论详情
-   * GET /api/v1/requirements/comments/:commentId
+   * GET /api/v1/requirements/comments/:comment_id
    */
   static async getComment(
     requirementId: number,
@@ -95,7 +94,7 @@ export class RequirementCommentService {
 
   /**
    * 更新评论
-   * PUT /api/v1/requirements/comments/:commentId
+   * PUT /api/v1/requirements/comments/:comment_id
    */
   static async updateComment(
     requirementId: number,
@@ -116,7 +115,7 @@ export class RequirementCommentService {
 
   /**
    * 删除评论
-   * DELETE /api/v1/requirements/comments/:commentId
+   * DELETE /api/v1/requirements/comments/:comment_id
    */
   static async deleteComment(
     requirementId: number,

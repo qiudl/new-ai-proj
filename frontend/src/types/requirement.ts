@@ -107,6 +107,9 @@ export interface Requirement {
   // 统计信息
   comments_count?: number;
   views_count?: number;
+
+  // 标签系统
+  tags?: string[];
 }
 
 /**

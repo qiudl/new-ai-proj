@@ -654,6 +654,101 @@ func (h *RequirementCommentHandler) GetMentionedComments(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "获取@提及评论成功"))
 }
 
+// GetCommentStats godoc
+// @Summary Get comment statistics
+// @Description Get statistics for requirement comments (total, active, by type, etc.)
+// @Tags requirement-comments
+// @Accept json
+// @Produce json
+// @Param requirement_id query int false "Requirement ID (optional, for single requirement stats)"
+// @Success 200 {object} models.APIResponse{data=models.RequirementCommentStats}
+// @Failure 400 {object} models.APIResponse
+// @Failure 401 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/requirements/comments/stats [get]
+// @Security BearerAuth
+func (h *RequirementCommentHandler) GetCommentStats(c *gin.Context) {
+	// Check if requirement_id is provided
+	requirementIDStr := c.Query("requirement_id")
+
+	// If requirement_id provided, get stats for specific requirement
+	if requirementIDStr != "" {
+		requirementID, err := strconv.Atoi(requirementIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的requirement_id", nil))
+			return
+		}
+
+		// Verify requirement exists
+		requirement, err := h.db.Requirements().GetByID(c.Request.Context(), requirementID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "需求不存在", nil))
+			return
+		}
+
+		// Check access permission
+		userID := c.GetInt("user_id")
+		user, err := h.db.Users().GetByID(c.Request.Context(), userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取用户信息失败", nil))
+			return
+		}
+
+		userRole, _ := c.Get("user_role")
+		roleStr := ""
+		if userRole != nil {
+			roleStr = userRole.(string)
+		}
+
+		// Check enterprise access
+		if roleStr != "admin" && roleStr != "super_admin" {
+			if user.CompanyID == nil || *user.CompanyID != requirement.EnterpriseID {
+				c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "无权限查看该需求评论统计", nil))
+				return
+			}
+		}
+
+		// Get stats for specific requirement
+		stats, err := h.db.RequirementComments().GetStats(c.Request.Context(), requirementID)
+		if err != nil {
+			log.Printf("Error getting requirement comment stats: %v", err)
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取评论统计失败", nil))
+			return
+		}
+
+		c.JSON(http.StatusOK, models.NewSuccessResponse(stats, "获取评论统计成功"))
+		return
+	}
+
+	// If no requirement_id, return global stats (requires admin permission)
+	userRole, _ := c.Get("user_role")
+	roleStr := ""
+	if userRole != nil {
+		roleStr = userRole.(string)
+	}
+
+	if roleStr != "admin" && roleStr != "super_admin" {
+		c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "无权限查看全局评论统计", nil))
+		return
+	}
+
+	// Return empty stats for global view (can be implemented later if needed)
+	stats := &models.RequirementCommentStats{
+		TotalComments:     0,
+		ActiveComments:    0,
+		DeletedComments:   0,
+		InternalComments:  0,
+		PinnedComments:    0,
+		TopLevelComments:  0,
+		ReplyComments:     0,
+		TodaysComments:    0,
+		ThisWeeksComments: 0,
+		ByCommentType:     make(map[string]int),
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(stats, "获取全局评论统计成功"))
+}
+
 // TogglePin godoc
 // @Summary Toggle comment pin
 // @Description Pin or unpin a comment (admin/manager only)
