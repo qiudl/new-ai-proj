@@ -143,7 +143,10 @@ const RequirementDetailPage: React.FC = () => {
     try {
       await requirementApi.submitRequirement(requirementId);
       message.success('需求已提交评审');
-      loadRequirement();
+      // 使用setTimeout避免与message的flushSync冲突
+      setTimeout(() => {
+        loadRequirement();
+      }, 0);
     } catch (error: any) {
       console.error('Error submitting requirement:', error);
       message.error(error?.message || '提交需求失败');
@@ -163,7 +166,10 @@ const RequirementDetailPage: React.FC = () => {
         try {
           await requirementApi.archiveRequirement(requirementId);
           message.success('需求已归档');
-          loadRequirement();
+          // 使用setTimeout避免与message的flushSync冲突
+          setTimeout(() => {
+            loadRequirement();
+          }, 0);
         } catch (error: any) {
           console.error('Error archiving requirement:', error);
           message.error(error?.message || '归档需求失败');
@@ -248,7 +254,10 @@ const RequirementDetailPage: React.FC = () => {
   const handleLinkSuccess = () => {
     setLinkModalVisible(false);
     message.success('任务关联成功');
-    loadLinkedTasks();
+    // 使用setTimeout避免与message的flushSync冲突
+    setTimeout(() => {
+      loadLinkedTasks();
+    }, 0);
   };
 
   /**
