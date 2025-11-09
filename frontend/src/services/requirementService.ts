@@ -85,16 +85,17 @@ export async function getTaskRequirements(
   }
 ): Promise<RequirementTaskListResponse> {
   try {
-    const response = await api.get<APIResponse<RequirementTaskListResponse>>(
+    // API拦截器已经自动解包了响应 {success, data} -> data
+    // 后端返回: {success: true, data: {data: [...], total, page, page_size}}
+    // 拦截器解包后: {data: [...], total, page, page_size}
+    // response.data 就是 RequirementTaskListResponse
+    const response = await api.get<RequirementTaskListResponse>(
       `/tasks/${taskId}/requirements`,
       { params }
     );
 
-    if (response.data.success) {
-      return response.data.data;
-    } else {
-      throw new Error(response.data.error?.message || '获取任务关联需求失败');
-    }
+    // 因为axios返回 AxiosResponse<T>，所以 response.data 是 T 类型
+    return response.data;
   } catch (error: any) {
     logApiError(error, 'getTaskRequirements');
     throw error;
@@ -138,7 +139,8 @@ export async function linkTaskToRequirement(
   linkComment?: string
 ): Promise<RequirementTaskLink> {
   try {
-    const response = await api.post<APIResponse<RequirementTaskLink>>(
+    // API拦截器已经自动解包了响应 {success, data} -> data
+    const response = await api.post<RequirementTaskLink>(
       `/requirements/${requirementId}/tasks`,
       {
         task_id: taskId,
@@ -147,11 +149,8 @@ export async function linkTaskToRequirement(
       }
     );
 
-    if (response.data.success) {
-      return response.data.data;
-    } else {
-      throw new Error(response.data.error?.message || '创建需求-任务关联失败');
-    }
+    // 修复：拦截器已经解包，直接返回response
+    return response as any as RequirementTaskLink;
   } catch (error: any) {
     logApiError(error, 'linkTaskToRequirement');
     throw error;
@@ -166,13 +165,11 @@ export async function unlinkTaskFromRequirement(
   taskId: number
 ): Promise<void> {
   try {
-    const response = await api.delete<APIResponse<null>>(
+    // API拦截器已经自动解包了响应 {success, data} -> data
+    await api.delete<null>(
       `/requirements/${requirementId}/tasks/${taskId}`
     );
-
-    if (!response.data.success) {
-      throw new Error(response.data.error?.message || '删除需求-任务关联失败');
-    }
+    // 删除操作成功，无需检查响应（拦截器会抛出错误如果失败）
   } catch (error: any) {
     logApiError(error, 'unlinkTaskFromRequirement');
     throw error;
