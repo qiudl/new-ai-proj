@@ -9,6 +9,11 @@ module.exports = {
   },
   webpack: {
     configure: (webpackConfig) => {
+      // 完全移除ForkTsCheckerWebpackPlugin以避免内存问题
+      webpackConfig.plugins = webpackConfig.plugins.filter(
+        plugin => plugin.constructor.name !== 'ForkTsCheckerWebpackPlugin'
+      );
+
       // 优化chunk命名和分割策略
       if (webpackConfig.optimization) {
         webpackConfig.optimization.splitChunks = {
