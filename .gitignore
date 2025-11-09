@@ -178,3 +178,14 @@ backend/ai-project-backend-*
 backend/scripts/test-*.sh
 mcp-task-bridge/test-*.js
 backend/ai-project-backend
+
+# 编译后的二进制文件
+backend/backend
+backend/backend-*
+backend/ai-project-backend*
+
+# 上传文件目录
+backend/uploads/
+
+# 测试文件
+backend/test_*.js
