@@ -525,9 +525,10 @@ func (r *requirementCommentRepositoryImpl) GetStats(ctx context.Context, require
 		ByCommentType: make(map[string]int),
 	}
 
+	var activeParticipants int // Temporary variable for active_participants count
 	err := r.getDB().QueryRowContext(ctx, query, requirementID).Scan(
 		&stats.TotalComments,
-		&stats.ActiveComments, // Using as participants for now
+		&activeParticipants, // Count of unique users (not used in model yet)
 		&stats.ActiveComments,
 		&stats.DeletedComments,
 		&stats.InternalComments,
