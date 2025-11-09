@@ -228,6 +228,10 @@ start_backend() {
     # 清理旧日志
     > "$BACKEND_LOG_FILE"
 
+    # 清除可能污染环境的旧数据库环境变量
+    # 让 backend 从 .env 文件读取正确的配置
+    unset DB_HOST DB_PORT DB_USER DB_PASSWORD DB_NAME DB_SSL_MODE DB_SOURCE
+
     # 启动后端（后台运行）
     nohup ./backend > "$BACKEND_LOG_FILE" 2>&1 &
     local pid=$!
