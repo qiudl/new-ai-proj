@@ -87,7 +87,10 @@ const RequirementCommentItem: React.FC<RequirementCommentItemProps> = ({
     try {
       await deleteComment(requirementId, comment.id);
       message.success('评论已删除');
-      onDeleted?.();
+      // 使用setTimeout避免与message.success的flushSync冲突
+      setTimeout(() => {
+        onDeleted?.();
+      }, 0);
     } catch (error: any) {
       console.error('Failed to delete comment:', error);
       message.error(error?.message || '删除评论失败');

@@ -45,7 +45,10 @@ const CommentItem: React.FC<CommentItemProps> = ({
     try {
       await deleteComment(taskId, comment.id);
       message.success('评论已删除');
-      onDeleted?.(); // 通知父组件刷新列表
+      // 使用setTimeout避免与message.success的flushSync冲突
+      setTimeout(() => {
+        onDeleted?.(); // 通知父组件刷新列表
+      }, 0);
     } catch (error: any) {
       console.error('Failed to delete comment:', error);
       message.error(error?.message || '删除评论失败');
