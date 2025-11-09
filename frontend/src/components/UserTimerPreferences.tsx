@@ -875,7 +875,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
       onCancel={onClose}
       width={800}
       footer={null}
-      destroyOnHidden
+      destroyOnClose
     >
       {loading ? (
         <Card loading={true} title="加载设置中..." />

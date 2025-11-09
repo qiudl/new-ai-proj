@@ -262,7 +262,7 @@ const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
       width="90%"
       style={{ top: 20 }}
       className="version-history-modal"
-      destroyOnHidden
+      destroyOnClose
     >
       <ErrorBoundary>
         <div className="version-history-container">

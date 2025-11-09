@@ -218,7 +218,7 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
       className={modalConfig.className}
       styles={modalConfig.styles}
       centered={modalConfig.centered}
-      destroyOnHidden
+      destroyOnClose
     >
       <Form
         form={form}

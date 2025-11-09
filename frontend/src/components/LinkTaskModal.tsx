@@ -201,7 +201,7 @@ const LinkTaskModal: React.FC<LinkTaskModalProps> = ({
           关联
         </Button>,
       ]}
-      destroyOnHidden
+      destroyOnClose
     >
       {requirement && (
         <div style={{ marginBottom: '16px' }}>

@@ -709,7 +709,7 @@ const OrganizationStructurePage: React.FC = () => {
         onOk={handleDepartmentSave}
         onCancel={() => setModalVisible(false)}
         width={600}
-        destroyOnHidden
+        destroyOnClose
       >
         <Form
           form={form}

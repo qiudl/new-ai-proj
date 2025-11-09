@@ -155,7 +155,7 @@ const ConvertToTaskModal: React.FC<ConvertToTaskModalProps> = ({
           转换
         </Button>,
       ]}
-      destroyOnHidden
+      destroyOnClose
     >
       {requirement && (
         <div style={{ marginBottom: '16px' }}>
@@ -212,6 +212,7 @@ const ConvertToTaskModal: React.FC<ConvertToTaskModalProps> = ({
             loading={loadingProjects}
             showSearch
             optionFilterProp="children"
+            getPopupContainer={(trigger) => trigger.parentElement || document.body}
           >
             {projects.map((project) => (
               <Option key={project.id} value={project.id}>
@@ -227,7 +228,10 @@ const ConvertToTaskModal: React.FC<ConvertToTaskModalProps> = ({
             label="优先级"
             style={{ marginBottom: 0, flex: 1 }}
           >
-            <Select placeholder="请选择优先级">
+            <Select
+              placeholder="请选择优先级"
+              getPopupContainer={(trigger) => trigger.parentElement || document.body}
+            >
               <Option value="low">⬇️ 低</Option>
               <Option value="medium">➡️ 中</Option>
               <Option value="high">⬆️ 高</Option>
@@ -268,6 +272,7 @@ const ConvertToTaskModal: React.FC<ConvertToTaskModalProps> = ({
             allowClear
             showSearch
             optionFilterProp="children"
+            getPopupContainer={(trigger) => trigger.parentElement || document.body}
           >
             {/* TODO: 从用户服务加载用户列表 */}
             <Option value={1}>Admin</Option>

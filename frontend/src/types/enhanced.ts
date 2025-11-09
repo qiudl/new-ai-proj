@@ -99,7 +99,7 @@ export interface ModalComponentProps extends BaseComponentProps {
   onCancel: () => void;
   onOk?: () => void | Promise<void>;
   confirmLoading?: boolean;
-  destroyOnHidden?: boolean;
+  destroyOnClose?: boolean;
 }
 
 // ============================================================================

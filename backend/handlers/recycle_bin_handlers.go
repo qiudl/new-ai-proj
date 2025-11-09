@@ -423,3 +423,100 @@ func (h *RecycleBinHandler) EmptyRecycleBin(c *gin.Context) {
 	}, "清空回收站功能暂未实现")
 	c.JSON(http.StatusNotImplemented, response)
 }
+
+// GetRecycledRequirements 获取回收站中的需求
+func (h *RecycleBinHandler) GetRecycledRequirements(c *gin.Context) {
+	// Get pagination parameters
+	page := 1
+	pageSize := 20
+
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	if pageSizeStr := c.Query("page_size"); pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 {
+			pageSize = ps
+		}
+	}
+
+	offset := (page - 1) * pageSize
+
+	// Get recycled requirements from system repository
+	requirements, total, err := h.db.System().GetRecycledRequirements(c.Request.Context(), pageSize, offset)
+	if err != nil {
+		h.logger.Printf("Error getting recycled requirements: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "获取回收站需求失败", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Build response with pagination
+	paginationData := map[string]interface{}{
+		"page":        page,
+		"page_size":   pageSize,
+		"total":       total,
+		"total_pages": (total + pageSize - 1) / pageSize,
+		"has_next":    offset+pageSize < total,
+		"has_prev":    page > 1,
+	}
+
+	response := map[string]interface{}{
+		"success":    true,
+		"message":    "获取回收站需求成功",
+		"data":       requirements,
+		"pagination": paginationData,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// RestoreRequirement 恢复需求
+func (h *RecycleBinHandler) RestoreRequirement(c *gin.Context) {
+	requirementIDStr := c.Param("id")
+	requirementID, err := strconv.Atoi(requirementIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "无效的需求ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Restore requirement using system repository
+	err = h.db.System().RestoreRequirement(c.Request.Context(), requirementID)
+	if err != nil {
+		h.logger.Printf("Error restoring requirement %d: %v", requirementID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "恢复需求失败", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	h.logger.Printf("Successfully restored requirement %d", requirementID)
+	response := models.NewSuccessResponse(nil, "需求恢复成功")
+	c.JSON(http.StatusOK, response)
+}
+
+// HardDeleteRequirement 永久删除需求
+func (h *RecycleBinHandler) HardDeleteRequirement(c *gin.Context) {
+	requirementIDStr := c.Param("id")
+	requirementID, err := strconv.Atoi(requirementIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "无效的需求ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Permanently delete requirement using system repository
+	err = h.db.System().HardDeleteRequirement(c.Request.Context(), requirementID)
+	if err != nil {
+		h.logger.Printf("Error hard deleting requirement %d: %v", requirementID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "永久删除需求失败", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	h.logger.Printf("Successfully hard deleted requirement %d", requirementID)
+	response := models.NewSuccessResponse(nil, "需求已永久删除")
+	c.JSON(http.StatusOK, response)
+}

@@ -629,7 +629,7 @@ const RoleTemplateManager: React.FC<RoleTemplateManagerProps> = ({
         onCancel={() => setFormModalVisible(false)}
         footer={null}
         width={800}
-        destroyOnHidden
+        destroyOnClose
       >
         <RoleTemplateForm
           form={form}
@@ -651,7 +651,7 @@ const RoleTemplateManager: React.FC<RoleTemplateManagerProps> = ({
           </Button>
         ]}
         width={1000}
-        destroyOnHidden
+        destroyOnClose
       >
         {currentTemplate && (
           <RoleTemplateDetail

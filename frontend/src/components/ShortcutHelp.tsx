@@ -63,7 +63,7 @@ const ShortcutHelp: React.FC<ShortcutHelpProps> = ({
           padding: '24px',
         }
       }}
-      destroyOnHidden
+      destroyOnClose
       maskClosable={true}
     >
       <div style={{ maxHeight: '400px', overflowY: 'auto' }}>

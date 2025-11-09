@@ -608,7 +608,7 @@ const BatchWorkNoteConversionModal: React.FC<BatchWorkNoteConversionModalProps> 
           )}
         </Space>
       }
-      destroyOnHidden
+      destroyOnClose
       maskClosable={false}
     >
       <Steps

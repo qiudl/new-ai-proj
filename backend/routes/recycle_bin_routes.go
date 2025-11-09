@@ -45,6 +45,14 @@ func RegisterRecycleBinRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 		workNotes.DELETE("/:id", app.HardDeleteWorkNoteHandler())     // DELETE /api/v1/system/recycle/work-notes/:id
 	}
 
+	// 需求回收站路由
+	requirements := recycleGroup.Group("/requirements")
+	{
+		requirements.GET("", app.GetRecycledRequirementsHandler())         // GET /api/v1/system/recycle/requirements
+		requirements.POST("/:id/restore", app.RestoreRequirementHandler()) // POST /api/v1/system/recycle/requirements/:id/restore
+		requirements.DELETE("/:id", app.HardDeleteRequirementHandler())    // DELETE /api/v1/system/recycle/requirements/:id
+	}
+
 	// 清空回收站
 	recycleGroup.POST("/empty", app.EmptyRecycleBinHandler())       // POST /api/v1/system/recycle/empty
 

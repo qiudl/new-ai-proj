@@ -558,7 +558,7 @@ const PositionManagementPage: React.FC = () => {
         onOk={handlePositionSave}
         onCancel={() => setModalVisible(false)}
         width={800}
-        destroyOnHidden
+        destroyOnClose
       >
         <Form
           form={form}

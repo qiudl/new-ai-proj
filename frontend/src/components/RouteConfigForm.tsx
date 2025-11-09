@@ -146,7 +146,7 @@ const RouteConfigForm: React.FC<RouteConfigFormProps> = ({
       onOk={handleSubmit}
       width={800}
       confirmLoading={loading}
-      destroyOnHidden
+      destroyOnClose
     >
       <Form
         form={form}

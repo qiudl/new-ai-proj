@@ -189,6 +189,9 @@ type ApplicationInterface interface {
 	GetRecycledWorkNotesHandler() gin.HandlerFunc
 	RestoreWorkNoteHandler() gin.HandlerFunc
 	HardDeleteWorkNoteHandler() gin.HandlerFunc
+	GetRecycledRequirementsHandler() gin.HandlerFunc
+	RestoreRequirementHandler() gin.HandlerFunc
+	HardDeleteRequirementHandler() gin.HandlerFunc
 	EmptyRecycleBinHandler() gin.HandlerFunc
 
 	// AI配置处理器

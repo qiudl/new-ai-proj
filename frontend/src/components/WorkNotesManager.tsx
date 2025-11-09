@@ -2074,7 +2074,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           overflowY: 'auto',
           padding: '24px'
         }}
-        destroyOnHidden
+        destroyOnClose
         confirmLoading={saving}
         okText="保存"
         cancelText="取消"

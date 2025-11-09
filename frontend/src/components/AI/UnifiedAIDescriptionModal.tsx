@@ -1100,7 +1100,7 @@ const UnifiedAIDescriptionModal: React.FC<UnifiedAIDescriptionModalProps> = ({
       width={800}
       footer={null}
       onCancel={handleCancel}
-      destroyOnHidden
+      destroyOnClose
     >
       {/* 任务信息展示 */}
       <div style={{ marginBottom: 16 }}>

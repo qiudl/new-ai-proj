@@ -17,7 +17,7 @@ type RequirementRepository interface {
 	GetByID(ctx context.Context, id int) (*models.Requirement, error)
 	GetByDisplayID(ctx context.Context, displayID string) (*models.Requirement, error)
 	Update(ctx context.Context, requirement *models.Requirement) (*models.Requirement, error)
-	Delete(ctx context.Context, id int) error
+	Delete(ctx context.Context, id int, userID int) error // Soft delete with user tracking
 
 	// 列表和查询
 	List(ctx context.Context, filters *models.RequirementFilters) (*models.RequirementListResponse, error)
@@ -127,7 +127,7 @@ func (r *requirementRepositoryImpl) GetByID(ctx context.Context, id int) (*model
 		LEFT JOIN enterprises e ON r.enterprise_id = e.id
 		LEFT JOIN users s ON r.submitter_id = s.id
 		LEFT JOIN users rv ON r.reviewer_id = rv.id
-		WHERE r.id = $1
+		WHERE r.id = $1 AND r.deleted_at IS NULL
 	`
 
 	requirement := &models.Requirement{}
@@ -266,7 +266,7 @@ func (r *requirementRepositoryImpl) GetByID(ctx context.Context, id int) (*model
 
 // GetByDisplayID 根据编号获取需求
 func (r *requirementRepositoryImpl) GetByDisplayID(ctx context.Context, displayID string) (*models.Requirement, error) {
-	query := `SELECT id FROM requirements WHERE display_id = $1`
+	query := `SELECT id FROM requirements WHERE display_id = $1 AND deleted_at IS NULL`
 	var id int
 	err := r.getDB().QueryRowContext(ctx, query, displayID).Scan(&id)
 	if err == sql.ErrNoRows {
@@ -317,11 +317,18 @@ func (r *requirementRepositoryImpl) Update(ctx context.Context, requirement *mod
 }
 
 // Delete 删除需求（硬删除，考虑改为软删除）
-func (r *requirementRepositoryImpl) Delete(ctx context.Context, id int) error {
-	query := `DELETE FROM requirements WHERE id = $1`
-	result, err := r.getDB().ExecContext(ctx, query, id)
+func (r *requirementRepositoryImpl) Delete(ctx context.Context, id int, userID int) error {
+	now := time.Now()
+	query := `
+		UPDATE requirements
+		SET deleted_at = $1,
+		    deleted_by = $2,
+		    updated_at = $1
+		WHERE id = $3 AND deleted_at IS NULL
+	`
+	result, err := r.getDB().ExecContext(ctx, query, now, userID, id)
 	if err != nil {
-		return fmt.Errorf("删除需求失败: %w", err)
+		return fmt.Errorf("软删除需求失败: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
@@ -330,7 +337,7 @@ func (r *requirementRepositoryImpl) Delete(ctx context.Context, id int) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("需求不存在 (ID: %d)", id)
+		return fmt.Errorf("需求不存在或已被删除 (ID: %d)", id)
 	}
 
 	return nil
@@ -342,6 +349,9 @@ func (r *requirementRepositoryImpl) List(ctx context.Context, filters *models.Re
 	whereClauses := []string{}
 	args := []interface{}{}
 	argIndex := 1
+
+	// 排除已软删除的记录
+	whereClauses = append(whereClauses, "r.deleted_at IS NULL")
 
 	// 状态过滤
 	if len(filters.Status) > 0 {

@@ -187,7 +187,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({
       onOk={handleSubmit}
       width={800}
       confirmLoading={loading}
-      destroyOnHidden
+      destroyOnClose
     >
       <Form
         form={form}

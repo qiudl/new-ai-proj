@@ -124,6 +124,10 @@ type Requirement struct {
 	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 
+	// 软删除
+	DeletedAt *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
+	DeletedBy *int       `json:"deleted_by,omitempty" db:"deleted_by"`
+
 	// 关联对象（不存储在数据库，通过JOIN查询填充）
 	ProjectName    *string `json:"project_name,omitempty" db:"project_name"`
 	EnterpriseName *string `json:"enterprise_name,omitempty" db:"enterprise_name"`
@@ -339,6 +343,28 @@ func ValidateRequirementStatus(status string) bool {
 		}
 	}
 	return false
+}
+
+// RecycledRequirement represents a soft-deleted requirement in the recycle bin
+type RecycledRequirement struct {
+	ID              int        `json:"id" db:"id"`
+	DisplayID       string     `json:"display_id" db:"display_id"`
+	Title           string     `json:"title" db:"title"`
+	Description     *string    `json:"description" db:"description"`
+	ProjectID       *int       `json:"project_id" db:"project_id"`
+	ProjectName     *string    `json:"project_name" db:"project_name"`
+	EnterpriseID    int        `json:"enterprise_id" db:"enterprise_id"`
+	EnterpriseName  *string    `json:"enterprise_name" db:"enterprise_name"`
+	SubmitterID     int        `json:"submitter_id" db:"submitter_id"`
+	SubmitterName   *string    `json:"submitter_name" db:"submitter_name"`
+	Status          string     `json:"status" db:"status"`
+	Priority        string     `json:"priority" db:"priority"`
+	Category        *string    `json:"category" db:"category"`
+	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
+	DeletedAt       time.Time  `json:"deleted_at" db:"deleted_at"`
+	DeletedBy       *int       `json:"deleted_by" db:"deleted_by"`
+	DeletedByName   *string    `json:"deleted_by_name" db:"deleted_by_name"`
+	CommentsCount   int        `json:"comments_count" db:"comments_count"`
 }
 
 // CanTransitionTo checks if the requirement can transition to the target status

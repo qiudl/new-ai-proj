@@ -395,7 +395,7 @@ const AccessibilityHelper: React.FC<AccessibilityHelperProps> = ({
         styles={{
           body: { maxHeight: '60vh', overflow: 'auto' }
         }}
-        destroyOnHidden
+        destroyOnClose
         aria-label="快捷键帮助对话框"
       >
         <div style={{ marginBottom: '16px', color: '#666' }}>

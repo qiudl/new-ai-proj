@@ -131,7 +131,7 @@ const PersonalTimerTaskForm: React.FC<PersonalTimerTaskFormProps> = ({
       onOk={handleSubmit}
       confirmLoading={loading}
       width={600}
-      destroyOnHidden
+      destroyOnClose
     >
       <Form
         form={form}

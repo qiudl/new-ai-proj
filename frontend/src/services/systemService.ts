@@ -57,6 +57,27 @@ export interface RecycledWorkNote {
   visibility: string;
 }
 
+export interface RecycledRequirement {
+  id: number;
+  display_id: string;
+  title: string;
+  description?: string;
+  project_id?: number;
+  project_name?: string;
+  enterprise_id: number;
+  enterprise_name?: string;
+  submitter_id: number;
+  submitter_name?: string;
+  status: string;
+  priority: string;
+  category?: string;
+  created_at: string;
+  deleted_at: string;
+  deleted_by?: number;
+  deleted_by_name?: string;
+  comments_count: number;
+}
+
 export interface AuditLog {
   id: number;
   user_id?: number;
@@ -420,6 +441,53 @@ export class SystemService {
       responseType: 'blob'
     });
     return response.data;
+  }
+
+  // Recycled Requirements
+  static async getRecycledRequirements(page = 1, pageSize = 20): Promise<PaginatedResponse<RecycledRequirement>> {
+    try {
+      const response: any = await api.get<BackendPaginatedResponse>(
+        `/system/recycle/requirements?page=${page}&page_size=${pageSize}`
+      );
+
+      const requirementsData = Array.isArray(response?.data) ? (response.data as RecycledRequirement[]) : [];
+
+      const pagination = (response?.pagination && typeof response.pagination === 'object')
+        ? response.pagination
+        : {
+            page,
+            page_size: pageSize,
+            total: requirementsData.length,
+            total_pages: requirementsData.length > 0 ? Math.ceil(requirementsData.length / pageSize) : 0,
+            has_next: false,
+            has_prev: false,
+          };
+
+      return {
+        data: requirementsData,
+        pagination,
+      };
+    } catch (e) {
+      return {
+        data: [],
+        pagination: {
+          page,
+          page_size: pageSize,
+          total: 0,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false,
+        },
+      };
+    }
+  }
+
+  static async restoreRequirement(id: number): Promise<void> {
+    await api.post(`/system/recycle/requirements/${id}/restore`);
+  }
+
+  static async hardDeleteRequirement(id: number): Promise<void> {
+    await api.delete(`/system/recycle/requirements/${id}`);
   }
 
 }

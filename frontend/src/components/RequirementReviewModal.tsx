@@ -145,7 +145,7 @@ const RequirementReviewModal: React.FC<RequirementReviewModalProps> = ({
           {actionConfig.label}
         </Button>,
       ]}
-      destroyOnHidden
+      destroyOnClose
     >
       {requirement && (
         <div style={{ marginBottom: '16px' }}>
@@ -311,7 +311,11 @@ const RequirementReviewModal: React.FC<RequirementReviewModalProps> = ({
             label="复杂度评估"
             tooltip="评估需求的实现复杂度"
           >
-            <Select placeholder="请选择复杂度" allowClear>
+            <Select
+              placeholder="请选择复杂度"
+              allowClear
+              getPopupContainer={(trigger) => trigger.parentElement || document.body}
+            >
               {Object.entries(REQUIREMENT_COMPLEXITY_CONFIG).map(([key, config]) => (
                 <Option key={key} value={key}>
                   {config.icon} {config.label}

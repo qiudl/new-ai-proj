@@ -1126,3 +1126,186 @@ func (r *PostgresSystemRepository) HardDeleteProject(ctx context.Context, id int
 
 	return nil
 }
+
+// GetRecycledRequirements gets all deleted requirements with pagination
+func (r *PostgresSystemRepository) GetRecycledRequirements(ctx context.Context, limit, offset int) ([]*models.RecycledRequirement, int, error) {
+	log.Printf("[INFO] GetRecycledRequirements called with limit=%d, offset=%d", limit, offset)
+
+	exec := r.getExecer()
+
+	// Get total count
+	countQuery := `
+		SELECT COUNT(*)
+		FROM requirements r
+		WHERE r.deleted_at IS NOT NULL
+	`
+	var total int
+	if err := exec.QueryRowContext(ctx, countQuery).Scan(&total); err != nil {
+		log.Printf("[ERROR] Failed to get recycled requirement count: %v", err)
+		return nil, 0, fmt.Errorf("failed to get recycled requirement count: %w", err)
+	}
+
+	log.Printf("[INFO] Found %d total recycled requirements", total)
+
+	// Get recycled requirements with joins
+	query := `
+		SELECT
+			r.id,
+			r.display_id,
+			r.title,
+			r.description,
+			r.project_id,
+			p.name as project_name,
+			r.enterprise_id,
+			e.name as enterprise_name,
+			r.submitter_id,
+			u_submitter.username as submitter_name,
+			r.status,
+			r.priority,
+			r.category,
+			r.created_at,
+			r.deleted_at,
+			r.deleted_by,
+			u_deleted.username as deleted_by_name,
+			COALESCE((
+				SELECT COUNT(*)
+				FROM requirement_comments rc
+				WHERE rc.requirement_id = r.id AND rc.status = 'active'
+			), 0) as comments_count
+		FROM requirements r
+		LEFT JOIN projects p ON r.project_id = p.id
+		LEFT JOIN enterprises e ON r.enterprise_id = e.id
+		LEFT JOIN users u_submitter ON r.submitter_id = u_submitter.id
+		LEFT JOIN users u_deleted ON r.deleted_by = u_deleted.id
+		WHERE r.deleted_at IS NOT NULL
+		ORDER BY r.deleted_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := exec.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		log.Printf("[ERROR] Failed to query recycled requirements: %v", err)
+		return nil, 0, fmt.Errorf("failed to query recycled requirements: %w", err)
+	}
+	defer rows.Close()
+
+	var requirements []*models.RecycledRequirement
+	for rows.Next() {
+		var req models.RecycledRequirement
+		err := rows.Scan(
+			&req.ID,
+			&req.DisplayID,
+			&req.Title,
+			&req.Description,
+			&req.ProjectID,
+			&req.ProjectName,
+			&req.EnterpriseID,
+			&req.EnterpriseName,
+			&req.SubmitterID,
+			&req.SubmitterName,
+			&req.Status,
+			&req.Priority,
+			&req.Category,
+			&req.CreatedAt,
+			&req.DeletedAt,
+			&req.DeletedBy,
+			&req.DeletedByName,
+			&req.CommentsCount,
+		)
+		if err != nil {
+			log.Printf("[ERROR] Failed to scan recycled requirement: %v", err)
+			return nil, 0, fmt.Errorf("failed to scan recycled requirement: %w", err)
+		}
+		requirements = append(requirements, &req)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Printf("[ERROR] Error iterating recycled requirements: %v", err)
+		return nil, 0, fmt.Errorf("error iterating recycled requirements: %w", err)
+	}
+
+	log.Printf("[INFO] Successfully retrieved %d recycled requirements", len(requirements))
+	return requirements, total, nil
+}
+
+// RestoreRequirement restores a deleted requirement
+func (r *PostgresSystemRepository) RestoreRequirement(ctx context.Context, id int) error {
+	log.Printf("[INFO] RestoreRequirement called for requirement ID: %d", id)
+
+	exec := r.getExecer()
+
+	query := `
+		UPDATE requirements
+		SET deleted_at = NULL, deleted_by = NULL
+		WHERE id = $1 AND deleted_at IS NOT NULL
+	`
+
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		log.Printf("[ERROR] Failed to restore requirement %d: %v", id, err)
+		return fmt.Errorf("failed to restore requirement: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("requirement not found in recycle bin")
+	}
+
+	log.Printf("[INFO] Successfully restored requirement %d", id)
+	return nil
+}
+
+// HardDeleteRequirement permanently deletes a requirement
+func (r *PostgresSystemRepository) HardDeleteRequirement(ctx context.Context, id int) error {
+	log.Printf("[INFO] HardDeleteRequirement called for requirement ID: %d", id)
+
+	exec := r.getExecer()
+
+	// First delete associated comments
+	deleteCommentsQuery := `
+		DELETE FROM requirement_comments
+		WHERE requirement_id = $1
+	`
+	if _, err := exec.ExecContext(ctx, deleteCommentsQuery, id); err != nil {
+		log.Printf("[ERROR] Failed to delete requirement comments for requirement %d: %v", id, err)
+		return fmt.Errorf("failed to delete requirement comments: %w", err)
+	}
+
+	// Delete history records
+	deleteHistoryQuery := `
+		DELETE FROM requirement_history
+		WHERE requirement_id = $1
+	`
+	if _, err := exec.ExecContext(ctx, deleteHistoryQuery, id); err != nil {
+		log.Printf("[WARN] Failed to delete requirement history for requirement %d: %v", id, err)
+		// Continue even if history deletion fails
+	}
+
+	// Delete the requirement itself
+	query := `
+		DELETE FROM requirements
+		WHERE id = $1 AND deleted_at IS NOT NULL
+	`
+
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		log.Printf("[ERROR] Failed to hard delete requirement %d: %v", id, err)
+		return fmt.Errorf("failed to hard delete requirement: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("requirement not found in recycle bin")
+	}
+
+	log.Printf("[INFO] Successfully hard deleted requirement %d", id)
+	return nil
+}

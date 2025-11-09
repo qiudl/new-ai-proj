@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, Table, Button, Space, message, Popconfirm, Typography, Tag } from 'antd';
 import { ReloadOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { SystemService, RecycledProject, RecycledTask, RecycledDocument, RecycledWorkNote, PaginatedResponse } from '../services/systemService';
+import { SystemService, RecycledProject, RecycledTask, RecycledDocument, RecycledWorkNote, RecycledRequirement, PaginatedResponse } from '../services/systemService';
 import type { ColumnsType } from 'antd/es/table';
 import type { TabsProps } from 'antd';
 
@@ -13,6 +13,7 @@ const RecycleBinPage: React.FC = () => {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [workNotesLoading, setWorkNotesLoading] = useState(false);
+  const [requirementsLoading, setRequirementsLoading] = useState(false);
 
   // Projects state
   const [recycledProjects, setRecycledProjects] = useState<RecycledProject[]>([]);
@@ -37,6 +38,12 @@ const RecycleBinPage: React.FC = () => {
   const [workNotesTotal, setWorkNotesTotal] = useState(0);
   const [workNotesCurrentPage, setWorkNotesCurrentPage] = useState(1);
   const workNotesPageSize = 20;
+
+  // Requirements state
+  const [recycledRequirements, setRecycledRequirements] = useState<RecycledRequirement[]>([]);
+  const [requirementsTotal, setRequirementsTotal] = useState(0);
+  const [requirementsCurrentPage, setRequirementsCurrentPage] = useState(1);
+  const requirementsPageSize = 20;
 
   // Load recycled projects
   const loadRecycledProjects = async (page = 1) => {
@@ -206,6 +213,46 @@ const RecycleBinPage: React.FC = () => {
     }
   };
 
+  // Load recycled requirements
+  const loadRecycledRequirements = async (page = 1) => {
+    console.log('🚀 [RecycleBinPage] Starting loadRecycledRequirements, page:', page);
+    setRequirementsLoading(true);
+    try {
+      console.log('🔄 [RecycleBinPage] Calling SystemService.getRecycledRequirements...');
+      const response: PaginatedResponse<RecycledRequirement> = await SystemService.getRecycledRequirements(page, requirementsPageSize);
+
+      console.log('📨 [RecycleBinPage] Received requirements response from SystemService:', response);
+
+      if (!response) {
+        console.warn('❌ [RecycleBinPage] Invalid recycled requirements response: no response');
+        setRecycledRequirements([]);
+        setRequirementsTotal(0);
+        return;
+      }
+
+      const requirementsData = Array.isArray(response.data) ? response.data : [];
+      console.log('📋 [RecycleBinPage] Processing requirements data:', requirementsData.length, 'items');
+
+      const paginationData = response.pagination || {};
+      const total = typeof (paginationData as any).total === 'number' ? (paginationData as any).total : 0;
+
+      console.log('📄 [RecycleBinPage] Requirements pagination data - total:', total, 'current page:', page);
+
+      setRecycledRequirements(requirementsData);
+      setRequirementsTotal(total);
+      setRequirementsCurrentPage(page);
+
+      console.log('✅ [RecycleBinPage] Requirements state updated successfully - requirements:', requirementsData.length, 'total:', total);
+    } catch (error) {
+      console.error('💥 [RecycleBinPage] Error loading recycled requirements:', error);
+      message.error('加载回收站需求失败');
+      setRecycledRequirements([]);
+      setRequirementsTotal(0);
+    } finally {
+      setRequirementsLoading(false);
+    }
+  };
+
   // Restore project
   const handleRestoreProject = async (id: number) => {
     try {
@@ -299,6 +346,30 @@ const RecycleBinPage: React.FC = () => {
     } catch (error) {
       message.error('永久删除工作笔记失败');
       console.error('Error hard deleting work note:', error);
+    }
+  };
+
+  // Restore requirement
+  const handleRestoreRequirement = async (id: number) => {
+    try {
+      await SystemService.restoreRequirement(id);
+      message.success('需求恢复成功');
+      loadRecycledRequirements(requirementsCurrentPage);
+    } catch (error) {
+      message.error('需求恢复失败');
+      console.error('Error restoring requirement:', error);
+    }
+  };
+
+  // Permanently delete requirement
+  const handleHardDeleteRequirement = async (id: number) => {
+    try {
+      await SystemService.hardDeleteRequirement(id);
+      message.success('需求已永久删除');
+      loadRecycledRequirements(requirementsCurrentPage);
+    } catch (error) {
+      message.error('永久删除需求失败');
+      console.error('Error hard deleting requirement:', error);
     }
   };
 
@@ -683,6 +754,144 @@ const RecycleBinPage: React.FC = () => {
     },
   ];
 
+  // Requirement columns
+  const requirementColumns: unknown[] = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80,
+    },
+    {
+      title: '需求编号',
+      dataIndex: 'display_id',
+      key: 'display_id',
+      width: 120,
+      render: (text) => <Tag color="blue">{text}</Tag>,
+    },
+    {
+      title: '需求标题',
+      dataIndex: 'title',
+      key: 'title',
+      render: (text) => <span style={{ fontWeight: 500 }}>{text}</span>,
+    },
+    {
+      title: '所属项目',
+      dataIndex: 'project_name',
+      key: 'project_name',
+      render: (text) => text || '-',
+    },
+    {
+      title: '所属企业',
+      dataIndex: 'enterprise_name',
+      key: 'enterprise_name',
+    },
+    {
+      title: '提交人',
+      dataIndex: 'submitter_name',
+      key: 'submitter_name',
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => {
+        const statusMap = {
+          pending: '待审核',
+          approved: '已批准',
+          rejected: '已拒绝',
+          in_progress: '开发中',
+          completed: '已完成',
+          cancelled: '已取消',
+        };
+        const colorMap = {
+          pending: 'default',
+          approved: 'success',
+          rejected: 'error',
+          in_progress: 'processing',
+          completed: 'success',
+          cancelled: 'warning',
+        };
+        return <Tag color={colorMap[status as keyof typeof colorMap]}>{statusMap[status as keyof typeof statusMap] || status}</Tag>;
+      },
+    },
+    {
+      title: '优先级',
+      dataIndex: 'priority',
+      key: 'priority',
+      render: (priority) => {
+        const priorityMap = {
+          low: '低',
+          medium: '中',
+          high: '高',
+          urgent: '紧急',
+        };
+        const colorMap = {
+          low: 'default',
+          medium: 'blue',
+          high: 'orange',
+          urgent: 'red',
+        };
+        return <Tag color={colorMap[priority as keyof typeof colorMap]}>{priorityMap[priority as keyof typeof priorityMap] || priority}</Tag>;
+      },
+    },
+    {
+      title: '评论数',
+      dataIndex: 'comments_count',
+      key: 'comments_count',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (text) => new Date(text).toLocaleString('zh-CN'),
+    },
+    {
+      title: '删除时间',
+      dataIndex: 'deleted_at',
+      key: 'deleted_at',
+      render: (text) => new Date(text).toLocaleString('zh-CN'),
+    },
+    {
+      title: '删除人',
+      dataIndex: 'deleted_by_name',
+      key: 'deleted_by_name',
+      render: (text) => text || '-',
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            onClick={() => handleRestoreRequirement(record.id)}
+          >
+            恢复
+          </Button>
+          <Popconfirm
+            title="确认永久删除"
+            description="此操作不可撤销，确定要永久删除这个需求吗？相关的评论和历史记录也将被删除。"
+            icon={<ExclamationCircleOutlined style={{ color: 'red' }} />}
+            onConfirm={() => handleHardDeleteRequirement(record.id)}
+            okText="确定"
+            cancelText="取消"
+            okType="danger"
+          >
+            <Button
+              type="primary"
+              danger
+              icon={<DeleteOutlined />}
+            >
+              永久删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
   // Load data when tab changes
   useEffect(() => {
     if (activeTab === 'projects') {
@@ -693,6 +902,8 @@ const RecycleBinPage: React.FC = () => {
       loadRecycledDocuments(1);
     } else if (activeTab === 'work-notes') {
       loadRecycledWorkNotes(1);
+    } else if (activeTab === 'requirements') {
+      loadRecycledRequirements(1);
     }
   }, [activeTab]);
 
@@ -777,6 +988,28 @@ const RecycleBinPage: React.FC = () => {
             pageSize: workNotesPageSize,
             total: workNotesTotal,
             onChange: loadRecycledWorkNotes,
+            showSizeChanger: false,
+            showQuickJumper: true,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+          }}
+          scroll={{ x: 'max-content' }}
+        />
+      ),
+    },
+    {
+      key: 'requirements',
+      label: '需求回收站',
+      children: (
+        <Table
+          columns={requirementColumns}
+          dataSource={Array.isArray(recycledRequirements) ? recycledRequirements : []}
+          loading={requirementsLoading}
+          rowKey="id"
+          pagination={{
+            current: requirementsCurrentPage,
+            pageSize: requirementsPageSize,
+            total: requirementsTotal,
+            onChange: loadRecycledRequirements,
             showSizeChanger: false,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,

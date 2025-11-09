@@ -617,7 +617,7 @@ const EnterpriseRoleManagementPage: React.FC = () => {
         onOk={handleRoleSave}
         onCancel={() => setModalVisible(false)}
         width={600}
-        destroyOnHidden
+        destroyOnClose
       >
         <Form
           form={form}
@@ -702,7 +702,7 @@ const EnterpriseRoleManagementPage: React.FC = () => {
         onOk={handlePermissionSave}
         onCancel={() => setPermissionModalVisible(false)}
         width={800}
-        destroyOnHidden
+        destroyOnClose
       >
         <Form form={permissionForm} layout="vertical">
           <Form.Item

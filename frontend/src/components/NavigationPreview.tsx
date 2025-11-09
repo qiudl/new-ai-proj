@@ -339,7 +339,7 @@ const NavigationPreview: React.FC<NavigationPreviewProps> = ({
       width={800}
       open={visible}
       onClose={onClose}
-      destroyOnHidden
+      destroyOnClose
     >
       {loading ? (
         <div style={{ textAlign: 'center', padding: '100px 0' }}>

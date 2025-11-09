@@ -177,6 +177,10 @@ type SystemRepository interface {
 	RestoreWorkNote(ctx context.Context, id int) error
 	HardDeleteWorkNote(ctx context.Context, id int) error
 
+	GetRecycledRequirements(ctx context.Context, limit, offset int) ([]*models.RecycledRequirement, int, error)
+	RestoreRequirement(ctx context.Context, id int) error
+	HardDeleteRequirement(ctx context.Context, id int) error
+
 	// Enhanced audit log operations
 	GetAuditLogsWithFilter(ctx context.Context, filter *models.AuditLogFilter) ([]interface{}, int, error)
 	GetAuditLogByID(ctx context.Context, id int64) (*models.AuditLog, error)

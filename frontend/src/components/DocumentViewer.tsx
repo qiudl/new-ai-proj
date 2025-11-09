@@ -377,7 +377,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
           编辑
         </Button>
       ]}
-      destroyOnHidden
+      destroyOnClose
     >
       <Spin spinning={loading}>
         {docDetail && (

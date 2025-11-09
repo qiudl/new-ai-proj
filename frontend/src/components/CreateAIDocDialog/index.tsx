@@ -333,7 +333,7 @@ const CreateAIDocDialog: React.FC<CreateAIDocDialogProps> = ({
         footer={null}
         width={DIALOG_CONFIG.width}
         maskClosable={false}
-        destroyOnHidden
+        destroyOnClose
       >
         <div style={{ textAlign: 'center', padding: '50px 0' }}>
           <Spin tip="加载任务信息...">
@@ -353,7 +353,7 @@ const CreateAIDocDialog: React.FC<CreateAIDocDialogProps> = ({
       width={DIALOG_CONFIG.width}
       maskClosable={false}
       keyboard={!state.isGenerating && !state.isSaving}
-      destroyOnHidden
+      destroyOnClose
     >
       <div style={{ minHeight: DIALOG_CONFIG.minHeight, position: 'relative' }}>
         {/* 步骤指示器 */}

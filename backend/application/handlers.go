@@ -546,6 +546,33 @@ func (app *Application) HardDeleteWorkNoteHandler() gin.HandlerFunc {
 	}
 }
 
+func (app *Application) GetRecycledRequirementsHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.GetRecycledRequirements
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetRecycledRequirementsHandler not implemented"})
+	}
+}
+
+func (app *Application) RestoreRequirementHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.RestoreRequirement
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "RestoreRequirementHandler not implemented"})
+	}
+}
+
+func (app *Application) HardDeleteRequirementHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.HardDeleteRequirement
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "HardDeleteRequirementHandler not implemented"})
+	}
+}
+
 func (app *Application) EmptyRecycleBinHandler() gin.HandlerFunc {
 	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
 		return app.handlers.RecycleBinHandler.EmptyRecycleBin

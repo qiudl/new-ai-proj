@@ -1474,7 +1474,7 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
           </Space>
         }
         width={800}
-        destroyOnHidden
+        destroyOnClose
       >
         <div style={{ marginBottom: '16px' }}>
           <Button 

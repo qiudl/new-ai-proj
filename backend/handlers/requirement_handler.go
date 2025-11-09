@@ -462,15 +462,15 @@ func (h *RequirementHandler) DeleteRequirement(c *gin.Context) {
 		return
 	}
 
-	// Delete requirement
-	err = h.db.Requirements().Delete(c.Request.Context(), requirementID)
+	// Soft delete requirement
+	err = h.db.Requirements().Delete(c.Request.Context(), requirementID, userID)
 	if err != nil {
 		log.Printf("Error deleting requirement: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "删除需求失败", nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "需求删除成功"))
+	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "需求已移至回收站"))
 }
 
 // UpdateRequirementStatus handles PUT /api/v1/requirements/:id/status

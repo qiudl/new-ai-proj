@@ -574,7 +574,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
         onOk={() => form.submit()}
         confirmLoading={loading}
         width={600}
-        destroyOnHidden
+        destroyOnClose
       >
         <Form
           form={form}

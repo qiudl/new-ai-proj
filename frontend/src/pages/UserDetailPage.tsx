@@ -570,7 +570,7 @@ const UserDetailPage: React.FC = () => {
         onCancel={() => setEditModalVisible(false)}
         footer={null}
         width={600}
-        destroyOnHidden={true}
+        destroyOnClose={true}
         maskClosable={false}
         wrapClassName="user-edit-modal"
       >
@@ -695,7 +695,7 @@ const UserDetailPage: React.FC = () => {
         open={resetPasswordModalVisible}
         onCancel={() => setResetPasswordModalVisible(false)}
         footer={null}
-        destroyOnHidden={true}
+        destroyOnClose={true}
         maskClosable={false}
         wrapClassName="user-reset-password-modal"
       >

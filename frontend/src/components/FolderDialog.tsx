@@ -218,7 +218,7 @@ const FolderDialog: React.FC<FolderDialogProps> = ({
           label="可见性"
           tooltip="控制谁可以看到此文件夹"
         >
-          <Select>
+          <Select getPopupContainer={(trigger) => trigger.parentElement || document.body}>
             <Option value="private">
               <Space>
                 <span>🔒</span>

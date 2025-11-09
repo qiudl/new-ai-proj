@@ -406,7 +406,7 @@ const EnterpriseProjectManager: React.FC<EnterpriseProjectManagerProps> = ({
         }}
         confirmLoading={createLoading}
         width={600}
-        destroyOnHidden={true}
+        destroyOnClose={true}
         centered={true}
         maskClosable={true}
         keyboard={true}
