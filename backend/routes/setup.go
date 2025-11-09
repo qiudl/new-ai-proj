@@ -3,6 +3,7 @@ package routes
 import (
 	"ai-project-backend/config"
 	"ai-project-backend/middleware"
+	"log"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -170,6 +171,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册用户路由
 	RegisterUserRoutes(authorized, app)
 
+	// 注册文件上传路由
+	SetupUploadRoutes(api, log.Default())
+
 	// 注册文档管理路由（包含工作笔记路由）
 	RegisterDocumentRoutes(authorized, app)
 
@@ -207,6 +211,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
 	// 注册企业域路由 (Enterprise Domain - 企业用户使用)
 	RegisterEnterpriseRoutesV2(router, authMiddleware, app)
+
+	// 注册WebSocket协作路由（不使用认证中间件，通过query参数传递token）
+	SetupCollaborationWebSocketRoutes(router, app)
 }
 
 // corsMiddleware CORS中间件

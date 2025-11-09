@@ -6791,6 +6791,72 @@
                 }
             }
         },
+        "/api/v1/requirements/comments/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get statistics for requirement comments (total, active, by type, etc.)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "requirement-comments"
+                ],
+                "summary": "Get comment statistics",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Requirement ID (optional, for single requirement stats)",
+                        "name": "requirement_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.RequirementCommentStats"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/requirements/comments/{id}": {
             "get": {
                 "security": [
@@ -12312,6 +12378,113 @@
                 }
             }
         },
+        "/api/v1/upload/image": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "上传图片文件，支持富文本编辑器图片上传",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "文件上传"
+                ],
+                "summary": "上传图片",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "图片文件",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "上传成功，返回图片URL",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "无效的请求",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "文件过大",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/uploads/images/{filename}": {
+            "get": {
+                "description": "通过文件名获取上传的图片",
+                "produces": [
+                    "image/jpeg",
+                    "image/png",
+                    "image/gif",
+                    "image/webp",
+                    "image/svg+xml"
+                ],
+                "tags": [
+                    "文件上传"
+                ],
+                "summary": "获取上传的图片",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "文件名",
+                        "name": "filename",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "图片文件",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "文件不存在",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/{id}/enterprise": {
             "put": {
                 "description": "超级管理员可以修改任何用户的企业归属，企业管理员只能管理本企业用户",
@@ -14231,6 +14404,32 @@
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/ws/collaboration/{document_id}": {
+            "get": {
+                "description": "建立WebSocket连接进行实时协作编辑",
+                "tags": [
+                    "Collaboration"
+                ],
+                "summary": "实时协作WebSocket连接",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "文档ID",
+                        "name": "document_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -17104,6 +17303,44 @@
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "models.RequirementCommentStats": {
+            "type": "object",
+            "properties": {
+                "active_comments": {
+                    "type": "integer"
+                },
+                "by_comment_type": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "deleted_comments": {
+                    "type": "integer"
+                },
+                "internal_comments": {
+                    "type": "integer"
+                },
+                "pinned_comments": {
+                    "type": "integer"
+                },
+                "reply_comments": {
+                    "type": "integer"
+                },
+                "this_weeks_comments": {
+                    "type": "integer"
+                },
+                "todays_comments": {
+                    "type": "integer"
+                },
+                "top_level_comments": {
+                    "type": "integer"
+                },
+                "total_comments": {
+                    "type": "integer"
                 }
             }
         },

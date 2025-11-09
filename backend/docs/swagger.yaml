@@ -1950,6 +1950,31 @@ definitions:
       username:
         type: string
     type: object
+  models.RequirementCommentStats:
+    properties:
+      active_comments:
+        type: integer
+      by_comment_type:
+        additionalProperties:
+          type: integer
+        type: object
+      deleted_comments:
+        type: integer
+      internal_comments:
+        type: integer
+      pinned_comments:
+        type: integer
+      reply_comments:
+        type: integer
+      this_weeks_comments:
+        type: integer
+      todays_comments:
+        type: integer
+      top_level_comments:
+        type: integer
+      total_comments:
+        type: integer
+    type: object
   models.RequirementListResponse:
     properties:
       data:
@@ -9317,6 +9342,46 @@ paths:
       summary: Get comments mentioning user
       tags:
       - requirement-comments
+  /api/v1/requirements/comments/stats:
+    get:
+      consumes:
+      - application/json
+      description: Get statistics for requirement comments (total, active, by type,
+        etc.)
+      parameters:
+      - description: Requirement ID (optional, for single requirement stats)
+        in: query
+        name: requirement_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementCommentStats'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get comment statistics
+      tags:
+      - requirement-comments
   /api/v1/requirements/stats:
     get:
       consumes:
@@ -11958,6 +12023,74 @@ paths:
       summary: 批量生成任务描述
       tags:
       - AI
+  /api/v1/upload/image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传图片文件，支持富文本编辑器图片上传
+      parameters:
+      - description: 图片文件
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上传成功，返回图片URL
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+        "400":
+          description: 无效的请求
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "413":
+          description: 文件过大
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 上传图片
+      tags:
+      - 文件上传
+  /api/v1/uploads/images/{filename}:
+    get:
+      description: 通过文件名获取上传的图片
+      parameters:
+      - description: 文件名
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - image/jpeg
+      - image/png
+      - image/gif
+      - image/webp
+      - image/svg+xml
+      responses:
+        "200":
+          description: 图片文件
+          schema:
+            type: file
+        "404":
+          description: 文件不存在
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      summary: 获取上传的图片
+      tags:
+      - 文件上传
   /api/v1/users/{id}/enterprise:
     put:
       consumes:
@@ -13218,6 +13351,23 @@ paths:
       summary: 从企业移除用户
       tags:
       - System - Enterprise Management
+  /ws/collaboration/{document_id}:
+    get:
+      description: 建立WebSocket连接进行实时协作编辑
+      parameters:
+      - description: 文档ID
+        in: path
+        name: document_id
+        required: true
+        type: integer
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+      summary: 实时协作WebSocket连接
+      tags:
+      - Collaboration
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

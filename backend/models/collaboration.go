@@ -1,7 +1,11 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // ====================
@@ -145,3 +149,153 @@ type UserCollaborationDashboard struct {
 
 // Note: Document and DocumentRelation models are defined in other files
 // This file only contains collaboration-specific models
+
+// ============================================================================
+// Yjs实时协作编辑系统模型 (2025-11-08)
+// ============================================================================
+
+// CollaborationDocument 协作文档表 - 存储Yjs CRDT文档状态
+type CollaborationDocument struct {
+	ID             int            `gorm:"primaryKey;autoIncrement" json:"id"`
+	RequirementID  int            `gorm:"not null;index" json:"requirement_id"`
+	FieldName      string         `gorm:"type:varchar(50);not null;index" json:"field_name"`
+	YjsDocument    []byte         `gorm:"type:bytea" json:"yjs_document,omitempty"`
+	StateVector    []byte         `gorm:"type:bytea" json:"state_vector,omitempty"`
+	Version        int            `gorm:"default:0" json:"version"`
+	LastModifiedBy *int           `json:"last_modified_by,omitempty"`
+	LastModifiedAt time.Time      `json:"last_modified_at"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+
+	// 关联
+	Updates  []CollaborationUpdate  `gorm:"foreignKey:DocumentID" json:"updates,omitempty"`
+	Sessions []CollaborationSession2 `gorm:"foreignKey:DocumentID" json:"sessions,omitempty"`
+}
+
+// TableName 指定表名
+func (CollaborationDocument) TableName() string {
+	return "collaboration_documents"
+}
+
+// CollaborationUpdate 协作更新表 - 存储Yjs增量更新历史
+type CollaborationUpdate struct {
+	ID         int64          `gorm:"primaryKey;autoIncrement" json:"id"`
+	DocumentID int            `gorm:"not null;index" json:"document_id"`
+	UpdateData []byte         `gorm:"type:bytea;not null" json:"update_data,omitempty"`
+	UserID     *int           `gorm:"index" json:"user_id,omitempty"`
+	Timestamp  time.Time      `gorm:"index" json:"timestamp"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+
+	// 关联
+	Document *CollaborationDocument `gorm:"foreignKey:DocumentID" json:"document,omitempty"`
+}
+
+// TableName 指定表名
+func (CollaborationUpdate) TableName() string {
+	return "collaboration_updates"
+}
+
+// BeforeCreate GORM钩子 - 设置时间戳
+func (u *CollaborationUpdate) BeforeCreate(tx *gorm.DB) error {
+	if u.Timestamp.IsZero() {
+		u.Timestamp = time.Now()
+	}
+	return nil
+}
+
+// CursorPosition 光标位置（JSON存储）
+type CursorPosition struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
+// Value 实现 driver.Valuer 接口
+func (c CursorPosition) Value() (driver.Value, error) {
+	return json.Marshal(c)
+}
+
+// Scan 实现 sql.Scanner 接口
+func (c *CursorPosition) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return nil
+	}
+	return json.Unmarshal(bytes, c)
+}
+
+// SelectionRange 选中范围（JSON存储）
+type SelectionRange struct {
+	Start int `json:"start"`
+	End   int `json:"end"`
+}
+
+// Value 实现 driver.Valuer 接口
+func (s SelectionRange) Value() (driver.Value, error) {
+	return json.Marshal(s)
+}
+
+// Scan 实现 sql.Scanner 接口
+func (s *SelectionRange) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return nil
+	}
+	return json.Unmarshal(bytes, s)
+}
+
+// CollaborationSession2 协作会话表 - Yjs协作会话（重命名避免与旧模型冲突）
+type CollaborationSession2 struct {
+	ID             int64           `gorm:"primaryKey;autoIncrement" json:"id"`
+	DocumentID     int             `gorm:"not null;index" json:"document_id"`
+	UserID         int             `gorm:"not null;index" json:"user_id"`
+	SessionID      string          `gorm:"type:varchar(100);not null" json:"session_id"`
+	UserName       string          `gorm:"type:varchar(255)" json:"user_name"`
+	UserColor      string          `gorm:"type:varchar(20)" json:"user_color"`
+	CursorPosition *CursorPosition `gorm:"type:jsonb" json:"cursor_position,omitempty"`
+	SelectionRange *SelectionRange `gorm:"type:jsonb" json:"selection_range,omitempty"`
+	IsActive       bool            `gorm:"default:true;index" json:"is_active"`
+	LastHeartbeat  time.Time       `gorm:"index" json:"last_heartbeat"`
+	JoinedAt       time.Time       `json:"joined_at"`
+	LeftAt         *time.Time      `json:"left_at,omitempty"`
+	DeletedAt      gorm.DeletedAt  `gorm:"index" json:"deleted_at,omitempty"`
+
+	// 关联
+	Document *CollaborationDocument `gorm:"foreignKey:DocumentID" json:"document,omitempty"`
+}
+
+// TableName 指定表名
+func (CollaborationSession2) TableName() string {
+	return "collaboration_sessions"
+}
+
+// BeforeCreate GORM钩子 - 设置默认值
+func (s *CollaborationSession2) BeforeCreate(tx *gorm.DB) error {
+	if s.JoinedAt.IsZero() {
+		s.JoinedAt = time.Now()
+	}
+	if s.LastHeartbeat.IsZero() {
+		s.LastHeartbeat = time.Now()
+	}
+	return nil
+}
+
+// UpdateHeartbeat 更新心跳时间
+func (s *CollaborationSession2) UpdateHeartbeat(db *gorm.DB) error {
+	return db.Model(s).Update("last_heartbeat", time.Now()).Error
+}
+
+// MarkInactive 标记会话为不活跃
+func (s *CollaborationSession2) MarkInactive(db *gorm.DB) error {
+	now := time.Now()
+	return db.Model(s).Updates(map[string]interface{}{
+		"is_active": false,
+		"left_at":   now,
+	}).Error
+}
