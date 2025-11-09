@@ -4,17 +4,17 @@ import {
   Card,
   Row,
   Col,
-  Tabs,
+  // Tabs, // ✅ FIXED - Removed unused import (ESLint)
   Button,
   Space,
   Typography,
   Divider,
-  Badge,
+  // Badge, // ✅ FIXED - Removed unused import (ESLint)
   Tooltip,
   Dropdown,
-  Menu,
-  Upload,
-  Progress,
+  // Menu, // ✅ FIXED - Removed unused import (ESLint)
+  // Upload, // ✅ FIXED - Removed unused import (ESLint)
+  // Progress, // ✅ FIXED - Removed unused import (ESLint)
   List,
   Empty,
   Tag,
@@ -26,15 +26,15 @@ import {
   Descriptions,
   Popconfirm
 } from 'antd';
-import type { MenuProps, TabsProps } from 'antd';
+import type { MenuProps/* , TabsProps */ } from 'antd'; // ✅ FIXED - Removed unused type (ESLint)
 import {
   FileTextOutlined,
   EditOutlined,
   EyeOutlined,
-  SettingOutlined,
+  // SettingOutlined, // ✅ FIXED - Removed unused import (ESLint)
   BarChartOutlined,
   SaveOutlined,
-  CloudUploadOutlined,
+  // CloudUploadOutlined, // ✅ FIXED - Removed unused import (ESLint)
   DownloadOutlined,
   SyncOutlined,
   PlusOutlined,
@@ -44,7 +44,7 @@ import {
   CopyOutlined,
   ShareAltOutlined,
   HistoryOutlined,
-  LinkOutlined,
+  // LinkOutlined, // ✅ FIXED - Removed unused import (ESLint)
   ArrowsAltOutlined,
   ShrinkOutlined,
   LeftOutlined,
@@ -308,7 +308,7 @@ const DocumentListItem: React.FC<{
 const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.memo(({
   projectId,
   taskId,
-  height = 'auto',
+  height: _height = 'auto', // ✅ FIXED - Added underscore to unused prop (ESLint)
   className = '',
   style = {},
   defaultViewMode = 'edit',
@@ -327,9 +327,9 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<DocumentItem | null>(null);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [/* uploading */, setUploading] = useState(false); // ✅ FIXED - Commented unused variable (ESLint)
   const [managerVisible, setManagerVisible] = useState(false);
-  const [searchInputRef, setSearchInputRef] = useState<HTMLInputElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null); // ✅ FIXED - Use useRef instead of useState
   const [newDocumentModalVisible, setNewDocumentModalVisible] = useState(false);
   const [newDocumentForm, setNewDocumentForm] = useState({ title: '', type: 'markdown', description: '' });
   const [documentListView, setDocumentListView] = useState<'grouped' | 'list' | 'timeline' | 'grid'>('grouped');
@@ -379,14 +379,15 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   }, [isInfoPanelExpanded]);
 
   // 快速过滤：全部 / 仅本任务 / 仅子任务
-  const [filterMode, setFilterMode] = useState<'all' | 'root' | 'desc'>('all');
+  const [filterMode /* , setFilterMode */] = useState<'all' | 'root' | 'desc'>('all'); // ✅ FIXED - Keep filterMode as it's used
 
   // 防止重复加载的引用
   const loadingRef = useRef(false);
 
   // 文档缓存 - 简单的Map缓存
-  const documentCache = useRef(new Map<string, DocumentItem[]>());
-  const CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存
+  // ✅ FIXED - Commented unused variables (ESLint)
+  /* const documentCache = useRef(new Map<string, DocumentItem[]>());
+  const CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存 */
 
   // 跟踪上一次的taskId，用于检测任务切换
   const previousTaskIdRef = useRef<number | null>(null);
@@ -781,8 +782,8 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
       message.info(`切换到${nextMode === 'edit' ? '编辑' : nextMode === 'preview' ? '预览' : nextMode === 'manage' ? '管理' : '统计'}模式`);
     },
     focusSearch: () => {
-      if (searchInputRef) {
-        searchInputRef.focus();
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
         message.info('聚焦搜索框');
       }
     },
@@ -872,7 +873,8 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = React.me
   const shortcutGroups = useMemo(() => createDocumentShortcuts(shortcutCallbacks), [shortcutCallbacks]);
   
   // 注册快捷键
-const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroups);
+  // ✅ FIXED - Commented unused destructured variables (ESLint)
+  const { /* showShortcutHelp, registeredCount */ } = useKeyboardShortcuts(shortcutGroups);
 
   // 配置拖拽功能
   const dragDropConfig = useMemo(() => ({
@@ -881,7 +883,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     acceptedFileTypes: ['.pdf', '.md', '.txt', '.docx', '.xlsx', '.pptx', '.png', '.jpg', '.jpeg', '.svg', '.gif', '.bmp', '.webp'],
     maxFileSize: 50 * 1024 * 1024, // 50MB
     maxFiles: 10,
-    onFilesDrop: async (files: FileList, dropZone?: string) => {
+    onFilesDrop: async (files: FileList, _dropZone?: string) => { // ✅ FIXED - Added underscore to unused param (ESLint)
       setUploading(true);
       try {
         // 批量上传文件到 TaskDocumentHandler
@@ -907,7 +909,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         setUploading(false);
       }
     },
-    onItemDrop: (draggedItem: DocumentItem, targetItem: DocumentItem, dropZone: string) => {
+    onItemDrop: (draggedItem: DocumentItem, targetItem: DocumentItem, _dropZone: string) => { // ✅ FIXED - Added underscore to unused param (ESLint)
       // 重新排序文档列表
       setDocuments(prev => {
         const draggedIndex = prev.findIndex(doc => doc.id === draggedItem.id);
@@ -923,14 +925,15 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         return newDocs;
       });
     },
-    onItemReorder: (items: DocumentItem[], fromIndex: number, toIndex: number) => {
+    onItemReorder: (items: DocumentItem[], _fromIndex: number, _toIndex: number) => { // ✅ FIXED - Added underscores to unused params (ESLint)
       setDocuments(items);
       message.success('文档顺序已更新');
     }
   }), [loadDocuments]);
 
   // 初始化拖拽功能
-  const { dragState, createDropZoneProps, createDraggableProps, isDragActive } = useDragAndDrop(dragDropConfig);
+  // ✅ FIXED - Commented unused destructured variables (ESLint)
+  const { /* dragState, createDropZoneProps, createDraggableProps, isDragActive */ } = useDragAndDrop(dragDropConfig);
 
   // 防抖的文档加载函数
   const debouncedLoadDocuments = useCallback(() => {
@@ -999,8 +1002,8 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     }
   }, [isFullscreen]);
 
-  // 文档选择 - 优化避免重复更新
-  const handleDocumentSelect = useCallback((doc: DocumentItem) => {
+  // ✅ FIXED - Commented unused function (ESLint)
+  /* const handleDocumentSelect = useCallback((doc: DocumentItem) => {
     if (selectedDocument?.id === doc.id) {
       return; // 避免重复选择
     }
@@ -1011,10 +1014,10 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
       if (!hasChange) return prev; // 避免不必要的状态更新
       return prev.map(d => ({ ...d, selected: d.id === doc.id }));
     });
-  }, [selectedDocument?.id]);
+  }, [selectedDocument?.id]); */
 
-  // 文档上传 - 使用专门的任务文档上传接口
-  const handleFileUpload = useCallback(async (file: File) => {
+  // ✅ FIXED - Commented unused function (ESLint)
+  /* const handleFileUpload = useCallback(async (file: File) => {
     setUploading(true);
     try {
       // 使用 documentService.uploadTaskDocument 连接到后端 TaskDocumentHandler
@@ -1039,7 +1042,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     } finally {
       setUploading(false);
     }
-  }, [taskId, projectId, loadDocuments]);
+  }, [taskId, projectId, loadDocuments]); */
 
   // 文档操作
   const handleDocumentEdit = useCallback((doc: DocumentItem) => {
@@ -1745,7 +1748,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                       ? 'markdown'
                       : selectedDocument.type) as any
                   }}
-                  onSave={(content) => {
+                  onSave={(_content) => { // ✅ FIXED - Added underscore to unused param (ESLint)
                     loadDocuments(true); // 强制从API重新加载最新数据
                     if (onSaveDocument) {
                       onSaveDocument();

@@ -9,36 +9,36 @@ import {
   Select,
   Tag,
   Modal,
-  Upload,
+  // Upload, // ✅ FIXED - Removed unused import (ESLint)
   message,
   Tooltip,
-  Popconfirm,
-  Badge,
-  Tabs,
+  // Popconfirm, // ✅ FIXED - Removed unused import (ESLint)
+  // Badge, // ✅ FIXED - Removed unused import (ESLint)
+  // Tabs, // ✅ FIXED - Removed unused import (ESLint)
   Row,
   Col,
   Statistic,
-  Drawer,
-  List,
-  Avatar,
+  // Drawer, // ✅ FIXED - Removed unused import (ESLint)
+  // List, // ✅ FIXED - Removed unused import (ESLint)
+  // Avatar, // ✅ FIXED - Removed unused import (ESLint)
   Dropdown,
-  Progress,
+  // Progress, // ✅ FIXED - Removed unused import (ESLint)
   Alert,
-  Spin,
-  Empty
+  // Spin, // ✅ FIXED - Removed unused import (ESLint)
+  // Empty // ✅ FIXED - Removed unused import (ESLint)
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { MenuProps } from 'antd';
+// import type { MenuProps } from 'antd'; // ✅ FIXED - Removed unused type import (ESLint)
 import {
   FileTextOutlined,
-  CloudUploadOutlined,
+  // CloudUploadOutlined, // ✅ FIXED - Removed unused import (ESLint)
   DownloadOutlined,
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
-  SearchOutlined,
-  FilterOutlined,
-  PlusOutlined,
+  // SearchOutlined, // ✅ FIXED - Removed unused import (ESLint)
+  // FilterOutlined, // ✅ FIXED - Removed unused import (ESLint)
+  // PlusOutlined, // ✅ FIXED - Removed unused import (ESLint)
   ReloadOutlined,
   FileMarkdownOutlined,
   FilePdfOutlined,
@@ -49,13 +49,13 @@ import {
   StarOutlined,
   StarFilled,
   MoreOutlined,
-  FolderOutlined,
-  TagOutlined,
-  UserOutlined,
+  // FolderOutlined, // ✅ FIXED - Removed unused import (ESLint)
+  // TagOutlined, // ✅ FIXED - Removed unused import (ESLint)
+  // UserOutlined, // ✅ FIXED - Removed unused import (ESLint)
   ClockCircleOutlined,
   ExportOutlined,
-  ImportOutlined,
-  SyncOutlined
+  // ImportOutlined, // ✅ FIXED - Removed unused import (ESLint)
+  // SyncOutlined // ✅ FIXED - Removed unused import (ESLint)
 } from '@ant-design/icons';
 import { documentService } from '../../services/unifiedDocumentService';
 import { Document, DocumentFilter } from '../../types/document';
@@ -116,8 +116,8 @@ const EnhancedDocumentInterface: React.FC<EnhancedDocumentInterfaceProps> = memo
   taskId,
   mode = 'standalone',
   title = '文档管理',
-  showProjectFilter = true,
-  showTaskFilter = true,
+  showProjectFilter: _showProjectFilter = true, // ✅ FIXED - Added underscore to unused prop (ESLint)
+  showTaskFilter: _showTaskFilter = true, // ✅ FIXED - Added underscore to unused prop (ESLint)
   allowBulkOperations = true,
   height = 'auto',
   onDocumentSelect,

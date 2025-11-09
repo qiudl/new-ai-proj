@@ -1,10 +1,4 @@
-import React, { useMemo, useCallback, useRef, useEffect } from 'react';
-
-// React import for lazy loading
-import React from 'react';
-
-// Add useState import
-import { useState } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 
 /**
  * 性能优化工具集

@@ -9,8 +9,8 @@ import {
   message,
   notification,
   Skeleton,
-  Popconfirm,
-  Tag,
+  // Popconfirm, // ✅ FIXED - Removed unused import (ESLint)
+  // Tag, // ✅ FIXED - Removed unused import (ESLint)
   Space,
   Tooltip,
   Card,
@@ -19,9 +19,9 @@ import {
   Row,
   Col,
   Badge,
-  Checkbox,
+  // Checkbox, // ✅ FIXED - Removed unused import (ESLint)
   Dropdown,
-  Divider,
+  // Divider, // ✅ FIXED - Removed unused import (ESLint)
   FloatButton
 } from 'antd';
 import TreeSelect from 'antd/es/tree-select';
@@ -31,16 +31,16 @@ import {
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
-  SearchOutlined,
-  FileMarkdownOutlined,
-  FilterOutlined,
+  // SearchOutlined, // ✅ FIXED - Removed unused import (ESLint)
+  // FileMarkdownOutlined, // ✅ FIXED - Removed unused import (ESLint)
+  // FilterOutlined, // ✅ FIXED - Removed unused import (ESLint)
   SwapOutlined,
   CheckOutlined,
   CloseOutlined,
   DownOutlined,
   CopyOutlined,
   BookOutlined,
-  StarOutlined,
+  // StarOutlined, // ✅ FIXED - Removed unused import (ESLint)
   InboxOutlined,
   UndoOutlined,
   LockOutlined,
@@ -53,11 +53,11 @@ import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteReques
 import WorkNoteConversionModal from './conversion/WorkNoteConversionModal';
 import ModernWorkNoteViewer from './ModernWorkNoteViewer';
 import TaskAssociationManager from './TaskAssociationManager';
-import { WORK_NOTE_TYPES, WORK_NOTE_PRIORITIES, getWorkNoteTypeConfig, getWorkNotePriorityConfig } from '../constants/workNoteTypes';
+import { WORK_NOTE_TYPES, /* WORK_NOTE_PRIORITIES, */ getWorkNoteTypeConfig/* , getWorkNotePriorityConfig */ } from '../constants/workNoteTypes'; // ✅ FIXED - Removed unused imports (ESLint)
 import WorkNotesStatsCards from './WorkNotesStatsCards';
 import WorkNotesLayout from './WorkNotesLayout';
 import WorkNotesFilterBar from './WorkNotesFilterBar';
-import WorkNoteFolderTree from './WorkNoteFolderTree';
+// import WorkNoteFolderTree from './WorkNoteFolderTree'; // ✅ FIXED - Removed unused import (ESLint)
 import WorkNoteThreeTreesView from './WorkNoteThreeTreesView';
 import FolderBreadcrumb from './FolderBreadcrumb';
 import FolderDetailDrawer from './FolderDetailDrawer';
@@ -65,15 +65,15 @@ import { FolderDialog, DeleteFolderDialog, MoveFolderDialog, FolderFormValues } 
 import {
   deletionManager,
   getCurrentUserInfo,
-  showUndoNotification,
+  // showUndoNotification, // ✅ FIXED - Removed unused import (ESLint)
   parseErrorMessage
 } from '../utils/deletionManager';
 import { workNotesStorage } from '../utils/workNotesStorage';
 import { useWorkNotePermissions } from '../hooks/useWorkNotePermissions';
 import dayjs from 'dayjs';
 
-const { Title, Text } = Typography;
-const { Search } = Input;
+const { /* Title, */ Text } = Typography; // ✅ FIXED - Removed unused Title (ESLint)
+// const { Search } = Input; // ✅ FIXED - Removed unused Search (ESLint)
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -103,7 +103,8 @@ interface WorkNotesStats {
 }
 
 // 分类统计接口
-interface CategoryStats {
+// ✅ FIXED - Commented unused interface (ESLint)
+/* interface CategoryStats {
   categories: {
     [key: string]: {
       count: number;
@@ -125,7 +126,7 @@ interface CategoryStats {
     thisMonth: number;
     earlier: number;
   };
-}
+} */
 
 interface WorkNotesManagerProps {
   selectedFolderId?: number | null;
@@ -142,8 +143,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   // 权限检查
   const {
     canEditNote,
-    canDeleteNote,
-    currentUser
+    canDeleteNote
+    // currentUser // ✅ FIXED - Removed unused variable (ESLint)
   } = useWorkNotePermissions();
 
   // 基础状态
@@ -162,7 +163,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [currentTreeType, setCurrentTreeType] = useState<TreeType>('private');
 
   // 默认使用三棵树视图（已移除传统视图）
-  const useThreeTreesView = true;
+  // const useThreeTreesView = true; // ✅ FIXED - Removed unused variable (ESLint)
 
   // 文件夹操作对话框状态
   const [folderDialogVisible, setFolderDialogVisible] = useState(false);
@@ -245,7 +246,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   };
 
   // 通过ID搜索工作笔记
-  const searchById = async (id: number): Promise<WorkNote[]> => {
+  // ✅ FIXED - Commented unused function (ESLint)
+  /* const searchById = async (id: number): Promise<WorkNote[]> => {
     try {
       const workNote = await workNotesService.getWorkNote(id);
       return [workNote];
@@ -253,7 +255,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       console.warn(`Work note with ID ${id} not found:`, error);
       return [];
     }
-  };
+  }; */
 
   // 同步 ref 和 state（必须在所有useState/useRef之后，其他useEffect之前）
   useEffect(() => {
@@ -549,7 +551,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     }
   }, [editingFolder, loadFolders]);
 
-  const handleDeleteFolderConfirm = useCallback(async (force: boolean) => {
+  const handleDeleteFolderConfirm = useCallback(async (_force: boolean) => { // ✅ FIXED - Added underscore to unused param (ESLint)
     if (!deletingFolder) return;
     try {
       await workNotesService.deleteFolder(deletingFolder.id);
@@ -734,7 +736,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   };
 
   // 删除工作笔记 - 增强版本（带撤销和日志）
-  const handleDelete = async (id: number) => {
+  // ✅ FIXED - Commented unused function (ESLint)
+  /* const handleDelete = async (id: number) => {
     const note = workNotes.find(n => n.id === id);
     if (!note) {
       message.error('找不到要删除的笔记');
@@ -844,10 +847,11 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         deletionManager.removeFromQueue(id);
       }
     }, 5000);
-  };
+  }; */
 
   // 复制工作笔记
-  const handleCopy = async (id: number) => {
+  // ✅ FIXED - Commented unused function (ESLint)
+  /* const handleCopy = async (id: number) => {
     try {
       await workNotesService.copyWorkNote(id);
       message.success('工作笔记复制成功');
@@ -856,10 +860,11 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       console.error('Failed to copy work note:', error);
       message.error('复制失败');
     }
-  };
+  }; */
 
   // 切换模板状态
-  const handleToggleTemplate = async (id: number) => {
+  // ✅ FIXED - Commented unused function (ESLint)
+  /* const handleToggleTemplate = async (id: number) => {
     try {
       await workNotesService.toggleTemplate(id);
       message.success('模板状态更新成功');
@@ -868,10 +873,11 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       console.error('Failed to toggle template:', error);
       message.error('更新失败');
     }
-  };
+  }; */
 
   // 切换收藏状态
-  const handleToggleBookmark = async (workNote: WorkNote) => {
+  // ✅ FIXED - Commented unused function (ESLint)
+  /* const handleToggleBookmark = async (workNote: WorkNote) => {
     try {
       const newBookmarkStatus = !workNote.is_bookmarked;
       await workNotesService.updateWorkNote(workNote.id, {
@@ -883,10 +889,11 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       console.error('Failed to toggle bookmark:', error);
       message.error('操作失败');
     }
-  };
+  }; */
 
   // 切换置顶状态
-  const handleTogglePin = async (workNote: WorkNote) => {
+  // ✅ FIXED - Commented unused function (ESLint)
+  /* const handleTogglePin = async (workNote: WorkNote) => {
     try {
       const newPinStatus = !workNote.is_pinned;
       await workNotesService.updateWorkNote(workNote.id, {
@@ -898,7 +905,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       console.error('Failed to toggle pin:', error);
       message.error('操作失败');
     }
-  };
+  }; */
 
   // 查看工作笔记
   const handleView = (workNote: WorkNote) => {
@@ -936,7 +943,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   };
 
   // 转换成功回调
-  const handleConversionSuccess = (result: any) => {
+  const handleConversionSuccess = (_result: any) => { // ✅ FIXED - Added underscore to unused param (ESLint)
     message.success('转换成功！任务文档已创建');
     setConversionModalVisible(false);
     loadWorkNotes();
@@ -1287,7 +1294,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     onChange: (selectedKeys: React.Key[]) => {
       setSelectedRowKeys(selectedKeys);
     },
-    onSelectAll: (selected: boolean, selectedRows: WorkNoteWithTask[], changeRows: WorkNoteWithTask[]) => {
+    onSelectAll: (selected: boolean, _selectedRows: WorkNoteWithTask[], _changeRows: WorkNoteWithTask[]) => { // ✅ FIXED - Added underscores to unused params (ESLint)
       if (selected) {
         const allKeys = filteredNotes.map(note => note.id);
         setSelectedRowKeys(allKeys);
@@ -1430,7 +1437,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   }, [searchKeyword]);
 
   const isMobile = windowSize.width < 768;
-  const isTablet = windowSize.width < 1024;
+  // const isTablet = windowSize.width < 1024; // ✅ FIXED - Removed unused variable (ESLint)
   
   // 使用 useMemo 优化表格列定义
   const columns: ColumnsType<WorkNoteWithTask> = useMemo(() => [
@@ -1635,7 +1642,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       width: 120,
       align: 'left' as const,
       responsive: ['lg'],
-      render: (folder_id: number | null | undefined, record: WorkNoteWithTask) => {
+      render: (folder_id: number | null | undefined, _record: WorkNoteWithTask) => { // ✅ FIXED - Added underscore to unused param (ESLint)
         if (!folder_id) {
           return <Text type="secondary" style={{ fontSize: 12 }}>未分类</Text>;
         }
@@ -1692,11 +1699,12 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           creatorId: record.created_by || 0,
           visibility: record.visibility as 'private' | 'team' | 'public'
         });
-        const hasDeletePermission = canDeleteNote({
+        // ✅ FIXED - Commented unused variable (ESLint)
+        /* const hasDeletePermission = canDeleteNote({
           id: record.id,
           creatorId: record.created_by || 0,
           visibility: record.visibility as 'private' | 'team' | 'public'
-        });
+        }); */
 
         return (
           <Space size={isMobile ? 2 : 4}>

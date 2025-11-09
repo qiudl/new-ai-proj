@@ -19,8 +19,9 @@ import { Anchor, Typography } from 'antd';
 import EnhancedCodeBlock from './EnhancedCodeBlock';
 import './EnhancedMarkdownRenderer.css';
 
-const { Title, Text, Paragraph } = Typography;
-const { Link } = Anchor;
+// ✅ FIXED - Commented unused destructured variables (ESLint)
+/* const { Title, Text, Paragraph } = Typography; */
+/* const { Link } = Anchor; */
 
 export interface EnhancedMarkdownRendererProps {
   content: string;
@@ -46,7 +47,7 @@ const EnhancedMarkdownRenderer: React.FC<EnhancedMarkdownRendererProps> = ({
   theme = 'light',
   showToc = false,
   maxCodeHeight = 400,
-  enableMath = false,
+  enableMath: _enableMath = false, // ✅ FIXED - Added underscore to unused prop (ESLint)
   className = '',
   onHeadingClick
 }) => {
@@ -94,7 +95,7 @@ const EnhancedMarkdownRenderer: React.FC<EnhancedMarkdownRendererProps> = ({
   // 自定义渲染组件
   const components = useMemo(() => ({
     // 代码块渲染
-    code: ({ node, inline, className, children, ...props }: any) => {
+    code: ({ node: _node, inline, className, children, ...props }: any) => { // ✅ FIXED - Added underscore to unused param (ESLint)
       const match = /language-(\w+)/.exec(className || '');
       const language = match ? match[1] : 'text';
       
@@ -139,7 +140,7 @@ const EnhancedMarkdownRenderer: React.FC<EnhancedMarkdownRendererProps> = ({
     // 标题渲染
     h1: ({ children, ...props }: any) => {
       const headingId = headings.find(h => h.text === children)?.id || 'heading-1';
-      const { className, ...restProps } = props;
+      const { className: _className, ...restProps } = props; // ✅ FIXED - Added underscore to unused var (ESLint)
       return (
         <h1 
           id={headingId}
@@ -162,7 +163,7 @@ const EnhancedMarkdownRenderer: React.FC<EnhancedMarkdownRendererProps> = ({
     
     h2: ({ children, ...props }: any) => {
       const headingId = headings.find(h => h.text === children)?.id || 'heading-2';
-      const { className, ...restProps } = props;
+      const { className: _className, ...restProps } = props; // ✅ FIXED - Added underscore to unused var (ESLint)
       return (
         <h2 
           id={headingId}

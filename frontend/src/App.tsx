@@ -122,6 +122,7 @@ const EnhancedTaskHeaderCardDemo = React.lazy(() => import('./pages/TaskDetail/d
 const TaskDetailComponentsDemo = React.lazy(() => import('./pages/TaskDetail/demo/TaskDetailComponentsDemo'));
 const TodayTasksDashboard = React.lazy(() => import('./pages/TodayTasksDashboard'));
 const TodayTasksDetailPage = React.lazy(() => import('./pages/TodayTasksDetailPage'));
+const CollaborationTestPage = React.lazy(() => import('./pages/CollaborationTestPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -222,6 +223,11 @@ const AppContent: React.FC = () => {
                   <PermissionRoute permissions={[TASK_PERMISSIONS.DETAIL_READ, TASK_PERMISSIONS.READ]}>
                     <TodayTasksDetailPage />
                   </PermissionRoute>
+                } />
+
+                {/* 协作编辑测试页面 */}
+                <Route path="/collaboration-test" element={
+                  <CollaborationTestPage />
                 } />
 
                 <Route path="/projects" element={
