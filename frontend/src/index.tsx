@@ -16,8 +16,8 @@ if (process.env.NODE_ENV === 'development') {
   import('./utils/consoleFilter');
 }
 
-// Import chunk loading error handler
-import('./utils/chunkErrorHandler');
+// Import chunk loading error handler (must be static import to avoid circular dependency)
+import './utils/chunkErrorHandler';
 
 // Import unified modal fix utility - 暂时禁用
 // import { initUnifiedModalFix } from './utils/unifiedModalFix';

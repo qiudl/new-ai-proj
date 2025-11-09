@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, Button, message } from 'antd';
 import { Project, ProjectRequest } from '../types/project';
+import { useModalConfig } from '../hooks/useModalConfig';
 
 interface ProjectModalProps {
   visible: boolean;
@@ -51,8 +52,11 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     }
   };
 
+  const modalConfig = useModalConfig({ width: 600 });
+
   return (
     <Modal
+      {...modalConfig}
       title={project ? '编辑项目' : '创建项目'}
       open={visible}
       onCancel={onCancel}

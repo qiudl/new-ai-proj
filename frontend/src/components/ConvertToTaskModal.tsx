@@ -25,7 +25,7 @@ import { Requirement, ConvertToTaskRequest } from '../types/requirement';
 import { Project } from '../types/project';
 import { projectService } from '../services/projectService';
 import dayjs, { Dayjs } from 'dayjs';
-import { useResponsive, getResponsiveModalWidth } from '../hooks/useResponsive';
+import { useModalConfig } from '../hooks/useModalConfig';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -51,7 +51,7 @@ const ConvertToTaskModal: React.FC<ConvertToTaskModalProps> = ({
   onSubmit,
 }) => {
   const [form] = Form.useForm();
-  const responsive = useResponsive();
+  const modalConfig = useModalConfig({ width: 650 });
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
 
@@ -132,6 +132,7 @@ const ConvertToTaskModal: React.FC<ConvertToTaskModalProps> = ({
 
   return (
     <Modal
+      {...modalConfig}
       title={
         <Space>
           <SwapOutlined style={{ color: '#1890ff' }} />
@@ -140,7 +141,6 @@ const ConvertToTaskModal: React.FC<ConvertToTaskModalProps> = ({
       }
       open={visible}
       onCancel={onCancel}
-      width={getResponsiveModalWidth(650, responsive)}
       footer={[
         <Button key="cancel" onClick={onCancel}>
           取消

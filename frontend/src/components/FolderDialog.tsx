@@ -13,6 +13,7 @@ import {
 import { FolderOutlined } from '@ant-design/icons';
 import { WorkNoteFolder, CreateWorkNoteFolderRequest, UpdateWorkNoteFolderRequest } from '../services/workNotesService';
 import { ErrorHandler } from '../utils/error';
+import { useModalConfig } from '../hooks/useModalConfig';
 import ColorPicker from './ColorPicker';
 import IconPicker from './IconPicker';
 
@@ -147,8 +148,11 @@ const FolderDialog: React.FC<FolderDialogProps> = ({
     }
   };
 
+  const modalConfig = useModalConfig({ width: 600 });
+
   return (
     <Modal
+      {...modalConfig}
       title={
         <Space>
           <FolderOutlined />
@@ -159,7 +163,6 @@ const FolderDialog: React.FC<FolderDialogProps> = ({
       onCancel={onClose}
       onOk={handleSubmit}
       confirmLoading={loading}
-      width={600}
       okText={folder ? '保存' : '创建'}
       cancelText="取消"
     >

@@ -90,9 +90,6 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	workNoteHandler := app.GetWorkNoteHandler()
 	reportHandler := app.GetReportHandler()
 
-	// 创建模板处理器
-	templateHandler := handlers.NewMCPTemplateHandler(app.GetDB())
-
 	// 任务文档相关路由
 	mcp.POST("/create-and-attach", CreateAndAttachTaskDocument(app))
 	mcp.POST("/create-and-attach-work-note", createAndAttachWorkNote(workNoteHandler))
@@ -124,9 +121,6 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	mcp.GET("/get-daily-work-report", reportHandler.GetDailyWorkReport)
 	mcp.POST("/get-daily-work-report", reportHandler.GetDailyWorkReport)
 
-	// 模板文档生成路由
-	mcp.POST("/generate-document-from-template", templateHandler.GenerateDocumentFromTemplate)
-
 	// Task and Timer combined operations
 	mcp.POST("/start-task-with-timer", startTaskWithTimer(app))
 	mcp.POST("/switch-to-task", switchToTask(app))
@@ -142,6 +136,8 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 // CreateAndAttachTaskDocument MCP专用：创建并关联任务文档
 // 实现UPSERT语义：如果文档已存在则更新，否则创建新文档
 // 此函数可供MCP路由和标准HTTP路由共同使用
+// CreateAndAttachTaskDocument MCP专用：创建并关联任务文档（纯数据库操作版本）
+// 实现UPSERT语义：如果文档已存在则更新，否则创建新文档
 func CreateAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
@@ -165,14 +161,34 @@ func CreateAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 			return
 		}
 
-		// 获取用户ID（验证用户已认证）
-		_, exists := c.Get("user_id")
+		// 获取用户ID
+		userIDValue, exists := c.Get("user_id")
 		if !exists {
 			c.JSON(http.StatusUnauthorized, standardErrorResponse("User not authenticated", nil))
 			return
 		}
 
-		// 项目ID推导逻辑：优先使用提供的项目ID，否则从任务中查询
+		userID := 0
+		switch v := userIDValue.(type) {
+		case int:
+			userID = v
+		case uint:
+			userID = int(v)
+		case int64:
+			userID = int(v)
+		case float64:
+			userID = int(v)
+		default:
+			c.JSON(http.StatusUnauthorized, standardErrorResponse("Invalid user ID type", nil))
+			return
+		}
+
+		if userID == 0 {
+			c.JSON(http.StatusUnauthorized, standardErrorResponse("User not authenticated", nil))
+			return
+		}
+
+		// 项目ID推导逻辑
 		projectID := 1
 		if req.ProjectID != nil {
 			projectID = *req.ProjectID
@@ -185,17 +201,14 @@ func CreateAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 			}
 		}
 
-		// 生成默认标题（如果没有提供或为空）
+		// 生成默认标题
 		title := strings.TrimSpace(req.Title)
 		if title == "" {
-			// 从内容第一行提取标题
 			lines := strings.Split(req.Content, "\n")
 			if len(lines) > 0 {
 				firstLine := strings.TrimSpace(lines[0])
-				// 移除Markdown标题标记（支持多级标题如 ### 标题）
 				firstLine = strings.TrimLeft(firstLine, "# ")
 				firstLine = strings.TrimSpace(firstLine)
-				// 限制标题长度为60个中文字符（使用rune计数避免UTF-8乱码）
 				runes := []rune(firstLine)
 				if len(runes) > 60 {
 					title = string(runes[:60]) + "..."
@@ -209,15 +222,23 @@ func CreateAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 			}
 		}
 
-		// ✅ 核心改进：检查任务是否已有文档（UPSERT语义）
+		// 获取数据库连接
 		sqlDB, ok := app.GetDB().GetDB().(*sql.DB)
 		if !ok {
 			c.JSON(http.StatusInternalServerError, standardErrorResponse("Database connection error", nil))
 			return
 		}
 
+		// 获取文档仓库
+		docRepo := app.GetDB().Documents()
+		if docRepo == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("Document repository not available", nil))
+			return
+		}
+
+		// 检查任务是否已有文档（UPSERT语义）
 		var existingDocID int
-		err := sqlDB.QueryRow(`
+		err := sqlDB.QueryRowContext(c.Request.Context(), `
 			SELECT d.id
 			FROM documents d
 			INNER JOIN task_documents td ON d.id = td.document_id
@@ -231,179 +252,112 @@ func CreateAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 		`, req.TaskID).Scan(&existingDocID)
 
 		if err == nil {
-			// 文档已存在 → 更新文档
-			// 构造更新请求体
-			updateBody := map[string]interface{}{
-				"content": req.Content,
-				"message": "Updated via MCP create-and-attach",
-			}
-			// 使用生成的title变量（包含智能提取的标题）
-			if title != "" {
-				updateBody["title"] = title
-			}
+			// ========== 更新现有文档 ==========
+			log.Printf("[INFO] MCP create-and-attach: Updating existing document %d for task %d", existingDocID, req.TaskID)
 
-			// 编码请求体
-			jsonBody, _ := json.Marshal(updateBody)
-			c.Request.Body = io.NopCloser(strings.NewReader(string(jsonBody)))
-			c.Request.ContentLength = int64(len(jsonBody))
+			// 直接使用SQL更新文档
+			query := `
+				UPDATE documents
+				SET title = $1, content = $2, version = version + 1, updated_at = NOW()
+				WHERE id = $3 AND deleted_at IS NULL
+				RETURNING id, title, content, version, updated_at
+			`
 
-			// 设置文档ID参数（使用gin.Params类型）
-			c.Params = gin.Params{
-				gin.Param{Key: "id", Value: strconv.Itoa(existingDocID)},
+			var updatedDoc struct {
+				ID        int
+				Title     string
+				Content   string
+				Version   int
+				UpdatedAt time.Time
 			}
 
-			// 调用UnifiedDocumentHandler.UpdateDocumentByID
-			unifiedHandler := app.GetUnifiedDocumentHandler()
+			updateErr := sqlDB.QueryRowContext(c.Request.Context(), query, title, req.Content, existingDocID).Scan(
+				&updatedDoc.ID, &updatedDoc.Title, &updatedDoc.Content, &updatedDoc.Version, &updatedDoc.UpdatedAt,
+			)
 
-			// 保存原始Writer，用于修改响应
-			originalWriter := c.Writer
-			recorder := &responseRecorder{ResponseWriter: c.Writer, body: &bytes.Buffer{}}
-			c.Writer = recorder
-
-			unifiedHandler.UpdateDocumentByID(c)
-
-			// 修改响应，添加action标识
-			var updateResp map[string]interface{}
-			if err := json.Unmarshal(recorder.body.Bytes(), &updateResp); err == nil {
-				// 增强的类型检查和日志
-				if data, ok := updateResp["data"].(map[string]interface{}); ok {
-					data["action"] = "updated"
-					data["task_id"] = req.TaskID
-					data["project_id"] = projectID
-				} else {
-					// 记录警告日志，但不阻塞请求
-					log.Printf("[WARN] MCP create-and-attach: Failed to add action field - data is not map[string]interface{}, got type %T", updateResp["data"])
-				}
-				c.Writer = originalWriter
-				c.JSON(recorder.Status(), updateResp)
-			} else {
-				// 解析失败时记录错误，并返回原始响应（保持Content-Type）
-				log.Printf("[ERROR] MCP create-and-attach: Failed to parse update response JSON: %v", err)
-				c.Writer = originalWriter
-				c.Data(recorder.Status(), "application/json", recorder.body.Bytes())
+			if updateErr != nil {
+				log.Printf("[ERROR] MCP create-and-attach: Failed to update document: %v", updateErr)
+				c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to update document", updateErr))
+				return
 			}
+
+			log.Printf("[SUCCESS] MCP create-and-attach: Document %d updated successfully", updatedDoc.ID)
+
+			c.JSON(http.StatusOK, gin.H{
+				"success": true,
+				"message": "Document updated successfully",
+				"data": gin.H{
+					"action":      "updated",
+					"document_id": updatedDoc.ID,
+					"task_id":     req.TaskID,
+					"project_id":  projectID,
+					"title":       updatedDoc.Title,
+					"content":     updatedDoc.Content,
+					"version":     fmt.Sprintf("%d", updatedDoc.Version),
+					"size":        len(updatedDoc.Content),
+					"updated_at":  updatedDoc.UpdatedAt.Format(time.RFC3339),
+				},
+			})
 
 		} else if err == sql.ErrNoRows {
-			// 文档不存在 → 创建新文档
-			// 设置路径参数，模拟标准API调用
-			c.Params = gin.Params{
-				gin.Param{Key: "id", Value: strconv.Itoa(projectID)},
-				gin.Param{Key: "taskId", Value: strconv.Itoa(req.TaskID)},
+			// ========== 创建新文档 ==========
+			log.Printf("[INFO] MCP create-and-attach: Creating new document for task %d", req.TaskID)
+
+			newDoc := &models.Document{
+				ProjectID:  &projectID,
+				Title:      title,
+				Content:    &req.Content,
+				Type:       "markdown",
+				Status:     "draft",
+				OwnerID:    userID,
+				Visibility: "team",
+				Version:    1,
+				CreatedBy:  userID,
 			}
 
-			// 构造请求体，匹配UnifiedDocumentHandler.CreateDocument期望的格式
-			createBody := map[string]interface{}{
-				"title":   title,
-				"content": req.Content,
-				"format":  "markdown",
+			createdDoc, createErr := docRepo.Create(c.Request.Context(), newDoc)
+			if createErr != nil {
+				log.Printf("[ERROR] MCP create-and-attach: Failed to create document: %v", createErr)
+				c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to create document", createErr))
+				return
 			}
 
-			// 编码请求体
-			jsonBody, _ := json.Marshal(createBody)
-			c.Request.Body = io.NopCloser(strings.NewReader(string(jsonBody)))
-			c.Request.ContentLength = int64(len(jsonBody))
+			log.Printf("[SUCCESS] MCP create-and-attach: Document %d created", createdDoc.ID)
 
-			// 调用UnifiedDocumentHandler.CreateDocument
-			unifiedHandler := app.GetUnifiedDocumentHandler()
-
-			// 保存原始Writer，用于修改响应
-			originalWriter := c.Writer
-			recorder := &responseRecorder{ResponseWriter: c.Writer, body: &bytes.Buffer{}}
-			c.Writer = recorder
-
-			unifiedHandler.CreateDocument(c)
-
-			// ✅ 新增：获取用户ID用于数据库操作
-			userIDValue, exists := c.Get("user_id")
-			var userID int
-			if exists {
-				switch v := userIDValue.(type) {
-				case int:
-					userID = v
-				case uint:
-					userID = int(v)
-				case int64:
-					userID = int(v)
-				case float64:
-					userID = int(v)
-				default:
-					log.Printf("[WARN] MCP create-and-attach: Invalid user ID type: %T", userIDValue)
-				}
+			// 创建任务关联
+			attachErr := docRepo.AttachToTask(c.Request.Context(), req.TaskID, createdDoc.ID, "main", userID)
+			if attachErr != nil {
+				log.Printf("[ERROR] MCP create-and-attach: Failed to attach document to task: %v", attachErr)
+				c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to attach document to task", attachErr))
+				return
 			}
 
-			// ✅ 新增：创建数据库记录和任务关联
-			var createdDocID int
-			if userID > 0 {
-				docRepo := app.GetDB().Documents()
-				if docRepo != nil {
-					// 创建文档记录
-					newDoc := &models.Document{
-						ProjectID:  &projectID,
-						Title:      title,
-						Content:    &req.Content,
-						Type:       "markdown",
-						Status:     "draft",
-						OwnerID:    userID,
-						Visibility: "team",
-						Version:    1,
-						CreatedBy:  userID,
-					}
+			log.Printf("[SUCCESS] MCP create-and-attach: Document %d attached to task %d", createdDoc.ID, req.TaskID)
 
-					createdDoc, createErr := docRepo.Create(c.Request.Context(), newDoc)
-					if createErr != nil {
-						log.Printf("[ERROR] MCP create-and-attach: Failed to create document record: %v", createErr)
-					} else {
-						createdDocID = createdDoc.ID
-						log.Printf("[INFO] MCP create-and-attach: Created document record ID=%d", createdDocID)
-
-						// 创建任务关联
-						attachErr := docRepo.AttachToTask(c.Request.Context(), req.TaskID, createdDoc.ID, "main", userID)
-						if attachErr != nil {
-							log.Printf("[ERROR] MCP create-and-attach: Failed to attach document to task: %v", attachErr)
-						} else {
-							log.Printf("[SUCCESS] MCP create-and-attach: Document %d attached to task %d", createdDoc.ID, req.TaskID)
-						}
-					}
-				} else {
-					log.Printf("[WARN] MCP create-and-attach: Document repository not available")
-				}
-			} else {
-				log.Printf("[WARN] MCP create-and-attach: Invalid user ID, skipping database operations")
-			}
-
-			// 修改响应，添加action标识
-			var createResp map[string]interface{}
-			if err := json.Unmarshal(recorder.body.Bytes(), &createResp); err == nil {
-				// 增强的类型检查和日志
-				if data, ok := createResp["data"].(map[string]interface{}); ok {
-					data["action"] = "created"
-					data["task_id"] = req.TaskID
-					data["project_id"] = projectID
-					// ✅ 新增：添加文档ID到响应
-					if createdDocID > 0 {
-						data["document_id"] = createdDocID
-					}
-				} else {
-					// 记录警告日志，但不阻塞请求
-					log.Printf("[WARN] MCP create-and-attach: Failed to add action field - data is not map[string]interface{}, got type %T", createResp["data"])
-				}
-				c.Writer = originalWriter
-				c.JSON(recorder.Status(), createResp)
-			} else {
-				// 解析失败时记录错误，并返回原始响应（保持Content-Type）
-				log.Printf("[ERROR] MCP create-and-attach: Failed to parse create response JSON: %v", err)
-				c.Writer = originalWriter
-				c.Data(recorder.Status(), "application/json", recorder.body.Bytes())
-			}
+			c.JSON(http.StatusCreated, gin.H{
+				"success": true,
+				"message": "Document created successfully",
+				"data": gin.H{
+					"action":      "created",
+					"document_id": createdDoc.ID,
+					"task_id":     req.TaskID,
+					"project_id":  projectID,
+					"title":       createdDoc.Title,
+					"content":     *createdDoc.Content,
+					"version":     "1",
+					"size":        len(*createdDoc.Content),
+					"created_at":  createdDoc.CreatedAt.Format(time.RFC3339),
+				},
+			})
 
 		} else {
 			// 数据库查询错误
+			log.Printf("[ERROR] MCP create-and-attach: Database query error: %v", err)
 			c.JSON(http.StatusInternalServerError, standardErrorResponse("Failed to check existing document", err))
 		}
 	}
 }
 
-// createAndAttachWorkNote MCP专用：创建并关联工作笔记到任务
 func createAndAttachWorkNote(h *handlers.WorkNoteHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {

@@ -27,7 +27,7 @@ import {
   RequirementComplexity,
   REQUIREMENT_COMPLEXITY_CONFIG,
 } from '../types/requirement';
-import { useResponsive, getResponsiveModalWidth } from '../hooks/useResponsive';
+import { useModalConfig } from '../hooks/useModalConfig';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -77,7 +77,7 @@ const RequirementReviewModal: React.FC<RequirementReviewModalProps> = ({
   onSubmit,
 }) => {
   const [form] = Form.useForm();
-  const responsive = useResponsive();
+  const modalConfig = useModalConfig({ width: 700 });
   const [selectedAction, setSelectedAction] = useState<'approve' | 'reject' | 'need_more_info'>('approve');
 
   useEffect(() => {
@@ -126,10 +126,10 @@ const RequirementReviewModal: React.FC<RequirementReviewModalProps> = ({
 
   return (
     <Modal
+      {...modalConfig}
       title="需求评审"
       open={visible}
       onCancel={onCancel}
-      width={getResponsiveModalWidth(700, responsive)}
       footer={[
         <Button key="cancel" onClick={onCancel}>
           取消
@@ -197,14 +197,15 @@ const RequirementReviewModal: React.FC<RequirementReviewModalProps> = ({
                   padding: '12px 8px',
                   borderColor: selectedAction === 'approve' ? '#52c41a' : undefined,
                   backgroundColor: selectedAction === 'approve' ? '#f6ffed' : undefined,
+                  color: selectedAction === 'approve' ? '#52c41a' : undefined,
                 }}
               >
-                <div style={{ textAlign: 'center' }}>
+                <div style={{ textAlign: 'center', color: selectedAction === 'approve' ? '#389e0d' : 'inherit' }}>
                   <div>
                     <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '18px' }} />
                   </div>
-                  <div style={{ fontWeight: 500, marginTop: '4px' }}>通过</div>
-                  <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                  <div style={{ fontWeight: 500, marginTop: '4px', color: selectedAction === 'approve' ? '#389e0d' : 'inherit' }}>通过</div>
+                  <div style={{ fontSize: '12px', color: selectedAction === 'approve' ? '#52c41a' : '#666', marginTop: '2px' }}>
                     需求满足要求，可以进入开发阶段
                   </div>
                 </div>
@@ -218,14 +219,15 @@ const RequirementReviewModal: React.FC<RequirementReviewModalProps> = ({
                   padding: '12px 8px',
                   borderColor: selectedAction === 'need_more_info' ? '#faad14' : undefined,
                   backgroundColor: selectedAction === 'need_more_info' ? '#fffbe6' : undefined,
+                  color: selectedAction === 'need_more_info' ? '#d48806' : undefined,
                 }}
               >
-                <div style={{ textAlign: 'center' }}>
+                <div style={{ textAlign: 'center', color: selectedAction === 'need_more_info' ? '#d48806' : 'inherit' }}>
                   <div>
                     <EditOutlined style={{ color: '#faad14', fontSize: '18px' }} />
                   </div>
-                  <div style={{ fontWeight: 500, marginTop: '4px' }}>需要补充</div>
-                  <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                  <div style={{ fontWeight: 500, marginTop: '4px', color: selectedAction === 'need_more_info' ? '#d48806' : 'inherit' }}>需要补充</div>
+                  <div style={{ fontSize: '12px', color: selectedAction === 'need_more_info' ? '#d48806' : '#666', marginTop: '2px' }}>
                     需求需要补充更多信息
                   </div>
                 </div>
@@ -239,14 +241,15 @@ const RequirementReviewModal: React.FC<RequirementReviewModalProps> = ({
                   padding: '12px 8px',
                   borderColor: selectedAction === 'reject' ? '#ff4d4f' : undefined,
                   backgroundColor: selectedAction === 'reject' ? '#fff2f0' : undefined,
+                  color: selectedAction === 'reject' ? '#cf1322' : undefined,
                 }}
               >
-                <div style={{ textAlign: 'center' }}>
+                <div style={{ textAlign: 'center', color: selectedAction === 'reject' ? '#cf1322' : 'inherit' }}>
                   <div>
                     <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: '18px' }} />
                   </div>
-                  <div style={{ fontWeight: 500, marginTop: '4px' }}>拒绝</div>
-                  <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                  <div style={{ fontWeight: 500, marginTop: '4px', color: selectedAction === 'reject' ? '#cf1322' : 'inherit' }}>拒绝</div>
+                  <div style={{ fontSize: '12px', color: selectedAction === 'reject' ? '#cf1322' : '#666', marginTop: '2px' }}>
                     需求不符合要求，需要重新提交
                   </div>
                 </div>

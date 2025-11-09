@@ -151,18 +151,6 @@ export class TaskMCPServer {
         return this.documentService.createBatchDocuments(documents);
     }
 
-    async generateDocumentFromTemplate(templateType: string, context: any, autoCreate: boolean = false) {
-        return this.documentService.generateDocumentFromTemplate(templateType, context, autoCreate);
-    }
-
-    async autoFillTaskContext(taskIds: number[], templateType: string, includeSubtasks: boolean = true, includeDocuments: boolean = true, includeTimeLogs: boolean = true, dateRange?: any) {
-        return this.documentService.autoFillTaskContext(taskIds, templateType, includeSubtasks, includeDocuments, includeTimeLogs, dateRange);
-    }
-
-    async createTaskDocs(options: any) {
-        return this.documentService.createTaskDocs(options);
-    }
-
     /**
      * 向文档追加内容（MCP专用）
      * @param taskId 任务ID

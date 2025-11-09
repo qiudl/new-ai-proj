@@ -30,7 +30,7 @@ import { RequirementTaskLinkType } from '../services/requirementService';
 import { TaskService } from '../services/taskService';
 import { Task } from '../types/task';
 import debounce from 'lodash/debounce';
-import { useResponsive, getResponsiveModalWidth } from '../hooks/useResponsive';
+import { useModalConfig } from '../hooks/useModalConfig';
 
 const { TextArea } = Input;
 
@@ -71,7 +71,7 @@ const LinkTaskModal: React.FC<LinkTaskModalProps> = ({
   onSubmit,
 }) => {
   const [form] = Form.useForm();
-  const responsive = useResponsive();
+  const modalConfig = useModalConfig({ width: 750 });
   const [linkType, setLinkType] = useState<RequirementTaskLinkType>(RequirementTaskLinkType.Manual);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -177,6 +177,7 @@ const LinkTaskModal: React.FC<LinkTaskModalProps> = ({
 
   return (
     <Modal
+      {...modalConfig}
       title={
         <Space>
           <LinkOutlined style={{ color: '#1890ff' }} />
@@ -185,7 +186,6 @@ const LinkTaskModal: React.FC<LinkTaskModalProps> = ({
       }
       open={visible}
       onCancel={onCancel}
-      width={getResponsiveModalWidth(750, responsive)}
       footer={[
         <Button key="cancel" onClick={onCancel}>
           取消
