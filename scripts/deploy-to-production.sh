@@ -589,17 +589,104 @@ build_backend() {
     return 1
 }
 
+# 构建前端
+build_frontend() {
+    local release_dir=$1
+
+    log_info "构建前端..."
+
+    if [ "$DRY_RUN" = true ]; then
+        log_warning "[模拟] 构建前端"
+        return 0
+    fi
+
+    log_info "在远程服务器构建前端..."
+    local build_output=$(ssh $SSH_OPTS "$REMOTE_HOST" bash -s << EOF 2>&1
+        cd $release_dir/frontend
+
+        # 检查 Node.js 是否安装
+        if ! command -v node &> /dev/null; then
+            echo "ERROR: Node.js 未找到"
+            exit 1
+        fi
+
+        # 检查 npm 是否安装
+        if ! command -v npm &> /dev/null; then
+            echo "ERROR: npm 未找到"
+            exit 1
+        fi
+
+        echo "Node version: \$(node -v)"
+        echo "npm version: \$(npm -v)"
+
+        # 检查 package.json 是否存在
+        if [ ! -f package.json ]; then
+            echo "ERROR: package.json 文件不存在"
+            exit 1
+        fi
+
+        # 安装依赖
+        echo "安装依赖..."
+        npm install --legacy-peer-deps 2>&1 | tail -20
+
+        # 构建生产版本
+        echo "开始构建生产版本..."
+        CI=false npm run build 2>&1 | tail -30
+        build_status=\${PIPESTATUS[0]}
+
+        if [ \$build_status -ne 0 ]; then
+            echo "ERROR: 构建失败，退出码: \$build_status"
+            exit \$build_status
+        fi
+
+        # 验证构建产物
+        if [ ! -d build ]; then
+            echo "ERROR: 构建目录不存在"
+            exit 1
+        fi
+
+        echo "SUCCESS: 前端构建完成"
+        du -sh build
+EOF
+)
+
+    local build_status=$?
+
+    # 输出构建日志
+    echo "$build_output" | while IFS= read -r line; do
+        if [[ "$line" == ERROR:* ]]; then
+            log_error "  $line"
+        elif [[ "$line" == SUCCESS:* ]]; then
+            log_success "  $line"
+        else
+            log_info "  $line"
+        fi
+    done
+
+    # 检查构建状态
+    if [ $build_status -ne 0 ]; then
+        log_error "前端构建失败！"
+        log_error "请检查以下内容："
+        log_error "  1. Node.js 和 npm 是否正确安装"
+        log_error "  2. package.json 是否完整"
+        log_error "  3. 依赖包是否能正常安装"
+        return 1
+    fi
+
+    log_success "前端构建完成"
+}
+
 # 更新软链接
 update_symlink() {
     local release_dir=$1
-    
+
     log_info "更新软链接..."
-    
+
     if [ "$DRY_RUN" = true ]; then
         log_warning "[模拟] 更新软链接"
         return 0
     fi
-    
+
     ssh $SSH_OPTS "$REMOTE_HOST" << EOF
         cd $REMOTE_BASE
         # 备份当前链接为previous
@@ -608,9 +695,9 @@ update_symlink() {
             cp -P current previous
         fi
         # 更新current链接
-        ln -sf $release_dir current
+        ln -snf $release_dir current
 EOF
-    
+
     log_success "软链接更新完成"
 }
 
@@ -879,7 +966,7 @@ main() {
         }
     fi
 
-    # 步骤5: 构建
+    # 步骤5: 构建后端
     if [ "$NO_BUILD" = false ] && [ "$FRONTEND_ONLY" = false ]; then
         build_backend "$RELEASE_DIR" || {
             log_error "后端构建失败，部署中止"
@@ -887,7 +974,15 @@ main() {
         }
     fi
 
-    # 步骤6: 验证数据库连接
+    # 步骤6: 构建前端
+    if [ "$NO_BUILD" = false ] && [ "$BACKEND_ONLY" = false ]; then
+        build_frontend "$RELEASE_DIR" || {
+            log_error "前端构建失败，部署中止"
+            exit 1
+        }
+    fi
+
+    # 步骤7: 验证数据库连接
     if [ "$FRONTEND_ONLY" = false ]; then
         verify_database_connection "$RELEASE_DIR" || {
             log_error "数据库连接验证失败，部署中止"
@@ -895,10 +990,10 @@ main() {
         }
     fi
 
-    # 步骤7: 更新软链接
+    # 步骤8: 更新软链接
     update_symlink "$RELEASE_DIR"
 
-    # 步骤8: 重启服务
+    # 步骤9: 重启服务
     if [ "$NO_RESTART" = false ] && [ "$FRONTEND_ONLY" = false ]; then
         restart_backend "$RELEASE_DIR" || {
             log_error "服务重启失败，部署失败"
