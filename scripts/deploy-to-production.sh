@@ -59,8 +59,22 @@ show_help() {
   --dry-run           模拟运行（不实际同步）
   --help              显示此帮助信息
 
+编译策略:
+  脚本会自动选择最佳的编译方式（按优先级）：
+  1. 本地 Go 编译    - 最快，如果本机有 Go 环境
+  2. Docker 编译     - 推荐，不需要本地 Go 环境
+  3. 远程服务器编译  - 降级方案，在服务器上编译
+
+系统要求:
+  本地环境（以下至少一项）：
+    - Go 1.24.0+ (推荐)
+    - Docker (推荐)
+
+  远程服务器：
+    - 如果本地无 Go/Docker，远程需要 Go 环境
+
 示例:
-  # 完整部署
+  # 完整部署（自动选择编译方式）
   $0
 
   # 仅部署后端
@@ -71,6 +85,9 @@ show_help() {
 
   # 模拟运行
   $0 --dry-run
+
+  # 跳过编译（使用已有二进制文件）
+  $0 --no-build
 
 EOF
 }
@@ -116,10 +133,14 @@ sync_backend() {
     fi
 
     # 排除不需要同步的文件
-    rsync -avz --delete --timeout=$RSYNC_TIMEOUT \
+    # 注意：排除规则不要使用通配符，避免误排除目录
+    # 使用 -a 而不是 -avz 来减少输出
+    rsync -az --delete --timeout=$RSYNC_TIMEOUT \
+        --exclude='ai-project-backend*' \
+        --exclude='main' \
         --exclude='backend-test' \
         --exclude='backend-linux' \
-        --exclude='backend' \
+        --exclude='main-*' \
         --exclude='*.log' \
         --exclude='uploads/' \
         --exclude='.env' \
@@ -130,7 +151,21 @@ sync_backend() {
         "$LOCAL_DIR/backend/" \
         "$REMOTE_HOST:$release_dir/backend/"
 
-    log_success "后端代码同步完成"
+    if [ $? -ne 0 ]; then
+        log_error "后端代码同步失败"
+        return 1
+    fi
+
+    # 验证同步结果
+    local file_count=$(ssh $SSH_OPTS "$REMOTE_HOST" "ls -1 $release_dir/backend/ 2>/dev/null | wc -l")
+    if [ "$file_count" -lt 5 ]; then
+        log_error "后端代码同步验证失败：目录中文件太少 ($file_count 个文件)"
+        log_error "尝试列出目录内容："
+        ssh $SSH_OPTS "$REMOTE_HOST" "ls -la $release_dir/backend/ 2>&1" || true
+        return 1
+    fi
+
+    log_success "后端代码同步完成 (共 $file_count 个文件/目录)"
 }
 
 # 复制生产环境配置
@@ -251,7 +286,7 @@ sync_frontend() {
         return 0
     fi
     
-    rsync -avz --delete --timeout=$RSYNC_TIMEOUT \
+    rsync -az --delete --timeout=$RSYNC_TIMEOUT \
         --exclude='node_modules/' \
         --exclude='build/' \
         --exclude='dist/' \
@@ -261,7 +296,12 @@ sync_frontend() {
         --exclude='.git/' \
         "$LOCAL_DIR/frontend/" \
         "$REMOTE_HOST:$release_dir/frontend/"
-    
+
+    if [ $? -ne 0 ]; then
+        log_error "前端代码同步失败"
+        return 1
+    fi
+
     log_success "前端代码同步完成"
 }
 
@@ -279,13 +319,13 @@ sync_other_files() {
     ssh $SSH_OPTS "$REMOTE_HOST" "mkdir -p $release_dir/mcp-task-bridge"
 
     # 同步配置文件
-    rsync -avz --timeout=$RSYNC_TIMEOUT \
+    rsync -az --timeout=$RSYNC_TIMEOUT \
         "$LOCAL_DIR/docker-compose.prod.yml" \
         "$LOCAL_DIR/nginx.conf" \
         "$REMOTE_HOST:$release_dir/" 2>/dev/null || true
-    
+
     # 同步MCP服务器
-    rsync -avz --delete --timeout=$RSYNC_TIMEOUT \
+    rsync -az --delete --timeout=$RSYNC_TIMEOUT \
         --exclude='node_modules/' \
         --exclude='dist/' \
         --exclude='.env' \
@@ -295,18 +335,95 @@ sync_other_files() {
     log_success "其他文件同步完成"
 }
 
-# 构建后端
-build_backend() {
+# 在本地构建后端（使用本机 Go）
+build_backend_local() {
+    log_info "在本地使用 Go 构建后端..."
+
+    if [ "$DRY_RUN" = true ]; then
+        log_warning "[模拟] 本地构建后端"
+        return 0
+    fi
+
+    # 检查本地 Go 环境
+    if ! command -v go &> /dev/null; then
+        log_warning "本地未找到 Go 编译器"
+        return 1
+    fi
+
+    log_info "使用本地 Go 编译器: $(go version)"
+    log_info "目标平台: Linux AMD64"
+
+    cd "$LOCAL_DIR/backend" || return 1
+
+    # 为 Linux 编译
+    log_info "开始编译..."
+    GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o main main.go
+
+    if [ $? -ne 0 ]; then
+        log_error "本地编译失败"
+        return 1
+    fi
+
+    if [ ! -f main ]; then
+        log_error "编译后的二进制文件不存在"
+        return 1
+    fi
+
+    log_success "本地编译完成: $(ls -lh main | awk '{print $5}')"
+    return 0
+}
+
+# 使用 Docker 构建后端
+build_backend_docker() {
+    log_info "使用 Docker 构建后端..."
+
+    if [ "$DRY_RUN" = true ]; then
+        log_warning "[模拟] Docker 构建后端"
+        return 0
+    fi
+
+    # 检查 Docker
+    if ! command -v docker &> /dev/null; then
+        log_warning "Docker 未找到"
+        return 1
+    fi
+
+    log_info "使用 Docker 编译..."
+    cd "$LOCAL_DIR/backend" || return 1
+
+    # 使用 Go Docker 镜像编译
+    docker run --rm \
+        -v "$LOCAL_DIR/backend:/app" \
+        -w /app \
+        golang:1.24.0-alpine \
+        sh -c "go mod download && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o main main.go"
+
+    if [ $? -ne 0 ]; then
+        log_error "Docker 编译失败"
+        return 1
+    fi
+
+    if [ ! -f main ]; then
+        log_error "编译后的二进制文件不存在"
+        return 1
+    fi
+
+    log_success "Docker 编译完成: $(ls -lh main | awk '{print $5}')"
+    return 0
+}
+
+# 在远程服务器构建后端
+build_backend_remote() {
     local release_dir=$1
 
     log_info "在服务器上构建后端..."
 
     if [ "$DRY_RUN" = true ]; then
-        log_warning "[模拟] 构建后端"
+        log_warning "[模拟] 远程构建后端"
         return 0
     fi
 
-    log_info "开始编译 Go 项目..."
+    log_info "开始远程编译 Go 项目..."
     local build_output=$(ssh $SSH_OPTS "$REMOTE_HOST" bash -s << EOF 2>&1
         cd $release_dir/backend
 
@@ -324,6 +441,10 @@ build_backend() {
             echo "ERROR: main.go 文件不存在"
             exit 1
         fi
+
+        # 下载依赖
+        echo "下载依赖..."
+        go mod download 2>&1
 
         # 编译（带超时保护）
         echo "开始编译..."
@@ -365,7 +486,7 @@ EOF
 
     # 检查构建状态
     if [ $build_status -ne 0 ]; then
-        log_error "后端构建失败！"
+        log_error "远程构建失败！"
         log_error "请检查以下内容："
         log_error "  1. Go 编译器是否正确安装"
         log_error "  2. 代码是否有编译错误"
@@ -373,7 +494,99 @@ EOF
         return 1
     fi
 
-    log_success "后端构建完成"
+    log_success "远程构建完成"
+}
+
+# 上传本地编译的二进制文件
+upload_binary() {
+    local release_dir=$1
+
+    log_info "上传编译好的二进制文件到服务器..."
+
+    if [ "$DRY_RUN" = true ]; then
+        log_warning "[模拟] 上传二进制文件"
+        return 0
+    fi
+
+    if [ ! -f "$LOCAL_DIR/backend/main" ]; then
+        log_error "本地二进制文件不存在: $LOCAL_DIR/backend/main"
+        return 1
+    fi
+
+    # 上传二进制文件
+    rsync -avz --timeout=$RSYNC_TIMEOUT \
+        "$LOCAL_DIR/backend/main" \
+        "$REMOTE_HOST:$release_dir/backend/main"
+
+    if [ $? -ne 0 ]; then
+        log_error "上传二进制文件失败"
+        return 1
+    fi
+
+    # 设置执行权限
+    ssh $SSH_OPTS "$REMOTE_HOST" "chmod +x $release_dir/backend/main"
+
+    log_success "二进制文件上传完成"
+
+    # 清理本地编译文件
+    log_info "清理本地编译文件..."
+    rm -f "$LOCAL_DIR/backend/main"
+
+    return 0
+}
+
+# 构建后端（智能选择编译方式）
+build_backend() {
+    local release_dir=$1
+
+    log_info "开始构建后端..."
+    log_info "编译策略: 本地Go → Docker → 远程服务器"
+
+    if [ "$DRY_RUN" = true ]; then
+        log_warning "[模拟] 构建后端"
+        return 0
+    fi
+
+    # 策略1: 尝试本地编译
+    if build_backend_local; then
+        log_success "使用本地 Go 编译成功"
+        if upload_binary "$release_dir"; then
+            log_success "后端构建完成（本地编译）"
+            return 0
+        else
+            log_warning "上传失败，尝试其他方式"
+        fi
+    else
+        log_warning "本地 Go 编译失败或不可用"
+    fi
+
+    # 策略2: 尝试使用 Docker 编译
+    if build_backend_docker; then
+        log_success "使用 Docker 编译成功"
+        if upload_binary "$release_dir"; then
+            log_success "后端构建完成（Docker编译）"
+            return 0
+        else
+            log_warning "上传失败，尝试远程编译"
+        fi
+    else
+        log_warning "Docker 编译失败或不可用"
+    fi
+
+    # 策略3: 在远程服务器编译
+    log_info "尝试在远程服务器编译..."
+    if build_backend_remote "$release_dir"; then
+        log_success "后端构建完成（远程编译）"
+        return 0
+    fi
+
+    # 所有方式都失败
+    log_error "所有编译方式都失败了！"
+    log_error "请检查以下内容："
+    log_error "  1. 本地安装 Go 编译器: brew install go"
+    log_error "  2. 或安装 Docker: brew install docker"
+    log_error "  3. 或确保远程服务器安装了 Go"
+    return 1
 }
 
 # 更新软链接
@@ -395,7 +608,7 @@ update_symlink() {
             cp -P current previous
         fi
         # 更新current链接
-        ln -snf $release_dir current
+        ln -sf $release_dir current
 EOF
     
     log_success "软链接更新完成"
@@ -609,11 +822,17 @@ main() {
     
     # 步骤3: 同步代码
     if [ "$FRONTEND_ONLY" = false ]; then
-        sync_backend "$RELEASE_DIR"
+        sync_backend "$RELEASE_DIR" || {
+            log_error "后端代码同步失败，部署中止"
+            exit 1
+        }
     fi
 
     if [ "$BACKEND_ONLY" = false ]; then
-        sync_frontend "$RELEASE_DIR"
+        sync_frontend "$RELEASE_DIR" || {
+            log_error "前端代码同步失败，部署中止"
+            exit 1
+        }
         sync_other_files "$RELEASE_DIR"
     fi
 
