@@ -190,7 +190,10 @@ const RequirementDetailPage: React.FC = () => {
       setReviewLoading(true);
       await requirementApi.reviewRequirement(requirementId, reviewData);
       setReviewModalVisible(false);
-      loadRequirement();
+      // 使用setTimeout避免与modal关闭的flushSync冲突
+      setTimeout(() => {
+        loadRequirement();
+      }, 0);
     } catch (error: any) {
       console.error('Error reviewing requirement:', error);
       throw error;
@@ -211,8 +214,11 @@ const RequirementDetailPage: React.FC = () => {
       setConvertLoading(true);
       const result = await requirementApi.convertToTask(requirementId, convertData);
       setConvertModalVisible(false);
-      loadRequirement();
-      loadLinkedTasks();
+      // 使用setTimeout避免与modal关闭的flushSync冲突
+      setTimeout(() => {
+        loadRequirement();
+        loadLinkedTasks();
+      }, 0);
       return result;
     } catch (error: any) {
       console.error('Error converting to task:', error);
@@ -423,7 +429,10 @@ const RequirementDetailPage: React.FC = () => {
         onCancel={() => setReviewModalVisible(false)}
         onSuccess={() => {
           setReviewModalVisible(false);
-          loadRequirement();
+          // 使用setTimeout避免与modal关闭的flushSync冲突
+          setTimeout(() => {
+            loadRequirement();
+          }, 0);
         }}
         requirement={requirement}
         loading={reviewLoading}
