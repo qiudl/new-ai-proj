@@ -88,14 +88,14 @@ export async function getTaskRequirements(
     // API拦截器已经自动解包了响应 {success, data} -> data
     // 后端返回: {success: true, data: {data: [...], total, page, page_size}}
     // 拦截器解包后: {data: [...], total, page, page_size}
-    // response.data 就是 RequirementTaskListResponse
+    // response 直接就是 RequirementTaskListResponse
     const response = await api.get<RequirementTaskListResponse>(
       `/tasks/${taskId}/requirements`,
       { params }
     );
 
-    // 因为axios返回 AxiosResponse<T>，所以 response.data 是 T 类型
-    return response.data;
+    // 修复：拦截器已经解包，直接返回response（不是response.data）
+    return response as any as RequirementTaskListResponse;
   } catch (error: any) {
     logApiError(error, 'getTaskRequirements');
     throw error;
