@@ -147,6 +147,10 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	mcp.POST("/requirements/:id/withdraw", mcpWithdrawRequirement(app))
 	mcp.POST("/requirements/:id/archive", mcpArchiveRequirement(app))
 
+	// Phase 4: 高级查询和统计
+	mcp.GET("/requirements/:id/history", mcpGetRequirementHistory(app))
+	mcp.GET("/requirements/:id/statistics", mcpGetRequirementStatistics(app))
+
 	// MCP Worktree工具路由 (Phase 5)
 	RegisterMCPWorktreeRoutes(mcp, app)
 }
@@ -1810,5 +1814,33 @@ func mcpArchiveRequirement(app ApplicationInterface) gin.HandlerFunc {
 			return
 		}
 		mcpReqHandler.ArchiveRequirement(c)
+	}
+}
+
+// ============================================================================
+// Phase 4: Advanced Query and Statistics Wrapper Functions
+// ============================================================================
+
+// mcpGetRequirementHistory MCP专用：获取需求操作历史
+func mcpGetRequirementHistory(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.GetRequirementHistory(c)
+	}
+}
+
+// mcpGetRequirementStatistics MCP专用：获取需求统计信息
+func mcpGetRequirementStatistics(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.GetRequirementStatistics(c)
 	}
 }

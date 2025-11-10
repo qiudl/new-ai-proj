@@ -4,6 +4,7 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -733,4 +734,86 @@ func (h *MCPRequirementHandler) WithdrawRequirement(c *gin.Context) {
 // @Security Bearer
 func (h *MCPRequirementHandler) ArchiveRequirement(c *gin.Context) {
 	h.requirementStatusHandler.ArchiveRequirement(c)
+}
+
+// ============================================================================
+// Phase 4: Advanced Query and Statistics
+// ============================================================================
+
+// GetRequirementHistory - Get requirement operation history
+// @Summary Get requirement history (MCP)
+// @Description Get detailed operation history for a specific requirement
+// @Tags mcp-requirements
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param page query int false "Page number" default(1)
+// @Param page_size query int false "Page size" default(20)
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Router /api/v1/mcp/requirements/{id}/history [get]
+// @Security Bearer
+func (h *MCPRequirementHandler) GetRequirementHistory(c *gin.Context) {
+	// Create a temporary RequirementHistoryHandler if needed
+	historyHandler := NewRequirementHistoryHandler(h.db, h.logger, nil)
+	historyHandler.GetRequirementHistory(c)
+}
+
+// GetRequirementStatistics - Get requirement statistics
+// @Summary Get requirement statistics (MCP)
+// @Description Get comprehensive statistics for a requirement including comments, tasks, history
+// @Tags mcp-requirements
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Success 200 {object} models.APIResponse{data=object{comment_count=int,task_count=int,history_count=int,created_at=string,updated_at=string,status=string}}
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Router /api/v1/mcp/requirements/{id}/statistics [get]
+// @Security Bearer
+func (h *MCPRequirementHandler) GetRequirementStatistics(c *gin.Context) {
+	requirementIDStr := c.Param("id")
+	requirementID, err := strconv.Atoi(requirementIDStr)
+	if err != nil {
+		h.errorResponse(c, http.StatusBadRequest, models.ErrCodeValidation, "无效的需求ID", nil)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Get requirement
+	requirement, err := h.db.Requirements().GetByID(ctx, requirementID)
+	if err != nil {
+		h.errorResponse(c, http.StatusNotFound, models.ErrCodeNotFound, "需求不存在", nil)
+		return
+	}
+
+	// Get comment count
+	var commentCount int64
+	h.db.GetDB().(*sql.DB).QueryRow("SELECT COUNT(*) FROM requirement_comments WHERE requirement_id = $1 AND deleted_at IS NULL", requirementID).Scan(&commentCount)
+
+	// Get task count
+	var taskCount int64
+	h.db.GetDB().(*sql.DB).QueryRow("SELECT COUNT(*) FROM requirement_tasks WHERE requirement_id = $1 AND deleted_at IS NULL", requirementID).Scan(&taskCount)
+
+	// Get history count
+	var historyCount int64
+	h.db.GetDB().(*sql.DB).QueryRow("SELECT COUNT(*) FROM requirement_history WHERE requirement_id = $1", requirementID).Scan(&historyCount)
+
+	// Build response
+	responseData := map[string]interface{}{
+		"requirement_id":  requirementID,
+		"comment_count":   commentCount,
+		"task_count":      taskCount,
+		"history_count":   historyCount,
+		"status":          requirement.Status,
+		"priority":        requirement.Priority,
+		"category":        requirement.Category,
+		"created_at":      requirement.CreatedAt,
+		"updated_at":      requirement.UpdatedAt,
+		"display_id":      requirement.DisplayID,
+	}
+
+	h.successResponse(c, responseData, "获取需求统计信息成功")
 }
