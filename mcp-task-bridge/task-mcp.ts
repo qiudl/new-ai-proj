@@ -4,10 +4,11 @@ import { WorkNoteService } from './work-note-service.js';
 import { TimerService } from './timer-service.js';
 import { ProjectService } from './project-service.js';
 import { DailyFocusService } from './daily-focus-service.js';
+import { RequirementService } from './requirement-service.js';
 
 /**
  * 统一的MCP任务服务器类
- * 整合了任务管理、文档管理、工作笔记、计时器、项目管理和Daily Focus Tasks功能
+ * 整合了任务管理、文档管理、工作笔记、计时器、项目管理、Daily Focus Tasks和需求管理功能
  */
 export class TaskMCPServer {
     private taskService: TaskService;
@@ -16,6 +17,7 @@ export class TaskMCPServer {
     private timerService: TimerService;
     private projectService: ProjectService;
     private dailyFocusService: DailyFocusService;
+    private requirementService: RequirementService;
 
     constructor(apiBase: string = 'http://localhost:8080/api/v1') {
         // 初始化各个服务
@@ -25,6 +27,7 @@ export class TaskMCPServer {
         this.timerService = new TimerService(apiBase);
         this.projectService = new ProjectService(apiBase);
         this.dailyFocusService = new DailyFocusService(apiBase);
+        this.requirementService = new RequirementService(apiBase);
     }
 
     // ===========================================
@@ -337,6 +340,7 @@ export class TaskMCPServer {
         this.timerService.setAuthToken(token);
         this.projectService.setAuthToken(token);
         this.dailyFocusService.setAuthToken(token);
+        this.requirementService.setAuthToken(token);
     }
 
     // Token监控方法（委托给taskService）
@@ -360,6 +364,7 @@ export class TaskMCPServer {
         this.timerService.setApiBase(apiBase);
         this.projectService.setApiBase(apiBase);
         this.dailyFocusService.setApiBase(apiBase);
+        this.requirementService.setApiBase(apiBase);
     }
 
     // 获取权限管理器（从任务服务）
@@ -390,6 +395,73 @@ export class TaskMCPServer {
 
     getDailyFocusService() {
         return this.dailyFocusService;
+    }
+
+    getRequirementService() {
+        return this.requirementService;
+    }
+
+    // ===========================================
+    // 需求管理相关方法
+    // ===========================================
+    async createRequirement(title: string, options: any) {
+        return this.requirementService.createRequirement(title, options);
+    }
+
+    async getRequirement(id: number) {
+        return this.requirementService.getRequirement(id);
+    }
+
+    async listRequirements(params?: any) {
+        return this.requirementService.listRequirements(params);
+    }
+
+    async updateRequirement(id: number, updates: any) {
+        return this.requirementService.updateRequirement(id, updates);
+    }
+
+    async deleteRequirement(id: number) {
+        return this.requirementService.deleteRequirement(id);
+    }
+
+    async linkTasksToRequirement(requirementId: number, taskIds: number[], linkComment?: string) {
+        return this.requirementService.linkTasksToRequirement(requirementId, taskIds, linkComment);
+    }
+
+    async unlinkTaskFromRequirement(requirementId: number, taskId: number) {
+        return this.requirementService.unlinkTaskFromRequirement(requirementId, taskId);
+    }
+
+    async getRequirementTasks(requirementId: number, page?: number, page_size?: number) {
+        return this.requirementService.getRequirementTasks(requirementId, page, page_size);
+    }
+
+    async submitRequirement(id: number) {
+        return this.requirementService.submitRequirement(id);
+    }
+
+    async approveRequirement(id: number, comment?: string) {
+        return this.requirementService.approveRequirement(id, comment);
+    }
+
+    async rejectRequirement(id: number, reason: string) {
+        return this.requirementService.rejectRequirement(id, reason);
+    }
+
+    async withdrawRequirement(id: number) {
+        return this.requirementService.withdrawRequirement(id);
+    }
+
+    async archiveRequirement(id: number) {
+        return this.requirementService.archiveRequirement(id);
+    }
+
+    async getRequirementHistory(id: number, page?: number, page_size?: number) {
+        return this.requirementService.getRequirementHistory(id, page, page_size);
+    }
+
+    async getRequirementStatistics(id: number) {
+        return this.requirementService.getRequirementStatistics(id);
     }
 
     // 新增：列出所有活跃计时器

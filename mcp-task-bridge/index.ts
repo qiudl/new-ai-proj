@@ -1121,6 +1121,334 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
 
+      // 需求管理工具
+      {
+        name: 'create_requirement',
+        description: '创建新需求',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              description: '需求标题'
+            },
+            projectId: {
+              type: 'number',
+              description: '项目ID'
+            },
+            description: {
+              type: 'string',
+              description: '需求描述（可选）'
+            },
+            priority: {
+              type: 'string',
+              enum: ['low', 'medium', 'high'],
+              description: '优先级（可选，默认medium）'
+            },
+            category: {
+              type: 'string',
+              enum: ['feature', 'bug', 'improvement', 'documentation', 'other'],
+              description: '需求类别（可选，默认feature）'
+            },
+            enterpriseId: {
+              type: 'number',
+              description: '企业ID（可选）'
+            }
+          },
+          required: ['title', 'projectId']
+        }
+      },
+      {
+        name: 'list_requirements',
+        description: '列出需求',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            page: {
+              type: 'number',
+              description: '页码（默认1）'
+            },
+            page_size: {
+              type: 'number',
+              description: '每页数量（默认20，最大100）'
+            },
+            status: {
+              type: 'array',
+              items: {
+                type: 'string',
+                enum: ['draft', 'pending', 'reviewing', 'approved', 'rejected', 'archived']
+              },
+              description: '状态过滤'
+            },
+            priority: {
+              type: 'array',
+              items: {
+                type: 'string',
+                enum: ['low', 'medium', 'high']
+              },
+              description: '优先级过滤'
+            },
+            category: {
+              type: 'array',
+              items: {
+                type: 'string',
+                enum: ['feature', 'bug', 'improvement', 'documentation', 'other']
+              },
+              description: '类别过滤'
+            },
+            project_id: {
+              type: 'number',
+              description: '项目ID过滤'
+            },
+            enterprise_id: {
+              type: 'number',
+              description: '企业ID过滤'
+            },
+            search: {
+              type: 'string',
+              description: '搜索关键词'
+            }
+          }
+        }
+      },
+      {
+        name: 'get_requirement',
+        description: '获取需求详情',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '需求ID'
+            }
+          },
+          required: ['id']
+        }
+      },
+      {
+        name: 'update_requirement',
+        description: '更新需求',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '需求ID'
+            },
+            updates: {
+              type: 'object',
+              properties: {
+                title: { type: 'string', description: '新标题' },
+                description: { type: 'string', description: '新描述' },
+                priority: {
+                  type: 'string',
+                  enum: ['low', 'medium', 'high'],
+                  description: '新优先级'
+                },
+                category: {
+                  type: 'string',
+                  enum: ['feature', 'bug', 'improvement', 'documentation', 'other'],
+                  description: '新类别'
+                }
+              },
+              description: '更新字段'
+            }
+          },
+          required: ['id', 'updates']
+        }
+      },
+      {
+        name: 'delete_requirement',
+        description: '删除需求（软删除）',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '需求ID'
+            }
+          },
+          required: ['id']
+        }
+      },
+      {
+        name: 'link_tasks_to_requirement',
+        description: '批量关联任务到需求',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            requirementId: {
+              type: 'number',
+              description: '需求ID'
+            },
+            taskIds: {
+              type: 'array',
+              items: { type: 'number' },
+              description: '任务ID列表'
+            },
+            linkComment: {
+              type: 'string',
+              description: '关联备注（可选）'
+            }
+          },
+          required: ['requirementId', 'taskIds']
+        }
+      },
+      {
+        name: 'unlink_task_from_requirement',
+        description: '取消任务与需求的关联',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            requirementId: {
+              type: 'number',
+              description: '需求ID'
+            },
+            taskId: {
+              type: 'number',
+              description: '任务ID'
+            }
+          },
+          required: ['requirementId', 'taskId']
+        }
+      },
+      {
+        name: 'get_requirement_tasks',
+        description: '获取需求关联的任务列表',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            requirementId: {
+              type: 'number',
+              description: '需求ID'
+            },
+            page: {
+              type: 'number',
+              description: '页码（默认1）'
+            },
+            page_size: {
+              type: 'number',
+              description: '每页数量（默认10）'
+            }
+          },
+          required: ['requirementId']
+        }
+      },
+      {
+        name: 'submit_requirement',
+        description: '提交需求评审',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '需求ID'
+            }
+          },
+          required: ['id']
+        }
+      },
+      {
+        name: 'approve_requirement',
+        description: '批准需求',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '需求ID'
+            },
+            comment: {
+              type: 'string',
+              description: '批准意见（可选）'
+            }
+          },
+          required: ['id']
+        }
+      },
+      {
+        name: 'reject_requirement',
+        description: '拒绝需求',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '需求ID'
+            },
+            reason: {
+              type: 'string',
+              description: '拒绝原因（必填）'
+            }
+          },
+          required: ['id', 'reason']
+        }
+      },
+      {
+        name: 'withdraw_requirement',
+        description: '撤回需求',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '需求ID'
+            }
+          },
+          required: ['id']
+        }
+      },
+      {
+        name: 'archive_requirement',
+        description: '归档需求',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '需求ID'
+            }
+          },
+          required: ['id']
+        }
+      },
+      {
+        name: 'get_requirement_history',
+        description: '获取需求操作历史',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '需求ID'
+            },
+            page: {
+              type: 'number',
+              description: '页码（默认1）'
+            },
+            page_size: {
+              type: 'number',
+              description: '每页数量（默认10）'
+            }
+          },
+          required: ['id']
+        }
+      },
+      {
+        name: 'get_requirement_statistics',
+        description: '获取需求统计信息',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '需求ID'
+            }
+          },
+          required: ['id']
+        }
+      },
+
       {
         name: 'dev_quick_login',
         description: '开发环境快速登录，自动获取 JWT（仅 APP_ENV=development/dev 有效）',
@@ -1614,11 +1942,102 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
         break;
 
+      // 需求管理工具处理
+      case 'create_requirement':
+        result = await taskServer.createRequirement(args.title as string, {
+          projectId: args.projectId as number,
+          description: args.description as string,
+          priority: args.priority as any,
+          category: args.category as any,
+          enterpriseId: args.enterpriseId as number
+        });
+        break;
+
+      case 'list_requirements':
+        result = await taskServer.listRequirements({
+          page: args.page as number,
+          page_size: args.page_size as number,
+          status: args.status as string[],
+          priority: args.priority as string[],
+          category: args.category as string[],
+          project_id: args.project_id as number,
+          enterprise_id: args.enterprise_id as number,
+          search: args.search as string
+        });
+        break;
+
+      case 'get_requirement':
+        result = await taskServer.getRequirement(args.id as number);
+        break;
+
+      case 'update_requirement':
+        result = await taskServer.updateRequirement(args.id as number, args.updates as any);
+        break;
+
+      case 'delete_requirement':
+        result = await taskServer.deleteRequirement(args.id as number);
+        break;
+
+      case 'link_tasks_to_requirement':
+        result = await taskServer.linkTasksToRequirement(
+          args.requirementId as number,
+          args.taskIds as number[],
+          args.linkComment as string
+        );
+        break;
+
+      case 'unlink_task_from_requirement':
+        result = await taskServer.unlinkTaskFromRequirement(
+          args.requirementId as number,
+          args.taskId as number
+        );
+        break;
+
+      case 'get_requirement_tasks':
+        result = await taskServer.getRequirementTasks(
+          args.requirementId as number,
+          args.page as number,
+          args.page_size as number
+        );
+        break;
+
+      case 'submit_requirement':
+        result = await taskServer.submitRequirement(args.id as number);
+        break;
+
+      case 'approve_requirement':
+        result = await taskServer.approveRequirement(args.id as number, args.comment as string);
+        break;
+
+      case 'reject_requirement':
+        result = await taskServer.rejectRequirement(args.id as number, args.reason as string);
+        break;
+
+      case 'withdraw_requirement':
+        result = await taskServer.withdrawRequirement(args.id as number);
+        break;
+
+      case 'archive_requirement':
+        result = await taskServer.archiveRequirement(args.id as number);
+        break;
+
+      case 'get_requirement_history':
+        result = await taskServer.getRequirementHistory(
+          args.id as number,
+          args.page as number,
+          args.page_size as number
+        );
+        break;
+
+      case 'get_requirement_statistics':
+        result = await taskServer.getRequirementStatistics(args.id as number);
+        break;
+
       case 'dev_quick_login':
         console.error(`[MCP] 收到 dev_quick_login 调用，用户名: ${args.username}`);
         result = await taskServer.devQuickLogin(args.username as string);
         break;
-      
+
       default:
         return {
           content: [{ type: 'text', text: JSON.stringify({ success: false, error: `Unknown tool: ${name}` }) }]
