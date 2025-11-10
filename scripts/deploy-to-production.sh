@@ -1,13 +1,14 @@
 #!/bin/bash
 
 ###############################################################################
-# 生产环境部署脚本 v3.0 - 终极修复版
+# 生产环境部署脚本 v4.0 - 终极修复版
 # 功能：同步本地代码到生产服务器并重启服务
 #
 # 修复历史:
 # v1.0 - 原始版本，存在 rsync --delete 问题
 # v2.0 - 移除 --delete，但 EXIT trap 仍会错误删除
 # v3.0 - 彻底修复 trap 时机问题，防止误删除
+# v4.0 - 修复 frontend-only 模式错误创建新release的问题
 ###############################################################################
 
 set -e
@@ -54,13 +55,13 @@ log_error() {
 # 显示帮助
 show_help() {
     cat << EOF
-生产环境部署脚本 v3.0
+生产环境部署脚本 v4.0
 
 用法: $0 [选项]
 
 选项:
   --backend-only      仅部署后端
-  --frontend-only     仅部署前端
+  --frontend-only     仅部署前端(仅更新现有版本,不创建新release)
   --no-build          跳过构建步骤
   --no-restart        跳过服务重启
   --dry-run           模拟运行
@@ -69,6 +70,7 @@ show_help() {
 改进:
   ✅ 修复 rsync --delete 导致目录清空问题
   ✅ 修复 EXIT trap 误删除问题
+  ✅ 修复 frontend-only 模式错误创建新release
   ✅ 采用临时目录+原子切换策略
   ✅ 增强错误处理和回滚机制
   ✅ 详细的部署验证
@@ -666,11 +668,36 @@ main() {
         exit 1
     }
 
-    # 步骤8: 原子切换（这会设置 TEMP_MOVED=true）
-    atomic_switch "$TEMP_DIR" || {
-        log_error "版本切换失败"
-        exit 1
-    }
+    # 步骤8: 原子切换或更新前端
+    if [ "$FRONTEND_ONLY" = true ]; then
+        # 仅前端模式：更新current release的frontend目录
+        log_info "更新当前版本的前端..."
+        if [ "$DRY_RUN" != true ]; then
+            ssh $SSH_OPTS "$REMOTE_HOST" bash -s << EOF
+                if [ ! -d $REMOTE_BASE/current/frontend ]; then
+                    echo "ERROR: 当前版本没有frontend目录"
+                    exit 1
+                fi
+                # 备份旧前端
+                mv $REMOTE_BASE/current/frontend $REMOTE_BASE/current/frontend.bak.\$(date +%s)
+                # 移动新前端
+                mv $TEMP_DIR/frontend $REMOTE_BASE/current/frontend
+                echo "SUCCESS: 前端已更新"
+EOF
+            if [ $? -ne 0 ]; then
+                log_error "前端更新失败"
+                exit 1
+            fi
+        fi
+        TEMP_MOVED=true
+        log_success "前端更新完成"
+    else
+        # 完整部署或仅后端：原子切换（这会设置 TEMP_MOVED=true）
+        atomic_switch "$TEMP_DIR" || {
+            log_error "版本切换失败"
+            exit 1
+        }
+    fi
 
     # 步骤9: 重启服务
     if [ "$NO_RESTART" = false ] && [ "$FRONTEND_ONLY" = false ]; then
