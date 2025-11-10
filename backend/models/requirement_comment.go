@@ -2,10 +2,10 @@ package models
 
 import (
 	"database/sql/driver"
-	"encoding/json"
-	"fmt"
 	"regexp"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // RequirementCommentType represents the type of requirement comment
@@ -75,30 +75,30 @@ type RequirementComment struct {
 	Replies        []RequirementComment `json:"replies,omitempty" db:"-"`
 }
 
-// IntArray represents an array of integers stored as JSONB
+// IntArray represents an array of integers stored as PostgreSQL INTEGER[]
 type IntArray []int
 
 // Value implements the driver.Valuer interface for database storage
+// Converts []int to PostgreSQL array format: {1,2,3}
 func (a IntArray) Value() (driver.Value, error) {
-	if a == nil {
-		return "[]", nil
+	if a == nil || len(a) == 0 {
+		return "{}", nil
 	}
-	return json.Marshal(a)
+
+	// Use lib/pq's Array type for proper PostgreSQL array handling
+	return pq.Array(a).Value()
 }
 
 // Scan implements the sql.Scanner interface for database retrieval
+// Converts PostgreSQL array format {1,2,3} to []int
 func (a *IntArray) Scan(value interface{}) error {
 	if value == nil {
 		*a = IntArray{}
 		return nil
 	}
 
-	bytes, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("cannot scan %T into IntArray", value)
-	}
-
-	return json.Unmarshal(bytes, a)
+	// Use lib/pq's Array type for proper PostgreSQL array handling
+	return pq.Array(a).Scan(value)
 }
 
 // MentionedUser represents a user that was @mentioned in a comment

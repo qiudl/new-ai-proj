@@ -55,7 +55,7 @@ type Attachment struct {
 // Value implements the driver.Valuer interface for database storage
 func (a Attachments) Value() (driver.Value, error) {
 	if a == nil {
-		return "[]", nil
+		return []byte("[]"), nil
 	}
 	return json.Marshal(a)
 }

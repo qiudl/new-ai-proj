@@ -29,15 +29,15 @@ func NewRequirementTaskHandler(db database.DB, logger *log.Logger, validator *va
 
 // LinkTaskToRequirement godoc
 // @Summary Link an existing task to a requirement
-// @Description Create a manual link between an existing task and a requirement
+// @Description Create a manual link between an existing task and a requirement. The task and requirement must belong to the same project.
 // @Tags requirements
 // @Accept json
 // @Produce json
 // @Param id path int true "Requirement ID"
 // @Param request body models.CreateRequirementTaskLinkRequest true "Link request"
 // @Success 200 {object} models.APIResponse{data=models.RequirementTaskResponse}
-// @Failure 400 {object} models.APIResponse
-// @Failure 404 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse "Invalid request or task and requirement belong to different projects"
+// @Failure 404 {object} models.APIResponse "Requirement or task not found"
 // @Failure 500 {object} models.APIResponse
 // @Router /api/v1/requirements/{id}/tasks [post]
 // @Security Bearer
@@ -61,6 +61,12 @@ func (h *RequirementTaskHandler) LinkTaskToRequirement(c *gin.Context) {
 
 	// Set requirement_id from path parameter (takes precedence over body)
 	req.RequirementID = requirementID
+
+	// Validate RequirementID is set
+	if req.RequirementID == 0 {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation, "需求ID不能为空", nil))
+		return
+	}
 
 	// Validate request
 	if err := h.validator.Struct(req); err != nil {
@@ -96,6 +102,29 @@ func (h *RequirementTaskHandler) LinkTaskToRequirement(c *gin.Context) {
 	}
 	if task == nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "任务不存在", nil))
+		return
+	}
+
+	// Verify both belong to the same project
+	requirementProjectID := requirement.ProjectID
+	taskProjectID := task.ProjectID
+
+	// Both must have project_id
+	if requirementProjectID == nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation, "需求未关联项目，无法创建关联", nil))
+		return
+	}
+
+	// Check if they belong to the same project
+	if *requirementProjectID != taskProjectID {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.ErrCodeValidation,
+			"需求和任务不属于同一个项目，无法创建关联",
+			map[string]interface{}{
+				"requirement_project_id": *requirementProjectID,
+				"task_project_id":        taskProjectID,
+			},
+		))
 		return
 	}
 
