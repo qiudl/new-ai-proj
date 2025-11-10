@@ -55,12 +55,24 @@ export const useAutoSave = (options: AutoSaveOptions) => {
   const debounceTimerRef = useRef<NodeJS.Timeout>();
   const intervalTimerRef = useRef<NodeJS.Timeout>();
   const lastDataRef = useRef<string>('');
+  const isFirstRenderRef = useRef<boolean>(true);
+  const hasUserInteractionRef = useRef<boolean>(false);
 
   /**
    * 保存到本地存储
    */
   const saveDraft = useCallback(() => {
     try {
+      // 第一次渲染时不保存
+      if (isFirstRenderRef.current) {
+        return;
+      }
+
+      // 如果没有用户交互，不保存
+      if (!hasUserInteractionRef.current) {
+        return;
+      }
+
       setStatus((prev) => ({ ...prev, isSaving: true }));
 
       const draftData = {
@@ -167,6 +179,17 @@ export const useAutoSave = (options: AutoSaveOptions) => {
   // 数据变化时触发防抖保存
   useEffect(() => {
     if (enabled && data) {
+      // 第一次渲染后，标记为非首次渲染
+      if (isFirstRenderRef.current) {
+        isFirstRenderRef.current = false;
+        // 初始化 lastDataRef
+        lastDataRef.current = JSON.stringify(data);
+        return;
+      }
+
+      // 标记为有用户交互
+      hasUserInteractionRef.current = true;
+
       debouncedSave();
     }
   }, [data, enabled, debouncedSave]);
@@ -176,6 +199,16 @@ export const useAutoSave = (options: AutoSaveOptions) => {
     if (!enabled) return;
 
     intervalTimerRef.current = setInterval(() => {
+      // 跳过首次渲染
+      if (isFirstRenderRef.current) {
+        return;
+      }
+
+      // 只有用户有交互时才定期保存
+      if (!hasUserInteractionRef.current) {
+        return;
+      }
+
       const currentData = JSON.stringify(data);
       if (currentData !== lastDataRef.current && currentData !== '{}') {
         lastDataRef.current = currentData;
