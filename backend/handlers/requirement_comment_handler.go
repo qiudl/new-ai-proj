@@ -421,7 +421,7 @@ func (h *RequirementCommentHandler) GetComments(c *gin.Context) {
 // @Router /api/v1/requirements/comments/{id} [get]
 // @Security BearerAuth
 func (h *RequirementCommentHandler) GetComment(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Param("comment_id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的评论ID", nil))
@@ -473,7 +473,7 @@ func (h *RequirementCommentHandler) GetComment(c *gin.Context) {
 // @Security BearerAuth
 func (h *RequirementCommentHandler) UpdateComment(c *gin.Context) {
 	userID := c.GetInt("user_id")
-	idStr := c.Param("id")
+	idStr := c.Param("comment_id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的评论ID", nil))
@@ -579,7 +579,7 @@ func (h *RequirementCommentHandler) UpdateComment(c *gin.Context) {
 // @Security BearerAuth
 func (h *RequirementCommentHandler) DeleteComment(c *gin.Context) {
 	userID := c.GetInt("user_id")
-	idStr := c.Param("id")
+	idStr := c.Param("comment_id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的评论ID", nil))
@@ -766,7 +766,7 @@ func (h *RequirementCommentHandler) GetCommentStats(c *gin.Context) {
 // @Router /api/v1/requirements/comments/{id}/pin [put]
 // @Security BearerAuth
 func (h *RequirementCommentHandler) TogglePin(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Param("comment_id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的评论ID", nil))

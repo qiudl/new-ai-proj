@@ -793,11 +793,11 @@ definitions:
         - related
         type: string
       requirement_id:
+        description: Will be set from path parameter, not required in body
         type: integer
       task_id:
         type: integer
     required:
-    - requirement_id
     - task_id
     type: object
   models.CreateTaskCommentRequest:
@@ -1251,28 +1251,6 @@ definitions:
         type: boolean
       timestamp:
         type: string
-    type: object
-  models.GenerateDocumentRequest:
-    properties:
-      autoCreate:
-        type: boolean
-      context:
-        $ref: '#/definitions/models.TemplateContext'
-      templateType:
-        type: string
-    required:
-    - context
-    - templateType
-    type: object
-  models.GenerateDocumentResponse:
-    properties:
-      content:
-        type: string
-      document_id:
-        type: integer
-      metadata:
-        additionalProperties: true
-        type: object
     type: object
   models.GraphEdge:
     properties:
@@ -2986,28 +2964,6 @@ definitions:
     - project_id
     - status
     - title
-    type: object
-  models.TemplateContext:
-    properties:
-      assignee:
-        type: string
-      deadline:
-        type: string
-      priority:
-        type: string
-      projectId:
-        type: integer
-      requirements:
-        type: string
-      tags:
-        items:
-          type: string
-        type: array
-      taskId:
-        type: integer
-      title:
-        description: 通用字段
-        type: string
     type: object
   models.UpdateDailyFocusTaskRequest:
     properties:
@@ -6385,63 +6341,6 @@ paths:
       summary: 追加内容到文档
       tags:
       - MCP
-  /api/v1/mcp/generate-document-from-template:
-    post:
-      consumes:
-      - application/json
-      description: |-
-        根据指定的模板类型和上下文信息智能生成Markdown格式的文档内容。支持8种预定义模板类型，可选择性地自动创建文档并关联到任务。
-
-        支持的模板类型:
-        - bug_report: Bug报告模板
-        - feature_spec: 功能规格说明模板
-        - technical_design: 技术设计文档模板
-        - meeting_notes: 会议纪要模板
-        - project_plan: 项目计划模板
-        - api_documentation: API文档模板
-        - test_plan: 测试计划模板
-        - user_story: 用户故事模板
-
-        autoCreate功能说明:
-        - 当autoCreate=true时，需要提供taskId或projectId参数
-        - 系统将自动创建文档记录并关联到指定任务
-        - 返回的document_id可用于后续文档操作
-      parameters:
-      - description: 文档生成请求参数
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.GenerateDocumentRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 成功生成文档，返回内容和元数据
-          schema:
-            allOf:
-            - $ref: '#/definitions/models.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/models.GenerateDocumentResponse'
-              type: object
-        "400":
-          description: 请求参数错误，如模板类型无效或autoCreate缺少必要参数
-          schema:
-            $ref: '#/definitions/models.APIResponse'
-        "401":
-          description: 未认证，autoCreate功能需要用户登录
-          schema:
-            $ref: '#/definitions/models.APIResponse'
-        "500":
-          description: 服务器内部错误，如文档生成失败或数据库操作失败
-          schema:
-            $ref: '#/definitions/models.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: 根据模板类型生成文档内容
-      tags:
-      - MCP
   /api/v1/notifications:
     get:
       consumes:
@@ -8878,7 +8777,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a manual link between an existing task and a requirement
+      description: Create a manual link between an existing task and a requirement.
+        The task and requirement must belong to the same project.
       parameters:
       - description: Requirement ID
         in: path
@@ -8904,11 +8804,12 @@ paths:
                   $ref: '#/definitions/models.RequirementTaskResponse'
               type: object
         "400":
-          description: Bad Request
+          description: Invalid request or task and requirement belong to different
+            projects
           schema:
             $ref: '#/definitions/models.APIResponse'
         "404":
-          description: Not Found
+          description: Requirement or task not found
           schema:
             $ref: '#/definitions/models.APIResponse'
         "500":

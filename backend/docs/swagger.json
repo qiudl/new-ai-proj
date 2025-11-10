@@ -3661,75 +3661,6 @@
                 }
             }
         },
-        "/api/v1/mcp/generate-document-from-template": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "根据指定的模板类型和上下文信息智能生成Markdown格式的文档内容。支持8种预定义模板类型，可选择性地自动创建文档并关联到任务。\n\n支持的模板类型:\n- bug_report: Bug报告模板\n- feature_spec: 功能规格说明模板\n- technical_design: 技术设计文档模板\n- meeting_notes: 会议纪要模板\n- project_plan: 项目计划模板\n- api_documentation: API文档模板\n- test_plan: 测试计划模板\n- user_story: 用户故事模板\n\nautoCreate功能说明:\n- 当autoCreate=true时，需要提供taskId或projectId参数\n- 系统将自动创建文档记录并关联到指定任务\n- 返回的document_id可用于后续文档操作",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MCP"
-                ],
-                "summary": "根据模板类型生成文档内容",
-                "parameters": [
-                    {
-                        "description": "文档生成请求参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.GenerateDocumentRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "成功生成文档，返回内容和元数据",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/models.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/models.GenerateDocumentResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误，如模板类型无效或autoCreate缺少必要参数",
-                        "schema": {
-                            "$ref": "#/definitions/models.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "未认证，autoCreate功能需要用户登录",
-                        "schema": {
-                            "$ref": "#/definitions/models.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误，如文档生成失败或数据库操作失败",
-                        "schema": {
-                            "$ref": "#/definitions/models.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/notifications": {
             "get": {
                 "security": [
@@ -8150,7 +8081,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Create a manual link between an existing task and a requirement",
+                "description": "Create a manual link between an existing task and a requirement. The task and requirement must belong to the same project.",
                 "consumes": [
                     "application/json"
                 ],
@@ -8199,13 +8130,13 @@
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request or task and requirement belong to different projects",
                         "schema": {
                             "$ref": "#/definitions/models.APIResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Requirement or task not found",
                         "schema": {
                             "$ref": "#/definitions/models.APIResponse"
                         }
@@ -15591,7 +15522,6 @@
         "models.CreateRequirementTaskLinkRequest": {
             "type": "object",
             "required": [
-                "requirement_id",
                 "task_id"
             ],
             "properties": {
@@ -15607,6 +15537,7 @@
                     ]
                 },
                 "requirement_id": {
+                    "description": "Will be set from path parameter, not required in body",
                     "type": "integer"
                 },
                 "task_id": {
@@ -16276,39 +16207,6 @@
                 },
                 "timestamp": {
                     "type": "string"
-                }
-            }
-        },
-        "models.GenerateDocumentRequest": {
-            "type": "object",
-            "required": [
-                "context",
-                "templateType"
-            ],
-            "properties": {
-                "autoCreate": {
-                    "type": "boolean"
-                },
-                "context": {
-                    "$ref": "#/definitions/models.TemplateContext"
-                },
-                "templateType": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.GenerateDocumentResponse": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "document_id": {
-                    "type": "integer"
-                },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": true
                 }
             }
         },
@@ -18824,39 +18722,6 @@
                 },
                 "work_hours_per_day": {
                     "type": "number"
-                }
-            }
-        },
-        "models.TemplateContext": {
-            "type": "object",
-            "properties": {
-                "assignee": {
-                    "type": "string"
-                },
-                "deadline": {
-                    "type": "string"
-                },
-                "priority": {
-                    "type": "string"
-                },
-                "projectId": {
-                    "type": "integer"
-                },
-                "requirements": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "taskId": {
-                    "type": "integer"
-                },
-                "title": {
-                    "description": "通用字段",
-                    "type": "string"
                 }
             }
         },
