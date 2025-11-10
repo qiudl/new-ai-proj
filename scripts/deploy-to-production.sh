@@ -638,23 +638,47 @@ restart_backend() {
     # 停止旧服务
     log_info "停止旧版本服务..."
     ssh $SSH_OPTS "$REMOTE_HOST" bash -s << 'EOF'
-        # 查找所有相关进程
+        # 查找所有相关进程（更宽松的匹配模式）
+        # 1. 先尝试精确匹配
         pids=$(pgrep -f '/opt/ai-project.*main' || echo "")
+
+        # 2. 如果没找到，尝试匹配任何在8080端口监听的进程
+        if [ -z "$pids" ]; then
+            echo "未找到ai-project进程，检查8080端口..."
+            port_pid=$(lsof -ti:8080 2>/dev/null || netstat -tlnp 2>/dev/null | grep :8080 | awk '{print $7}' | cut -d'/' -f1 || echo "")
+            if [ -n "$port_pid" ]; then
+                echo "发现占用8080端口的进程: $port_pid"
+                pids=$port_pid
+            fi
+        fi
 
         if [ -n "$pids" ]; then
             echo "找到以下进程: $pids"
             kill $pids 2>/dev/null || true
-            sleep 2
+            sleep 3
 
             # 确认进程已停止
             remaining=$(pgrep -f '/opt/ai-project.*main' || echo "")
+            if [ -z "$remaining" ]; then
+                # 再次检查8080端口
+                remaining=$(lsof -ti:8080 2>/dev/null || echo "")
+            fi
+
             if [ -n "$remaining" ]; then
                 echo "强制停止残留进程: $remaining"
                 kill -9 $remaining 2>/dev/null || true
+                sleep 2
             fi
             echo "旧服务已停止"
         else
             echo "没有运行中的服务需要停止"
+        fi
+
+        # 最终验证8080端口是否空闲
+        if lsof -ti:8080 >/dev/null 2>&1 || netstat -tln 2>/dev/null | grep -q :8080; then
+            echo "警告: 8080端口仍被占用，尝试强制释放..."
+            lsof -ti:8080 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+            sleep 1
         fi
 EOF
 
@@ -694,12 +718,23 @@ EOF
         # 检查进程是否还在运行
         if ! kill -0 \$new_pid 2>/dev/null; then
             echo "ERROR: 进程启动后立即退出"
-            echo "最近的日志:"
-            tail -30 backend.log
+            echo "=== 最近的日志 ==="
+            tail -50 backend.log
+            echo ""
+            echo "=== 可能的原因 ==="
+            # 检查端口占用
+            if lsof -ti:8080 >/dev/null 2>&1 || netstat -tln 2>/dev/null | grep -q :8080; then
+                echo "❌ 端口8080仍被占用"
+                lsof -ti:8080 2>/dev/null | xargs -r ps -fp 2>/dev/null || true
+            fi
+            # 检查配置文件
+            if ! grep -q "^DB_HOST=" .env 2>/dev/null; then
+                echo "❌ 配置文件 .env 可能损坏"
+            fi
             exit 1
         fi
 
-        echo "SUCCESS: 进程正在运行"
+        echo "SUCCESS: 进程正在运行 (PID: \$new_pid)"
 EOF
 )
 

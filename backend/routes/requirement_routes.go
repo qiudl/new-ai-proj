@@ -21,6 +21,9 @@ func RegisterRequirementRoutes(authorized *gin.RouterGroup, app ApplicationInter
 	// Get requirement-task link handler
 	requirementTaskHandler := app.GetRequirementTaskHandler()
 
+	// Get requirement history handler
+	requirementHistoryHandler := app.GetRequirementHistoryHandler()
+
 	// Requirements routes
 	requirements := authorized.Group("/requirements")
 	{
@@ -30,6 +33,14 @@ func RegisterRequirementRoutes(authorized *gin.RouterGroup, app ApplicationInter
 
 		// Statistics endpoint
 		requirements.GET("/stats", requirementHandler.GetRequirementStats)
+
+		// History routes - MUST come before /:id routes to avoid route conflicts
+		if requirementHistoryHandler != nil {
+			// Per-requirement history routes
+			requirements.GET("/:id/history", requirementHistoryHandler.GetRequirementHistory)
+			requirements.GET("/:id/history/stats", requirementHistoryHandler.GetRequirementHistoryStats)
+			requirements.POST("/:id/history", requirementHistoryHandler.CreateRequirementHistory)
+		}
 
 		// Individual requirement routes
 		requirements.GET("/:id", requirementHandler.GetRequirement)

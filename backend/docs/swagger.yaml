@@ -42,6 +42,41 @@ definitions:
     - role_code
     - role_name
     type: object
+  handlers.CreateRequirementRequest:
+    properties:
+      acceptanceCriteria:
+        type: string
+      businessValue:
+        type: string
+      category:
+        type: string
+      complexity:
+        type: string
+      description:
+        type: string
+      dueDate:
+        type: string
+      enterpriseId:
+        type: integer
+      estimatedHours:
+        type: number
+      priority:
+        type: string
+      projectId:
+        type: integer
+      reviewerId:
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 500
+        minLength: 1
+        type: string
+    required:
+    - title
+    type: object
   handlers.GenerateDescriptionRequest:
     properties:
       model:
@@ -174,6 +209,33 @@ definitions:
         type: string
     required:
     - role_name
+    type: object
+  handlers.UpdateRequirementRequest:
+    properties:
+      acceptanceCriteria:
+        type: string
+      businessValue:
+        type: string
+      category:
+        type: string
+      complexity:
+        type: string
+      description:
+        type: string
+      dueDate:
+        type: string
+      estimatedHours:
+        type: number
+      priority:
+        type: string
+      projectId:
+        type: integer
+      reviewerId:
+        type: integer
+      status:
+        type: string
+      title:
+        type: string
     type: object
   handlers.UpdateTaskDescriptionRequest:
     properties:
@@ -745,6 +807,27 @@ definitions:
     - content
     - requirement_id
     type: object
+  models.CreateRequirementHistoryRequest:
+    properties:
+      action:
+        type: string
+      comment:
+        type: string
+      field_name:
+        type: string
+      new_value:
+        type: string
+      old_value:
+        type: string
+      requirement_id:
+        type: integer
+      user_id:
+        type: integer
+    required:
+    - action
+    - requirement_id
+    - user_id
+    type: object
   models.CreateRequirementRequest:
     properties:
       acceptance_criteria:
@@ -793,7 +876,7 @@ definitions:
         - related
         type: string
       requirement_id:
-        description: Will be set from path parameter, not required in body
+        description: Set from path parameter, not included in request body
         type: integer
       task_id:
         type: integer
@@ -1857,6 +1940,101 @@ definitions:
     required:
     - new_position
     type: object
+  models.Requirement:
+    properties:
+      acceptance_criteria:
+        type: string
+      attachments:
+        items:
+          $ref: '#/definitions/models.Attachment'
+        type: array
+      business_value:
+        description: 业务信息
+        type: string
+      category:
+        type: string
+      complexity:
+        type: string
+      converted_at:
+        type: string
+      converted_by:
+        type: integer
+      converted_task:
+        $ref: '#/definitions/models.Task'
+      converted_task_id:
+        description: 转化信息（关联到tasks表）
+        type: integer
+      created_at:
+        type: string
+      deleted_at:
+        description: 软删除
+        type: string
+      deleted_by:
+        type: integer
+      description:
+        type: string
+      display_id:
+        type: string
+      due_date:
+        type: string
+      enterprise_id:
+        type: integer
+      enterprise_name:
+        type: string
+      estimated_cost:
+        type: number
+      estimated_hours:
+        description: 估算信息
+        type: number
+      expected_outcome:
+        type: string
+      id:
+        description: 主键和编号
+        type: integer
+      priority:
+        type: string
+      project_id:
+        description: 关联信息（复用现有表）
+        type: integer
+      project_name:
+        description: 关联对象（不存储在数据库，通过JOIN查询填充）
+        type: string
+      review_comment:
+        type: string
+      review_score:
+        type: integer
+      review_status:
+        description: 评审信息
+        type: string
+      reviewed_at:
+        type: string
+      reviewer_id:
+        type: integer
+      reviewer_name:
+        type: string
+      status:
+        description: 状态和优先级
+        type: string
+      submitted_at:
+        description: 时间戳
+        type: string
+      submitter_id:
+        type: integer
+      submitter_name:
+        type: string
+      title:
+        description: 基础信息
+        maxLength: 500
+        minLength: 1
+        type: string
+      updated_at:
+        type: string
+    required:
+    - enterprise_id
+    - status
+    - submitter_id
+    - title
+    type: object
   models.RequirementCommentListResponse:
     properties:
       data:
@@ -1951,6 +2129,70 @@ definitions:
       top_level_comments:
         type: integer
       total_comments:
+        type: integer
+    type: object
+  models.RequirementHistoryListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/models.RequirementHistoryResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  models.RequirementHistoryResponse:
+    properties:
+      action:
+        type: string
+      action_display:
+        description: Human-readable action description
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      field_name:
+        type: string
+      id:
+        type: integer
+      new_value:
+        type: string
+      old_value:
+        type: string
+      requirement_id:
+        type: integer
+      user_avatar:
+        type: string
+      user_id:
+        type: integer
+      user_type:
+        type: string
+      username:
+        type: string
+    type: object
+  models.RequirementHistoryStats:
+    properties:
+      average_actions_per_requirement:
+        type: number
+      by_action:
+        additionalProperties:
+          type: integer
+        type: object
+      most_active_users:
+        items:
+          $ref: '#/definitions/models.UserActivity'
+        type: array
+      recent_status_changes:
+        type: integer
+      this_weeks_actions:
+        type: integer
+      todays_actions:
+        type: integer
+      total_actions:
         type: integer
     type: object
   models.RequirementListResponse:
@@ -3144,6 +3386,15 @@ definitions:
     - status
     - user_type
     - username
+    type: object
+  models.UserActivity:
+    properties:
+      action_count:
+        type: integer
+      user_id:
+        type: integer
+      username:
+        type: string
     type: object
   models.UserProfile:
     properties:
@@ -6341,6 +6592,202 @@ paths:
       summary: 追加内容到文档
       tags:
       - MCP
+  /api/v1/mcp/requirements:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of requirements with filtering
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20)'
+        in: query
+        name: pageSize
+        type: integer
+      - description: Search in title/description
+        in: query
+        name: search
+        type: string
+      - collectionFormat: csv
+        description: Filter by status
+        in: query
+        items:
+          type: string
+        name: status
+        type: array
+      - collectionFormat: csv
+        description: Filter by priority
+        in: query
+        items:
+          type: string
+        name: priority
+        type: array
+      - description: Filter by project ID
+        in: query
+        name: projectId
+        type: integer
+      - description: Filter by assignee ID
+        in: query
+        name: assigneeId
+        type: integer
+      - description: 'Sort field (default: created_at)'
+        in: query
+        name: sortBy
+        type: string
+      - description: 'Sort order (default: desc)'
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - Bearer: []
+      summary: List requirements (MCP)
+      tags:
+      - mcp
+  /api/v1/mcp/requirements/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a requirement
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Requirement'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - Bearer: []
+      summary: Get a requirement by ID (MCP)
+      tags:
+      - mcp
+    put:
+      consumes:
+      - application/json
+      description: Update requirement fields
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Requirement update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateRequirementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Requirement'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - Bearer: []
+      summary: Update a requirement (MCP)
+      tags:
+      - mcp
+  /api/v1/mcp/requirements/create:
+    post:
+      consumes:
+      - application/json
+      description: Create a new requirement with smart inference of enterprise and
+        project
+      parameters:
+      - description: Requirement creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateRequirementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Requirement'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - Bearer: []
+      summary: Create a new requirement (MCP)
+      tags:
+      - mcp
   /api/v1/notifications:
     get:
       consumes:
@@ -8488,6 +8935,175 @@ paths:
       security:
       - BearerAuth: []
       summary: Convert requirement to task
+      tags:
+      - requirements
+  /api/v1/requirements/{id}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get operation history for a specific requirement
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - collectionFormat: csv
+        description: Filter by action types
+        in: query
+        items:
+          type: string
+        name: action
+        type: array
+      - description: Filter by user ID
+        in: query
+        name: user_id
+        type: integer
+      - description: Filter by created after date (RFC3339)
+        in: query
+        name: created_after
+        type: string
+      - description: Filter by created before date (RFC3339)
+        in: query
+        name: created_before
+        type: string
+      - default: desc
+        description: Sort order (asc, desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementHistoryListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get requirement history
+      tags:
+      - requirements
+    post:
+      consumes:
+      - application/json
+      description: Create a new history record for a requirement (internal use)
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: History record data
+        in: body
+        name: history
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateRequirementHistoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementHistoryResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create requirement history record
+      tags:
+      - requirements
+  /api/v1/requirements/{id}/history/stats:
+    get:
+      consumes:
+      - application/json
+      description: Get statistics for requirement operation history
+      parameters:
+      - description: Requirement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.RequirementHistoryStats'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get requirement history statistics
       tags:
       - requirements
   /api/v1/requirements/{id}/permissions:

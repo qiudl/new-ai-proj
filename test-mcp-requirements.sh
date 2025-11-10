@@ -4,11 +4,11 @@
 
 # 获取token
 echo "=== 登录获取Token ==="
-RESPONSE=$(curl -s -X POST "http://localhost:8080/api/v1/auth/dev-login" \
+RESPONSE=$(curl -s -X POST "http://localhost:8080/api/v1/auth/dev-quick-login" \
   -H "Content-Type: application/json" \
   -d '{"username":"admin"}')
 
-TOKEN=$(echo "$RESPONSE" | jq -r '.data.token')
+TOKEN=$(echo "$RESPONSE" | jq -r '.data.access_token')
 echo "Token: ${TOKEN:0:50}..."
 
 # 测试1: 创建需求

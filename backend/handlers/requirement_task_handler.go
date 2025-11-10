@@ -153,6 +153,23 @@ func (h *RequirementTaskHandler) LinkTaskToRequirement(c *gin.Context) {
 		return
 	}
 
+	// Record history: linked task
+	taskIDStr := strconv.Itoa(req.TaskID)
+	linkTypeComment := "关联类型: " + req.LinkType
+	if req.LinkComment != nil && *req.LinkComment != "" {
+		linkTypeComment += ", 备注: " + *req.LinkComment
+	}
+	_ = RecordRequirementHistory(
+		h.db,
+		requirementID,
+		userID,
+		"task_linked",
+		nil,
+		nil,
+		&taskIDStr,
+		&linkTypeComment,
+	)
+
 	// Return success response
 	c.JSON(http.StatusOK, models.NewSuccessResponse(linkDetails, "成功创建需求-任务关联"))
 }
@@ -218,6 +235,20 @@ func (h *RequirementTaskHandler) UnlinkTaskFromRequirement(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "删除关联失败", nil))
 		return
 	}
+
+	// Record history: task unlinked
+	userID := c.GetInt("user_id")
+	taskIDValue := strconv.Itoa(taskID)
+	_ = RecordRequirementHistory(
+		h.db,
+		requirementID,
+		userID,
+		"task_unlinked",
+		nil,
+		&taskIDValue,
+		nil,
+		nil,
+	)
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "成功删除需求-任务关联"))
 }

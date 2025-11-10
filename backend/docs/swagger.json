@@ -3661,6 +3661,326 @@
                 }
             }
         },
+        "/api/v1/mcp/requirements": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get a paginated list of requirements with filtering",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mcp"
+                ],
+                "summary": "List requirements (MCP)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default: 20)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search in title/description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Filter by priority",
+                        "name": "priority",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by project ID",
+                        "name": "projectId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by assignee ID",
+                        "name": "assigneeId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort field (default: created_at)",
+                        "name": "sortBy",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (default: desc)",
+                        "name": "sortOrder",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.RequirementListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/mcp/requirements/create": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Create a new requirement with smart inference of enterprise and project",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mcp"
+                ],
+                "summary": "Create a new requirement (MCP)",
+                "parameters": [
+                    {
+                        "description": "Requirement creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateRequirementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Requirement"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/mcp/requirements/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get detailed information about a requirement",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mcp"
+                ],
+                "summary": "Get a requirement by ID (MCP)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Requirement ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Requirement"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Update requirement fields",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mcp"
+                ],
+                "summary": "Update a requirement (MCP)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Requirement ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Requirement update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpdateRequirementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Requirement"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/notifications": {
             "get": {
                 "security": [
@@ -7591,6 +7911,279 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requirements/{id}/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get operation history for a specific requirement",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "requirements"
+                ],
+                "summary": "Get requirement history",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Requirement ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default: 20, max: 100)",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Filter by action types",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by user ID",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by created after date (RFC3339)",
+                        "name": "created_after",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by created before date (RFC3339)",
+                        "name": "created_before",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.RequirementHistoryListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new history record for a requirement (internal use)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "requirements"
+                ],
+                "summary": "Create requirement history record",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Requirement ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "History record data",
+                        "name": "history",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateRequirementHistoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.RequirementHistoryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/requirements/{id}/history/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get statistics for requirement operation history",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "requirements"
+                ],
+                "summary": "Get requirement history statistics",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Requirement ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.RequirementHistoryStats"
                                         }
                                     }
                                 }
@@ -14430,6 +15023,58 @@
                 }
             }
         },
+        "handlers.CreateRequirementRequest": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "acceptanceCriteria": {
+                    "type": "string"
+                },
+                "businessValue": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "complexity": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dueDate": {
+                    "type": "string"
+                },
+                "enterpriseId": {
+                    "type": "integer"
+                },
+                "estimatedHours": {
+                    "type": "number"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "reviewerId": {
+                    "type": "integer"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 1
+                }
+            }
+        },
         "handlers.GenerateDescriptionRequest": {
             "type": "object",
             "required": [
@@ -14627,6 +15272,47 @@
                     "type": "string"
                 },
                 "role_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.UpdateRequirementRequest": {
+            "type": "object",
+            "properties": {
+                "acceptanceCriteria": {
+                    "type": "string"
+                },
+                "businessValue": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "complexity": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dueDate": {
+                    "type": "string"
+                },
+                "estimatedHours": {
+                    "type": "number"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "projectId": {
+                    "type": "integer"
+                },
+                "reviewerId": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }
@@ -15466,6 +16152,37 @@
                 }
             }
         },
+        "models.CreateRequirementHistoryRequest": {
+            "type": "object",
+            "required": [
+                "action",
+                "requirement_id",
+                "user_id"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "field_name": {
+                    "type": "string"
+                },
+                "new_value": {
+                    "type": "string"
+                },
+                "old_value": {
+                    "type": "string"
+                },
+                "requirement_id": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.CreateRequirementRequest": {
             "type": "object",
             "required": [
@@ -15537,7 +16254,7 @@
                     ]
                 },
                 "requirement_id": {
-                    "description": "Will be set from path parameter, not required in body",
+                    "description": "Set from path parameter, not included in request body",
                     "type": "integer"
                 },
                 "task_id": {
@@ -17098,6 +17815,141 @@
                 }
             }
         },
+        "models.Requirement": {
+            "type": "object",
+            "required": [
+                "enterprise_id",
+                "status",
+                "submitter_id",
+                "title"
+            ],
+            "properties": {
+                "acceptance_criteria": {
+                    "type": "string"
+                },
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Attachment"
+                    }
+                },
+                "business_value": {
+                    "description": "业务信息",
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "complexity": {
+                    "type": "string"
+                },
+                "converted_at": {
+                    "type": "string"
+                },
+                "converted_by": {
+                    "type": "integer"
+                },
+                "converted_task": {
+                    "$ref": "#/definitions/models.Task"
+                },
+                "converted_task_id": {
+                    "description": "转化信息（关联到tasks表）",
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "description": "软删除",
+                    "type": "string"
+                },
+                "deleted_by": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display_id": {
+                    "type": "string"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "enterprise_id": {
+                    "type": "integer"
+                },
+                "enterprise_name": {
+                    "type": "string"
+                },
+                "estimated_cost": {
+                    "type": "number"
+                },
+                "estimated_hours": {
+                    "description": "估算信息",
+                    "type": "number"
+                },
+                "expected_outcome": {
+                    "type": "string"
+                },
+                "id": {
+                    "description": "主键和编号",
+                    "type": "integer"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "description": "关联信息（复用现有表）",
+                    "type": "integer"
+                },
+                "project_name": {
+                    "description": "关联对象（不存储在数据库，通过JOIN查询填充）",
+                    "type": "string"
+                },
+                "review_comment": {
+                    "type": "string"
+                },
+                "review_score": {
+                    "type": "integer"
+                },
+                "review_status": {
+                    "description": "评审信息",
+                    "type": "string"
+                },
+                "reviewed_at": {
+                    "type": "string"
+                },
+                "reviewer_id": {
+                    "type": "integer"
+                },
+                "reviewer_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态和优先级",
+                    "type": "string"
+                },
+                "submitted_at": {
+                    "description": "时间戳",
+                    "type": "string"
+                },
+                "submitter_id": {
+                    "type": "integer"
+                },
+                "submitter_name": {
+                    "type": "string"
+                },
+                "title": {
+                    "description": "基础信息",
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 1
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "models.RequirementCommentListResponse": {
             "type": "object",
             "properties": {
@@ -17238,6 +18090,103 @@
                     "type": "integer"
                 },
                 "total_comments": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RequirementHistoryListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RequirementHistoryResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RequirementHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "action_display": {
+                    "description": "Human-readable action description",
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "field_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "new_value": {
+                    "type": "string"
+                },
+                "old_value": {
+                    "type": "string"
+                },
+                "requirement_id": {
+                    "type": "integer"
+                },
+                "user_avatar": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "user_type": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RequirementHistoryStats": {
+            "type": "object",
+            "properties": {
+                "average_actions_per_requirement": {
+                    "type": "number"
+                },
+                "by_action": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "most_active_users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.UserActivity"
+                    }
+                },
+                "recent_status_changes": {
+                    "type": "integer"
+                },
+                "this_weeks_actions": {
+                    "type": "integer"
+                },
+                "todays_actions": {
+                    "type": "integer"
+                },
+                "total_actions": {
                     "type": "integer"
                 }
             }
@@ -18980,6 +19929,20 @@
                     "type": "string",
                     "maxLength": 50,
                     "minLength": 3
+                }
+            }
+        },
+        "models.UserActivity": {
+            "type": "object",
+            "properties": {
+                "action_count": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },

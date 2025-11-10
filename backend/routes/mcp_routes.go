@@ -135,6 +135,18 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	mcp.PUT("/requirements/:id", mcpUpdateRequirement(app))
 	mcp.GET("/requirements", mcpListRequirements(app))
 
+	// Phase 2: 需求-任务关联
+	mcp.POST("/requirements/:id/link-tasks", mcpLinkTasksToRequirement(app))
+	mcp.DELETE("/requirements/:id/tasks/:task_id", mcpUnlinkTaskFromRequirement(app))
+	mcp.GET("/requirements/:id/tasks", mcpGetRequirementTasks(app))
+
+	// Phase 3: 需求状态流转
+	mcp.POST("/requirements/:id/submit", mcpSubmitRequirement(app))
+	mcp.POST("/requirements/:id/approve", mcpApproveRequirement(app))
+	mcp.POST("/requirements/:id/reject", mcpRejectRequirement(app))
+	mcp.POST("/requirements/:id/withdraw", mcpWithdrawRequirement(app))
+	mcp.POST("/requirements/:id/archive", mcpArchiveRequirement(app))
+
 	// MCP Worktree工具路由 (Phase 5)
 	RegisterMCPWorktreeRoutes(mcp, app)
 }
@@ -1694,5 +1706,109 @@ func mcpListRequirements(app ApplicationInterface) gin.HandlerFunc {
 			return
 		}
 		mcpReqHandler.ListRequirements(c)
+	}
+}
+
+// ============================================================================
+// Phase 2: Requirement-Task Linking Wrapper Functions
+// ============================================================================
+
+// mcpLinkTasksToRequirement MCP专用：批量关联任务到需求
+func mcpLinkTasksToRequirement(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.LinkTasksToRequirement(c)
+	}
+}
+
+// mcpUnlinkTaskFromRequirement MCP专用：取消需求-任务关联
+func mcpUnlinkTaskFromRequirement(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.UnlinkTaskFromRequirement(c)
+	}
+}
+
+// mcpGetRequirementTasks MCP专用：获取需求关联的任务列表
+func mcpGetRequirementTasks(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.GetRequirementTasks(c)
+	}
+}
+
+// ============================================================================
+// Phase 3: Requirement Status Workflow Wrapper Functions
+// ============================================================================
+
+// mcpSubmitRequirement MCP专用：提交需求审核
+func mcpSubmitRequirement(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.SubmitRequirement(c)
+	}
+}
+
+// mcpApproveRequirement MCP专用：批准需求
+func mcpApproveRequirement(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.ApproveRequirement(c)
+	}
+}
+
+// mcpRejectRequirement MCP专用：拒绝需求
+func mcpRejectRequirement(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.RejectRequirement(c)
+	}
+}
+
+// mcpWithdrawRequirement MCP专用：撤回需求
+func mcpWithdrawRequirement(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.WithdrawRequirement(c)
+	}
+}
+
+// mcpArchiveRequirement MCP专用：归档需求
+func mcpArchiveRequirement(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.ArchiveRequirement(c)
 	}
 }

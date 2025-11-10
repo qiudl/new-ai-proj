@@ -470,6 +470,14 @@ func (h *RequirementHandler) DeleteRequirement(c *gin.Context) {
 		return
 	}
 
+	// Create history record
+	history := &models.RequirementHistory{
+		RequirementID: requirementID,
+		UserID:        userID,
+		Action:        string(models.RequirementHistoryActionDeleted),
+	}
+	_ = h.db.RequirementHistory().Create(c.Request.Context(), history)
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "需求已移至回收站"))
 }
 
@@ -777,6 +785,18 @@ func (h *RequirementHandler) ConvertRequirementToTask(c *gin.Context) {
 		log.Printf("Error updating requirement %d after conversion: %v", requirementID, err)
 		// Continue even if update fails - task is created
 	}
+
+	// Record history: requirement converted to task
+	taskIDValue := strconv.Itoa(createdTask.ID)
+	comment := fmt.Sprintf("需求已转换为任务 (任务ID: %d, 任务标题: %s)", createdTask.ID, createdTask.Title)
+	history := &models.RequirementHistory{
+		RequirementID: requirementID,
+		UserID:        userID,
+		Action:        string(models.RequirementHistoryActionConverted),
+		NewValue:      &taskIDValue,
+		Comment:       &comment,
+	}
+	_ = h.db.RequirementHistory().Create(ctx, history)
 
 	// TODO: Create subtasks if requested
 	// This would be implemented based on req.CreateSubtasks flag

@@ -7,8 +7,8 @@
  * - 展示评论、关联任务、操作历史的Tab面板
  */
 
-import React from 'react';
-import { Card, Space, Tabs, Empty, Table, Timeline, Spin, Typography } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Space, Tabs, Empty, Table, Timeline, Spin, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { TabsProps } from 'antd';
 import {
@@ -17,13 +17,21 @@ import {
   CommentOutlined,
   LinkOutlined,
   HistoryOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
+import * as Icons from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { Requirement } from '../../types/requirement';
 import { RequirementTaskLink } from '../../services/requirementService';
 import SmartContentRenderer from '../../components/SmartContentRenderer';
 import RequirementCommentSection from '../../components/RequirementComment/RequirementCommentSection';
+import {
+  getRequirementHistory,
+  RequirementHistoryItem,
+  getActionIcon,
+  getActionColor,
+} from '../../services/requirementHistoryService';
 
 const { Title, Text } = Typography;
 
@@ -54,6 +62,34 @@ export const RequirementDetailContent: React.FC<RequirementDetailContentProps> =
   requirementId,
 }) => {
   const navigate = useNavigate();
+  const [historyItems, setHistoryItems] = useState<RequirementHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  /**
+   * 加载操作历史
+   */
+  useEffect(() => {
+    if (activeTab === 'history' && requirementId) {
+      loadHistory();
+    }
+  }, [activeTab, requirementId]);
+
+  const loadHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const response = await getRequirementHistory(requirementId, {
+        page: 1,
+        page_size: 100,
+        sort_order: 'desc',
+      });
+      setHistoryItems(response.data || []);
+    } catch (error: any) {
+      console.error('Error loading requirement history:', error);
+      message.error('加载操作历史失败');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   /**
    * 关联任务表格列
@@ -177,88 +213,63 @@ export const RequirementDetailContent: React.FC<RequirementDetailContentProps> =
         </Space>
       ),
       children: (
-        <Timeline
-          items={[
-            {
-              children: (
-                <div>
-                  <Text strong>需求创建</Text>
-                  <br />
-                  <Text type="secondary">
-                    {requirement.created_at
-                      ? dayjs(requirement.created_at).format('YYYY-MM-DD HH:mm')
-                      : '-'}
-                  </Text>
-                  <br />
-                  <Text type="secondary">由 {requirement.submitter_name || '未知用户'} 创建</Text>
-                </div>
-              ),
-            },
-            ...(requirement.submitted_at
-              ? [
-                  {
-                    children: (
+        <Spin spinning={loadingHistory}>
+          {historyItems.length > 0 ? (
+            <Timeline
+              items={historyItems.map((item) => {
+                // 动态获取图标
+                const iconName = getActionIcon(item.action);
+                const IconComponent =
+                  (Icons as any)[
+                    iconName
+                      .split('-')
+                      .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
+                      .join('') + 'Outlined'
+                  ] || Icons.FileOutlined;
+
+                return {
+                  color: getActionColor(item.action),
+                  dot: <IconComponent style={{ fontSize: '16px' }} />,
+                  children: (
+                    <div>
                       <div>
-                        <Text strong>提交评审</Text>
-                        <br />
-                        <Text type="secondary">
-                          {dayjs(requirement.submitted_at).format('YYYY-MM-DD HH:mm')}
+                        <Text strong>{item.action_display}</Text>
+                      </div>
+                      <div style={{ marginTop: '4px' }}>
+                        <Space size="small">
+                          <UserOutlined style={{ fontSize: '12px', color: '#8c8c8c' }} />
+                          <Text type="secondary" style={{ fontSize: '13px' }}>
+                            {item.username || `用户 #${item.user_id}`}
+                          </Text>
+                        </Space>
+                      </div>
+                      <div style={{ marginTop: '2px' }}>
+                        <Text type="secondary" style={{ fontSize: '13px' }}>
+                          {dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')}
                         </Text>
                       </div>
-                    ),
-                  },
-                ]
-              : []),
-            ...(requirement.reviewed_at
-              ? [
-                  {
-                    children: (
-                      <div>
-                        <Text strong>评审完成</Text>
-                        <br />
-                        <Text type="secondary">
-                          {dayjs(requirement.reviewed_at).format('YYYY-MM-DD HH:mm')}
-                        </Text>
-                        <br />
-                        <Text type="secondary">
-                          由 {requirement.reviewer_name || '未知评审人'} 评审
-                        </Text>
-                      </div>
-                    ),
-                  },
-                ]
-              : []),
-            ...(requirement.converted_at
-              ? [
-                  {
-                    children: (
-                      <div>
-                        <Text strong>转换为任务</Text>
-                        <br />
-                        <Text type="secondary">
-                          {dayjs(requirement.converted_at).format('YYYY-MM-DD HH:mm')}
-                        </Text>
-                        {requirement.converted_task_id && (
-                          <>
-                            <br />
-                            <a
-                              onClick={() =>
-                                navigate(
-                                  `/projects/${requirement.project_id}/tasks/${requirement.converted_task_id}`
-                                )
-                              }
-                            >
-                              查看任务 #{requirement.converted_task_id}
-                            </a>
-                          </>
-                        )}
-                      </div>
-                    ),
-                  },
-                ]
-              : []),
-          ]}
-        />
+                      {item.comment && (
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            padding: '8px 12px',
+                            background: '#f5f5f5',
+                            borderRadius: '4px',
+                            fontSize: '13px',
+                          }}
+                        >
+                          {item.comment}
+                        </div>
+                      )}
+                    </div>
+                  ),
+                };
+              })}
+            />
+          ) : (
+            <Empty description="暂无操作历史" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          )}
+        </Spin>
       ),
     },
   ];

@@ -16,10 +16,11 @@ import (
 // MCPRequirementHandler handles MCP-specific requirement operations
 // Provides simplified, Claude Code-friendly interfaces for requirement management
 type MCPRequirementHandler struct {
-	db                     database.DB
-	logger                 *log.Logger
-	requirementHandler     *RequirementHandler
-	requirementTaskHandler *RequirementTaskHandler
+	db                       database.DB
+	logger                   *log.Logger
+	requirementHandler       *RequirementHandler
+	requirementTaskHandler   *RequirementTaskHandler
+	requirementStatusHandler *RequirementStatusHandler
 }
 
 // NewMCPRequirementHandler creates a new MCP requirement handler
@@ -28,12 +29,14 @@ func NewMCPRequirementHandler(
 	logger *log.Logger,
 	requirementHandler *RequirementHandler,
 	requirementTaskHandler *RequirementTaskHandler,
+	requirementStatusHandler *RequirementStatusHandler,
 ) *MCPRequirementHandler {
 	return &MCPRequirementHandler{
-		db:                     db,
-		logger:                 logger,
-		requirementHandler:     requirementHandler,
-		requirementTaskHandler: requirementTaskHandler,
+		db:                       db,
+		logger:                   logger,
+		requirementHandler:       requirementHandler,
+		requirementTaskHandler:   requirementTaskHandler,
+		requirementStatusHandler: requirementStatusHandler,
 	}
 }
 
@@ -501,4 +504,233 @@ func (h *MCPRequirementHandler) ListRequirements(c *gin.Context) {
 	}
 
 	h.successResponse(c, response, "成功获取需求列表")
+}
+
+// ============================================================================
+// Phase 2: Requirement-Task Linking
+// ============================================================================
+
+// LinkTasksRequest represents the request to link tasks to a requirement
+type LinkTasksRequest struct {
+	TaskIDs     []int   `json:"taskIds" binding:"required,min=1"`
+	LinkComment *string `json:"linkComment"`
+}
+
+// LinkTasksToRequirement links multiple tasks to a requirement
+// @Summary Link tasks to requirement (MCP)
+// @Description Link one or more existing tasks to a requirement (MCP interface)
+// @Tags mcp
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body LinkTasksRequest true "Tasks to link"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/mcp/requirements/{id}/link-tasks [post]
+// @Security Bearer
+func (h *MCPRequirementHandler) LinkTasksToRequirement(c *gin.Context) {
+	// Parse requirement ID
+	requirementIDStr := c.Param("id")
+	requirementID, err := strconv.Atoi(requirementIDStr)
+	if err != nil {
+		h.errorResponse(c, http.StatusBadRequest, models.ErrCodeValidation, "无效的需求ID", nil)
+		return
+	}
+
+	// Parse request
+	var req LinkTasksRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.errorResponse(c, http.StatusBadRequest, models.ErrCodeValidation, "请求数据格式错误", err.Error())
+		return
+	}
+
+	ctx := c.Request.Context()
+	userID := c.GetInt("user_id")
+
+	// Verify requirement exists
+	requirement, err := h.db.Requirements().GetByID(ctx, requirementID)
+	if err != nil || requirement == nil {
+		h.errorResponse(c, http.StatusNotFound, models.ErrCodeNotFound, "需求不存在", nil)
+		return
+	}
+
+	// Link each task
+	linkedCount := 0
+	errors := []string{}
+
+	for _, taskID := range req.TaskIDs {
+		// Create link request
+		linkReq := models.CreateRequirementTaskLinkRequest{
+			RequirementID: requirementID,
+			TaskID:        taskID,
+			LinkType:      string(models.RequirementTaskLinkManual),
+			LinkComment:   req.LinkComment,
+		}
+
+		// Create link
+		link := &models.RequirementTask{
+			RequirementID: linkReq.RequirementID,
+			TaskID:        linkReq.TaskID,
+			LinkType:      linkReq.LinkType,
+			LinkedBy:      userID,
+			LinkComment:   linkReq.LinkComment,
+		}
+
+		_, err := h.db.RequirementTasks().Create(ctx, link)
+		if err != nil {
+			h.logger.Printf("Error linking task %d to requirement %d: %v", taskID, requirementID, err)
+			errors = append(errors, fmt.Sprintf("任务%d关联失败: %v", taskID, err))
+		} else {
+			linkedCount++
+		}
+	}
+
+	// Prepare response
+	responseMsg := fmt.Sprintf("成功关联 %d/%d 个任务", linkedCount, len(req.TaskIDs))
+	if len(errors) > 0 {
+		h.successResponse(c, map[string]interface{}{
+			"linked_count": linkedCount,
+			"total_count":  len(req.TaskIDs),
+			"errors":       errors,
+		}, responseMsg)
+	} else {
+		h.successResponse(c, map[string]interface{}{
+			"linked_count": linkedCount,
+			"total_count":  len(req.TaskIDs),
+		}, responseMsg)
+	}
+}
+
+// UnlinkTaskFromRequirement unlinks a task from a requirement
+// @Summary Unlink task from requirement (MCP)
+// @Description Remove the link between a task and a requirement (MCP interface)
+// @Tags mcp
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param task_id path int true "Task ID"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/mcp/requirements/{id}/tasks/{task_id} [delete]
+// @Security Bearer
+func (h *MCPRequirementHandler) UnlinkTaskFromRequirement(c *gin.Context) {
+	// Delegate to existing handler
+	h.requirementTaskHandler.UnlinkTaskFromRequirement(c)
+}
+
+// GetRequirementTasks gets all tasks linked to a requirement
+// @Summary Get requirement tasks (MCP)
+// @Description Get all tasks linked to a specific requirement (MCP interface)
+// @Tags mcp
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param page query int false "Page number" default(1)
+// @Param page_size query int false "Page size" default(20)
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 500 {object} models.APIResponse
+// @Router /api/v1/mcp/requirements/{id}/tasks [get]
+// @Security Bearer
+func (h *MCPRequirementHandler) GetRequirementTasks(c *gin.Context) {
+	// Delegate to existing handler
+	h.requirementTaskHandler.GetRequirementTasks(c)
+}
+
+// ============================================================================
+// Phase 3: Requirement Status Workflow
+// ============================================================================
+
+// SubmitRequirement - Submit requirement for review (draft -> pending)
+// @Summary Submit requirement for review (MCP)
+// @Description Submit a draft requirement for review, changing status from draft to pending
+// @Tags mcp-requirements
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body object{comment=string} false "Optional comment"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Router /api/v1/mcp/requirements/{id}/submit [post]
+// @Security Bearer
+func (h *MCPRequirementHandler) SubmitRequirement(c *gin.Context) {
+	h.requirementStatusHandler.SubmitRequirement(c)
+}
+
+// ApproveRequirement - Approve requirement
+// @Summary Approve requirement (MCP)
+// @Description Approve a requirement (reviewers/admins only)
+// @Tags mcp-requirements
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body object{comment=string} false "Optional approval comment"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Router /api/v1/mcp/requirements/{id}/approve [post]
+// @Security Bearer
+func (h *MCPRequirementHandler) ApproveRequirement(c *gin.Context) {
+	h.requirementStatusHandler.ApproveRequirement(c)
+}
+
+// RejectRequirement - Reject requirement
+// @Summary Reject requirement (MCP)
+// @Description Reject a requirement with mandatory rejection reason
+// @Tags mcp-requirements
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body object{comment=string} true "Rejection reason (required)"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Router /api/v1/mcp/requirements/{id}/reject [post]
+// @Security Bearer
+func (h *MCPRequirementHandler) RejectRequirement(c *gin.Context) {
+	h.requirementStatusHandler.RejectRequirement(c)
+}
+
+// WithdrawRequirement - Withdraw requirement
+// @Summary Withdraw requirement (MCP)
+// @Description Withdraw a submitted requirement back to draft status
+// @Tags mcp-requirements
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body object{comment=string} false "Optional comment"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Router /api/v1/mcp/requirements/{id}/withdraw [post]
+// @Security Bearer
+func (h *MCPRequirementHandler) WithdrawRequirement(c *gin.Context) {
+	h.requirementStatusHandler.WithdrawRequirement(c)
+}
+
+// ArchiveRequirement - Archive requirement
+// @Summary Archive requirement (MCP)
+// @Description Archive a requirement for historical record keeping
+// @Tags mcp-requirements
+// @Accept json
+// @Produce json
+// @Param id path int true "Requirement ID"
+// @Param request body object{comment=string} false "Optional comment"
+// @Success 200 {object} models.APIResponse
+// @Failure 400 {object} models.APIResponse
+// @Failure 403 {object} models.APIResponse
+// @Failure 404 {object} models.APIResponse
+// @Router /api/v1/mcp/requirements/{id}/archive [post]
+// @Security Bearer
+func (h *MCPRequirementHandler) ArchiveRequirement(c *gin.Context) {
+	h.requirementStatusHandler.ArchiveRequirement(c)
 }

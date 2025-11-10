@@ -559,6 +559,21 @@ func (h *RequirementCommentHandler) UpdateComment(c *gin.Context) {
 		return
 	}
 
+	// Record history: comment updated
+	commentIDStr := strconv.Itoa(id)
+	updateComment := "更新了评论内容"
+	if req.Content != nil {
+		updateComment = "更新了评论 #" + commentIDStr
+	}
+	history := &models.RequirementHistory{
+		RequirementID: comment.RequirementID,
+		UserID:        userID,
+		Action:        string(models.RequirementHistoryActionCommented),
+		NewValue:      &commentIDStr,
+		Comment:       &updateComment,
+	}
+	_ = h.db.RequirementHistory().Create(c.Request.Context(), history)
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(comment.ToResponse(), "评论更新成功"))
 }
 
@@ -616,6 +631,18 @@ func (h *RequirementCommentHandler) DeleteComment(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "删除评论失败", nil))
 		return
 	}
+
+	// Record history: comment deleted
+	commentIDStr := strconv.Itoa(id)
+	deleteComment := "删除了评论 #" + commentIDStr
+	history := &models.RequirementHistory{
+		RequirementID: comment.RequirementID,
+		UserID:        userID,
+		Action:        string(models.RequirementHistoryActionCommented),
+		OldValue:      &commentIDStr,
+		Comment:       &deleteComment,
+	}
+	_ = h.db.RequirementHistory().Create(c.Request.Context(), history)
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "评论删除成功"))
 }

@@ -1029,7 +1029,8 @@ func (app *Application) GetRequirementHistoryHandler() *handlers.RequirementHist
 func (app *Application) GetMCPRequirementHandler() *handlers.MCPRequirementHandler {
 	requirementHandler := app.GetRequirementHandler()
 	requirementTaskHandler := app.GetRequirementTaskHandler()
-	return handlers.NewMCPRequirementHandler(app.db, app.logger, requirementHandler, requirementTaskHandler)
+	requirementStatusHandler := app.GetRequirementStatusHandler()
+	return handlers.NewMCPRequirementHandler(app.db, app.logger, requirementHandler, requirementTaskHandler, requirementStatusHandler)
 }
 
 // GetNotificationHandler returns the notification handler
