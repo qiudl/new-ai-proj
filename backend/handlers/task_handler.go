@@ -2227,15 +2227,16 @@ func (h *TaskHandler) getUserEnterpriseID(userID uint, role string) (uint, error
 
 	// ⚠️ 向后兼容：支持旧的company体系（将来移除）
 	if role == "company_admin" {
-		// 从users表直接获取company_id
+		// 从users表直接获取enterprise_id
 		user, err := h.db.Users().GetByID(context.Background(), int(userID))
 		if err != nil {
 			log.Printf("[getUserEnterpriseID] Error getting user %d: %v", userID, err)
 			return 0, err
 		}
-		if user.CompanyID != nil {
-			log.Printf("[getUserEnterpriseID] User %d (role=%s) using legacy company_id=%d", userID, role, *user.CompanyID)
-			return uint(*user.CompanyID), nil
+		// v1.5: Use GetEnterpriseID() for backward compatibility
+		if enterpriseID := user.GetEnterpriseID(); enterpriseID != nil {
+			log.Printf("[getUserEnterpriseID] User %d (role=%s) using enterprise_id=%d", userID, role, *enterpriseID)
+			return uint(*enterpriseID), nil
 		}
 	}
 

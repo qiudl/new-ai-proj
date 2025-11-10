@@ -143,7 +143,8 @@ func (s *RequirementPermissionService) checkRequirementSpecificAccess(ctx contex
 	}
 
 	// Check enterprise membership
-	if user.CompanyID != nil && *user.CompanyID == requirement.EnterpriseID {
+	// v1.5: Use GetEnterpriseID() for backward compatibility
+	if enterpriseID := user.GetEnterpriseID(); enterpriseID != nil && *enterpriseID == requirement.EnterpriseID {
 		// Enterprise members can read requirements from their enterprise
 		if reqCtx.Action == ActionRead {
 			return true, nil
@@ -215,7 +216,8 @@ func (s *RequirementPermissionService) GetRequirementAccess(ctx context.Context,
 	}
 
 	// Check if user belongs to the enterprise
-	result.IsEnterpriseUser = (user.CompanyID != nil && *user.CompanyID == enterpriseID)
+	// v1.5: Use GetEnterpriseID() for backward compatibility
+	result.IsEnterpriseUser = (user.GetEnterpriseID() != nil && *user.GetEnterpriseID() == enterpriseID)
 
 	// Determine permissions based on roles and status
 	if result.IsSubmitter {
@@ -324,7 +326,8 @@ func (s *RequirementPermissionService) FilterRequirementsByAccess(ctx context.Co
 		}
 
 		// Enterprise member can access
-		if user.CompanyID != nil && *user.CompanyID == req.EnterpriseID {
+		// v1.5: Use GetEnterpriseID() for backward compatibility
+		if enterpriseID := user.GetEnterpriseID(); enterpriseID != nil && *enterpriseID == req.EnterpriseID {
 			canAccess = true
 		}
 
@@ -338,26 +341,46 @@ func (s *RequirementPermissionService) FilterRequirementsByAccess(ctx context.Co
 
 // getUserInfo is a helper method to get user information
 func (s *RequirementPermissionService) getUserInfo(ctx context.Context, userID int) (*userInfo, error) {
-	query := `SELECT id, username, role, company_id FROM users WHERE id = $1`
-	var companyID sql.NullInt64
+	// v1.5: Query both enterprise_id and company_id for backward compatibility
+	query := `SELECT id, username, role, enterprise_id, company_id FROM users WHERE id = $1`
+	var enterpriseID, companyID sql.NullInt64
 	user := &userInfo{}
-	err := s.db.QueryRowContext(ctx, query, userID).Scan(&user.ID, &user.Username, &user.Role, &companyID)
+	err := s.db.QueryRowContext(ctx, query, userID).Scan(&user.ID, &user.Username, &user.Role, &enterpriseID, &companyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query user: %w", err)
+	}
+	if enterpriseID.Valid {
+		id := int(enterpriseID.Int64)
+		user.EnterpriseID = &id
 	}
 	if companyID.Valid {
 		id := int(companyID.Int64)
 		user.CompanyID = &id
+	}
+	// v1.5: Sync fields if only one is set
+	if user.EnterpriseID == nil && user.CompanyID != nil {
+		user.EnterpriseID = user.CompanyID
+	} else if user.CompanyID == nil && user.EnterpriseID != nil {
+		user.CompanyID = user.EnterpriseID
 	}
 	return user, nil
 }
 
 // userInfo is a helper struct for user information
 type userInfo struct {
-	ID        int
-	Username  string
-	Role      string
-	CompanyID *int
+	ID           int
+	Username     string
+	Role         string
+	EnterpriseID *int // v1.5: New field with clear semantics
+	CompanyID    *int // DEPRECATED: Use EnterpriseID instead. Will be removed in v2.0
+}
+
+// GetEnterpriseID returns the enterprise ID with backward compatibility
+func (u *userInfo) GetEnterpriseID() *int {
+	if u.EnterpriseID != nil {
+		return u.EnterpriseID
+	}
+	return u.CompanyID
 }
 
 // CheckRequirementStatusTransition checks if user can transition requirement to a new status

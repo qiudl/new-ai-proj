@@ -119,8 +119,11 @@ func (h *RequirementHandler) GetRequirements(c *gin.Context) {
 	if roleStr != "admin" && roleStr != "super_admin" {
 		// For company users, filter by their enterprise
 		user, err := h.db.Users().GetByID(c.Request.Context(), userID)
-		if err == nil && user.CompanyID != nil {
-			filters.EnterpriseID = user.CompanyID
+		if err == nil {
+			// v1.5: Use GetEnterpriseID() for backward compatibility
+			if enterpriseID := user.GetEnterpriseID(); enterpriseID != nil {
+				filters.EnterpriseID = enterpriseID
+			}
 		}
 	}
 
@@ -189,9 +192,12 @@ func (h *RequirementHandler) CreateRequirement(c *gin.Context) {
 	}
 
 	// Determine enterprise ID
+	// v1.5: Use GetEnterpriseID() for backward compatibility
 	var enterpriseID int
-	if user.CompanyID == nil {
-		// System admin without company association
+	userEnterpriseID := user.GetEnterpriseID()
+
+	if userEnterpriseID == nil {
+		// System admin without enterprise association
 		if user.UserType == "system" && req.EnterpriseID != nil {
 			// System admin can specify enterprise_id in request
 			enterpriseID = *req.EnterpriseID
@@ -200,13 +206,13 @@ func (h *RequirementHandler) CreateRequirement(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeValidation, "系统管理员创建需求时必须指定企业ID", nil))
 			return
 		} else {
-			// Regular user must have company association
+			// Regular user must have enterprise association
 			c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "用户未关联企业，无法创建需求", nil))
 			return
 		}
 	} else {
-		// User has company association, use it
-		enterpriseID = *user.CompanyID
+		// User has enterprise association, use it
+		enterpriseID = *userEnterpriseID
 	}
 
 	// Create requirement object
@@ -588,8 +594,9 @@ func (h *RequirementHandler) GetRequirementStats(c *gin.Context) {
 	// System users see all stats, company users see only their enterprise
 	if roleStr != "admin" && roleStr != "super_admin" {
 		user, err := h.db.Users().GetByID(c.Request.Context(), userID)
-		if err == nil && user.CompanyID != nil {
-			enterpriseIDPtr = user.CompanyID
+		if err == nil {
+			// v1.5: Use GetEnterpriseID() for backward compatibility
+			enterpriseIDPtr = user.GetEnterpriseID()
 		}
 	}
 

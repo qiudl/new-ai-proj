@@ -103,7 +103,9 @@ func (h *RequirementCommentHandler) CreateComment(c *gin.Context) {
 
 	if roleStr != "admin" && roleStr != "super_admin" {
 		// Company users can only comment on requirements in their enterprise
-		if user.CompanyID == nil || *user.CompanyID != requirement.EnterpriseID {
+		// v1.5: Use GetEnterpriseID() for backward compatibility
+		enterpriseID := user.GetEnterpriseID()
+		if enterpriseID == nil || *enterpriseID != requirement.EnterpriseID {
 			c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "无权限评论该需求", nil))
 			return
 		}
@@ -338,7 +340,9 @@ func (h *RequirementCommentHandler) GetComments(c *gin.Context) {
 
 	// Check enterprise access
 	if roleStr != "admin" && roleStr != "super_admin" {
-		if user.CompanyID == nil || *user.CompanyID != requirement.EnterpriseID {
+		// v1.5: Use GetEnterpriseID() for backward compatibility
+		enterpriseID := user.GetEnterpriseID()
+		if enterpriseID == nil || *enterpriseID != requirement.EnterpriseID {
 			c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "无权限查看该需求评论", nil))
 			return
 		}
@@ -729,7 +733,9 @@ func (h *RequirementCommentHandler) GetCommentStats(c *gin.Context) {
 
 		// Check enterprise access
 		if roleStr != "admin" && roleStr != "super_admin" {
-			if user.CompanyID == nil || *user.CompanyID != requirement.EnterpriseID {
+			// v1.5: Use GetEnterpriseID() for backward compatibility
+			enterpriseID := user.GetEnterpriseID()
+			if enterpriseID == nil || *enterpriseID != requirement.EnterpriseID {
 				c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "无权限查看该需求评论统计", nil))
 				return
 			}

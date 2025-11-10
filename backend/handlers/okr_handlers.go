@@ -60,7 +60,7 @@ func (h *OKRHandler) CreateObjective(c *gin.Context) {
 		Status:       models.OKRStatusActive,
 		Progress:     0,
 		AssigneeID:   &uid,
-		EnterpriseID: user.CompanyID, // Use user's company_id (mapped to enterprise)
+		EnterpriseID: user.GetEnterpriseID(), // v1.5: Use GetEnterpriseID() for backward compatibility
 		StartDate:    req.StartDate.Time,
 		EndDate:      req.EndDate.Time,
 		CreatedBy:    &uid,

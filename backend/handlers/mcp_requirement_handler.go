@@ -58,8 +58,9 @@ func (h *MCPRequirementHandler) inferEnterpriseID(c *gin.Context) (int, error) {
 		return 0, fmt.Errorf("failed to get user: %v", err)
 	}
 
-	if user.CompanyID != nil && *user.CompanyID > 0 {
-		return *user.CompanyID, nil
+	// v1.5: Use GetEnterpriseID() for backward compatibility
+	if enterpriseID := user.GetEnterpriseID(); enterpriseID != nil && *enterpriseID > 0 {
+		return *enterpriseID, nil
 	}
 
 	return 0, fmt.Errorf("user has no enterprise assigned")

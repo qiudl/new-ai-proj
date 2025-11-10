@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ###############################################################################
-# 生产环境部署脚本 v4.0 - 终极修复版
+# 生产环境部署脚本 v5.0 - 防止文件丢失版
 # 功能：同步本地代码到生产服务器并重启服务
 #
 # 修复历史:
@@ -9,6 +9,7 @@
 # v2.0 - 移除 --delete，但 EXIT trap 仍会错误删除
 # v3.0 - 彻底修复 trap 时机问题，防止误删除
 # v4.0 - 修复 frontend-only 模式错误创建新release的问题
+# v5.0 - 增强 atomic_switch 验证，防止 mv 后文件丢失
 ###############################################################################
 
 set -e
@@ -55,7 +56,7 @@ log_error() {
 # 显示帮助
 show_help() {
     cat << EOF
-生产环境部署脚本 v4.0
+生产环境部署脚本 v5.0
 
 用法: $0 [选项]
 
@@ -67,14 +68,66 @@ show_help() {
   --dry-run           模拟运行
   --help              显示此帮助
 
-改进:
+v5.0 新增功能:
+  ✅ 部署锁机制 - 防止并发部署导致冲突
+  ✅ 三步验证 - mv前、mv后、最终验证，确保文件完整
+  ✅ 详细日志 - 记录每步的文件数量
+  ✅ 智能锁超时 - 自动清理30分钟以上的过期锁
+
+v4.0 修复:
   ✅ 修复 rsync --delete 导致目录清空问题
   ✅ 修复 EXIT trap 误删除问题
   ✅ 修复 frontend-only 模式错误创建新release
   ✅ 采用临时目录+原子切换策略
   ✅ 增强错误处理和回滚机制
-  ✅ 详细的部署验证
 EOF
+}
+
+# 检查并获取部署锁
+acquire_deploy_lock() {
+    local lock_file="$REMOTE_BASE/.deploy.lock"
+
+    log_info "检查部署锁..."
+
+    local lock_result=$(ssh $SSH_OPTS "$REMOTE_HOST" bash -s "$lock_file" << 'LOCK_EOF'
+        lock_file="$1"
+
+        # 检查锁文件是否存在
+        if [ -f "$lock_file" ]; then
+            # 检查锁是否过期（超过30分钟）
+            lock_age=$(($(date +%s) - $(stat -c %Y "$lock_file" 2>/dev/null || stat -f %m "$lock_file")))
+            if [ "$lock_age" -lt 1800 ]; then
+                echo "ERROR: 另一个部署正在进行中（锁文件创建于 $lock_age 秒前）"
+                exit 1
+            else
+                echo "WARNING: 发现过期锁文件，将强制清除"
+                rm -f "$lock_file"
+            fi
+        fi
+
+        # 创建锁文件
+        echo "$$" > "$lock_file"
+        echo "SUCCESS: 获取部署锁"
+LOCK_EOF
+)
+
+    if [[ "$lock_result" == *"ERROR"* ]]; then
+        log_error "$lock_result"
+        exit 1
+    fi
+
+    if [[ "$lock_result" == *"WARNING"* ]]; then
+        log_warning "发现过期锁文件，已清除"
+    fi
+
+    log_success "获取部署锁成功"
+}
+
+# 释放部署锁
+release_deploy_lock() {
+    local lock_file="$REMOTE_BASE/.deploy.lock"
+    ssh $SSH_OPTS "$REMOTE_HOST" "rm -f $lock_file" 2>/dev/null || true
+    log_info "释放部署锁"
 }
 
 # 检查前置条件
@@ -425,34 +478,79 @@ atomic_switch() {
         return 0
     fi
 
-    ssh $SSH_OPTS "$REMOTE_HOST" bash -s << EOF
+    # 第一步：验证临时目录内容
+    log_info "验证临时目录完整性..."
+    local temp_files=$(ssh $SSH_OPTS "$REMOTE_HOST" "find $temp_dir -type f 2>/dev/null | wc -l")
+    if [ "$temp_files" -lt 5 ]; then
+        log_error "临时目录文件太少 ($temp_files 个)，拒绝移动"
+        return 1
+    fi
+    log_info "临时目录包含 $temp_files 个文件"
+
+    # 第二步：执行原子切换
+    local switch_result=$(ssh $SSH_OPTS "$REMOTE_HOST" bash -s "$temp_dir" "$release_dir" "$REMOTE_BASE" << 'ATOMIC_SWITCH_EOF'
+        temp_dir="$1"
+        release_dir="$2"
+        remote_base="$3"
+
         # 创建releases目录
-        mkdir -p $REMOTE_BASE/releases
+        mkdir -p "$remote_base/releases"
 
         # 移动临时目录到releases
-        mv $temp_dir $release_dir
+        echo "开始移动: $temp_dir -> $release_dir"
+        if ! mv "$temp_dir" "$release_dir"; then
+            echo "ERROR: mv 命令失败"
+            exit 1
+        fi
+
+        # 验证移动后的目录
+        if [ ! -d "$release_dir" ]; then
+            echo "ERROR: 移动后目录不存在"
+            exit 1
+        fi
+
+        file_count=$(find "$release_dir" -type f 2>/dev/null | wc -l)
+        if [ "$file_count" -lt 5 ]; then
+            echo "ERROR: 移动后文件丢失，仅剩 $file_count 个文件"
+            exit 1
+        fi
+        echo "验证成功: $file_count 个文件"
 
         # 备份当前链接
-        if [ -L $REMOTE_BASE/current ]; then
-            rm -f $REMOTE_BASE/previous
-            cp -P $REMOTE_BASE/current $REMOTE_BASE/previous
+        if [ -L "$remote_base/current" ]; then
+            rm -f "$remote_base/previous"
+            cp -P "$remote_base/current" "$remote_base/previous"
         fi
 
         # 原子更新链接
-        ln -snf $release_dir $REMOTE_BASE/current
+        ln -snf "$release_dir" "$remote_base/current"
 
-        echo "切换完成: $release_dir"
-EOF
+        echo "SUCCESS: 切换完成"
+ATOMIC_SWITCH_EOF
+)
 
-    if [ $? -ne 0 ]; then
-        log_error "原子切换失败"
+    if [[ "$switch_result" == *"ERROR"* ]]; then
+        log_error "原子切换失败: $switch_result"
+        return 1
+    fi
+
+    if [[ "$switch_result" != *"SUCCESS"* ]]; then
+        log_error "原子切换返回异常: $switch_result"
+        return 1
+    fi
+
+    # 第三步：最终验证
+    log_info "最终验证新版本..."
+    local final_files=$(ssh $SSH_OPTS "$REMOTE_HOST" "find $release_dir -type f 2>/dev/null | wc -l")
+    if [ "$final_files" -lt 5 ]; then
+        log_error "最终验证失败：文件丢失 (仅剩 $final_files 个)"
         return 1
     fi
 
     # 标记已成功移动，防止 trap 误删
     TEMP_MOVED=true
 
-    log_success "已切换到新版本: $release_name"
+    log_success "已切换到新版本: $release_name (包含 $final_files 个文件)"
 }
 
 # 重启后端服务
@@ -545,6 +643,7 @@ cleanup_temp() {
     local temp_dir=$1
 
     if [ "$DRY_RUN" = true ] || [ -z "$temp_dir" ]; then
+        release_deploy_lock
         return 0
     fi
 
@@ -555,6 +654,9 @@ cleanup_temp() {
     else
         log_info "临时目录已成功移动到releases，跳过清理"
     fi
+
+    # 释放部署锁
+    release_deploy_lock
 }
 
 # 回滚函数
@@ -615,11 +717,14 @@ main() {
     # 步骤1: 检查前置条件
     check_prerequisites
 
+    # 步骤1.5: 获取部署锁（防止并发部署）
+    acquire_deploy_lock
+
     # 步骤2: 创建临时目录
     TEMP_DIR=$(create_temp_build_dir)
     log_info "临时目录: $TEMP_DIR"
 
-    # 错误处理：清理临时目录（只在未成功移动时）
+    # 错误处理：清理临时目录（只在未成功移动时）并释放锁
     trap "cleanup_temp $TEMP_DIR" EXIT
 
     # 步骤3: 同步代码
