@@ -46,6 +46,9 @@ type User struct {
 	Email         string      `json:"email" db:"email" validate:"required,email"`
 	PasswordHash  string      `json:"-" db:"password_hash"`
 	UserType      string      `json:"user_type" db:"user_type" validate:"required,oneof=system company"`
+	// Enterprise association - v1.5: New field with clear semantics
+	EnterpriseID  *int        `json:"enterprise_id,omitempty" db:"enterprise_id"`
+	// DEPRECATED: Use EnterpriseID instead. Will be removed in v2.0
 	CompanyID     *int        `json:"company_id,omitempty" db:"company_id"`
 	CompanyUserID *int        `json:"company_user_id,omitempty" db:"company_user_id"`
 	Role          string      `json:"role" db:"role" validate:"required"`
@@ -76,11 +79,12 @@ type User struct {
 // UserCreateRequest represents a user creation request
 type UserCreateRequest struct {
 	Username  string      `json:"username" validate:"required,min=3,max=50"`
-	Email     string      `json:"email" validate:"required,email"`
-	Password  string      `json:"password" validate:"required,min=6"`
-	UserType  string      `json:"user_type" validate:"required,oneof=system company"`
-	CompanyID *int        `json:"company_id,omitempty"`
-	Role      string      `json:"role" validate:"required"`
+	Email        string      `json:"email" validate:"required,email"`
+	Password     string      `json:"password" validate:"required,min=6"`
+	UserType     string      `json:"user_type" validate:"required,oneof=system company"`
+	EnterpriseID *int        `json:"enterprise_id,omitempty"`
+	CompanyID    *int        `json:"company_id,omitempty"` // DEPRECATED: use enterprise_id
+	Role         string      `json:"role" validate:"required"`
 	Profile   UserProfile `json:"profile"`
 }
 
@@ -89,7 +93,8 @@ type UserUpdateRequest struct {
 	Username          *string      `json:"username,omitempty" validate:"omitempty,min=3,max=50"`
 	Email             *string      `json:"email,omitempty" validate:"omitempty,email"`
 	UserType          *string      `json:"user_type,omitempty" validate:"omitempty,oneof=system company"`
-	CompanyID         *int         `json:"company_id,omitempty"`
+	EnterpriseID      *int         `json:"enterprise_id,omitempty"`
+	CompanyID         *int         `json:"company_id,omitempty"` // DEPRECATED: use enterprise_id
 	Role              *string      `json:"role,omitempty" validate:"omitempty"`
 	Status            *string      `json:"status,omitempty" validate:"omitempty,oneof=active inactive suspended"`
 	Profile           *UserProfile `json:"profile,omitempty"`
@@ -116,7 +121,8 @@ type UserResponse struct {
 	Username      string      `json:"username"`
 	Email         string      `json:"email"`
 	UserType      string      `json:"user_type"`
-	CompanyID     *int        `json:"company_id,omitempty"`
+	EnterpriseID  *int        `json:"enterprise_id,omitempty"`
+	CompanyID     *int        `json:"company_id,omitempty"` // DEPRECATED: use enterprise_id
 	CompanyUserID *int        `json:"company_user_id,omitempty"`
 	Role          string      `json:"role"`
 	Status        string      `json:"status"`
@@ -229,6 +235,7 @@ func GetValidRolesForUserType(userType string) []string {
 }
 
 // ValidateCompanyUserFields validates that company users have required company_id
+// DEPRECATED: Use ValidateEnterpriseUserFields instead
 func ValidateCompanyUserFields(userType string, companyID *int) error {
 	if userType == "company" && companyID == nil {
 		return fmt.Errorf("company_id is required for company users")
@@ -237,4 +244,51 @@ func ValidateCompanyUserFields(userType string, companyID *int) error {
 		return fmt.Errorf("company_id should not be set for system users")
 	}
 	return nil
+}
+
+// ValidateEnterpriseUserFields validates that company users have required enterprise_id
+func ValidateEnterpriseUserFields(userType string, enterpriseID *int) error {
+	if userType == "company" && enterpriseID == nil {
+		return fmt.Errorf("enterprise_id is required for company users")
+	}
+	if userType == "system" && enterpriseID != nil {
+		return fmt.Errorf("enterprise_id should not be set for system users")
+	}
+	return nil
+}
+
+// ===================================
+// v1.5: Enterprise ID Helper Methods
+// ===================================
+
+// GetEnterpriseID returns the enterprise ID with backward compatibility
+// Priority: EnterpriseID > CompanyID
+func (u *User) GetEnterpriseID() *int {
+	if u.EnterpriseID != nil {
+		return u.EnterpriseID
+	}
+	// Fallback to CompanyID for backward compatibility
+	return u.CompanyID
+}
+
+// SetEnterpriseID sets both EnterpriseID and CompanyID for backward compatibility
+func (u *User) SetEnterpriseID(id *int) {
+	u.EnterpriseID = id
+	u.CompanyID = id // Keep in sync during transition period
+}
+
+// HasEnterpriseAccess checks if user belongs to an enterprise
+func (u *User) HasEnterpriseAccess() bool {
+	return u.GetEnterpriseID() != nil
+}
+
+// IsEnterpriseUser checks if user is a company type user with enterprise access
+func (u *User) IsEnterpriseUser() bool {
+	return u.UserType == "company" && u.HasEnterpriseAccess()
+}
+
+// BelongsToEnterprise checks if user belongs to specific enterprise
+func (u *User) BelongsToEnterprise(enterpriseID int) bool {
+	eid := u.GetEnterpriseID()
+	return eid != nil && *eid == enterpriseID
 }

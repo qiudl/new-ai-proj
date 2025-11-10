@@ -37,17 +37,20 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) 
 	}
 	
 	// System users continue using users table
+	// v1.5: Support both enterprise_id and company_id (dual-write for backward compatibility)
+	user.SetEnterpriseID(user.GetEnterpriseID()) // Sync both fields
+
 	query := `
-		INSERT INTO users (username, email, password_hash, user_type, company_id, company_user_id, role, 
-		                  contact_person_name, contact_phone, department_title, is_primary_contact, 
+		INSERT INTO users (username, email, password_hash, user_type, enterprise_id, company_id, company_user_id, role,
+		                  contact_person_name, contact_phone, department_title, is_primary_contact,
 		                  account_expires_at, notes, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING id, created_at, updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
 		user.Username, user.Email, user.PasswordHash, user.UserType,
-		user.CompanyID, user.CompanyUserID, user.Role,
+		user.EnterpriseID, user.CompanyID, user.CompanyUserID, user.Role,
 		user.ContactPersonName, user.ContactPhone, user.DepartmentTitle, user.IsPrimaryContact,
 		user.AccountExpiresAt, user.Notes, user.Status)
 
@@ -61,11 +64,14 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) 
 
 // createEnterpriseUser creates a company user in enterprise_users table
 func (r *PostgresUserRepository) createEnterpriseUser(ctx context.Context, user *models.User) (*models.User, error) {
-	// Determine enterprise_id from company_id (assuming they map 1:1)
-	enterpriseID := user.CompanyID
+	// v1.5: Use GetEnterpriseID() for backward compatibility
+	enterpriseID := user.GetEnterpriseID()
 	if enterpriseID == nil {
-		return nil, fmt.Errorf("company_id is required for company users")
+		return nil, fmt.Errorf("enterprise_id is required for company users")
 	}
+
+	// Sync both fields for backward compatibility
+	user.SetEnterpriseID(enterpriseID)
 
 	// Map User fields to enterprise_users fields
 	query := `
@@ -140,8 +146,8 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.U
 // getSystemUserByID gets a system user from users table
 func (r *PostgresUserRepository) getSystemUserByID(ctx context.Context, id int) (*models.User, error) {
 	query := `
-		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
-		       role, status, profile, last_login_at, 
+		SELECT id, username, email, password_hash, user_type, enterprise_id, company_id, company_user_id,
+		       role, status, profile, last_login_at,
 		       created_at, updated_at
 		FROM users WHERE id = $1 AND deleted_at IS NULL`
 
@@ -152,10 +158,17 @@ func (r *PostgresUserRepository) getSystemUserByID(ctx context.Context, id int) 
 
 	err := row.Scan(
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.UserType, &user.CompanyID, &user.CompanyUserID,
+		&user.UserType, &user.EnterpriseID, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
+
+	// v1.5: Sync fields if only one is set
+	if user.EnterpriseID == nil && user.CompanyID != nil {
+		user.EnterpriseID = user.CompanyID
+	} else if user.CompanyID == nil && user.EnterpriseID != nil {
+		user.CompanyID = user.EnterpriseID
+	}
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("system user not found")
@@ -201,12 +214,14 @@ func (r *PostgresUserRepository) getEnterpriseUserByID(ctx context.Context, id i
 	}
 
 	// Map enterprise user to User model
+	// v1.5: Set both EnterpriseID and CompanyID for backward compatibility
 	user := &models.User{
 		ID:               euID,
 		Username:         username,
 		Email:            email,
 		UserType:         "company",
-		CompanyID:        &enterpriseID,
+		EnterpriseID:     &enterpriseID,
+		CompanyID:        &enterpriseID, // Keep in sync
 		Status:           status,
 		LastLoginAt:      lastLoginAt,
 		IsPrimaryContact: isPrimaryContact,
