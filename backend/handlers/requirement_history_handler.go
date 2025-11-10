@@ -3,6 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -272,5 +273,5 @@ func RecordRequirementHistory(db database.DB, requirementID, userID int, action 
 	}
 
 	historyRepo := database.NewRequirementHistoryRepository(db.GetDB())
-	return historyRepo.Create(nil, history)
+	return historyRepo.Create(context.Background(), history)
 }
