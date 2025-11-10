@@ -1,0 +1,184 @@
+/**
+ * 图片预览模态框样式
+ */
+
+.image-preview-modal {
+  z-index: 2000;
+}
+
+.image-preview-modal.fullscreen .ant-modal {
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  top: 0 !important;
+}
+
+.image-preview-modal.fullscreen .ant-modal-content {
+  border-radius: 0 !important;
+}
+
+/* 工具栏 */
+.image-preview-toolbar {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  border-radius: 24px;
+  z-index: 10;
+  user-select: none;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.toolbar-btn:active {
+  transform: scale(0.95);
+}
+
+.toolbar-scale {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 8px;
+  min-width: 50px;
+  text-align: center;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 图片容器 */
+.image-preview-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px 40px;
+}
+
+.preview-image {
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 操作提示 */
+.image-preview-tips {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 20px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  z-index: 10;
+  user-select: none;
+}
+
+.image-preview-tips span:first-child {
+  color: rgba(255, 255, 255, 0.5);
+  margin-right: 4px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .image-preview-toolbar {
+    top: 10px;
+    padding: 6px 12px;
+    gap: 6px;
+  }
+
+  .toolbar-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  .toolbar-scale {
+    font-size: 12px;
+    min-width: 45px;
+  }
+
+  .image-preview-tips {
+    bottom: 10px;
+    padding: 6px 16px;
+    font-size: 11px;
+    gap: 12px;
+  }
+
+  .image-preview-container {
+    padding: 50px 10px 30px;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.image-preview-modal .ant-modal-content {
+  animation: fadeIn 0.3s ease;
+}
+
+/* 鼠标滚轮缩放提示 */
+.image-preview-container:hover::after {
+  content: '滚动鼠标滚轮可缩放';
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  font-size: 11px;
+  opacity: 0;
+  animation: tooltipFade 2s ease;
+  pointer-events: none;
+}
+
+@keyframes tooltipFade {
+  0%, 100% {
+    opacity: 0;
+  }
+  20%, 80% {
+    opacity: 1;
+  }
+}

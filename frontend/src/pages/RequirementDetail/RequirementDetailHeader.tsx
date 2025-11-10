@@ -269,7 +269,12 @@ export const RequirementDetailHeader: React.FC<RequirementDetailHeaderProps> = (
             </Space>
           </Space>
         </Col>
-        <Col xs={24} lg={6} style={{ textAlign: responsive.isMobile ? 'left' : 'right' }}>
+        <Col xs={24} lg={6} style={{
+          textAlign: responsive.isMobile ? 'left' : 'right',
+          display: 'flex',
+          justifyContent: responsive.isMobile ? 'flex-start' : 'flex-end',
+          alignItems: 'center'
+        }}>
           {renderActionButtons()}
         </Col>
       </Row>

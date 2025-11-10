@@ -3,7 +3,7 @@
  * Requirement History Service
  */
 
-import apiClient from './apiClient';
+import api from './api';
 
 /**
  * 需求历史记录项
@@ -73,10 +73,32 @@ export const getRequirementHistory = async (
   requirementId: number,
   params?: GetRequirementHistoryParams
 ): Promise<RequirementHistoryListResponse> => {
-  const response = await apiClient.get(`/requirements/${requirementId}/history`, {
+  const response = await api.get(`/requirements/${requirementId}/history`, {
     params,
   });
-  return response.data.data;
+
+  // 兼容不同的响应格式
+  if (response.data?.data) {
+    return response.data.data;
+  }
+
+  // 如果直接是数据格式，包装成标准格式
+  if (response.data && Array.isArray(response.data)) {
+    return {
+      data: response.data,
+      total: response.data.length,
+      page: params?.page || 1,
+      page_size: params?.page_size || 100,
+    };
+  }
+
+  // 默认返回空数据
+  return {
+    data: [],
+    total: 0,
+    page: params?.page || 1,
+    page_size: params?.page_size || 100,
+  };
 };
 
 /**
@@ -86,8 +108,28 @@ export const getRequirementHistory = async (
 export const getRequirementHistoryStats = async (
   requirementId: number
 ): Promise<RequirementHistoryStats> => {
-  const response = await apiClient.get(`/requirements/${requirementId}/history/stats`);
-  return response.data.data;
+  const response = await api.get(`/requirements/${requirementId}/history/stats`);
+
+  // 兼容不同的响应格式
+  if (response.data?.data) {
+    return response.data.data;
+  }
+
+  // 如果直接是统计数据，返回
+  if (response.data && typeof response.data === 'object') {
+    return response.data;
+  }
+
+  // 默认返回空统计
+  return {
+    total_actions: 0,
+    by_action: {},
+    todays_actions: 0,
+    this_weeks_actions: 0,
+    most_active_users: [],
+    recent_status_changes: 0,
+    average_actions_per_requirement: 0,
+  };
 };
 
 /**

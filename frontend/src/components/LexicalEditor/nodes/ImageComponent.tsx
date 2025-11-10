@@ -18,6 +18,7 @@ import {
   NodeKey,
 } from 'lexical';
 import { $isImageNode } from './ImageNode';
+import ImagePreviewModal from '../components/ImagePreviewModal';
 
 export interface ImageComponentProps {
   src: string;
@@ -40,6 +41,7 @@ export default function ImageComponent({
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const [editor] = useLexicalComposerContext();
   const [selection, setSelection] = useState<any>(null);
+  const [previewVisible, setPreviewVisible] = useState(false);
 
   const onDelete = useCallback(
     (payload: KeyboardEvent) => {
@@ -57,6 +59,25 @@ export default function ImageComponent({
     [isSelected, nodeKey, setSelected],
   );
 
+  // 处理图片点击 - 单击预览，双击选中
+  const handleImageClick = useCallback((event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // 双击打开预览
+    if (event.detail === 2) {
+      setPreviewVisible(true);
+      return true;
+    }
+
+    // 单击选中（用于删除等操作）
+    if (!event.shiftKey) {
+      clearSelection();
+    }
+    setSelected(!isSelected);
+    return true;
+  }, [isSelected, setSelected, clearSelection]);
+
   useEffect(() => {
     return mergeRegister(
       editor.registerCommand<MouseEvent>(
@@ -64,11 +85,7 @@ export default function ImageComponent({
         (payload) => {
           const event = payload;
           if (event.target === imageRef.current) {
-            if (!event.shiftKey) {
-              clearSelection();
-            }
-            setSelected(!isSelected);
-            return true;
+            return handleImageClick(event);
           }
           return false;
         },
@@ -85,7 +102,7 @@ export default function ImageComponent({
         COMMAND_PRIORITY_LOW,
       ),
     );
-  }, [clearSelection, editor, isSelected, nodeKey, onDelete, setSelected]);
+  }, [clearSelection, editor, isSelected, nodeKey, onDelete, setSelected, handleImageClick]);
 
   return (
     <Suspense fallback={null}>
@@ -101,10 +118,49 @@ export default function ImageComponent({
             cursor: 'pointer',
             border: isSelected ? '2px solid #1890ff' : 'none',
             borderRadius: '4px',
+            transition: 'all 0.2s ease',
           }}
           draggable="false"
+          title="双击查看大图"
         />
+
+        {/* 悬浮提示 */}
+        {!isSelected && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '4px',
+              right: '4px',
+              padding: '2px 6px',
+              background: 'rgba(0, 0, 0, 0.6)',
+              color: '#fff',
+              fontSize: '11px',
+              borderRadius: '3px',
+              opacity: 0,
+              transition: 'opacity 0.2s ease',
+              pointerEvents: 'none',
+            }}
+            className="image-hover-tip"
+          >
+            双击预览
+          </div>
+        )}
       </div>
+
+      {/* 图片预览模态框 */}
+      <ImagePreviewModal
+        visible={previewVisible}
+        src={src}
+        alt={altText}
+        onClose={() => setPreviewVisible(false)}
+      />
+
+      <style>{`
+        img:hover + .image-hover-tip,
+        .image-hover-tip:hover {
+          opacity: 1 !important;
+        }
+      `}</style>
     </Suspense>
   );
 }

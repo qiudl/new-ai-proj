@@ -21,6 +21,7 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { ImageNode } from './nodes/ImageNode';
 import ToolbarPlugin from './plugins/ToolbarPlugin';
 import ImagesPlugin, { INSERT_IMAGE_COMMAND, openImagePicker } from './plugins/ImagesPlugin';
+import PasteImagePlugin from './plugins/PasteImagePlugin';
 import theme from './themes/EditorTheme';
 
 import './editor.css';
@@ -243,6 +244,7 @@ export default function LexicalEditor({
           <LinkPlugin />
           <ImagesPlugin onUpload={onUploadImage} />
           <ImageInsertPlugin editorId={editorId} onUploadImage={onUploadImage} />
+          <PasteImagePlugin onUpload={onUploadImage} />
         </div>
       </div>
     </LexicalComposer>
