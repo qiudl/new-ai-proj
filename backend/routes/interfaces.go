@@ -232,6 +232,8 @@ type ApplicationInterface interface {
 	GetRequirementStatusHandler() *handlers.RequirementStatusHandler
 	GetRequirementCommentHandler() *handlers.RequirementCommentHandler
 	GetRequirementTaskHandler() *handlers.RequirementTaskHandler
+	GetRequirementHistoryHandler() *handlers.RequirementHistoryHandler
+	GetMCPRequirementHandler() *handlers.MCPRequirementHandler
 
 	// 通知处理器
 	GetNotificationHandler() *handlers.NotificationHandler

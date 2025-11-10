@@ -1020,6 +1020,18 @@ func (app *Application) GetRequirementTaskHandler() *handlers.RequirementTaskHan
 	return handlers.NewRequirementTaskHandler(app.db, app.logger, app.validator)
 }
 
+// GetRequirementHistoryHandler returns the requirement history handler
+func (app *Application) GetRequirementHistoryHandler() *handlers.RequirementHistoryHandler {
+	return handlers.NewRequirementHistoryHandler(app.db, app.logger, app.validator)
+}
+
+// GetMCPRequirementHandler returns the MCP requirement handler
+func (app *Application) GetMCPRequirementHandler() *handlers.MCPRequirementHandler {
+	requirementHandler := app.GetRequirementHandler()
+	requirementTaskHandler := app.GetRequirementTaskHandler()
+	return handlers.NewMCPRequirementHandler(app.db, app.logger, requirementHandler, requirementTaskHandler)
+}
+
 // GetNotificationHandler returns the notification handler
 func (app *Application) GetNotificationHandler() *handlers.NotificationHandler {
 	// Get underlying *sql.DB

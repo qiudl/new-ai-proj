@@ -129,6 +129,12 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 	mcp.POST("/create-subtask", createSubtask(app))
 	mcp.POST("/create-sibling-task", createSiblingTask(app))
 
+	// 需求管理路由 (MCP Requirements)
+	mcp.POST("/requirements/create", mcpCreateRequirement(app))
+	mcp.GET("/requirements/:id", mcpGetRequirement(app))
+	mcp.PUT("/requirements/:id", mcpUpdateRequirement(app))
+	mcp.GET("/requirements", mcpListRequirements(app))
+
 	// MCP Worktree工具路由 (Phase 5)
 	RegisterMCPWorktreeRoutes(mcp, app)
 }
@@ -1635,5 +1641,58 @@ func appendToDocument(app ApplicationInterface) gin.HandlerFunc {
 				"project_id":     docProjectID,
 			},
 		}))
+	}
+}
+
+// ============================================================================
+// MCP Requirement Management Handler Wrappers
+// ============================================================================
+
+// mcpCreateRequirement MCP专用：创建需求
+func mcpCreateRequirement(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get MCP requirement handler from application
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.CreateRequirement(c)
+	}
+}
+
+// mcpGetRequirement MCP专用：获取需求详情
+func mcpGetRequirement(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.GetRequirement(c)
+	}
+}
+
+// mcpUpdateRequirement MCP专用：更新需求
+func mcpUpdateRequirement(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.UpdateRequirement(c)
+	}
+}
+
+// mcpListRequirements MCP专用：获取需求列表
+func mcpListRequirements(app ApplicationInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mcpReqHandler := app.GetMCPRequirementHandler()
+		if mcpReqHandler == nil {
+			c.JSON(http.StatusInternalServerError, standardErrorResponse("MCP requirement handler not initialized", nil))
+			return
+		}
+		mcpReqHandler.ListRequirements(c)
 	}
 }
