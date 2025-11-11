@@ -1,0 +1,176 @@
+{
+  "project": {
+    "name": "Android需求管理模块开发",
+    "path": "/Users/johnqiu/coding/www/projects/new-ai-proj",
+    "taskSystem": {
+      "url": "http://localhost:8080",
+      "projectId": "39",
+      "parentTaskId": "3656",
+      "description": "Android需求管理模块的多Agent并行开发"
+    }
+  },
+  "environment": {
+    "proxyScript": "~/proxy.sh local",
+    "preCommands": [
+      "echo '🚀 启动Android需求管理模块多Agent开发环境...'",
+      "echo '📋 父任务: #3656 - 需求管理模块设计'",
+      "echo '🔧 子任务: #3657-#3671 (15个子任务)'",
+      "git status --short"
+    ]
+  },
+  "aiExperts": [
+    {
+      "id": "data-layer",
+      "name": "🗄️ Agent 1: 数据层专家",
+      "description": "负责API接口、数据模型、Repository和PagingSource实现",
+      "tasks": ["3657", "3658", "3659", "3660", "3669"],
+      "branch": "feature/requirement-data-layer",
+      "worktreePath": "../new-ai-proj-worktrees/android-data-layer",
+      "workingDir": "./android-app",
+      "specialties": [
+        "Kotlin",
+        "Retrofit API",
+        "GORM数据模型",
+        "Repository Pattern",
+        "Paging 3",
+        "Hilt依赖注入"
+      ],
+      "concurrent": 1,
+      "estimatedHours": 2.5,
+      "phase": "Phase 1",
+      "dependencies": [],
+      "deliverables": [
+        "app/src/main/java/com/aiproj/mobile/data/api/RequirementApi.kt",
+        "app/src/main/java/com/aiproj/mobile/data/model/Requirement.kt",
+        "app/src/main/java/com/aiproj/mobile/data/repository/RequirementRepository.kt",
+        "app/src/main/java/com/aiproj/mobile/data/paging/RequirementPagingSource.kt",
+        "app/src/main/java/com/aiproj/mobile/di/NetworkModule.kt (更新)"
+      ]
+    },
+    {
+      "id": "ui-components",
+      "name": "🎨 Agent 2: UI组件专家",
+      "description": "负责通用UI组件（状态/优先级组件、列表项、统计卡片）",
+      "tasks": ["3661", "3662", "3663"],
+      "branch": "feature/requirement-ui-components",
+      "worktreePath": "../new-ai-proj-worktrees/android-ui-components",
+      "workingDir": "./android-app",
+      "specialties": [
+        "Jetpack Compose",
+        "Material 3",
+        "UI组件设计",
+        "状态管理",
+        "动画效果"
+      ],
+      "concurrent": 1,
+      "estimatedHours": 1.5,
+      "phase": "Phase 1",
+      "dependencies": [],
+      "deliverables": [
+        "app/src/main/java/com/aiproj/mobile/ui/components/requirement/RequirementStatusBadge.kt",
+        "app/src/main/java/com/aiproj/mobile/ui/components/requirement/RequirementPriorityBadge.kt",
+        "app/src/main/java/com/aiproj/mobile/ui/components/requirement/RequirementListItem.kt",
+        "app/src/main/java/com/aiproj/mobile/ui/components/requirement/RequirementStatsCard.kt",
+        "app/src/main/java/com/aiproj/mobile/ui/components/requirement/RequirementFilterPanel.kt"
+      ]
+    },
+    {
+      "id": "pages",
+      "name": "📱 Agent 3: 页面开发专家",
+      "description": "负责需求列表、详情、表单页面及ViewModel实现",
+      "tasks": ["3664", "3665", "3666"],
+      "branch": "feature/requirement-pages",
+      "worktreePath": "../new-ai-proj-worktrees/android-pages",
+      "workingDir": "./android-app",
+      "specialties": [
+        "MVVM架构",
+        "ViewModel",
+        "StateFlow",
+        "页面导航",
+        "表单验证",
+        "Compose页面开发"
+      ],
+      "concurrent": 1,
+      "estimatedHours": 2.5,
+      "phase": "Phase 2",
+      "dependencies": ["data-layer", "ui-components"],
+      "deliverables": [
+        "app/src/main/java/com/aiproj/mobile/ui/screens/requirement/RequirementListScreen.kt",
+        "app/src/main/java/com/aiproj/mobile/ui/screens/requirement/RequirementListViewModel.kt",
+        "app/src/main/java/com/aiproj/mobile/ui/screens/requirement/RequirementDetailScreen.kt",
+        "app/src/main/java/com/aiproj/mobile/ui/screens/requirement/RequirementDetailViewModel.kt",
+        "app/src/main/java/com/aiproj/mobile/ui/screens/requirement/RequirementFormScreen.kt",
+        "app/src/main/java/com/aiproj/mobile/ui/screens/requirement/RequirementFormViewModel.kt"
+      ]
+    },
+    {
+      "id": "integration",
+      "name": "🔗 Agent 4: 集成测试专家",
+      "description": "负责导航集成、Hilt配置、集成测试和性能优化",
+      "tasks": ["3667", "3668", "3670", "3671"],
+      "branch": "feature/requirement-integration",
+      "worktreePath": "../new-ai-proj-worktrees/android-integration",
+      "workingDir": "./android-app",
+      "specialties": [
+        "Navigation Compose",
+        "Hilt集成",
+        "集成测试",
+        "性能优化",
+        "缓存策略"
+      ],
+      "concurrent": 1,
+      "estimatedHours": 1.5,
+      "phase": "Phase 3-4",
+      "dependencies": ["pages"],
+      "deliverables": [
+        "app/src/main/java/com/aiproj/mobile/navigation/AppNavigation.kt (更新)",
+        "app/src/main/java/com/aiproj/mobile/ui/screens/profile/ProfileScreen.kt (统计入口)",
+        "app/src/androidTest/java/com/aiproj/mobile/RequirementModuleTest.kt",
+        "性能优化报告"
+      ]
+    }
+  ],
+  "workflow": {
+    "phases": [
+      {
+        "name": "Phase 1: 基础层开发 (并行)",
+        "duration": "1.5小时",
+        "agents": ["data-layer", "ui-components"],
+        "description": "数据层和UI组件并行开发，无依赖关系"
+      },
+      {
+        "name": "Phase 2: 页面开发",
+        "duration": "2.5小时",
+        "agents": ["pages"],
+        "description": "基于数据层和UI组件开发页面"
+      },
+      {
+        "name": "Phase 3: 导航集成",
+        "duration": "0.5小时",
+        "agents": ["integration"],
+        "description": "集成导航和Hilt配置"
+      },
+      {
+        "name": "Phase 4: 测试优化",
+        "duration": "0.5小时",
+        "agents": ["integration"],
+        "description": "集成测试和性能优化"
+      }
+    ],
+    "totalEstimatedTime": "5小时",
+    "parallelEfficiency": "33%提升 (对比串行7.5小时)"
+  },
+  "communication": {
+    "syncPoints": [
+      "Phase 1完成后同步数据层接口",
+      "Phase 2完成后同步页面路由",
+      "Phase 3完成后进行集成测试"
+    ],
+    "conflictResolution": "使用git worktree避免分支冲突，最后统一合并到main"
+  },
+  "quality": {
+    "codeReview": "每个Agent完成后提交PR进行代码审查",
+    "testing": "Agent 4负责集成测试和端到端测试",
+    "documentation": "每个Agent在任务文档中记录实现细节"
+  }
+}
