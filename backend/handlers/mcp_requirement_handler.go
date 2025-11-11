@@ -66,6 +66,24 @@ func (h *MCPRequirementHandler) inferEnterpriseID(c *gin.Context) (int, error) {
 	return 0, fmt.Errorf("user has no enterprise assigned")
 }
 
+// inferEnterpriseFromProject gets enterprise ID from project
+func (h *MCPRequirementHandler) inferEnterpriseFromProject(ctx context.Context, projectID int) (int, error) {
+	project, err := h.db.Projects().GetByID(ctx, projectID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get project: %v", err)
+	}
+
+	if project == nil {
+		return 0, fmt.Errorf("project %d not found", projectID)
+	}
+
+	if project.EnterpriseID == nil || *project.EnterpriseID == 0 {
+		return 0, fmt.Errorf("project %d has no enterprise assigned", projectID)
+	}
+
+	return *project.EnterpriseID, nil
+}
+
 // inferProjectID gets project ID from various sources
 func (h *MCPRequirementHandler) inferProjectID(c *gin.Context, enterpriseID int) (*int, error) {
 	// 1. Try from query parameter
@@ -149,17 +167,40 @@ func (h *MCPRequirementHandler) CreateRequirement(c *gin.Context) {
 	ctx := c.Request.Context()
 	userID := c.GetInt("user_id")
 
-	// Smart inference: Enterprise ID
+	// Smart inference: Enterprise ID with cascading strategy
+	// Priority: 1. Explicit enterpriseId -> 2. From projectId -> 3. From user
 	enterpriseID := 0
+	var err error
+
 	if req.EnterpriseID != nil && *req.EnterpriseID > 0 {
+		// Strategy 1: Explicitly provided
 		enterpriseID = *req.EnterpriseID
+		h.logger.Printf("[MCP] Using explicitly provided enterprise_id: %d", enterpriseID)
+	} else if req.ProjectID != nil && *req.ProjectID > 0 {
+		// Strategy 2: Infer from project_id
+		enterpriseID, err = h.inferEnterpriseFromProject(ctx, *req.ProjectID)
+		if err != nil {
+			// Fallback to user inference if project inference fails
+			h.logger.Printf("[MCP] Warning: Failed to infer enterprise from project %d: %v, trying user inference", *req.ProjectID, err)
+			enterpriseID, err = h.inferEnterpriseID(c)
+			if err != nil {
+				h.errorResponse(c, http.StatusBadRequest, models.ErrCodeValidation,
+					"无法推断企业ID（从项目和用户都失败）", err.Error())
+				return
+			}
+			h.logger.Printf("[MCP] Inferred enterprise_id from user: %d", enterpriseID)
+		} else {
+			h.logger.Printf("[MCP] Inferred enterprise_id from project %d: %d", *req.ProjectID, enterpriseID)
+		}
 	} else {
-		var err error
+		// Strategy 3: Infer from user
 		enterpriseID, err = h.inferEnterpriseID(c)
 		if err != nil {
-			h.errorResponse(c, http.StatusBadRequest, models.ErrCodeValidation, "无法推断企业ID", err.Error())
+			h.errorResponse(c, http.StatusBadRequest, models.ErrCodeValidation,
+				"无法推断企业ID（需要提供enterprise_id或project_id，或用户需有企业关联）", err.Error())
 			return
 		}
+		h.logger.Printf("[MCP] Inferred enterprise_id from user: %d", enterpriseID)
 	}
 
 	// Smart inference: Project ID
