@@ -226,8 +226,8 @@ func (h *MCPDevPlansHandler) ImportTaskDocumentFromFile(c *gin.Context) {
 
 			// Create document
 			insertDocQuery := `
-				INSERT INTO documents (title, content, version, project_id, created_at, updated_at)
-				VALUES ($1, $2, $3, $4, NOW(), NOW())
+				INSERT INTO documents (title, content, version, project_id, created_by, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, 1, NOW(), NOW())
 				RETURNING id
 			`
 			var newDocID int
@@ -399,8 +399,8 @@ func (h *MCPDevPlansHandler) SyncTaskDocuments(c *gin.Context) {
 
 					// Create document
 					insertDocQuery := `
-						INSERT INTO documents (title, content, version, project_id, created_at, updated_at)
-						VALUES ($1, $2, $3, $4, NOW(), NOW())
+						INSERT INTO documents (title, content, version, project_id, created_by, created_at, updated_at)
+						VALUES ($1, $2, $3, $4, 1, NOW(), NOW())
 						RETURNING id
 					`
 					var newDocID int
