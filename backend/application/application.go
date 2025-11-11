@@ -79,6 +79,9 @@ type Application struct {
 	spuHandler               *handlers.SPUHandler               // SPU handler instance
 	skuHandler               *handlers.SKUHandler               // SKU handler instance
 	inventoryHandler         *handlers.InventoryHandler         // Inventory handler instance
+	// MCP Dev Plans Handler
+	mcpDevPlansHandler       *handlers.MCPDevPlansHandler       // MCP Dev Plans document sync handler
+	devPlansExportService    *services.DevPlansExportService    // Dev Plans export service
 	mirrorWritable           bool
 }
 
@@ -355,6 +358,12 @@ func NewApplication() (*Application, error) {
 		logger.Println("✅ Product management handlers initialized (SPU/SKU/Inventory)")
 	}
 
+	// Initialize MCP Dev Plans Handler
+	devPlansDir := filepath.Join("docs", "dev-plans")
+	devPlansExportService := services.NewDevPlansExportService(devPlansDir)
+	mcpDevPlansHandler := handlers.NewMCPDevPlansHandler(db, logger, devPlansExportService)
+	logger.Println("✅ MCP Dev Plans handler initialized")
+
 	// Initialize WebSocket Hub (temporarily disabled)
 	// wsHub := ws.NewHub(logger)
 	// go wsHub.Run() // Start the hub in a goroutine
@@ -420,6 +429,9 @@ func NewApplication() (*Application, error) {
 		spuHandler:               spuHandler,               // SPU handler
 		skuHandler:               skuHandler,               // SKU handler
 		inventoryHandler:         inventoryHandler,         // Inventory handler
+		// MCP Dev Plans Handler
+		devPlansExportService:    devPlansExportService,    // Dev Plans export service
+		mcpDevPlansHandler:       mcpDevPlansHandler,       // MCP Dev Plans handler
 	}
 
 	// Perform startup permission/volume checks
@@ -1121,4 +1133,9 @@ func (app *Application) GetEnterpriseUserHandler() *handlers.EnterpriseUserHandl
 // GetEnterpriseRoleHandler returns the enterprise role handler (RBAC v2)
 func (app *Application) GetEnterpriseRoleHandler() *handlers.EnterpriseRoleHandler {
 	return app.enterpriseRoleHandler
+}
+
+// GetMCPDevPlansHandler returns the MCP Dev Plans handler
+func (app *Application) GetMCPDevPlansHandler() *handlers.MCPDevPlansHandler {
+	return app.mcpDevPlansHandler
 }

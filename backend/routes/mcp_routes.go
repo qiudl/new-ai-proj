@@ -153,6 +153,14 @@ func RegisterMCPRoutes(router *gin.RouterGroup, app ApplicationInterface) {
 
 	// MCP Worktree工具路由 (Phase 5)
 	RegisterMCPWorktreeRoutes(mcp, app)
+
+	// Dev Plans 文档同步路由 (Phase 6)
+	mcpDevPlansHandler := app.GetMCPDevPlansHandler()
+	if mcpDevPlansHandler != nil {
+		mcp.POST("/documents/export-to-file", mcpDevPlansHandler.ExportTaskDocumentToFile)
+		mcp.POST("/documents/import-from-file", mcpDevPlansHandler.ImportTaskDocumentFromFile)
+		mcp.POST("/documents/sync", mcpDevPlansHandler.SyncTaskDocuments)
+	}
 }
 
 // CreateAndAttachTaskDocument MCP专用：创建并关联任务文档

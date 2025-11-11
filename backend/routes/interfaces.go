@@ -271,4 +271,7 @@ type ApplicationInterface interface {
 	GetSPUHandler() *handlers.SPUHandler
 	GetSKUHandler() *handlers.SKUHandler
 	GetInventoryHandler() *handlers.InventoryHandler
+
+	// MCP Dev Plans 文档同步处理器
+	GetMCPDevPlansHandler() *handlers.MCPDevPlansHandler
 }

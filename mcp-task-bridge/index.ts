@@ -1449,6 +1449,92 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
 
+      // 📁 Dev Plans 文档同步工具
+      {
+        name: 'export_task_document_to_file',
+        description: '导出任务文档到 dev-plans 目录文件',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: {
+              type: 'number',
+              description: '任务ID'
+            },
+            projectId: {
+              type: 'number',
+              description: '项目ID（可选，默认为1）'
+            },
+            overwrite: {
+              type: 'boolean',
+              description: '是否覆盖已存在的文件（可选，默认为true）',
+              default: true
+            }
+          },
+          required: ['taskId']
+        }
+      },
+      {
+        name: 'import_task_document_from_file',
+        description: '从 dev-plans 目录文件导入任务文档',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: {
+              type: 'number',
+              description: '任务ID'
+            },
+            fileName: {
+              type: 'string',
+              description: '文件名（可选，如果提供则优先使用）'
+            },
+            projectId: {
+              type: 'number',
+              description: '项目ID（可选，默认为1）'
+            },
+            forceOverwrite: {
+              type: 'boolean',
+              description: '是否强制覆盖（忽略版本检查，可选，默认为false）',
+              default: false
+            },
+            updateIfNewer: {
+              type: 'boolean',
+              description: '仅当文件更新时间较新时才导入（可选，默认为true）',
+              default: true
+            }
+          },
+          required: ['taskId']
+        }
+      },
+      {
+        name: 'sync_task_documents',
+        description: '批量同步任务文档（支持双向同步：导出到文件或从文件导入）',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            direction: {
+              type: 'string',
+              enum: ['export', 'import', 'both'],
+              description: '同步方向：export=导出到文件，import=从文件导入，both=双向同步',
+              default: 'both'
+            },
+            taskIds: {
+              type: 'array',
+              items: { type: 'number' },
+              description: '任务ID列表（可选，如果不提供则同步所有任务）'
+            },
+            projectId: {
+              type: 'number',
+              description: '项目ID（可选，默认为1）'
+            },
+            forceOverwrite: {
+              type: 'boolean',
+              description: '是否强制覆盖（可选，默认为false）',
+              default: false
+            }
+          }
+        }
+      },
+
       {
         name: 'dev_quick_login',
         description: '开发环境快速登录，自动获取 JWT（仅 APP_ENV=development/dev 有效）',
@@ -2031,6 +2117,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'get_requirement_statistics':
         result = await taskServer.getRequirementStatistics(args.id as number);
+        break;
+
+      // 📁 Dev Plans 文档同步工具处理
+      case 'export_task_document_to_file':
+        result = await taskServer.exportTaskDocumentToFile(
+          args.taskId as number,
+          args.projectId as number,
+          args.overwrite as boolean
+        );
+        break;
+
+      case 'import_task_document_from_file':
+        result = await taskServer.importTaskDocumentFromFile(
+          args.taskId as number,
+          args.fileName as string,
+          {
+            projectId: args.projectId as number,
+            forceOverwrite: args.forceOverwrite as boolean,
+            updateIfNewer: args.updateIfNewer as boolean
+          }
+        );
+        break;
+
+      case 'sync_task_documents':
+        result = await taskServer.syncTaskDocuments({
+          direction: args.direction as 'export' | 'import' | 'both',
+          taskIds: args.taskIds as number[],
+          projectId: args.projectId as number,
+          forceOverwrite: args.forceOverwrite as boolean
+        });
         break;
 
       case 'dev_quick_login':

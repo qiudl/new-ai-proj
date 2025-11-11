@@ -763,6 +763,133 @@ export class TaskMCPServer {
             };
         }
     }
+
+    // ===========================================
+    // Dev Plans 文档同步方法
+    // ===========================================
+
+    /**
+     * 导出任务文档到 dev-plans 目录文件
+     */
+    async exportTaskDocumentToFile(taskId: number, projectId: number = 1, overwrite: boolean = true) {
+        try {
+            const response = await (this.documentService as any).makeRequest(
+                'POST',
+                '/mcp/documents/export-to-file',
+                {
+                    task_id: taskId,
+                    project_id: projectId,
+                    overwrite: overwrite
+                }
+            );
+
+            if (response.success) {
+                return {
+                    success: true,
+                    data: response.data,
+                    message: `✅ 任务 #${taskId} 文档已导出到文件`
+                };
+            } else {
+                return response;
+            }
+        } catch (error: any) {
+            return {
+                success: false,
+                error: `导出任务文档失败: ${error.message || error}`
+            };
+        }
+    }
+
+    /**
+     * 从 dev-plans 目录文件导入任务文档
+     */
+    async importTaskDocumentFromFile(
+        taskId: number,
+        fileName?: string,
+        options: {
+            projectId?: number;
+            forceOverwrite?: boolean;
+            updateIfNewer?: boolean;
+        } = {}
+    ) {
+        try {
+            const requestData: any = {
+                task_id: taskId,
+                project_id: options.projectId || 1,
+                force_overwrite: options.forceOverwrite || false,
+                update_if_newer: options.updateIfNewer !== undefined ? options.updateIfNewer : true
+            };
+
+            if (fileName) {
+                requestData.file_name = fileName;
+            }
+
+            const response = await (this.documentService as any).makeRequest(
+                'POST',
+                '/mcp/documents/import-from-file',
+                requestData
+            );
+
+            if (response.success) {
+                return {
+                    success: true,
+                    data: response.data,
+                    message: `✅ 任务 #${taskId} 文档已从文件导入`
+                };
+            } else {
+                return response;
+            }
+        } catch (error: any) {
+            return {
+                success: false,
+                error: `导入任务文档失败: ${error.message || error}`
+            };
+        }
+    }
+
+    /**
+     * 批量同步任务文档
+     */
+    async syncTaskDocuments(options: {
+        direction?: 'export' | 'import' | 'both';
+        taskIds?: number[];
+        projectId?: number;
+        forceOverwrite?: boolean;
+    } = {}) {
+        try {
+            const requestData: any = {
+                direction: options.direction || 'both',
+                project_id: options.projectId || 1,
+                force_overwrite: options.forceOverwrite || false
+            };
+
+            if (options.taskIds && options.taskIds.length > 0) {
+                requestData.task_ids = options.taskIds;
+            }
+
+            const response = await (this.documentService as any).makeRequest(
+                'POST',
+                '/mcp/documents/sync',
+                requestData
+            );
+
+            if (response.success) {
+                const stats = response.data?.statistics || {};
+                return {
+                    success: true,
+                    data: response.data,
+                    message: `✅ 文档同步完成 - 导出: ${stats.exported || 0}, 导入: ${stats.imported || 0}, 失败: ${stats.failed || 0}`
+                };
+            } else {
+                return response;
+            }
+        } catch (error: any) {
+            return {
+                success: false,
+                error: `同步任务文档失败: ${error.message || error}`
+            };
+        }
+    }
 }
 
 // 导出默认实例

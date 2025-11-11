@@ -134,6 +134,19 @@ start_tunnel() {
     # 清理旧进程
     cleanup_old_processes
 
+    # 先测试SSH连接
+    log "测试SSH连接..."
+    if ! timeout 10 ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no "${REMOTE_HOST}" 'echo "SSH连接成功"' >> "$LOG_FILE" 2>&1; then
+        log_error "SSH连接失败，请检查："
+        echo "  1. 网络连接是否正常"
+        echo "  2. 服务器 ${REMOTE_HOST} 是否可达"
+        echo "  3. SSH密钥是否配置正确"
+        echo "  4. 防火墙设置"
+        echo ""
+        echo "  查看详细日志: tail -f $LOG_FILE"
+        return 1
+    fi
+
     log "建立连接: localhost:${LOCAL_PORT} → ${REMOTE_HOST}:${REMOTE_PORT}"
 
     # 启动SSH隧道（后台运行）
@@ -151,17 +164,33 @@ start_tunnel() {
     if [ $exit_code -ne 0 ]; then
         log_error "SSH隧道启动失败 (退出码: ${exit_code})"
         log_error "查看日志: tail -f $LOG_FILE"
+
+        # 显示最近的错误日志
+        echo ""
+        echo "最近的错误日志:"
+        tail -5 "$LOG_FILE" 2>/dev/null | sed 's/^/  /'
+
         return 1
     fi
 
     # 等待连接建立
-    sleep 2
+    log "等待隧道建立..."
+    sleep 3
 
-    # 获取PID
-    local pid=$(lsof -ti ":${LOCAL_PORT}" -sTCP:LISTEN | head -1)
+    # 获取PID（多次尝试）
+    local pid=""
+    for i in {1..5}; do
+        pid=$(lsof -ti ":${LOCAL_PORT}" -sTCP:LISTEN | head -1)
+        if [ -n "$pid" ]; then
+            break
+        fi
+        sleep 1
+    done
 
     if [ -z "$pid" ]; then
         log_error "无法找到SSH隧道进程"
+        log_error "端口 ${LOCAL_PORT} 未被监听"
+        cleanup_old_processes
         return 1
     fi
 

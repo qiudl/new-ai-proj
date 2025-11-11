@@ -149,7 +149,35 @@ ensure_tunnel() {
         return 0
     else
         log_error "数据库隧道启动失败"
-        return 1
+        echo ""
+        log_warning "可能的原因："
+        echo "  1. SSH连接超时（网络问题或服务器不可达）"
+        echo "  2. SSH密钥未配置或权限不正确"
+        echo "  3. 端口5433已被占用"
+        echo "  4. 防火墙阻止连接"
+        echo ""
+        log "排查步骤："
+        echo "  1. 检查网络连接: ping 152.136.104.251"
+        echo "  2. 测试SSH: ssh ubuntu@152.136.104.251"
+        echo "  3. 查看日志: tail -f /tmp/ai-proj-tunnel.log"
+        echo "  4. 手动启动: $TUNNEL_SCRIPT start"
+        echo ""
+
+        # 检查是否在交互式终端中运行
+        if [ -t 0 ]; then
+            read -p "是否继续启动后端服务（可能无法连接数据库）? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                log_warning "将继续启动后端，但数据库连接可能失败"
+                return 0
+            else
+                return 1
+            fi
+        else
+            # 非交互模式：提示但不阻止
+            log_warning "非交互模式：将继续启动，但数据库连接可能失败"
+            return 0
+        fi
     fi
 }
 
