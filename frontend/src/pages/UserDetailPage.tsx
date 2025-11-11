@@ -46,7 +46,8 @@ import {
   PasswordResetRequest,
   USER_TYPE_CONFIG,
   USER_ROLE_CONFIG,
-  USER_STATUS_CONFIG 
+  USER_STATUS_CONFIG,
+  getEnterpriseId
 } from '../types/user';
 import { userService } from '../services/userService';
 import userManagementService from '../services/userManagementService';
@@ -452,7 +453,7 @@ const UserDetailPage: React.FC = () => {
                     <Col span={8}>
                       <Statistic
                         title="企业ID"
-                        value={user.enterprise_id || user.company_id || '-'}
+                        value={getEnterpriseId(user) || '-'}
                         prefix={<BankOutlined />}
                       />
                     </Col>

@@ -12,7 +12,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useEnterpriseUsers } from '../../hooks/useUserManagement';
-import { EnterpriseUserParams, EnterpriseUserStats, User, USER_STATUS_CONFIG } from '../../types/user';
+import { EnterpriseUserParams, EnterpriseUserStats, User, USER_STATUS_CONFIG, getEnterpriseId } from '../../types/user';
 import userManagementService from '../../services/userManagementService';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -121,8 +121,10 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
       title: '企业',
       key: 'enterprise',
       render: (_, user) => {
-        const enterpriseName = enterprises.find(e => e.id === (user.enterprise_id || user.company_id))?.name;
-        return enterpriseName || `企业${user.enterprise_id || user.company_id}` || '-';
+        // v1.5: Use getEnterpriseId for backward compatibility
+        const enterpriseId = getEnterpriseId(user);
+        const enterpriseName = enterprises.find(e => e.id === enterpriseId)?.name;
+        return enterpriseName || (enterpriseId ? `企业${enterpriseId}` : '-');
       },
       width: 150
     },

@@ -16,8 +16,9 @@ export interface User {
   username: string;
   email: string;
   user_type: UserType;
-  company_id?: number; // Legacy field, kept for compatibility
-  enterprise_id?: number; // New enterprise system field
+  enterprise_id?: number; // v1.5: New enterprise system field with clear semantics
+  /** @deprecated Use enterprise_id instead. Will be removed in v2.0 */
+  company_id?: number; // Legacy field, kept for compatibility during v1.5-v1.9
   department_id?: number; // Department ID in enterprise_departments table
   company_user_id?: number;
   role: UserRole;
@@ -42,7 +43,9 @@ export interface UserCreateRequest {
   email: string;
   password: string;
   user_type: UserType;
-  company_id?: number;
+  enterprise_id?: number; // v1.5: Prefer this field
+  /** @deprecated Use enterprise_id instead. Will be removed in v2.0 */
+  company_id?: number; // Legacy field for backward compatibility
   role: UserRole;
   profile?: UserProfile;
 }
@@ -314,3 +317,39 @@ export interface EnterpriseUserParams {
   contact_type?: 'primary' | 'normal';
   expire_date_range?: [string, string];
 }
+
+/**
+ * v1.5: Backward compatible utility to get enterprise ID from user
+ * Prefers enterprise_id, falls back to company_id
+ * @param user - User object
+ * @returns Enterprise ID or undefined
+ */
+export const getEnterpriseId = (user: User | null | undefined): number | undefined => {
+  if (!user) return undefined;
+  // v1.5: Prefer enterprise_id over company_id
+  return user.enterprise_id ?? user.company_id;
+};
+
+/**
+ * v1.5: Check if user belongs to a specific enterprise
+ * @param user - User object
+ * @param enterpriseId - Enterprise ID to check
+ * @returns true if user belongs to the enterprise
+ */
+export const belongsToEnterprise = (
+  user: User | null | undefined,
+  enterpriseId: number | undefined
+): boolean => {
+  if (!user || enterpriseId === undefined) return false;
+  const userEnterpriseId = getEnterpriseId(user);
+  return userEnterpriseId === enterpriseId;
+};
+
+/**
+ * v1.5: Check if user has enterprise access
+ * @param user - User object
+ * @returns true if user has an enterprise assigned
+ */
+export const hasEnterpriseAccess = (user: User | null | undefined): boolean => {
+  return getEnterpriseId(user) !== undefined;
+};
