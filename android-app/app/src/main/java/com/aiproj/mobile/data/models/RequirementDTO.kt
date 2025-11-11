@@ -2,6 +2,9 @@ package com.aiproj.mobile.data.models
 
 import com.google.gson.annotations.SerializedName
 
+/**
+ * 创建需求 DTO
+ */
 data class CreateRequirementDTO(
     @SerializedName("project_id")
     val projectId: Int,

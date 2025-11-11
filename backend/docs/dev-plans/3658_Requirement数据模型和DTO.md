@@ -31,7 +31,7 @@ app/src/main/java/com/aiproj/mobile/data/model/RequirementDTO.kt
 ### 1. Requirement.kt - 需求实体模型和枚举
 
 ```kotlin
-package com.aiproj.mobile.data.model
+package com.aiproj.mobile.data.models
 
 import com.google.gson.annotations.SerializedName
 import java.util.Date
@@ -171,7 +171,7 @@ enum class ComplexityRating {
 ### 2. RequirementDTO.kt - 创建/更新DTO
 
 ```kotlin
-package com.aiproj.mobile.data.model
+package com.aiproj.mobile.data.models
 
 import com.google.gson.annotations.SerializedName
 

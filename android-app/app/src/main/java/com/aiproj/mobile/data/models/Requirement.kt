@@ -119,6 +119,7 @@ enum class RequirementCategory {
     OTHER           // 其他
 }
 
+
 // 复杂度评级枚举
 enum class ComplexityRating {
     @SerializedName("simple")

@@ -1,26 +1,3 @@
-# 任务 #3659: RequirementRepository实现
-
-## 任务信息
-- **任务ID**: #3659
-- **父任务**: #3656 - Android需求管理模块设计
-- **负责Agent**: Agent 1 - 数据层专家
-- **预估工时**: 1.0小时
-- **优先级**: Medium
-- **状态**: Todo
-
-## 任务目标
-
-实现需求管理的Repository层，封装API调用、数据缓存和错误处理逻辑。
-
-## 实现文件
-
-```
-android-app/app/src/main/java/com/aiproj/mobile/data/repository/RequirementRepository.kt
-```
-
-## 实现内容
-
-```kotlin
 package com.aiproj.mobile.data.repository
 
 import com.aiproj.mobile.data.api.RequirementApi
@@ -32,6 +9,10 @@ import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * 需求管理 Repository
+ * 封装API调用、数据缓存和错误处理逻辑
+ */
 @Singleton
 class RequirementRepository @Inject constructor(
     private val requirementApi: RequirementApi
@@ -211,26 +192,3 @@ class RequirementRepository @Inject constructor(
         }
     }
 }
-```
-
-## 依赖关系
-
-**前置依赖**:
-- #3657 - RequirementApi
-- #3658 - Requirement数据模型
-
-**后续依赖**: #3660 - RequirementPagingSource
-
-## 验证标准
-
-- [ ] 所有CRUD操作完整实现
-- [ ] 使用Flow返回响应式数据流
-- [ ] 实现内存缓存机制（5分钟TTL）
-- [ ] 使用Mutex保证缓存线程安全
-- [ ] 错误处理完整（try-catch + Result）
-- [ ] 标注@Singleton确保单例
-- [ ] 使用@Inject构造函数注入
-
-## 完成标记
-
-完成后在此任务下评论："✅ RequirementRepository实现完成"
