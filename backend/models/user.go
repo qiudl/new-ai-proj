@@ -247,12 +247,18 @@ func ValidateCompanyUserFields(userType string, companyID *int) error {
 }
 
 // ValidateEnterpriseUserFields validates that company users have required enterprise_id
-func ValidateEnterpriseUserFields(userType string, enterpriseID *int) error {
-	if userType == "company" && enterpriseID == nil {
-		return fmt.Errorf("enterprise_id is required for company users")
+// v1.5: Accepts either enterprise_id or company_id for backward compatibility
+func ValidateEnterpriseUserFields(userType string, enterpriseID *int, companyID *int) error {
+	if userType == "company" {
+		// v1.5: Accept either field during transition period
+		if enterpriseID == nil && companyID == nil {
+			return fmt.Errorf("enterprise_id or company_id is required for company users")
+		}
 	}
-	if userType == "system" && enterpriseID != nil {
-		return fmt.Errorf("enterprise_id should not be set for system users")
+	if userType == "system" {
+		if enterpriseID != nil || companyID != nil {
+			return fmt.Errorf("enterprise_id/company_id should not be set for system users")
+		}
 	}
 	return nil
 }

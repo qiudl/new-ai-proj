@@ -137,7 +137,8 @@ func (h *UserManagementHandler) CreateUser(c *gin.Context) {
 	}
 
 	// Validate company requirements
-	if err := models.ValidateCompanyUserFields(req.UserType, req.CompanyID); err != nil {
+	// v1.5: Use new validation function that accepts both fields
+	if err := models.ValidateEnterpriseUserFields(req.UserType, req.EnterpriseID, req.CompanyID); err != nil {
 		response := models.NewErrorResponse(models.ErrCodeValidation, "Invalid company fields", err.Error())
 		c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
 		return
@@ -237,7 +238,8 @@ func (h *UserManagementHandler) UpdateUser(c *gin.Context) {
 
 	// Validate company requirements if user type is being changed
 	if req.UserType != nil {
-		if err := models.ValidateCompanyUserFields(*req.UserType, req.CompanyID); err != nil {
+		// v1.5: Use new validation function that accepts both fields
+		if err := models.ValidateEnterpriseUserFields(*req.UserType, req.EnterpriseID, req.CompanyID); err != nil {
 			response := models.NewErrorResponse(models.ErrCodeValidation, "Invalid company fields", err.Error())
 			c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
 			return
