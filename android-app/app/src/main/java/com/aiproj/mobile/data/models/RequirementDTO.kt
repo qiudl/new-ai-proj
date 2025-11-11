@@ -21,9 +21,6 @@ data class CreateRequirementDTO(
     val acceptanceCriteria: String?
 )
 
-/**
- * 更新需求 DTO
- */
 data class UpdateRequirementDTO(
     val title: String?,
 

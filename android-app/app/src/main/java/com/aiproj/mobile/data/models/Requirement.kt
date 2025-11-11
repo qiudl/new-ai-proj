@@ -3,9 +3,6 @@ package com.aiproj.mobile.data.models
 import com.google.gson.annotations.SerializedName
 import java.util.Date
 
-/**
- * 需求实体模型
- */
 data class Requirement(
     val id: Int,
 
@@ -68,9 +65,7 @@ data class Requirement(
     val reviewedAt: Date?
 )
 
-/**
- * 需求状态枚举
- */
+// 需求状态枚举
 enum class RequirementStatus {
     @SerializedName("draft")
     DRAFT,          // 草稿
@@ -91,9 +86,7 @@ enum class RequirementStatus {
     ARCHIVED        // 已归档
 }
 
-/**
- * 需求优先级枚举
- */
+// 需求优先级枚举
 enum class RequirementPriority {
     @SerializedName("low")
     LOW,
@@ -108,9 +101,7 @@ enum class RequirementPriority {
     URGENT
 }
 
-/**
- * 需求类别枚举
- */
+// 需求类别枚举
 enum class RequirementCategory {
     @SerializedName("feature")
     FEATURE,        // 功能需求
@@ -128,9 +119,8 @@ enum class RequirementCategory {
     OTHER           // 其他
 }
 
-/**
- * 复杂度评级枚举
- */
+
+// 复杂度评级枚举
 enum class ComplexityRating {
     @SerializedName("simple")
     SIMPLE,         // 简单
