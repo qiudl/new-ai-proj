@@ -231,7 +231,7 @@ func (h *MCPDevPlansHandler) ImportTaskDocumentFromFile(c *gin.Context) {
 				RETURNING id
 			`
 			var newDocID int
-			err = h.db.Get(&newDocID, insertDocQuery, title, parsed.Content, parsed.Version, req.ProjectID)
+			err = h.db.QueryRow(insertDocQuery, title, parsed.Content, parsed.Version, req.ProjectID).Scan(&newDocID)
 			if err != nil {
 				h.logger.Printf("Warning: Failed to create document: %v", err)
 			} else {
@@ -404,7 +404,7 @@ func (h *MCPDevPlansHandler) SyncTaskDocuments(c *gin.Context) {
 						RETURNING id
 					`
 					var newDocID int
-					err = h.db.Get(&newDocID, insertDocQuery, title, parsed.Content, parsed.Version, req.ProjectID)
+					err = h.db.QueryRow(insertDocQuery, title, parsed.Content, parsed.Version, req.ProjectID).Scan(&newDocID)
 					if err == nil {
 						// Link document to task
 						linkQuery := `
