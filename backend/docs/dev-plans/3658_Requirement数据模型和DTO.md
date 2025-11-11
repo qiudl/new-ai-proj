@@ -15,8 +15,8 @@
 ## 实现文件
 
 ```
-app/src/main/java/com/aiproj/mobile/data/model/Requirement.kt
-app/src/main/java/com/aiproj/mobile/data/model/RequirementDTO.kt
+android-app/app/src/main/java/com/aiproj/mobile/data/models/Requirement.kt
+android-app/app/src/main/java/com/aiproj/mobile/data/models/RequirementDTO.kt
 ```
 
 ## 实现内容
@@ -24,7 +24,7 @@ app/src/main/java/com/aiproj/mobile/data/model/RequirementDTO.kt
 ### 1. 需求实体模型
 
 ```kotlin
-package com.aiproj.mobile.data.model
+package com.aiproj.mobile.data.models
 
 import com.google.gson.annotations.SerializedName
 import java.util.Date
@@ -164,7 +164,7 @@ enum class ComplexityRating {
 ### 2. 创建/更新DTO
 
 ```kotlin
-package com.aiproj.mobile.data.model
+package com.aiproj.mobile.data.models
 
 import com.google.gson.annotations.SerializedName
 

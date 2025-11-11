@@ -15,7 +15,7 @@
 ## 实现文件
 
 ```
-app/src/main/java/com/aiproj/mobile/data/repository/RequirementRepository.kt
+android-app/app/src/main/java/com/aiproj/mobile/data/repository/RequirementRepository.kt
 ```
 
 ## 实现内容
@@ -24,7 +24,7 @@ app/src/main/java/com/aiproj/mobile/data/repository/RequirementRepository.kt
 package com.aiproj.mobile.data.repository
 
 import com.aiproj.mobile.data.api.RequirementApi
-import com.aiproj.mobile.data.model.*
+import com.aiproj.mobile.data.models.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
@@ -57,7 +57,26 @@ class RequirementRepository @Inject constructor(
                 if (System.currentTimeMillis() - cacheTimestamp < CACHE_VALID_DURATION
                     && requirementsCache.isNotEmpty()
                 ) {
-                    emit(Result.success(requirementsCache.values.toList()))
+                    // 应用过滤参数
+                    var filtered = requirementsCache.values.toList()
+
+                    if (projectId != null) {
+                        filtered = filtered.filter { it.projectId == projectId }
+                    }
+                    if (status != null) {
+                        filtered = filtered.filter { it.status.name.lowercase() == status.lowercase() }
+                    }
+                    if (priority != null) {
+                        filtered = filtered.filter { it.priority.name.lowercase() == priority.lowercase() }
+                    }
+                    if (!search.isNullOrBlank()) {
+                        filtered = filtered.filter {
+                            it.title.contains(search, ignoreCase = true) ||
+                            it.description?.contains(search, ignoreCase = true) == true
+                        }
+                    }
+
+                    emit(Result.success(filtered))
                     return@flow
                 }
             }
@@ -119,7 +138,7 @@ class RequirementRepository @Inject constructor(
      */
     suspend fun createRequirement(dto: CreateRequirementDTO): Result<Requirement> {
         return try {
-            val response = requirementApi.createRequirement(dto as Requirement)
+            val response = requirementApi.createRequirement(dto)
             if (response.isSuccessful && response.body() != null) {
                 clearCache() // 清除缓存
                 Result.success(response.body()!!)
@@ -136,7 +155,7 @@ class RequirementRepository @Inject constructor(
      */
     suspend fun updateRequirement(id: Int, dto: UpdateRequirementDTO): Result<Requirement> {
         return try {
-            val response = requirementApi.updateRequirement(id, dto as Requirement)
+            val response = requirementApi.updateRequirement(id, dto)
             if (response.isSuccessful && response.body() != null) {
                 clearCache()
                 Result.success(response.body()!!)

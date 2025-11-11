@@ -34,7 +34,7 @@ interface RequirementApi {
      */
     @POST("requirements")
     suspend fun createRequirement(
-        @Body requirement: Requirement
+        @Body dto: CreateRequirementDTO
     ): Response<Requirement>
 
     /**
@@ -43,7 +43,7 @@ interface RequirementApi {
     @PUT("requirements/{id}")
     suspend fun updateRequirement(
         @Path("id") id: Int,
-        @Body requirement: Requirement
+        @Body dto: UpdateRequirementDTO
     ): Response<Requirement>
 
     /**

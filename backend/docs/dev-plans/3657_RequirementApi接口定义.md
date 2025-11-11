@@ -15,7 +15,7 @@
 ## 实现文件
 
 ```
-app/src/main/java/com/aiproj/mobile/data/api/RequirementApi.kt
+android-app/app/src/main/java/com/aiproj/mobile/data/api/RequirementApi.kt
 ```
 
 ## 实现内容
@@ -25,8 +25,7 @@ app/src/main/java/com/aiproj/mobile/data/api/RequirementApi.kt
 ```kotlin
 package com.aiproj.mobile.data.api
 
-import com.aiproj.mobile.data.model.Requirement
-import com.aiproj.mobile.data.model.RequirementListResponse
+import com.aiproj.mobile.data.models.*
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -57,7 +56,7 @@ interface RequirementApi {
      */
     @POST("requirements")
     suspend fun createRequirement(
-        @Body requirement: Requirement
+        @Body dto: CreateRequirementDTO
     ): Response<Requirement>
 
     /**
@@ -66,7 +65,7 @@ interface RequirementApi {
     @PUT("requirements/{id}")
     suspend fun updateRequirement(
         @Path("id") id: Int,
-        @Body requirement: Requirement
+        @Body dto: UpdateRequirementDTO
     ): Response<Requirement>
 
     /**
