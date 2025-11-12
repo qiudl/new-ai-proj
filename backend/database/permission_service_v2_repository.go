@@ -18,6 +18,31 @@ func NewPermissionServiceV2Repository(db execer) PermissionServiceV2Repository {
 
 // CheckSystemPermission checks if a user has a specific system permission
 func (r *PostgresPermissionServiceV2Repository) CheckSystemPermission(ctx context.Context, userID uint, permission string) (bool, error) {
+	// First check if user is super_admin (bypass all permission checks)
+	superAdminQuery := `
+		SELECT EXISTS(
+			SELECT 1
+			FROM users u
+			JOIN system_roles sr ON u.system_role_id = sr.id
+			WHERE u.id = $1
+			AND sr.code = 'super_admin'
+			AND u.status = 'active'
+			AND u.deleted_at IS NULL
+		)
+	`
+
+	var isSuperAdmin bool
+	err := r.db.QueryRowContext(ctx, superAdminQuery, userID).Scan(&isSuperAdmin)
+	if err != nil {
+		return false, fmt.Errorf("failed to check super_admin status: %w", err)
+	}
+
+	// Super admin bypasses all permission checks
+	if isSuperAdmin {
+		return true, nil
+	}
+
+	// Regular permission check for non-super-admin users
 	query := `
 		SELECT EXISTS(
 			SELECT 1
@@ -32,7 +57,7 @@ func (r *PostgresPermissionServiceV2Repository) CheckSystemPermission(ctx contex
 	`
 
 	var hasPermission bool
-	err := r.db.QueryRowContext(ctx, query, userID, permission).Scan(&hasPermission)
+	err = r.db.QueryRowContext(ctx, query, userID, permission).Scan(&hasPermission)
 	if err != nil {
 		return false, fmt.Errorf("failed to check system permission: %w", err)
 	}
