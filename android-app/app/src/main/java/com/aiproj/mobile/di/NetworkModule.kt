@@ -17,6 +17,7 @@ import com.aiproj.mobile.data.api.DocumentApi
 import com.aiproj.mobile.data.api.DocumentVersionApi
 import com.aiproj.mobile.data.api.EfficiencyApi
 import com.aiproj.mobile.data.api.ProjectApi
+import com.aiproj.mobile.data.api.RequirementApi
 import com.aiproj.mobile.data.api.SuggestionApi
 import com.aiproj.mobile.data.api.TaskApi
 import com.aiproj.mobile.data.api.TimeLogApi
@@ -311,6 +312,16 @@ object NetworkModule {
     @Singleton
     fun provideDocumentVersionApi(retrofit: Retrofit): DocumentVersionApi {
         return retrofit.create(DocumentVersionApi::class.java)
+    }
+
+    /**
+     * 提供 RequirementApi
+     * 用于需求管理功能
+     */
+    @Provides
+    @Singleton
+    fun provideRequirementApi(retrofit: Retrofit): RequirementApi {
+        return retrofit.create(RequirementApi::class.java)
     }
 
     /**
