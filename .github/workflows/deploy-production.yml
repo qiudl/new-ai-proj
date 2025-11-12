@@ -86,15 +86,17 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends postgresql-client
 
-    - name: Run DB migrations (Required)
-      env:
-        AI_TASKS_DB_URL: ${{ secrets.AI_TASKS_DB_URL }}
-      run: |
-        test -n "$AI_TASKS_DB_URL" || (echo "AI_TASKS_DB_URL secret is required for production migrations" && exit 1)
-        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1500__create_dictionaries.sql
-        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1501__seed_dictionaries.sql
-        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1502__create_task_dependencies.sql
-        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1503__extend_task_dependencies.sql
+    # - name: Run DB migrations (Required)
+    #   env:
+    #     AI_TASKS_DB_URL: ${{ secrets.AI_TASKS_DB_URL }}
+    #   run: |
+    #     test -n "$AI_TASKS_DB_URL" || (echo "AI_TASKS_DB_URL secret is required for production migrations" && exit 1)
+    #     psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1500__create_dictionaries.sql
+    #     psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1501__seed_dictionaries.sql
+    #     psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1502__create_task_dependencies.sql
+    #     psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1503__extend_task_dependencies.sql
+    # Note: Migration files removed as they don't exist in the repository.
+    # Database migrations are auto-executed by the backend application on startup.
 
     - name: Deploy to Tencent Cloud Server
       uses: appleboy/ssh-action@v1.0.3
