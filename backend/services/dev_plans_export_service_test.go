@@ -3,6 +3,7 @@ package services
 import (
 	"ai-project-backend/models"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -107,7 +108,8 @@ func TestGenerateFileName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := service.generateFileName(tt.task)
 			// 检查文件名以 task ID 开头
-			assert.Contains(t, result, tt.task.Title[:10]) // 至少包含标题的前几个字符
+			// 检查文件名格式: {task_id}_{sanitized_title}.md
+			assert.Contains(t, result, fmt.Sprintf("%d_", tt.task.ID))
 			assert.Contains(t, result, ".md")
 			// 检查长度限制
 			assert.LessOrEqual(t, len(result), 110) // 100 + ID + .md
@@ -404,10 +406,10 @@ func TestFormatPriority(t *testing.T) {
 	}
 }
 
-// 辅助函数 (去除重复定义，使用全局的 strPtr)
-// func strPtr(s string) *string {
-// 	return &s
-// }
+// 辅助函数
+func strPtr(s string) *string {
+	return &s
+}
 
 // ========== 导入功能测试 ==========
 
