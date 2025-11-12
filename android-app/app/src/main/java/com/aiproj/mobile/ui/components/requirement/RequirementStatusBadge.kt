@@ -1,10 +1,15 @@
 package com.aiproj.mobile.ui.components.requirement
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.aiproj.mobile.data.models.RequirementStatus
 
@@ -21,36 +26,51 @@ fun RequirementStatusBadge(
     status: RequirementStatus,
     modifier: Modifier = Modifier
 ) {
-    val (backgroundColor, textColor, displayText) = when (status) {
-        RequirementStatus.DRAFT -> Triple(
-            Color(0xFF9E9E9E),  // Gray
-            Color.White,
-            "草稿"
+    val isDarkTheme = isSystemInDarkTheme()
+
+    data class StatusConfig(
+        val backgroundColor: Color,
+        val textColor: Color,
+        val displayText: String,
+        val icon: ImageVector
+    )
+
+    val statusConfig = when (status) {
+        RequirementStatus.DRAFT -> StatusConfig(
+            backgroundColor = if (isDarkTheme) Color(0xFF757575) else Color(0xFF9E9E9E),
+            textColor = Color.White,
+            displayText = "草稿",
+            icon = Icons.Filled.Edit
         )
-        RequirementStatus.PENDING -> Triple(
-            Color(0xFF2196F3),  // Blue
-            Color.White,
-            "待评审"
+        RequirementStatus.PENDING -> StatusConfig(
+            backgroundColor = if (isDarkTheme) Color(0xFF1976D2) else Color(0xFF2196F3),
+            textColor = Color.White,
+            displayText = "待评审",
+            icon = Icons.Filled.Schedule
         )
-        RequirementStatus.REVIEWING -> Triple(
-            Color(0xFFFF9800),  // Orange
-            Color.White,
-            "评审中"
+        RequirementStatus.REVIEWING -> StatusConfig(
+            backgroundColor = if (isDarkTheme) Color(0xFFF57C00) else Color(0xFFFF9800),
+            textColor = Color.White,
+            displayText = "评审中",
+            icon = Icons.Filled.Search
         )
-        RequirementStatus.APPROVED -> Triple(
-            Color(0xFF4CAF50),  // Green
-            Color.White,
-            "已批准"
+        RequirementStatus.APPROVED -> StatusConfig(
+            backgroundColor = if (isDarkTheme) Color(0xFF388E3C) else Color(0xFF4CAF50),
+            textColor = Color.White,
+            displayText = "已批准",
+            icon = Icons.Filled.CheckCircle
         )
-        RequirementStatus.REJECTED -> Triple(
-            Color(0xFFF44336),  // Red
-            Color.White,
-            "已拒绝"
+        RequirementStatus.REJECTED -> StatusConfig(
+            backgroundColor = if (isDarkTheme) Color(0xFFD32F2F) else Color(0xFFF44336),
+            textColor = Color.White,
+            displayText = "已拒绝",
+            icon = Icons.Filled.Cancel
         )
-        RequirementStatus.ARCHIVED -> Triple(
-            Color(0xFF616161),  // Dark Gray
-            Color.White,
-            "已归档"
+        RequirementStatus.ARCHIVED -> StatusConfig(
+            backgroundColor = if (isDarkTheme) Color(0xFF424242) else Color(0xFF616161),
+            textColor = Color.White,
+            displayText = "已归档",
+            icon = Icons.Filled.Archive
         )
     }
 
@@ -58,15 +78,24 @@ fun RequirementStatusBadge(
         onClick = { },
         label = {
             Text(
-                text = displayText,
+                text = statusConfig.displayText,
                 style = MaterialTheme.typography.labelSmall,
-                color = textColor
+                color = statusConfig.textColor
+            )
+        },
+        icon = {
+            Icon(
+                imageVector = statusConfig.icon,
+                contentDescription = statusConfig.displayText,
+                modifier = Modifier.size(16.dp),
+                tint = statusConfig.textColor
             )
         },
         modifier = modifier,
         colors = SuggestionChipDefaults.suggestionChipColors(
-            containerColor = backgroundColor,
-            labelColor = textColor
+            containerColor = statusConfig.backgroundColor,
+            labelColor = statusConfig.textColor,
+            iconContentColor = statusConfig.textColor
         )
     )
 }
