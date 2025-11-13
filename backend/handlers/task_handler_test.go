@@ -34,7 +34,7 @@ func TestStopUnifiedTimersOnTaskCompletion(t *testing.T) {
 	defer pdb.Close()
 
 	// Create handler under test
-	h := NewTaskHandler(pdb, nil, nil)
+	h := NewTaskHandler(pdb, nil, nil, nil)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	// Minimal route to hit UpdateTask

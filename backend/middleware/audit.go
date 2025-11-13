@@ -721,7 +721,11 @@ func (am *AuditMiddleware) logAuditEvent(auditData *models.AuditEventData) {
 		// Log error but don't fail the request
 		fmt.Printf("❌ Failed to log audit event: %v\n", err)
 	} else {
-		fmt.Printf("✅ Audit event logged: %s %s\n", auditLog.Action, auditLog.ResourceType)
+		resourceType := ""
+		if auditLog.ResourceType != nil {
+			resourceType = *auditLog.ResourceType
+		}
+		fmt.Printf("✅ Audit event logged: %s %s\n", auditLog.Action, resourceType)
 	}
 }
 

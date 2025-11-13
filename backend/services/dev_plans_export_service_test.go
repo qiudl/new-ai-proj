@@ -131,7 +131,7 @@ func TestExportTaskDocument(t *testing.T) {
 		Title:       "实现任务文档导出为文件的核心逻辑",
 		Status:      "in_progress",
 		Priority:    "high",
-		Description: strPtr("实现将任务文档导出到 dev-plans 目录的核心功能"),
+		Description: testStrPtr("实现将任务文档导出到 dev-plans 目录的核心功能"),
 		CreatedAt:   time.Now().Add(-24 * time.Hour),
 		UpdatedAt:   time.Now(),
 	}
@@ -407,7 +407,7 @@ func TestFormatPriority(t *testing.T) {
 }
 
 // 辅助函数
-func strPtr(s string) *string {
+func testStrPtr(s string) *string {
 	return &s
 }
 
@@ -425,7 +425,7 @@ func TestImportTaskDocument(t *testing.T) {
 		Title:       "导入测试任务",
 		Status:      "in_progress",
 		Priority:    "high",
-		Description: strPtr("测试文档导入功能"),
+		Description: testStrPtr("测试文档导入功能"),
 		CreatedAt:   time.Now().Add(-24 * time.Hour),
 		UpdatedAt:   time.Now(),
 	}
