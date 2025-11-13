@@ -75,6 +75,32 @@ func (a *Attachments) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, a)
 }
 
+// CustomFields represents custom/extended fields stored as JSONB
+type CustomFields map[string]interface{}
+
+// Value implements the driver.Valuer interface for database storage
+func (c CustomFields) Value() (driver.Value, error) {
+	if c == nil {
+		return []byte("{}"), nil
+	}
+	return json.Marshal(c)
+}
+
+// Scan implements the sql.Scanner interface for database retrieval
+func (c *CustomFields) Scan(value interface{}) error {
+	if value == nil {
+		*c = CustomFields{}
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("cannot scan %T into CustomFields", value)
+	}
+
+	return json.Unmarshal(bytes, c)
+}
+
 // Requirement represents a requirement in the system
 type Requirement struct {
 	// 主键和编号
@@ -97,10 +123,11 @@ type Requirement struct {
 	Category *string `json:"category" db:"category"`
 
 	// 业务信息
-	BusinessValue      *string     `json:"business_value" db:"business_value"`
-	ExpectedOutcome    *string     `json:"expected_outcome" db:"expected_outcome"`
-	AcceptanceCriteria *string     `json:"acceptance_criteria" db:"acceptance_criteria"`
-	Attachments        Attachments `json:"attachments" db:"attachments"`
+	BusinessValue      *string      `json:"business_value" db:"business_value"`
+	ExpectedOutcome    *string      `json:"expected_outcome" db:"expected_outcome"`
+	AcceptanceCriteria *string      `json:"acceptance_criteria" db:"acceptance_criteria"`
+	Attachments        Attachments  `json:"attachments" db:"attachments"`
+	CustomFields       CustomFields `json:"custom_fields,omitempty" db:"custom_fields"` // 扩展字段，用于CSV导入等场景
 
 	// 评审信息
 	ReviewStatus  *string    `json:"review_status" db:"review_status"`
@@ -138,31 +165,33 @@ type Requirement struct {
 
 // CreateRequirementRequest represents a request to create a requirement
 type CreateRequirementRequest struct {
-	Title              string      `json:"title" validate:"required,min=1,max=500"`
-	Description        *string     `json:"description"`
-	ProjectID          *int        `json:"project_id"`
-	EnterpriseID       *int        `json:"enterprise_id"` // system用户创建时需要指定
-	Priority           string      `json:"priority" validate:"omitempty,oneof=low medium high urgent"`
-	Category           *string     `json:"category"`
-	BusinessValue      *string     `json:"business_value"`
-	ExpectedOutcome    *string     `json:"expected_outcome"`
-	AcceptanceCriteria *string     `json:"acceptance_criteria"`
-	Attachments        Attachments `json:"attachments"`
-	DueDate            *time.Time  `json:"due_date"`
-}
-
-// UpdateRequirementRequest represents a request to update a requirement
-type UpdateRequirementRequest struct {
-	Title              *string      `json:"title" validate:"omitempty,min=1,max=500"`
+	Title              string       `json:"title" validate:"required,min=1,max=500"`
 	Description        *string      `json:"description"`
 	ProjectID          *int         `json:"project_id"`
-	Priority           *string      `json:"priority" validate:"omitempty,oneof=low medium high urgent"`
+	EnterpriseID       *int         `json:"enterprise_id"` // system用户创建时需要指定
+	Priority           string       `json:"priority" validate:"omitempty,oneof=low medium high urgent"`
 	Category           *string      `json:"category"`
 	BusinessValue      *string      `json:"business_value"`
 	ExpectedOutcome    *string      `json:"expected_outcome"`
 	AcceptanceCriteria *string      `json:"acceptance_criteria"`
-	Attachments        *Attachments `json:"attachments"`
+	Attachments        Attachments  `json:"attachments"`
+	CustomFields       CustomFields `json:"custom_fields,omitempty"` // 扩展字段
 	DueDate            *time.Time   `json:"due_date"`
+}
+
+// UpdateRequirementRequest represents a request to update a requirement
+type UpdateRequirementRequest struct {
+	Title              *string       `json:"title" validate:"omitempty,min=1,max=500"`
+	Description        *string       `json:"description"`
+	ProjectID          *int          `json:"project_id"`
+	Priority           *string       `json:"priority" validate:"omitempty,oneof=low medium high urgent"`
+	Category           *string       `json:"category"`
+	BusinessValue      *string       `json:"business_value"`
+	ExpectedOutcome    *string       `json:"expected_outcome"`
+	AcceptanceCriteria *string       `json:"acceptance_criteria"`
+	Attachments        *Attachments  `json:"attachments"`
+	CustomFields       *CustomFields `json:"custom_fields,omitempty"` // 扩展字段
+	DueDate            *time.Time    `json:"due_date"`
 }
 
 // ReviewRequirementRequest represents a request to review a requirement
@@ -216,10 +245,11 @@ type RequirementResponse struct {
 	Category *string `json:"category,omitempty"`
 
 	// 业务信息
-	BusinessValue      *string     `json:"business_value,omitempty"`
-	ExpectedOutcome    *string     `json:"expected_outcome,omitempty"`
-	AcceptanceCriteria *string     `json:"acceptance_criteria,omitempty"`
-	Attachments        Attachments `json:"attachments"`
+	BusinessValue      *string      `json:"business_value,omitempty"`
+	ExpectedOutcome    *string      `json:"expected_outcome,omitempty"`
+	AcceptanceCriteria *string      `json:"acceptance_criteria,omitempty"`
+	Attachments        Attachments  `json:"attachments"`
+	CustomFields       CustomFields `json:"custom_fields,omitempty"` // 扩展字段
 
 	// 评审信息
 	ReviewStatus  *string    `json:"review_status,omitempty"`
@@ -308,6 +338,7 @@ func (r *Requirement) ToResponse() RequirementResponse {
 		ExpectedOutcome:    r.ExpectedOutcome,
 		AcceptanceCriteria: r.AcceptanceCriteria,
 		Attachments:        r.Attachments,
+		CustomFields:       r.CustomFields,
 		ReviewStatus:       r.ReviewStatus,
 		ReviewComment:      r.ReviewComment,
 		ReviewScore:        r.ReviewScore,

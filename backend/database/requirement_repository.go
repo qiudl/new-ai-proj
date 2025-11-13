@@ -71,9 +71,9 @@ func (r *requirementRepositoryImpl) Create(ctx context.Context, requirement *mod
 			display_id, title, description, project_id, enterprise_id,
 			submitter_id, status, priority, category,
 			business_value, expected_outcome, acceptance_criteria,
-			attachments, due_date, submitted_at
+			attachments, due_date, submitted_at, custom_fields
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 		)
 		RETURNING id, created_at, updated_at
 	`
@@ -95,6 +95,7 @@ func (r *requirementRepositoryImpl) Create(ctx context.Context, requirement *mod
 		requirement.Attachments,
 		requirement.DueDate,
 		requirement.SubmittedAt,
+		requirement.CustomFields,
 	).Scan(&requirement.ID, &requirement.CreatedAt, &requirement.UpdatedAt)
 
 	if err != nil {
@@ -113,7 +114,7 @@ func (r *requirementRepositoryImpl) GetByID(ctx context.Context, id int) (*model
 			r.project_id, r.enterprise_id, r.submitter_id, r.reviewer_id,
 			r.status, r.priority, r.category,
 			r.business_value, r.expected_outcome, r.acceptance_criteria,
-			r.attachments,
+			r.attachments, r.custom_fields,
 			r.review_status, r.review_comment, r.review_score, r.reviewed_at,
 			r.estimated_hours, r.estimated_cost, r.complexity,
 			r.converted_task_id, r.converted_at, r.converted_by,
@@ -156,6 +157,7 @@ func (r *requirementRepositoryImpl) GetByID(ctx context.Context, id int) (*model
 		&expectedOutcome,
 		&acceptanceCriteria,
 		&requirement.Attachments,
+		&requirement.CustomFields,
 		&reviewStatus,
 		&reviewComment,
 		&reviewScore,
@@ -480,7 +482,7 @@ func (r *requirementRepositoryImpl) List(ctx context.Context, filters *models.Re
 			r.project_id, r.enterprise_id, r.submitter_id, r.reviewer_id,
 			r.status, r.priority, r.category,
 			r.business_value, r.expected_outcome, r.acceptance_criteria,
-			r.attachments,
+			r.attachments, r.custom_fields,
 			r.review_status, r.review_comment, r.review_score, r.reviewed_at,
 			r.estimated_hours, r.estimated_cost, r.complexity,
 			r.converted_task_id, r.converted_at, r.converted_by,
@@ -535,6 +537,7 @@ func (r *requirementRepositoryImpl) List(ctx context.Context, filters *models.Re
 			&expectedOutcome,
 			&acceptanceCriteria,
 			&req.Attachments,
+			&req.CustomFields,
 			&reviewStatus,
 			&reviewComment,
 			&reviewScore,

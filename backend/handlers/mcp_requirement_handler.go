@@ -140,9 +140,10 @@ type CreateRequirementRequest struct {
 	Complexity         *string  `json:"complexity"`
 	EstimatedHours     *float64 `json:"estimatedHours"`
 	ReviewerID         *int     `json:"reviewerId"`
-	Tags               []string `json:"tags"`
-	DueDate            *string  `json:"dueDate"`
-	AcceptanceCriteria *string  `json:"acceptanceCriteria"`
+	Tags               []string            `json:"tags"`
+	DueDate            *string             `json:"dueDate"`
+	AcceptanceCriteria *string             `json:"acceptanceCriteria"`
+	CustomFields       models.CustomFields `json:"customFields,omitempty"`
 }
 
 // CreateRequirement godoc
@@ -235,6 +236,7 @@ func (h *MCPRequirementHandler) CreateRequirement(c *gin.Context) {
 		Complexity:         req.Complexity,
 		EstimatedHours:     req.EstimatedHours,
 		AcceptanceCriteria: req.AcceptanceCriteria,
+		CustomFields:       req.CustomFields,
 	}
 
 	// Parse due date if provided

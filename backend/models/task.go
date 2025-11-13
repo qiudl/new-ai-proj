@@ -7,61 +7,6 @@ import (
 	"time"
 )
 
-// CustomFields represents JSONB custom fields
-type CustomFields map[string]interface{}
-
-// Value implements the driver.Valuer interface for database storage
-func (cf CustomFields) Value() (driver.Value, error) {
-	if cf == nil {
-		return nil, nil
-	}
-	return json.Marshal(cf)
-}
-
-// Scan implements the sql.Scanner interface for database retrieval
-func (cf *CustomFields) Scan(value interface{}) error {
-	if value == nil {
-		*cf = CustomFields{}
-		return nil
-	}
-
-	bytes, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("cannot scan %T into CustomFields", value)
-	}
-
-	// First try to unmarshal as normal map
-	var temp map[string]interface{}
-	if err := json.Unmarshal(bytes, &temp); err == nil {
-		*cf = CustomFields(temp)
-		return nil
-	}
-
-	// If that fails, try to handle as array (for backward compatibility)
-	var arr []interface{}
-	if err := json.Unmarshal(bytes, &arr); err == nil {
-		// Convert array to map by merging non-nil map elements
-		result := make(CustomFields)
-		for _, item := range arr {
-			// Skip nil items in array
-			if item == nil {
-				continue
-			}
-			if itemMap, ok := item.(map[string]interface{}); ok {
-				for k, v := range itemMap {
-					if v != nil && k != "" {
-						result[k] = v
-					}
-				}
-			}
-		}
-		*cf = result
-		return nil
-	}
-
-	// If both fail, try to unmarshal directly to CustomFields
-	return json.Unmarshal(bytes, cf)
-}
 
 // Dependencies represents a list of task IDs that this task depends on
 type Dependencies []int
