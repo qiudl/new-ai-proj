@@ -1,0 +1,5 @@
+# JWT生成工具编译文件
+jwt-gen-tool
+
+# Go编译缓存
+go.sum
