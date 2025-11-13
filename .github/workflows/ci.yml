@@ -67,13 +67,11 @@ jobs:
             sleep 2
           done
 
-      # - name: Migrate Up
-      #   env:
-      #     DB_URL: ${{ env.EFFECTIVE_DB_URL != '' && env.EFFECTIVE_DB_URL || env.DEFAULT_DB_URL }}
-      #   run: |
-      #     psql "$DB_URL" -f db/migrations/V20250821_1500__create_dictionaries.sql
-      #     psql "$DB_URL" -f db/migrations/V20250821_1501__seed_dictionaries.sql
-      # Note: Dictionaries migration files removed as they don't exist in the repository
+      - name: Initialize Database
+        env:
+          DB_URL: ${{ env.EFFECTIVE_DB_URL != '' && env.EFFECTIVE_DB_URL || env.DEFAULT_DB_URL }}
+        run: |
+          psql "$DB_URL" -f infrastructure/database/init/001_init.sql
 
       - name: Sync Attributes from Descriptions
         if: ${{ env.TASK_API_BASE != '' && env.TASK_API_TOKEN != '' }}

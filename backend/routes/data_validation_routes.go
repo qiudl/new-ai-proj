@@ -58,16 +58,11 @@ func RegisterDataValidationRoutes(router *gin.RouterGroup, app ApplicationInterf
 
 // RegisterDataValidationHandler registers the data validation handler with database services
 func RegisterDataValidationHandler(app ApplicationInterface) (*handlers.DataValidationHandler, error) {
-	// Type assertion for database interface
-	database, ok := app.(interface {
-		GetDB() interface{}
-	})
-	if !ok {
-		return nil, fmt.Errorf("invalid database interface")
-	}
+	// Get the database from app
+	db := app.GetDB()
 
 	// Get the actual database connection
-	dbConn, ok := database.GetDB().(*sql.DB)
+	dbConn, ok := db.GetDB().(*sql.DB)
 	if !ok {
 		return nil, fmt.Errorf("failed to get database connection")
 	}

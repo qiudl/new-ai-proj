@@ -162,10 +162,8 @@ func (m *MockTaskRepository) GetTaskTimeline(ctx context.Context, taskID int, li
 func (m *MockTaskRepository) GetProjectTimeline(ctx context.Context, projectID int, limit, offset int) ([]*models.TimelineEvent, int, error) {
 	return nil, 0, nil
 }
-
-func setupTestRouter() *gin.Engine {
-	gin.SetMode(gin.TestMode)
-	return gin.New()
+func (m *MockTaskRepository) CheckTitleUnique(ctx context.Context, projectID int, title string, excludeTaskID *int) (bool, error) {
+	return true, nil
 }
 
 func TestCreateComment_Success(t *testing.T) {

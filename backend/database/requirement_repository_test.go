@@ -273,14 +273,15 @@ func TestRequirementRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	requirementID := 1
+	userID := 1
 
 	// 设置期望的DELETE调用
 	mock.ExpectExec(`DELETE FROM requirement`).
-		WithArgs(requirementID).
+		WithArgs(requirementID, userID).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	// 执行测试
-	err = repo.Delete(ctx, requirementID)
+	err = repo.Delete(ctx, requirementID, userID)
 
 	// 验证结果
 	assert.NoError(t, err)
