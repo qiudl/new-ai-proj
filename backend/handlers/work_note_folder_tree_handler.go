@@ -391,6 +391,7 @@ func (h *WorkNoteFolderTreeHandler) buildTreeQuery(
 				(SELECT COUNT(*) FROM documents d
 				 WHERE d.folder_id = wnf.id
 				 AND d.deleted_at IS NULL
+				 AND d.visibility = $1
 				 AND d.metadata->>'work_note_type' IS NOT NULL) as notes_count,
 				(SELECT COUNT(*) FROM work_note_folders sf
 				 WHERE sf.parent_id = wnf.id
@@ -466,6 +467,7 @@ func (h *WorkNoteFolderTreeHandler) buildTreeQuery(
 			(SELECT COUNT(*) FROM documents d
 			 WHERE d.folder_id = ft.id
 			 AND d.deleted_at IS NULL
+			 AND d.visibility = ft.visibility
 			 AND d.metadata->>'work_note_type' IS NOT NULL) as notes_count,
 			(SELECT COUNT(*) FROM work_note_folders sf
 			 WHERE sf.parent_id = ft.id
