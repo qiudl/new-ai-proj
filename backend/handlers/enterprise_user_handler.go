@@ -136,7 +136,9 @@ func (h *EnterpriseUserHandler) ListEnterpriseUsers(c *gin.Context) {
 	}
 
 	// Call service
+	fmt.Printf("🔍 [HANDLER DEBUG] About to call Service.ListEnterpriseUsers - EnterpriseID: %d\n", enterpriseID)
 	result, err := h.enterpriseUserService.ListEnterpriseUsers(c.Request.Context(), filters, pagination)
+	fmt.Printf("🔍 [HANDLER DEBUG] Service returned %d users\n", len(result.Users))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

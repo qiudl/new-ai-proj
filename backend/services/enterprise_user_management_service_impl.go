@@ -31,6 +31,7 @@ func (s *DefaultEnterpriseUserManagementService) ListEnterpriseUsers(
 	filters database.EnterpriseUserFilters,
 	pagination database.EnterpriseUserPagination,
 ) (*EnterpriseUserListResult, error) {
+	fmt.Printf("🔍 [SERVICE DEBUG] ListEnterpriseUsers called - EnterpriseID: %d\n", filters.EnterpriseID)
 	// Count total users
 	total, err := s.repo.CountEnterpriseUsers(ctx, filters)
 	if err != nil {
