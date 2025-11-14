@@ -16,7 +16,9 @@ func TestRequirementPermissionService_GetRequirementAccess(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	permService := NewPermissionService(db)
+	// Create mock permission repository
+	mockRepo := new(MockPermissionRepository)
+	permService := NewPermissionService(mockRepo, db)
 	reqPermService := NewRequirementPermissionService(permService, db)
 	ctx := context.Background()
 
@@ -64,7 +66,8 @@ func TestRequirementPermissionService_GetRequirementAccess_SystemAdmin(t *testin
 	require.NoError(t, err)
 	defer db.Close()
 
-	permService := NewPermissionService(db)
+	mockRepo := new(MockPermissionRepository)
+	permService := NewPermissionService(mockRepo, db)
 	reqPermService := NewRequirementPermissionService(permService, db)
 	ctx := context.Background()
 
@@ -113,7 +116,8 @@ func TestRequirementPermissionService_GetRequirementAccess_Reviewer(t *testing.T
 	require.NoError(t, err)
 	defer db.Close()
 
-	permService := NewPermissionService(db)
+	mockRepo := new(MockPermissionRepository)
+	permService := NewPermissionService(mockRepo, db)
 	reqPermService := NewRequirementPermissionService(permService, db)
 	ctx := context.Background()
 
@@ -163,7 +167,8 @@ func TestRequirementPermissionService_GetRequirementAccess_EnterpriseUser(t *tes
 	require.NoError(t, err)
 	defer db.Close()
 
-	permService := NewPermissionService(db)
+	mockRepo := new(MockPermissionRepository)
+	permService := NewPermissionService(mockRepo, db)
 	reqPermService := NewRequirementPermissionService(permService, db)
 	ctx := context.Background()
 
@@ -214,7 +219,8 @@ func TestRequirementPermissionService_GetRequirementAccess_NoAccess(t *testing.T
 	require.NoError(t, err)
 	defer db.Close()
 
-	permService := NewPermissionService(db)
+	mockRepo := new(MockPermissionRepository)
+	permService := NewPermissionService(mockRepo, db)
 	reqPermService := NewRequirementPermissionService(permService, db)
 	ctx := context.Background()
 
@@ -341,7 +347,8 @@ func TestRequirementPermissionService_CheckRequirementStatusTransition(t *testin
 			require.NoError(t, err)
 			defer db.Close()
 
-			permService := NewPermissionService(db)
+			mockRepo := new(MockPermissionRepository)
+	permService := NewPermissionService(mockRepo, db)
 			reqPermService := NewRequirementPermissionService(permService, db)
 			ctx := context.Background()
 
@@ -407,7 +414,8 @@ func TestRequirementPermissionService_FilterRequirementsByAccess(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	permService := NewPermissionService(db)
+	mockRepo := new(MockPermissionRepository)
+	permService := NewPermissionService(mockRepo, db)
 	reqPermService := NewRequirementPermissionService(permService, db)
 	ctx := context.Background()
 
@@ -466,7 +474,8 @@ func TestRequirementPermissionService_FilterRequirementsByAccess_SystemAdmin(t *
 	require.NoError(t, err)
 	defer db.Close()
 
-	permService := NewPermissionService(db)
+	mockRepo := new(MockPermissionRepository)
+	permService := NewPermissionService(mockRepo, db)
 	reqPermService := NewRequirementPermissionService(permService, db)
 	ctx := context.Background()
 
@@ -515,7 +524,8 @@ func TestRequirementPermissionService_CanUserApproveRequirement(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	permService := NewPermissionService(db)
+	mockRepo := new(MockPermissionRepository)
+	permService := NewPermissionService(mockRepo, db)
 	reqPermService := NewRequirementPermissionService(permService, db)
 	ctx := context.Background()
 
@@ -558,7 +568,8 @@ func TestRequirementPermissionService_CanUserUpdateRequirement(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	permService := NewPermissionService(db)
+	mockRepo := new(MockPermissionRepository)
+	permService := NewPermissionService(mockRepo, db)
 	reqPermService := NewRequirementPermissionService(permService, db)
 	ctx := context.Background()
 
@@ -601,7 +612,8 @@ func TestRequirementPermissionService_CanUserUpdateRequirement_Approved(t *testi
 	require.NoError(t, err)
 	defer db.Close()
 
-	permService := NewPermissionService(db)
+	mockRepo := new(MockPermissionRepository)
+	permService := NewPermissionService(mockRepo, db)
 	reqPermService := NewRequirementPermissionService(permService, db)
 	ctx := context.Background()
 
