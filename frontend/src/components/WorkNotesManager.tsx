@@ -438,7 +438,18 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           const response = await workNotesService.getFolderTreeByType(treeType, undefined, 10);
           console.log(`[WorkNotesManager] Loaded ${treeType} folders:`, response.folders?.length || 0);
           if (response.folders) {
-            allFolders.push(...response.folders);
+            // 展平文件夹树，包含所有层级的文件夹
+            const flattenTree = (nodes: WorkNoteFolder[]): WorkNoteFolder[] => {
+              const result: WorkNoteFolder[] = [];
+              nodes.forEach(node => {
+                result.push(node);
+                if (node.children && node.children.length > 0) {
+                  result.push(...flattenTree(node.children));
+                }
+              });
+              return result;
+            };
+            allFolders.push(...flattenTree(response.folders));
           }
         } catch (error) {
           console.error(`Failed to load ${treeType} folders:`, error);
