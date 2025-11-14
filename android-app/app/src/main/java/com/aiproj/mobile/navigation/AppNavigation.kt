@@ -37,6 +37,9 @@ import com.aiproj.mobile.ui.document.version.VersionComparisonScreen
 import com.aiproj.mobile.ui.screens.notes.NotesScreen
 import com.aiproj.mobile.ui.screens.notes.NoteDetailScreen
 import com.aiproj.mobile.ui.screens.notes.NoteEditorScreen
+import com.aiproj.mobile.ui.screens.requirement.RequirementListScreen
+import com.aiproj.mobile.ui.screens.requirement.RequirementDetailScreen
+import com.aiproj.mobile.ui.screens.requirement.RequirementFormScreen
 import com.aiproj.mobile.ui.screens.details.todaytasks.TodayTasksDetailScreen
 import com.aiproj.mobile.ui.screens.details.worktime.WorkTimeDetailScreen
 import com.aiproj.mobile.ui.screens.details.todayworktime.TodayWorkTimeDetailScreen
@@ -538,6 +541,56 @@ fun MainScreen(
                 )
             }
 
+            // ========== 需求管理模块 ==========
+
+            // 需求列表
+            composable(Screen.RequirementList.route) {
+                RequirementListScreen(
+                    onRequirementClick = { requirementId ->
+                        navController.navigate(Screen.RequirementDetail.createRoute(requirementId))
+                    },
+                    onCreateRequirement = {
+                        navController.navigate(Screen.RequirementForm.createRoute())
+                    }
+                )
+            }
+
+            // 需求详情
+            composable(
+                route = Screen.RequirementDetail.route,
+                arguments = listOf(
+                    navArgument("requirementId") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val requirementId = backStackEntry.arguments?.getInt("requirementId") ?: return@composable
+                RequirementDetailScreen(
+                    requirementId = requirementId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onEditClick = { editRequirementId ->
+                        navController.navigate(Screen.RequirementForm.createRoute(editRequirementId))
+                    }
+                )
+            }
+
+            // 需求创建/编辑
+            composable(
+                route = Screen.RequirementForm.route,
+                arguments = listOf(
+                    navArgument("requirementId") {
+                        type = NavType.IntType
+                        defaultValue = -1
+                    }
+                )
+            ) { backStackEntry ->
+                val requirementIdArg = backStackEntry.arguments?.getInt("requirementId") ?: -1
+                val requirementId = if (requirementIdArg == -1) null else requirementIdArg
+                RequirementFormScreen(
+                    requirementId = requirementId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onSaveSuccess = { navController.popBackStack() }
+                )
+            }
+
             // ========== AI功能模块 ==========
 
             // AI文档生成
@@ -636,7 +689,7 @@ data class BottomNavItem(
 private val bottomNavItems = listOf(
     BottomNavItem(Screen.Dashboard.route, "首页", Icons.Default.Home),
     BottomNavItem(Screen.TaskList.route, "任务", Icons.AutoMirrored.Filled.Assignment),
-    BottomNavItem(Screen.NoteList.route, "工作笔记", Icons.Default.Description),
-    BottomNavItem(Screen.Analytics.route, "统计", Icons.Default.BarChart),
+    BottomNavItem(Screen.RequirementList.route, "需求", Icons.Default.ListAlt),
+    BottomNavItem(Screen.NoteList.route, "笔记", Icons.Default.Description),
     BottomNavItem(Screen.Profile.route, "我的", Icons.Default.Person)
 )

@@ -158,6 +158,25 @@ sealed class Screen(val route: String) {
         }
     }
 
+    // ========== 需求管理模块 ==========
+
+    // 需求列表
+    object RequirementList : Screen("requirement_list")
+
+    // 需求详情
+    object RequirementDetail : Screen("requirement_detail/{requirementId}") {
+        fun createRoute(requirementId: Int) = "requirement_detail/$requirementId"
+    }
+
+    // 需求创建/编辑
+    object RequirementForm : Screen("requirement_form?requirementId={requirementId}") {
+        fun createRoute(requirementId: Int? = null) = if (requirementId != null) {
+            "requirement_form?requirementId=$requirementId"
+        } else {
+            "requirement_form"
+        }
+    }
+
     // ========== AI功能模块 ==========
 
     // AI文档生成
