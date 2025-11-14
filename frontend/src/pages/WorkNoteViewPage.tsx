@@ -5,6 +5,8 @@ import {
   CloseOutlined,
   ArrowLeftOutlined,
   EditOutlined,
+  SaveOutlined,
+  EyeOutlined,
   ShareAltOutlined,
   PrinterOutlined,
   FullscreenOutlined,
@@ -13,6 +15,7 @@ import {
   MenuUnfoldOutlined
 } from '@ant-design/icons';
 import MarkdownRenderer from '../components/MarkdownRenderer';
+import MarkdownEditor from '../components/MarkdownEditor';
 import WorkNoteTableOfContents from '../components/WorkNoteTableOfContents';
 import { workNotesService, WorkNote } from '../services/workNotesService';
 import '../styles/WorkNoteViewPage.css';
@@ -42,6 +45,9 @@ const WorkNoteViewPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [tocCollapsed, setTocCollapsed] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingContent, setEditingContent] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // 从URL参数获取返回地址
   const returnUrl = searchParams.get('return') || '/work-note';
@@ -107,10 +113,39 @@ const WorkNoteViewPage: React.FC = () => {
     navigate(returnUrl);
   };
 
-  // 编辑笔记
+  // 进入编辑模式
   const handleEdit = () => {
-    // 返回列表页并打开编辑对话框
-    navigate(returnUrl, { state: { editNoteId: noteId } });
+    setIsEditing(true);
+    setEditingContent(note?.content || '');
+  };
+
+  // 保存编辑
+  const handleSave = async () => {
+    if (!note) return;
+
+    try {
+      setSaving(true);
+      await workNotesService.updateWorkNote(note.id, {
+        ...note,
+        content: editingContent
+      });
+
+      // 更新本地状态
+      setNote({ ...note, content: editingContent });
+      setIsEditing(false);
+      message.success('保存成功');
+    } catch (error: any) {
+      console.error('保存失败:', error);
+      message.error(`保存失败: ${error.message || '未知错误'}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingContent(note?.content || '');
   };
 
   // 分享链接
@@ -236,27 +271,49 @@ const WorkNoteViewPage: React.FC = () => {
 
         <div className="toolbar-right">
           <Space>
-            <Tooltip title="折叠/展开目录">
-              <Button
-                type="text"
-                icon={tocCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={() => setTocCollapsed(!tocCollapsed)}
-              />
-            </Tooltip>
-            <Tooltip title="全屏 (F11)">
-              <Button
-                type="text"
-                icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
-                onClick={toggleFullscreen}
-              />
-            </Tooltip>
-            <Tooltip title="编辑笔记">
-              <Button
-                type="text"
-                icon={<EditOutlined />}
-                onClick={handleEdit}
-              />
-            </Tooltip>
+            {!isEditing && (
+              <>
+                <Tooltip title="折叠/展开目录">
+                  <Button
+                    type="text"
+                    icon={tocCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                    onClick={() => setTocCollapsed(!tocCollapsed)}
+                  />
+                </Tooltip>
+                <Tooltip title="全屏 (F11)">
+                  <Button
+                    type="text"
+                    icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+                    onClick={toggleFullscreen}
+                  />
+                </Tooltip>
+                <Tooltip title="编辑笔记">
+                  <Button
+                    type="text"
+                    icon={<EditOutlined />}
+                    onClick={handleEdit}
+                  />
+                </Tooltip>
+              </>
+            )}
+            {isEditing && (
+              <>
+                <Button
+                  icon={<EyeOutlined />}
+                  onClick={handleCancelEdit}
+                >
+                  取消
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  onClick={handleSave}
+                  loading={saving}
+                >
+                  保存
+                </Button>
+              </>
+            )}
             <Tooltip title="分享链接">
               <Button
                 type="text"
@@ -285,37 +342,51 @@ const WorkNoteViewPage: React.FC = () => {
       <Layout style={{ height: 'calc(100vh - 64px)' }}>
         {/* 主内容区 */}
         <Content className="work-note-content">
-          <div className="work-note-markdown-container">
-            {/* 笔记元信息 */}
-            <div className="work-note-meta">
-              <Space split="|" size="large">
-                <Text type="secondary">
-                  ID: #{note.id}
-                </Text>
-                <Text type="secondary">
-                  创建于: {new Date(note.created_at).toLocaleString('zh-CN')}
-                </Text>
-                <Text type="secondary">
-                  更新于: {new Date(note.updated_at).toLocaleString('zh-CN')}
-                </Text>
-                {note.description && (
+          {!isEditing ? (
+            // 查看模式
+            <div className="work-note-markdown-container">
+              {/* 笔记元信息 */}
+              <div className="work-note-meta">
+                <Space split="|" size="large">
                   <Text type="secondary">
-                    {note.description}
+                    ID: #{note.id}
                   </Text>
-                )}
-              </Space>
-            </div>
+                  <Text type="secondary">
+                    创建于: {new Date(note.created_at).toLocaleString('zh-CN')}
+                  </Text>
+                  <Text type="secondary">
+                    更新于: {new Date(note.updated_at).toLocaleString('zh-CN')}
+                  </Text>
+                  {note.description && (
+                    <Text type="secondary">
+                      {note.description}
+                    </Text>
+                  )}
+                </Space>
+              </div>
 
-            {/* Markdown 内容 */}
-            <MarkdownRenderer
-              content={note.content}
-              className="work-note-markdown"
-            />
-          </div>
+              {/* Markdown 内容 */}
+              <MarkdownRenderer
+                content={note.content}
+                className="work-note-markdown"
+              />
+            </div>
+          ) : (
+            // 编辑模式
+            <div style={{ height: '100%', padding: '24px' }}>
+              <MarkdownEditor
+                value={editingContent}
+                onChange={setEditingContent}
+                onSave={handleSave}
+                height={window.innerHeight - 200}
+                autoSave={false}
+              />
+            </div>
+          )}
         </Content>
 
-        {/* 右侧目录 */}
-        {!tocCollapsed && (
+        {/* 右侧目录 - 仅在查看模式显示 */}
+        {!tocCollapsed && !isEditing && (
           <Sider
             width={280}
             className="work-note-toc-sider"

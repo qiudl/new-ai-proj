@@ -162,44 +162,64 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               {children}
             </blockquote>
           ),
-          h1: ({ children, ...props }) => (
-            <h1 style={{ 
-              fontSize: '20px', 
-              margin: '16px 0 12px 0', 
-              color: '#262626',
-              borderBottom: '2px solid #f0f0f0',
-              paddingBottom: '8px'
-            }} {...props}>
-              {children}
-            </h1>
-          ),
-          h2: ({ children, ...props }) => (
-            <h2 style={{ 
-              fontSize: '18px', 
-              margin: '14px 0 10px 0', 
-              color: '#262626'
-            }} {...props}>
-              {children}
-            </h2>
-          ),
-          h3: ({ children, ...props }) => (
-            <h3 style={{ 
-              fontSize: '16px', 
-              margin: '12px 0 8px 0', 
-              color: '#262626'
-            }} {...props}>
-              {children}
-            </h3>
-          ),
-          h4: ({ children, ...props }) => (
-            <h4 style={{ 
-              fontSize: '14px', 
-              margin: '10px 0 6px 0', 
-              color: '#262626'
-            }} {...props}>
-              {children}
-            </h4>
-          ),
+          h1: ({ children, ...props }) => {
+            const text = String(children);
+            const id = text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fa5-]/g, '');
+            return (
+              <h1 id={id} style={{
+                fontSize: '20px',
+                margin: '16px 0 12px 0',
+                color: '#262626',
+                borderBottom: '2px solid #f0f0f0',
+                paddingBottom: '8px',
+                scrollMarginTop: '80px'
+              }} {...props}>
+                {children}
+              </h1>
+            );
+          },
+          h2: ({ children, ...props }) => {
+            const text = String(children);
+            const id = text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fa5-]/g, '');
+            return (
+              <h2 id={id} style={{
+                fontSize: '18px',
+                margin: '14px 0 10px 0',
+                color: '#262626',
+                scrollMarginTop: '80px'
+              }} {...props}>
+                {children}
+              </h2>
+            );
+          },
+          h3: ({ children, ...props }) => {
+            const text = String(children);
+            const id = text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fa5-]/g, '');
+            return (
+              <h3 id={id} style={{
+                fontSize: '16px',
+                margin: '12px 0 8px 0',
+                color: '#262626',
+                scrollMarginTop: '80px'
+              }} {...props}>
+                {children}
+              </h3>
+            );
+          },
+          h4: ({ children, ...props }) => {
+            const text = String(children);
+            const id = text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fa5-]/g, '');
+            return (
+              <h4 id={id} style={{
+                fontSize: '14px',
+                margin: '10px 0 6px 0',
+                color: '#262626',
+                scrollMarginTop: '80px'
+              }} {...props}>
+                {children}
+              </h4>
+            );
+          },
           ul: ({ children, ...props }) => (
             <ul style={{ 
               margin: '8px 0', 
