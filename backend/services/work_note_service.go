@@ -351,7 +351,7 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 
 	// 查询
 	selectSQL := fmt.Sprintf(`
-		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
+		SELECT d.id, d.project_id, d.folder_id, d.title, d.content, d.type, d.status,
 		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
 		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
 		       d.created_by, d.created_at, d.updated_at, d.deleted_at,
@@ -366,7 +366,7 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 	args = append(args, limit, offset)
 	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: selectSQL=%s", selectSQL)
 	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: final args=%+v, limit=%d, offset=%d", args, limit, offset)
-	
+
 	rows, err := s.db.QueryContext(ctx, selectSQL, args...)
 	if err != nil {
 		log.Printf("[ERROR] WorkNoteService.ListWorkNotes: select query failed: %v", err)
@@ -379,12 +379,12 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 	for rows.Next() {
 		rowCount++
 		log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: scanning row %d", rowCount)
-		
+
 		var doc models.Document
 		var tags pq.StringArray
 		var ownerName sql.NullString
 		if err := rows.Scan(
-			&doc.ID, &doc.ProjectID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
+			&doc.ID, &doc.ProjectID, &doc.FolderID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
 			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tags,
 			&doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
 			&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt, &doc.DeletedAt,
