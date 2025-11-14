@@ -962,6 +962,27 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
     loadWorkNotes();
   };
 
+  // 删除单个笔记
+  const handleDeleteSingle = (workNote: WorkNote) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除笔记 "${workNote.title}" 吗？此操作不可恢复。`,
+      okText: '确认删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await workNotesService.deleteWorkNote(workNote.id);
+          message.success('笔记已删除');
+          loadWorkNotes();
+        } catch (error: any) {
+          console.error('删除笔记失败:', error);
+          message.error(error.message || '删除失败');
+        }
+      },
+    });
+  };
+
   // 打开任务关联管理对话框
   const openAssociationModal = (noteId: number) => {
     setCurrentNoteIdForAssociation(noteId);
@@ -1712,12 +1733,11 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           creatorId: record.created_by || 0,
           visibility: record.visibility as 'private' | 'team' | 'public'
         });
-        // ✅ FIXED - Commented unused variable (ESLint)
-        /* const hasDeletePermission = canDeleteNote({
+        const hasDeletePermission = canDeleteNote({
           id: record.id,
           creatorId: record.created_by || 0,
           visibility: record.visibility as 'private' | 'team' | 'public'
-        }); */
+        });
 
         return (
           <Space size={isMobile ? 2 : 4}>
@@ -1754,6 +1774,18 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
                 />
               </Tooltip>
             )}
+            {!isMobile && (
+              <Tooltip title={hasDeletePermission ? "删除笔记" : "无权限删除此笔记"}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={hasDeletePermission ? <DeleteOutlined /> : <LockOutlined />}
+                  onClick={() => hasDeletePermission && handleDeleteSingle(record)}
+                  disabled={!hasDeletePermission}
+                  style={{ color: hasDeletePermission ? '#ff4d4f' : '#d9d9d9' }}
+                />
+              </Tooltip>
+            )}
             {isMobile && (
               <Tooltip title="更多操作">
                 <Button
@@ -1769,7 +1801,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         );
       },
     },
-  ], [isMobile, filteredNotes, handleView, openEditModal, openConversionModal, canEditNote, canDeleteNote]);
+  ], [isMobile, filteredNotes, handleView, openEditModal, openConversionModal, handleDeleteSingle, canEditNote, canDeleteNote]);
 
   return (
     <div style={{ padding: isMobile ? '8px' : '12px' }}>
