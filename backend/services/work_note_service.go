@@ -30,8 +30,11 @@ func NewWorkNoteService(db *sql.DB, _ *DocumentService) *WorkNoteService {
 
 func (s *WorkNoteService) CreateWorkNote(ctx context.Context, req models.CreateWorkNoteRequest, userID int) (*models.WorkNote, error) {
 	// 合并 FolderID 和 WorkNoteFolderID (FolderID 优先,向后兼容)
-	if req.FolderID != nil && req.WorkNoteFolderID == nil {
-		req.WorkNoteFolderID = req.FolderID
+	var folderID *int
+	if req.FolderID != nil {
+		folderID = req.FolderID
+	} else if req.WorkNoteFolderID != nil {
+		folderID = req.WorkNoteFolderID
 	}
 
 	// 设置默认值
@@ -81,7 +84,7 @@ func (s *WorkNoteService) CreateWorkNote(ctx context.Context, req models.CreateW
 	tags := pq.StringArray(req.Tags)
 
 	err := s.db.QueryRowContext(ctx, query,
-		projectID, req.WorkNoteFolderID, req.Title, content,
+		projectID, folderID, req.Title, content,
 		models.DocumentTypeMarkdown, models.DocumentStatusDraft,
 		description, tags, metadata, userID, req.Visibility,
 		1, false, userID,
@@ -95,7 +98,7 @@ func (s *WorkNoteService) CreateWorkNote(ctx context.Context, req models.CreateW
 		Document: models.Document{
 			ID:          id,
 			ProjectID:   projectID,
-			FolderID:    req.WorkNoteFolderID,
+			FolderID:    folderID,  // 使用合并后的folderID
 			Title:       req.Title,
 			Content:     content,
 			Type:        models.DocumentTypeMarkdown,
@@ -117,7 +120,7 @@ func (s *WorkNoteService) CreateWorkNote(ctx context.Context, req models.CreateW
 		IsBookmarked:     req.IsBookmarked,
 		RelatedTasks:     req.RelatedTasks,
 		RelatedNotes:     req.RelatedNotes,
-		WorkNoteFolderID: req.WorkNoteFolderID,
+		// WorkNoteFolderID 字段已移除,使用 Document.FolderID
 	}
 
 	// 计算阅读时间与字数并更新 metadata（非阻塞失败）
@@ -157,8 +160,11 @@ func (s *WorkNoteService) GetWorkNote(ctx context.Context, noteID, userID int) (
 
 func (s *WorkNoteService) UpdateWorkNote(ctx context.Context, noteID int, req models.UpdateWorkNoteRequest, userID int) (*models.WorkNote, error) {
 	// 合并 FolderID 和 WorkNoteFolderID (FolderID 优先,向后兼容)
-	if req.FolderID != nil && req.WorkNoteFolderID == nil {
-		req.WorkNoteFolderID = req.FolderID
+	var folderID *int
+	if req.FolderID != nil {
+		folderID = req.FolderID
+	} else if req.WorkNoteFolderID != nil {
+		folderID = req.WorkNoteFolderID
 	}
 
 	existing, err := s.getDocumentByID(ctx, noteID)
@@ -183,8 +189,8 @@ func (s *WorkNoteService) UpdateWorkNote(ctx context.Context, noteID int, req mo
 	if req.Description != nil {
 		u.Description = req.Description
 	}
-	if req.WorkNoteFolderID != nil {
-		u.FolderID = req.WorkNoteFolderID
+	if folderID != nil {
+		u.FolderID = folderID
 	}
 	if req.Visibility != nil {
 		u.Visibility = req.Visibility
@@ -983,12 +989,20 @@ func (s *WorkNoteService) BatchUpdateWorkNotes(ctx context.Context, operation mo
 
 // CreateAndAttachToTask 创建工作笔记并关联到指定任务
 func (s *WorkNoteService) CreateAndAttachToTask(ctx context.Context, req models.CreateWorkNoteRequest, taskID int, userID int) (*models.WorkNote, error) {
+	// 0. 合并 FolderID 和 WorkNoteFolderID (FolderID 优先,向后兼容)
+	var folderID *int
+	if req.FolderID != nil {
+		folderID = req.FolderID
+	} else if req.WorkNoteFolderID != nil {
+		folderID = req.WorkNoteFolderID
+	}
+
 	// 1. 验证任务是否存在且用户有权限访问
 	var taskProjectID *int
 	var taskTitle string
 	err := s.db.QueryRowContext(ctx, `
-		SELECT t.project_id, t.title 
-		FROM tasks t 
+		SELECT t.project_id, t.title
+		FROM tasks t
 		WHERE t.id = $1 AND t.deleted_at IS NULL`, taskID).Scan(&taskProjectID, &taskTitle)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1065,7 +1079,7 @@ func (s *WorkNoteService) CreateAndAttachToTask(ctx context.Context, req models.
 	tags := append(req.Tags, "task-attached", fmt.Sprintf("task-%d", taskID))
 
 	err = s.db.QueryRowContext(ctx, query,
-		projectID, req.WorkNoteFolderID, title, content,
+		projectID, folderID, title, content,
 		models.DocumentTypeMarkdown, models.DocumentStatusDraft,
 		description, pq.StringArray(tags), metadata, userID, req.Visibility,
 		1, false, userID,
@@ -1079,7 +1093,7 @@ func (s *WorkNoteService) CreateAndAttachToTask(ctx context.Context, req models.
 		Document: models.Document{
 			ID:          id,
 			ProjectID:   projectID,
-			FolderID:    req.WorkNoteFolderID,
+			FolderID:    folderID,  // 使用合并后的folderID
 			Title:       title,
 			Content:     content,
 			Type:        models.DocumentTypeMarkdown,
@@ -1101,7 +1115,7 @@ func (s *WorkNoteService) CreateAndAttachToTask(ctx context.Context, req models.
 		IsBookmarked:     req.IsBookmarked,
 		RelatedTasks:     []int{taskID},
 		RelatedNotes:     req.RelatedNotes,
-		WorkNoteFolderID: req.WorkNoteFolderID,
+		// WorkNoteFolderID 字段已移除,使用 Document.FolderID
 	}
 
 	// 8. 计算阅读时间与字数并更新metadata（非阻塞失败）

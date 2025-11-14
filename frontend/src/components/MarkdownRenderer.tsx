@@ -35,17 +35,22 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     let match;
+    let partIndex = 0;
 
     while ((match = mentionPattern.exec(text)) !== null) {
       // 添加@之前的普通文本
       if (match.index > lastIndex) {
-        parts.push(text.substring(lastIndex, match.index));
+        parts.push(
+          <React.Fragment key={`text-${partIndex++}`}>
+            {text.substring(lastIndex, match.index)}
+          </React.Fragment>
+        );
       }
 
       // 添加高亮的@用户
       parts.push(
         <span
-          key={`mention-${match.index}`}
+          key={`mention-${partIndex++}`}
           style={{
             color: '#1890ff',
             backgroundColor: '#e6f7ff',
@@ -65,7 +70,11 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
     // 添加剩余的文本
     if (lastIndex < text.length) {
-      parts.push(text.substring(lastIndex));
+      parts.push(
+        <React.Fragment key={`text-${partIndex}`}>
+          {text.substring(lastIndex)}
+        </React.Fragment>
+      );
     }
 
     return parts.length > 0 ? <>{parts}</> : text;
@@ -252,9 +261,12 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               if (Array.isArray(children)) {
                 return children.map((child, index) => {
                   if (typeof child === 'string') {
-                    return <React.Fragment key={index}>{renderTextWithMentions(child)}</React.Fragment>;
+                    return <React.Fragment key={`p-child-${index}`}>{renderTextWithMentions(child)}</React.Fragment>;
                   }
-                  return child;
+                  // Ensure other children also have keys
+                  return React.isValidElement(child) && !child.key
+                    ? React.cloneElement(child as React.ReactElement, { key: `p-elem-${index}` })
+                    : child;
                 });
               }
               return children;

@@ -181,8 +181,8 @@ type WorkNote struct {
 	RelatedTasks []int `json:"related_tasks,omitempty"`
 	RelatedNotes []int `json:"related_notes,omitempty"`
 
-	// 文件夹关联（通过Document.FolderID，这里提供类型安全的访问）
-	WorkNoteFolderID *int `json:"work_note_folder_id,omitempty"`
+	// 注意: folder_id 通过继承的 Document.FolderID 字段处理
+	// 不需要额外的 WorkNoteFolderID 字段，以避免字段重复和JSON序列化问题
 
 	// 运行时计算字段（不存储在数据库）
 	FolderPath      string   `json:"folder_path,omitempty"`       // 文件夹路径
@@ -408,7 +408,7 @@ func (wn *WorkNote) ToDocument() Document {
 
 	doc := wn.Document
 	doc.Metadata = metadata
-	doc.FolderID = wn.WorkNoteFolderID
+	// folder_id 已经在 wn.Document.FolderID 中,不需要额外设置
 	doc.Type = DocumentTypeMarkdown // 工作笔记默认为markdown类型
 
 	return doc
@@ -417,7 +417,7 @@ func (wn *WorkNote) ToDocument() Document {
 // FromDocument 从Document模型转换
 func (wn *WorkNote) FromDocument(doc Document) error {
 	wn.Document = doc
-	wn.WorkNoteFolderID = doc.FolderID
+	// folder_id 已经在 doc.FolderID 中,会自动继承到 wn.Document.FolderID
 
 	// 从metadata解析工作笔记专用字段
 	if doc.Metadata != nil {

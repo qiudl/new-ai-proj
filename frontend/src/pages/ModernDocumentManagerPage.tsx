@@ -44,7 +44,7 @@ import {
   SwapOutlined,
   FolderOpenOutlined
 } from '@ant-design/icons';
-import { workNotesService, WorkNote } from '../services/workNotesService';
+import { workNotesService, WorkNote, WorkNoteFolder } from '../services/workNotesService';
 import { TaskService } from '../services/taskService';
 import ModernWorkNoteEditor from '../components/ModernWorkNoteEditor';
 import ModernWorkNoteViewer from '../components/ModernWorkNoteViewer';
@@ -96,6 +96,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [folderPath, setFolderPath] = useState<string>('全部笔记');
   const [showFolderTree, setShowFolderTree] = useState(true);
+  const [folders, setFolders] = useState<WorkNoteFolder[]>([]);
   const folderTreeRef = useRef<any>(null);
   
   // 分页状态
@@ -111,6 +112,26 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
     templates: 0,
     favorites: 0
   });
+
+  // 加载文件夹列表
+  const loadFolders = async () => {
+    try {
+      const folderTree = await workNotesService.getWorkNoteFolderTree();
+      const flatFolders: WorkNoteFolder[] = [];
+      const flattenTree = (nodes: WorkNoteFolder[]) => {
+        nodes.forEach(node => {
+          flatFolders.push(node);
+          if (node.children) {
+            flattenTree(node.children);
+          }
+        });
+      };
+      flattenTree(folderTree);
+      setFolders(flatFolders);
+    } catch (error) {
+      console.error('Failed to load folders:', error);
+    }
+  };
 
   // 加载工作笔记
   const loadWorkNotes = async () => {
@@ -184,6 +205,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
   };
 
   useEffect(() => {
+    loadFolders();
     loadWorkNotes();
   }, [searchQuery, statusFilter, favoriteFilter, selectedTags, sortBy, selectedFolderId, currentPage, pageSize]);
 
@@ -548,6 +570,12 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
       >
         <div style={{ marginBottom: 12 }}>
           {renderStatusTag(note.status)}
+          {note.folder_id && (
+            <Text type="secondary" style={{ fontSize: '12px', marginLeft: 8 }}>
+              <FolderOutlined style={{ marginRight: 4 }} />
+              {folders.find(f => f.id === note.folder_id)?.name || '未知文件夹'}
+            </Text>
+          )}
           <Text type="secondary" style={{ fontSize: '12px', marginLeft: 8 }}>
             <ClockCircleOutlined style={{ marginRight: 4 }} />
             {new Date(note.updated_at).toLocaleDateString('zh-CN')}
