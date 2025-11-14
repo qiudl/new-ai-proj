@@ -204,8 +204,12 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
     }
   };
 
+  // 只在组件挂载时加载文件夹列表
   useEffect(() => {
     loadFolders();
+  }, []);
+
+  useEffect(() => {
     loadWorkNotes();
   }, [searchQuery, statusFilter, favoriteFilter, selectedTags, sortBy, selectedFolderId, currentPage, pageSize]);
 
@@ -383,7 +387,8 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
   
   // 处理文件夹变更（创建、编辑、删除后）
   const handleFolderChange = () => {
-    // 刷新工作笔记列表
+    // 刷新文件夹列表和工作笔记列表
+    loadFolders();
     loadWorkNotes();
   };
 
@@ -573,7 +578,10 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
           {note.folder_id && (
             <Text type="secondary" style={{ fontSize: '12px', marginLeft: 8 }}>
               <FolderOutlined style={{ marginRight: 4 }} />
-              {folders.find(f => f.id === note.folder_id)?.name || '未知文件夹'}
+              {(() => {
+                const folder = folders.find(f => f.id === note.folder_id);
+                return folder?.name || '未知文件夹';
+              })()}
             </Text>
           )}
           <Text type="secondary" style={{ fontSize: '12px', marginLeft: 8 }}>

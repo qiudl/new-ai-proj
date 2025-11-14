@@ -225,6 +225,16 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
 
   // 处理表单变化
   const handleFormChange = (changedValues: any, allValues: any) => {
+    // 如果修改了folder_id，自动设置visibility为该文件夹的visibility
+    if (changedValues.folder_id !== undefined) {
+      const selectedFolder = folders.find(f => f.id === changedValues.folder_id);
+      if (selectedFolder) {
+        // 自动更新visibility以匹配文件夹
+        form.setFieldValue('visibility', selectedFolder.visibility);
+        changedValues.visibility = selectedFolder.visibility;
+      }
+    }
+
     const newData = {
       ...formData,
       ...changedValues,
