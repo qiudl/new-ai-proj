@@ -147,9 +147,12 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
     setLoadedKeys([]);
   }, [activeTreeType, loadTreeFolders]);
 
-  // 自动展开所有文件夹节点
+  // 自动展开所有文件夹节点 (防止重复更新导致insertBefore错误)
+  const lastFoldersLength = React.useRef(0);
+
   useEffect(() => {
-    if (folders.length > 0) {
+    // 只在文件夹数量变化时更新expandedKeys,避免频繁触发
+    if (folders.length > 0 && folders.length !== lastFoldersLength.current) {
       const collectAllKeys = (folderList: WorkNoteFolder[]): React.Key[] => {
         const keys: React.Key[] = ['root'];
         const traverse = (folders: WorkNoteFolder[]) => {
@@ -165,7 +168,11 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
       };
 
       const allKeys = collectAllKeys(folders);
-      setExpandedKeys(allKeys);
+      // 使用 requestAnimationFrame 延迟DOM更新,避免与React的渲染周期冲突
+      requestAnimationFrame(() => {
+        setExpandedKeys(allKeys);
+      });
+      lastFoldersLength.current = folders.length;
     }
   }, [folders]);
 

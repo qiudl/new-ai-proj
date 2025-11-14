@@ -519,8 +519,10 @@ func (h *WorkNoteFolderTreeHandler) buildFolderCountQuery(
 	args := []interface{}{string(treeType)}
 
 	permFilter := h.buildPermissionFilter(treeType, userID, 2)
-	sql += permFilter
-	args = append(args, userID)
+	if permFilter != "" {
+		sql += permFilter
+		args = append(args, userID)
+	}
 
 	return QueryBuilder{SQL: sql, Args: args}
 }
@@ -542,8 +544,10 @@ func (h *WorkNoteFolderTreeHandler) buildNoteCountQuery(
 	args := []interface{}{string(treeType)}
 
 	permFilter := h.buildPermissionFilter(treeType, userID, 2)
-	sql += permFilter
-	args = append(args, userID)
+	if permFilter != "" {
+		sql += permFilter
+		args = append(args, userID)
+	}
 
 	return QueryBuilder{SQL: sql, Args: args}
 }
@@ -563,8 +567,10 @@ func (h *WorkNoteFolderTreeHandler) buildRootFolderCountQuery(
 	args := []interface{}{string(treeType)}
 
 	permFilter := h.buildPermissionFilter(treeType, userID, 2)
-	sql += permFilter
-	args = append(args, userID)
+	if permFilter != "" {
+		sql += permFilter
+		args = append(args, userID)
+	}
 
 	return QueryBuilder{SQL: sql, Args: args}
 }
