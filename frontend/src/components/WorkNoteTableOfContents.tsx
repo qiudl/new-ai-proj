@@ -120,6 +120,19 @@ const WorkNoteTableOfContents: React.FC<WorkNoteTableOfContentsProps> = ({
         affix={false}
         getCurrentAnchor={() => currentAnchor}
         onChange={handleChange}
+        targetOffset={80}
+        onClick={(e, link) => {
+          e.preventDefault();
+          const targetId = link.href.replace('#', '');
+          const targetElement = document.getElementById(targetId);
+          if (targetElement) {
+            // 使用 scrollIntoView 实现平滑滚动
+            targetElement.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }
+        }}
         items={toc.map(item => ({
           key: item.id,
           href: `#${item.id}`,

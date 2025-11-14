@@ -65,6 +65,8 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [pdfUploadVisible, setPdfUploadVisible] = useState(false);
   const autoSaveTimerRef = useRef<NodeJS.Timeout>();
   const textAreaRef = useRef<any>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [isSyncingScroll, setIsSyncingScroll] = useState(false);
 
   // 自动保存逻辑
   useEffect(() => {
@@ -93,6 +95,37 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       }
     };
   }, [value, autoSave, autoSaveDelay, onSave, saveStatus]);
+
+  // 滚动同步处理
+  const handleEditorScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (isSyncingScroll || mode !== 'split' || !previewRef.current) return;
+
+    const editor = e.currentTarget;
+    const preview = previewRef.current;
+
+    const scrollPercentage = editor.scrollTop / (editor.scrollHeight - editor.clientHeight);
+
+    setIsSyncingScroll(true);
+    preview.scrollTop = scrollPercentage * (preview.scrollHeight - preview.clientHeight);
+
+    setTimeout(() => setIsSyncingScroll(false), 100);
+  }, [isSyncingScroll, mode]);
+
+  const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    if (isSyncingScroll || mode !== 'split' || !textAreaRef.current) return;
+
+    const preview = e.currentTarget;
+    const editor = textAreaRef.current?.resizableTextArea?.textArea;
+
+    if (!editor) return;
+
+    const scrollPercentage = preview.scrollTop / (preview.scrollHeight - preview.clientHeight);
+
+    setIsSyncingScroll(true);
+    editor.scrollTop = scrollPercentage * (editor.scrollHeight - editor.clientHeight);
+
+    setTimeout(() => setIsSyncingScroll(false), 100);
+  }, [isSyncingScroll, mode]);
 
   // 内容变化处理
   const handleContentChange = useCallback((newValue: string) => {
@@ -343,11 +376,12 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       value={value}
       onChange={readOnly ? undefined : (e) => handleContentChange(e.target.value)}
       onKeyDown={readOnly ? undefined : handleKeyDown}
+      onScroll={handleEditorScroll}
       placeholder={readOnly ? '' : placeholder}
       className="markdown-textarea"
       readOnly={readOnly}
-      style={{ 
-        height: height - 100, 
+      style={{
+        height: height - 100,
         resize: 'none',
         fontFamily: 'Monaco, Consolas, "Courier New", monospace',
         fontSize: '14px',
@@ -360,10 +394,12 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   // 渲染预览
   const renderPreview = () => (
-    <div 
-      className="markdown-preview" 
-      style={{ 
-        height: height - 100, 
+    <div
+      ref={previewRef}
+      className="markdown-preview"
+      onScroll={handlePreviewScroll}
+      style={{
+        height: height - 100,
         overflow: 'auto',
         padding: '16px',
         border: '1px solid #d9d9d9',
