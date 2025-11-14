@@ -2,6 +2,7 @@ package main
 
 import (
 	"ai-project-backend/application"
+	_ "ai-project-backend/monitoring" // Import for metrics registration
 	"ai-project-backend/routes"
 	"log"
 	"net/http"

@@ -29,6 +29,11 @@ func NewWorkNoteService(db *sql.DB, _ *DocumentService) *WorkNoteService {
 // =====================
 
 func (s *WorkNoteService) CreateWorkNote(ctx context.Context, req models.CreateWorkNoteRequest, userID int) (*models.WorkNote, error) {
+	// 合并 FolderID 和 WorkNoteFolderID (FolderID 优先,向后兼容)
+	if req.FolderID != nil && req.WorkNoteFolderID == nil {
+		req.WorkNoteFolderID = req.FolderID
+	}
+
 	// 设置默认值
 	if req.Priority == "" {
 		req.Priority = models.WorkNotePriorityMedium
@@ -151,6 +156,11 @@ func (s *WorkNoteService) GetWorkNote(ctx context.Context, noteID, userID int) (
 }
 
 func (s *WorkNoteService) UpdateWorkNote(ctx context.Context, noteID int, req models.UpdateWorkNoteRequest, userID int) (*models.WorkNote, error) {
+	// 合并 FolderID 和 WorkNoteFolderID (FolderID 优先,向后兼容)
+	if req.FolderID != nil && req.WorkNoteFolderID == nil {
+		req.WorkNoteFolderID = req.FolderID
+	}
+
 	existing, err := s.getDocumentByID(ctx, noteID)
 	if err != nil {
 		return nil, err

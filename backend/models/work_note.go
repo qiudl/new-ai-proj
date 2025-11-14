@@ -196,7 +196,8 @@ type CreateWorkNoteRequest struct {
 	Title            string                 `json:"title" validate:"required,min=1,max=255"`
 	Content          *string                `json:"content,omitempty"`
 	Description      *string                `json:"description,omitempty"`
-	WorkNoteFolderID *int                   `json:"work_note_folder_id,omitempty"`
+	FolderID         *int                   `json:"folder_id,omitempty"`           // 新增: 支持前端传递的folder_id
+	WorkNoteFolderID *int                   `json:"work_note_folder_id,omitempty"` // 保留: 向后兼容
 	WorkNoteType     WorkNoteType           `json:"work_note_type" validate:"required"`
 	Priority         WorkNotePriority       `json:"priority"`
 	Tags             []string               `json:"tags,omitempty"`
@@ -213,7 +214,8 @@ type UpdateWorkNoteRequest struct {
 	Title            *string                `json:"title,omitempty" validate:"omitempty,min=1,max=255"`
 	Content          *string                `json:"content,omitempty"`
 	Description      *string                `json:"description,omitempty"`
-	WorkNoteFolderID *int                   `json:"work_note_folder_id,omitempty"`
+	FolderID         *int                   `json:"folder_id,omitempty"`           // 新增: 支持前端传递的folder_id
+	WorkNoteFolderID *int                   `json:"work_note_folder_id,omitempty"` // 保留: 向后兼容
 	WorkNoteType     *WorkNoteType          `json:"work_note_type,omitempty"`
 	Priority         *WorkNotePriority      `json:"priority,omitempty"`
 	Tags             []string               `json:"tags,omitempty"`

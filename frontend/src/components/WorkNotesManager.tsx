@@ -173,6 +173,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [detailFolder, setDetailFolder] = useState<WorkNoteFolder | undefined>(undefined);
   const [parentFolderId, setParentFolderId] = useState<number | undefined>(undefined);
+  const [folderDialogTreeType, setFolderDialogTreeType] = useState<TreeType>('private');
 
   // 使用外部prop或内部state
   const activeFolderId = selectedFolderId !== undefined ? selectedFolderId : internalFolderId;
@@ -454,8 +455,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
   }, []);
 
   // 文件夹操作回调
-  const handleFolderCreate = useCallback((parentId?: number) => {
+  const handleFolderCreate = useCallback((parentId?: number, treeType?: TreeType) => {
     setParentFolderId(parentId);
+    setFolderDialogTreeType(treeType || 'private');
     setEditingFolder(undefined);
     setFolderDialogVisible(true);
   }, []);
@@ -2299,6 +2301,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         onConfirm={handleFolderDialogConfirm}
         folder={editingFolder}
         parentId={parentFolderId}
+        treeType={folderDialogTreeType}
         folders={folders}
       />
 

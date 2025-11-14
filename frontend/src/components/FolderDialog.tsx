@@ -46,6 +46,9 @@ export interface FolderDialogProps {
   /** 父文件夹ID（创建子文件夹时使用） */
   parentId?: number;
 
+  /** 树类型（用于设置默认可见性） */
+  treeType?: 'private' | 'team' | 'public';
+
   /** 所有文件夹列表（用于选择父文件夹） */
   folders: WorkNoteFolder[];
 }
@@ -65,6 +68,7 @@ const FolderDialog: React.FC<FolderDialogProps> = ({
   onConfirm,
   folder,
   parentId,
+  treeType,
   folders,
 }) => {
   const [form] = Form.useForm();
@@ -117,10 +121,10 @@ const FolderDialog: React.FC<FolderDialogProps> = ({
           icon: folder.icon || '📁',
         });
       } else {
-        // 创建模式：设置默认值
+        // 创建模式：设置默认值，visibility从treeType获取
         form.setFieldsValue({
           parent_id: parentId,
-          visibility: 'private',
+          visibility: treeType || 'private',
           color: '#1890ff',
           icon: '📁',
         });
@@ -128,7 +132,7 @@ const FolderDialog: React.FC<FolderDialogProps> = ({
     } else {
       form.resetFields();
     }
-  }, [visible, folder, parentId, form]);
+  }, [visible, folder, parentId, treeType, form]);
 
   const handleSubmit = async () => {
     try {
