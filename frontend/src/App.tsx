@@ -373,7 +373,6 @@ const AppContent: React.FC = () => {
                 {/* Enterprise customer management routes (legacy) */}
 
                 <Route path="/work-note" element={<DocumentManagerPage />} />
-                <Route path="/work-note/:noteId" element={<WorkNoteViewPage />} />
 
                 <Route path="/task-documents" element={<TaskDocumentListPage />} />
 
@@ -401,9 +400,6 @@ const AppContent: React.FC = () => {
                     <RequirementFormPage />
                   </PermissionRoute>
                 } />
-
-                {/* Fullscreen document preview route */}
-                <Route path="/projects/:projectId/tasks/:taskId/document-preview" element={<FullscreenDocumentPreviewPage />} />
 
                 {/* Version History routes */}
                 <Route path="/version-history" element={<VersionHistoryPage />} />
@@ -596,6 +592,19 @@ const AppContent: React.FC = () => {
                   } />
                 )}
               </Route>
+
+              {/* Full-screen pages without Layout wrapper */}
+              <Route path="/work-note/:noteId" element={
+                <PrivateRoute>
+                  <WorkNoteViewPage />
+                </PrivateRoute>
+              } />
+
+              <Route path="/projects/:projectId/tasks/:taskId/document-preview" element={
+                <PrivateRoute>
+                  <FullscreenDocumentPreviewPage />
+                </PrivateRoute>
+              } />
             </Routes>
           </Suspense>
 
