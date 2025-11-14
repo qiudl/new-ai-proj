@@ -992,11 +992,11 @@ func (app *Application) GetRequirementStatusHandler() *handlers.RequirementStatu
 		return nil
 	}
 
-	// Initialize PermissionServiceRepository
-	permissionServiceRepo := database.NewPermissionServiceRepository(sqlDB)
+	// Initialize PermissionRepository (new unified repository)
+	permissionRepo := database.NewPermissionRepository(sqlDB)
 
-	// Initialize PermissionService (required by RequirementPermissionService)
-	permissionService := services.NewPermissionService(permissionServiceRepo)
+	// Initialize PermissionService directly with PermissionRepository (no adapter needed)
+	permissionService := services.NewPermissionService(permissionRepo, sqlDB)
 
 	// Initialize RequirementPermissionService
 	reqPermService := services.NewRequirementPermissionService(permissionService, sqlDB)

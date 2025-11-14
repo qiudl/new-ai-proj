@@ -35,11 +35,12 @@ func NewPermissionServiceAdapter(config *PermissionServiceAdapterConfig) (*Permi
 		return nil, fmt.Errorf("adapter config is required")
 	}
 
-	// Create permission service repository for legacy service
-	permissionRepo := database.NewPermissionServiceRepository(config.DB)
+	// Create new unified permission repository
+	permissionRepo := database.NewPermissionRepository(config.DB)
 
+	// Create legacy service directly with PermissionRepository (no adapter needed)
 	adapter := &PermissionServiceAdapter{
-		legacyService: NewPermissionService(permissionRepo),
+		legacyService: NewPermissionService(permissionRepo, config.DB),
 		enabled:       config.UseUnifiedService,
 	}
 

@@ -274,46 +274,6 @@ type PermissionServiceV2Repository interface {
 	CheckCustomPermissionOverride(ctx context.Context, userID uint, enterpriseID uint, permission string) (hasOverride bool, isGranted bool, err error)
 }
 
-// ProjectPermissionData represents project-specific permissions for a user
-type ProjectPermissionData struct {
-	CanViewProject      bool
-	CanEditProject      bool
-	CanDeleteProject    bool
-	CanManageTasks      bool
-	CanViewFinancials   bool
-	CanManageMembers    bool
-}
-
-// PermissionServiceRepository defines the interface for legacy permission service data access
-type PermissionServiceRepository interface {
-	// User identification and admin checks
-	IsSystemAdmin(ctx context.Context, userID int) (bool, error)
-	GetCompanyUserID(ctx context.Context, userID int) (int, error)
-
-	// Project access queries
-	GetUserAccessibleProjects(ctx context.Context, userID int) ([]int, error)
-	GetProjectPermissions(ctx context.Context, companyUserID int, projectID int) (*ProjectPermissionData, error)
-
-	// Custom permission queries
-	CheckCustomPermission(ctx context.Context, userID int, permissionCode string) (isSet bool, isGranted bool, err error)
-
-	// Role permission queries
-	GetUserRolePermissions(ctx context.Context, userID int) (map[string]bool, error)
-
-	// Dynamic permission queries
-	CheckPermissionDelegationWithProject(ctx context.Context, userID int, permissionCode string, projectID int) (found bool, delegatorName string, reason string, err error)
-	CheckPermissionDelegationWithoutProject(ctx context.Context, userID int, permissionCode string) (found bool, delegatorName string, reason string, err error)
-	CheckTemporaryPermission(ctx context.Context, userID int, permissionCode string) (found bool, justification string, err error)
-
-	// Administrative operations (using execer for transaction support)
-	UpsertPermission(ctx context.Context, code, name, description, module, resource, action string, isActive bool) error
-	CreateRoleRecord(ctx context.Context, roleCode, roleName, description string) (int, error)
-	GetPermissionIDByCode(ctx context.Context, permissionCode string) (int, error)
-	AssignPermissionToRole(ctx context.Context, roleID int, permissionID int) error
-	UpdateUserRole(ctx context.Context, userID int, roleID int) error
-	UpsertProjectPermissions(ctx context.Context, companyUserID int, projectID int, permissions *ProjectPermissionData) error
-}
-
 // PermissionRepository defines the interface for permission operations
 type PermissionRepository interface {
 	// Role management
