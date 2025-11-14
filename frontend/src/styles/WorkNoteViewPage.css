@@ -1,0 +1,272 @@
+/* 工作笔记全屏查看页面样式 */
+
+/* 主容器 */
+.work-note-view-page {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* 顶部工具栏 */
+.work-note-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
+  height: 64px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  z-index: 10;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.toolbar-title {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.toolbar-title h4 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 600px;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 内容区域 */
+.work-note-content {
+  padding: 32px 48px;
+  overflow-y: auto;
+  background: #ffffff;
+}
+
+.work-note-markdown-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* 元信息 */
+.work-note-meta {
+  padding: 16px 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 24px;
+}
+
+/* Markdown 内容样式 */
+.work-note-markdown {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #262626;
+}
+
+/* 标题自动生成锚点ID */
+.work-note-markdown h1,
+.work-note-markdown h2,
+.work-note-markdown h3,
+.work-note-markdown h4,
+.work-note-markdown h5,
+.work-note-markdown h6 {
+  scroll-margin-top: 80px; /* 滚动时顶部留白 */
+}
+
+/* 右侧目录侧边栏 */
+.work-note-toc-sider {
+  border-left: 1px solid #f0f0f0;
+  background: #fafafa !important;
+}
+
+/* 加载和错误页面 */
+.work-note-view-loading,
+.work-note-view-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  background: #f5f5f5;
+}
+
+.work-note-view-error {
+  padding: 48px;
+}
+
+/* 打印样式 */
+@media print {
+  /* 隐藏工具栏和目录 */
+  .work-note-toolbar,
+  .work-note-toc-sider {
+    display: none !important;
+  }
+
+  /* 内容占满页面 */
+  .work-note-content {
+    padding: 0;
+    overflow: visible;
+  }
+
+  .work-note-meta {
+    border-bottom: 1px solid #ddd;
+    page-break-after: avoid;
+  }
+
+  /* 优化打印的 Markdown 样式 */
+  .work-note-markdown {
+    font-size: 12pt;
+    line-height: 1.6;
+  }
+
+  .work-note-markdown h1 {
+    font-size: 24pt;
+    page-break-after: avoid;
+  }
+
+  .work-note-markdown h2 {
+    font-size: 20pt;
+    page-break-after: avoid;
+  }
+
+  .work-note-markdown h3 {
+    font-size: 16pt;
+    page-break-after: avoid;
+  }
+
+  .work-note-markdown pre,
+  .work-note-markdown blockquote,
+  .work-note-markdown table {
+    page-break-inside: avoid;
+  }
+
+  /* 避免孤行和寡行 */
+  .work-note-markdown p {
+    orphans: 3;
+    widows: 3;
+  }
+}
+
+/* 响应式设计 - 平板 */
+@media (max-width: 1024px) {
+  .work-note-content {
+    padding: 24px 32px;
+  }
+
+  .work-note-markdown-container {
+    max-width: 100%;
+  }
+
+  .work-note-toc-sider {
+    width: 240px !important;
+    min-width: 240px !important;
+    max-width: 240px !important;
+  }
+}
+
+/* 响应式设计 - 手机 */
+@media (max-width: 768px) {
+  .work-note-toolbar {
+    padding: 8px 16px;
+    height: 56px;
+  }
+
+  .toolbar-title h4 {
+    font-size: 16px;
+    max-width: 200px;
+  }
+
+  .toolbar-right .ant-space {
+    gap: 4px !important;
+  }
+
+  .work-note-content {
+    padding: 16px 20px;
+  }
+
+  .work-note-markdown {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* 移动端隐藏目录 */
+  .work-note-toc-sider {
+    display: none !important;
+  }
+}
+
+/* 全屏模式优化 */
+.work-note-view-page:-webkit-full-screen {
+  background: #ffffff;
+}
+
+.work-note-view-page:fullscreen {
+  background: #ffffff;
+}
+
+/* 深色模式支持（可选） */
+@media (prefers-color-scheme: dark) {
+  .work-note-view-page {
+    background: #1f1f1f;
+  }
+
+  .work-note-toolbar {
+    background: #2a2a2a;
+    border-bottom-color: #404040;
+  }
+
+  .work-note-content {
+    background: #1f1f1f;
+  }
+
+  .work-note-markdown {
+    color: #e0e0e0;
+  }
+
+  .work-note-meta {
+    border-bottom-color: #404040;
+  }
+
+  .work-note-toc-sider {
+    background: #2a2a2a !important;
+    border-left-color: #404040;
+  }
+}
+
+/* 滚动条样式 */
+.work-note-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.work-note-content::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+.work-note-content::-webkit-scrollbar-thumb {
+  background: #bfbfbf;
+  border-radius: 4px;
+}
+
+.work-note-content::-webkit-scrollbar-thumb:hover {
+  background: #8c8c8c;
+}
+
+/* 动画效果 */
+.work-note-toolbar,
+.work-note-content,
+.work-note-toc-sider {
+  transition: all 0.3s ease;
+}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Drawer,
   Button,
@@ -33,12 +34,14 @@ import {
   LinkOutlined,
   CheckCircleOutlined,
   SyncOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  FullscreenOutlined
 } from '@ant-design/icons';
 import { WorkNote, workNotesService, AssociatedTask } from '../services/workNotesService';
 import type { MenuProps } from 'antd';
 import WorkNoteMetadataCard from './WorkNoteMetadataCard';
 import TaskAssociationManager from './TaskAssociationManager';
+import MarkdownRenderer from './MarkdownRenderer';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -55,6 +58,7 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
   onClose,
   onEdit
 }) => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [associatedTasks, setAssociatedTasks] = useState<AssociatedTask[]>([]);
   const [showTaskManager, setShowTaskManager] = useState(false);
@@ -105,10 +109,17 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
   // 处理分享
   const handleShare = () => {
     // 复制链接到剪贴板
-    const url = `${window.location.origin}/work-note?note=${note.id}`;
+    const url = `${window.location.origin}/work-note/${note.id}`;
     navigator.clipboard.writeText(url).then(() => {
       message.success('链接已复制到剪贴板');
+    }).catch(() => {
+      message.error('复制链接失败');
     });
+  };
+
+  // 全屏查看
+  const handleFullscreenView = () => {
+    navigate(`/work-note/${note.id}?return=/work-note`);
   };
 
   // 渲染状态标签
@@ -211,6 +222,14 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
           </Space>
           
           <Space>
+            <Tooltip title="全屏查看">
+              <Button
+                icon={<FullscreenOutlined />}
+                onClick={handleFullscreenView}
+              >
+                全屏查看
+              </Button>
+            </Tooltip>
             <Button
               type="primary"
               icon={<EditOutlined />}
@@ -360,7 +379,6 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
           {/* 内容显示 */}
           {note.content ? (
             <Card
-
               style={{
                 borderRadius: 8,
                 background: '#fafafa',
@@ -368,16 +386,14 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
               }}
               styles={{ body: { padding: 24 } }}
             >
-              <div style={{
-                whiteSpace: 'pre-wrap',
-                lineHeight: 1.8,
-                fontSize: 14,
-                fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-                color: '#262626',
-                minHeight: 200
-              }}>
-                {note.content}
-              </div>
+              <MarkdownRenderer
+                content={note.content}
+                style={{
+                  minHeight: 200,
+                  fontSize: 14,
+                  lineHeight: 1.8
+                }}
+              />
             </Card>
           ) : (
             <Card

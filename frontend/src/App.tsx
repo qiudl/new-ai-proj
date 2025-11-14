@@ -94,6 +94,7 @@ const EnterpriseUsersRedirectPage = React.lazy(() => import('./pages/EnterpriseU
 
 const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
 // const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage')); // 已归档
+const WorkNoteViewPage = React.lazy(() => import('./pages/WorkNoteViewPage'));
 const RequirementListPage = React.lazy(() => import('./pages/RequirementListPage'));
 const RequirementDetailPage = React.lazy(() => import('./pages/RequirementDetailPage'));
 const RequirementFormPage = React.lazy(() => import('./pages/RequirementFormPage'));
@@ -372,7 +373,7 @@ const AppContent: React.FC = () => {
                 {/* Enterprise customer management routes (legacy) */}
 
                 <Route path="/work-note" element={<DocumentManagerPage />} />
-
+                <Route path="/work-note/:noteId" element={<WorkNoteViewPage />} />
 
                 <Route path="/task-documents" element={<TaskDocumentListPage />} />
 
