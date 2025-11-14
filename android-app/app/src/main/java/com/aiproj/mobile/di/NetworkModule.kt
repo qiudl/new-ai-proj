@@ -172,6 +172,15 @@ object NetworkModule {
     }
 
     /**
+     * 提供 RequirementApi
+     */
+    @Provides
+    @Singleton
+    fun provideRequirementApi(retrofit: Retrofit): com.aiproj.mobile.data.api.RequirementApi {
+        return retrofit.create(com.aiproj.mobile.data.api.RequirementApi::class.java)
+    }
+
+    /**
      * 提供 DashboardApi
      */
     @Provides
