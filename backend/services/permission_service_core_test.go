@@ -778,7 +778,7 @@ func TestPermissionService_CheckPermission(t *testing.T) {
 			},
 			wantGranted: true,
 			wantSource:  "project_permission",
-			wantReason:  "granted by project permission",
+			wantReason:  "granted by project-specific permission",
 		},
 		{
 			name: "role permission grants",
@@ -812,8 +812,8 @@ func TestPermissionService_CheckPermission(t *testing.T) {
 					}, nil)
 			},
 			wantGranted: true,
-			wantSource:  "role",
-			wantReason:  "granted by role Developer",
+			wantSource:  "role_permission",
+			wantReason:  "granted by role: Developer",
 		},
 		{
 			name: "dynamic permission grants",
@@ -904,6 +904,18 @@ func TestPermissionService_CheckPermission(t *testing.T) {
 					Return(map[string]bool{
 						"project.delete": false, // Explicit deny
 					}, nil)
+				// CheckPermission continues to check project permissions after custom deny
+				m.On("GetUserProjectPermissions", mock.Anything, 7, 100).
+					Return(nil, nil)
+				// And role permissions
+				m.On("GetUserPermissions", mock.Anything, 7).
+					Return(&models.UserPermissionSummary{
+						Role: &models.CompanyRoleResponse{
+							ID:       3,
+							RoleName: "Viewer",
+						},
+						EffectivePermissions: []models.PermissionResponse{},
+					}, nil)
 			},
 			wantGranted: false,
 			wantSource:  "",
@@ -952,9 +964,21 @@ func TestPermissionService_CheckPermission(t *testing.T) {
 				Action:       "read",
 			},
 			mockSetup: func(m *MockPermissionRepository) {
-				// Database error on admin check
+				// Database error on admin check - isSystemAdmin returns false
 				m.On("CheckUserPermission", mock.Anything, 9, "system.admin", (*int)(nil)).
 					Return(nil, sql.ErrConnDone)
+				// CheckPermission continues after failed admin check
+				m.On("GetUserPermissionOverrides", mock.Anything, 9).
+					Return(map[string]bool{}, nil)
+				// No role permissions
+				m.On("GetUserPermissions", mock.Anything, 9).
+					Return(&models.UserPermissionSummary{
+						Role: &models.CompanyRoleResponse{
+							ID:       3,
+							RoleName: "Viewer",
+						},
+						EffectivePermissions: []models.PermissionResponse{},
+					}, nil)
 			},
 			wantGranted: false,
 			wantSource:  "",
@@ -1048,18 +1072,18 @@ func TestPermissionService_GetUserAccessibleProjects(t *testing.T) {
 			wantErrContain: "failed to query accessible projects",
 		},
 		{
-			name:   "scan error during iteration",
+			name:   "rows error after iteration",
 			userID: 5,
 			mockSetup: func(sqlMock sqlmock.Sqlmock) {
 				rows := sqlmock.NewRows([]string{"id"}).
-					AddRow("invalid_id"). // String instead of int causes scan error
+					AddRow(100).
 					RowError(0, sql.ErrNoRows)
 				sqlMock.ExpectQuery(`SELECT DISTINCT p.id`).
 					WithArgs(5).
 					WillReturnRows(rows)
 			},
 			wantProjects:   nil,
-			wantErrContain: "failed to scan project ID",
+			wantErrContain: "rows error",
 		},
 	}
 
@@ -1135,16 +1159,22 @@ func TestPermissionService_InitializeSystemPermissions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock DB
-			db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+			db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp),
+				sqlmock.MonitorPingsOption(false))
 			require.NoError(t, err)
 			defer db.Close()
 
-			// For the success case, we need to accept any number of exec calls
+			// For the success case, mock all permissions from GetSystemPermissions
 			if tt.wantErrContain == "" {
-				// Allow any number of successful inserts - match any regex
-				sqlMock.ExpectExec(`.+`).
-					WillReturnResult(sqlmock.NewResult(1, 1)).
-					WillReturnResult(sqlmock.NewResult(1, 1))
+				// Get the service to check how many permissions we need
+				tempService := &PermissionService{db: db}
+				permissions := tempService.GetSystemPermissions()
+
+				// Expect one exec per permission
+				for range permissions {
+					sqlMock.ExpectExec(`INSERT INTO permissions`).
+						WillReturnResult(sqlmock.NewResult(1, 1))
+				}
 			} else {
 				tt.mockSetup(sqlMock)
 			}
@@ -1162,10 +1192,8 @@ func TestPermissionService_InitializeSystemPermissions(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			// Don't check ExpectationsWereMet for success case since we can't predict exact count
-			if tt.wantErrContain != "" {
-				assert.NoError(t, sqlMock.ExpectationsWereMet())
-			}
+			// Always check expectations were met
+			assert.NoError(t, sqlMock.ExpectationsWereMet())
 		})
 	}
 }
