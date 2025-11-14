@@ -328,7 +328,12 @@ fun MainScreen(
 
             // 个人中心
             composable(Screen.Profile.route) {
-                ProfileScreen(onLogout = onLogout)
+                ProfileScreen(
+                    onLogout = onLogout,
+                    onNavigateToAnalytics = {
+                        navController.navigate(Screen.Analytics.route)
+                    }
+                )
             }
 
             // 数据统计

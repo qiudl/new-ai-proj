@@ -15,6 +15,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
+    onNavigateToAnalytics: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -63,12 +64,16 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 统计信息卡片
-            Card(modifier = Modifier.fillMaxWidth()) {
+            // 统计信息卡片 - 可点击跳转到统计页面
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onNavigateToAnalytics
+            ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
                             imageVector = Icons.Default.BarChart,
@@ -78,7 +83,13 @@ fun ProfileScreen(
                         Text(
                             text = "我的统计",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "查看详情",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
