@@ -9,6 +9,7 @@ import (
 
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"ai-project-backend/monitoring"
 )
 
 // PermissionService provides core permission management functionality
@@ -407,6 +408,10 @@ func (s *PermissionService) GetRoleTemplates() map[RoleType][]string {
 
 // CheckPermission is the main entry point for permission checking
 func (s *PermissionService) CheckPermission(ctx context.Context, permCtx *UserPermissionContext) (*PermissionCheckResult, error) {
+	start := time.Now()
+	monitoring.PermissionActiveRequests.WithLabelValues("CheckPermission").Inc()
+	defer monitoring.PermissionActiveRequests.WithLabelValues("CheckPermission").Dec()
+
 	result := &PermissionCheckResult{
 		HasPermission: false,
 		CheckedAt:     time.Now(),
@@ -422,6 +427,8 @@ func (s *PermissionService) CheckPermission(ctx context.Context, permCtx *UserPe
 		result.HasPermission = true
 		result.Source = "admin_override"
 		result.Reason = "System admin has all permissions"
+		duration := time.Since(start).Seconds()
+		monitoring.RecordPermissionCheck("CheckPermission", duration, true, 0)
 		return result, nil
 	}
 
@@ -437,6 +444,8 @@ func (s *PermissionService) CheckPermission(ctx context.Context, permCtx *UserPe
 		result.HasPermission = true
 		result.Source = source
 		result.Reason = reason
+		duration := time.Since(start).Seconds()
+		monitoring.RecordPermissionCheck("CheckPermission", duration, true, 0)
 		return result, nil
 	}
 
@@ -446,6 +455,8 @@ func (s *PermissionService) CheckPermission(ctx context.Context, permCtx *UserPe
 			result.HasPermission = true
 			result.Source = source
 			result.Reason = reason
+			duration := time.Since(start).Seconds()
+			monitoring.RecordPermissionCheck("CheckPermission", duration, true, 0)
 			return result, nil
 		}
 	}
@@ -455,6 +466,8 @@ func (s *PermissionService) CheckPermission(ctx context.Context, permCtx *UserPe
 		result.HasPermission = true
 		result.Source = source
 		result.Reason = reason
+		duration := time.Since(start).Seconds()
+		monitoring.RecordPermissionCheck("CheckPermission", duration, true, 0)
 		return result, nil
 	}
 
@@ -463,6 +476,8 @@ func (s *PermissionService) CheckPermission(ctx context.Context, permCtx *UserPe
 		result.HasPermission = true
 		result.Source = source
 		result.Reason = reason
+		duration := time.Since(start).Seconds()
+		monitoring.RecordPermissionCheck("CheckPermission", duration, true, 0)
 		return result, nil
 	}
 
@@ -471,11 +486,15 @@ func (s *PermissionService) CheckPermission(ctx context.Context, permCtx *UserPe
 		result.HasPermission = true
 		result.Source = source
 		result.Reason = reason
+		duration := time.Since(start).Seconds()
+		monitoring.RecordPermissionCheck("CheckPermission", duration, true, 0)
 		return result, nil
 	}
 
 	// Default deny
 	result.Reason = "permission denied - no matching grants found"
+	duration := time.Since(start).Seconds()
+	monitoring.RecordPermissionCheck("CheckPermission", duration, true, 0)
 	return result, nil
 }
 
@@ -607,16 +626,30 @@ func (s *PermissionService) GetUserEffectivePermissions(ctx context.Context, use
 
 // isSystemAdmin checks if a user is a system-level admin in users table
 func (s *PermissionService) isSystemAdmin(ctx context.Context, userID int) bool {
+	start := time.Now()
+	queryCount := 0
+	success := false
+
+	defer func() {
+		duration := time.Since(start).Seconds()
+		monitoring.RecordPermissionCheck("isSystemAdmin", duration, success, queryCount)
+	}()
+
 	if userID == 0 {
+		success = true
 		return false
 	}
 
 	// Use CheckUserPermission to verify system admin status
 	result, err := s.permRepo.CheckUserPermission(ctx, userID, "system.admin", nil)
+	queryCount++
+
 	if err != nil {
+		monitoring.RecordPermissionError("isSystemAdmin", "db_error")
 		return false
 	}
 
+	success = true
 	return result != nil && result.HasPermission
 }
 
@@ -664,6 +697,15 @@ func (s *PermissionService) FilterResourcesByPermission(ctx context.Context, use
 
 // GetUserAccessibleProjects returns projects that user has access to
 func (s *PermissionService) GetUserAccessibleProjects(ctx context.Context, userID int) ([]int, error) {
+	start := time.Now()
+	queryCount := 0
+	success := false
+
+	defer func() {
+		duration := time.Since(start).Seconds()
+		monitoring.RecordPermissionCheck("GetUserAccessibleProjects", duration, success, queryCount)
+	}()
+
 	// Direct SQL query to get projects user has access to
 	// Combines projects where user has explicit permissions AND projects with assigned tasks
 	query := `
@@ -680,7 +722,10 @@ func (s *PermissionService) GetUserAccessibleProjects(ctx context.Context, userI
 	`
 
 	rows, err := s.db.QueryContext(ctx, query, userID)
+	queryCount++
+
 	if err != nil {
+		monitoring.RecordPermissionError("GetUserAccessibleProjects", "db_error")
 		return nil, fmt.Errorf("failed to query accessible projects: %w", err)
 	}
 	defer rows.Close()
@@ -689,15 +734,18 @@ func (s *PermissionService) GetUserAccessibleProjects(ctx context.Context, userI
 	for rows.Next() {
 		var projectID int
 		if err := rows.Scan(&projectID); err != nil {
+			monitoring.RecordPermissionError("GetUserAccessibleProjects", "scan_error")
 			return nil, fmt.Errorf("failed to scan project ID: %w", err)
 		}
 		projectIDs = append(projectIDs, projectID)
 	}
 
 	if err := rows.Err(); err != nil {
+		monitoring.RecordPermissionError("GetUserAccessibleProjects", "rows_error")
 		return nil, fmt.Errorf("rows error: %w", err)
 	}
 
+	success = true
 	return projectIDs, nil
 }
 
@@ -712,35 +760,63 @@ func (s *PermissionService) buildPermissionCode(resourceType ResourceType, actio
 
 // checkCustomPermissions checks for user-specific permission overrides
 func (s *PermissionService) checkCustomPermissions(ctx context.Context, permCtx *UserPermissionContext, permissionCode string) (bool, string, string) {
+	start := time.Now()
+	queryCount := 0
+	success := false
+
+	defer func() {
+		duration := time.Since(start).Seconds()
+		monitoring.RecordPermissionCheck("checkCustomPermissions", duration, success, queryCount)
+	}()
+
 	// Use PermissionRepository to get custom permission overrides
 	overrides, err := s.permRepo.GetUserPermissionOverrides(ctx, permCtx.UserID)
+	queryCount++
+
 	if err != nil {
+		monitoring.RecordPermissionError("checkCustomPermissions", "db_error")
 		return false, "", ""
 	}
 
 	// Check if this permission has an override
 	if isGranted, exists := overrides[permissionCode]; exists {
+		success = true
 		if isGranted {
 			return true, "custom_override", "granted by custom permission override"
 		}
 		return false, "custom_override", "denied by custom permission override"
 	}
 
+	success = true
 	return false, "", ""
 }
 
 // checkProjectPermissions checks project-specific permissions
 func (s *PermissionService) checkProjectPermissions(ctx context.Context, permCtx *UserPermissionContext, permissionCode string) (bool, string, string) {
+	start := time.Now()
+	queryCount := 0
+	success := false
+
+	defer func() {
+		duration := time.Since(start).Seconds()
+		monitoring.RecordPermissionCheck("checkProjectPermissions", duration, success, queryCount)
+	}()
+
 	if permCtx.ProjectID == nil {
+		success = true
 		return false, "", ""
 	}
 
 	// Get project-specific permissions directly using userID
 	permissions, err := s.permRepo.GetUserProjectPermissions(ctx, permCtx.UserID, *permCtx.ProjectID)
+	queryCount++
+
 	if err != nil {
+		monitoring.RecordPermissionError("checkProjectPermissions", "db_error")
 		return false, "", ""
 	}
 	if permissions == nil {
+		success = true
 		return false, "", ""
 	}
 
@@ -748,38 +824,57 @@ func (s *PermissionService) checkProjectPermissions(ctx context.Context, permCtx
 	switch permissionCode {
 	case "project.read":
 		if permissions.CanViewProject {
+			success = true
 			return true, "project_permission", "granted by project-specific permission"
 		}
 	case "project.update":
 		if permissions.CanEditProject {
+			success = true
 			return true, "project_permission", "granted by project-specific permission"
 		}
 	case "project.delete":
 		if permissions.CanDeleteProject {
+			success = true
 			return true, "project_permission", "granted by project-specific permission"
 		}
 	case "task.read", "task.create", "task.update", "task.delete", "task.assign":
 		if permissions.CanManageTasks {
+			success = true
 			return true, "project_permission", "granted by project task management permission"
 		}
 	case "finance.read", "finance.manage":
 		if permissions.CanViewFinancials {
+			success = true
 			return true, "project_permission", "granted by project financial permission"
 		}
 	case "user.read", "user.manage":
 		if permissions.CanManageMembers {
+			success = true
 			return true, "project_permission", "granted by project member management permission"
 		}
 	}
 
+	success = true
 	return false, "", ""
 }
 
 // checkRolePermissions checks role-based permissions
 func (s *PermissionService) checkRolePermissions(ctx context.Context, permCtx *UserPermissionContext, permissionCode string) (bool, string, string) {
+	start := time.Now()
+	queryCount := 0
+	success := false
+
+	defer func() {
+		duration := time.Since(start).Seconds()
+		monitoring.RecordPermissionCheck("checkRolePermissions", duration, success, queryCount)
+	}()
+
 	// Get user's complete permission summary
 	summary, err := s.permRepo.GetUserPermissions(ctx, permCtx.UserID)
+	queryCount++
+
 	if err != nil {
+		monitoring.RecordPermissionError("checkRolePermissions", "db_error")
 		return false, "", ""
 	}
 
@@ -790,10 +885,12 @@ func (s *PermissionService) checkRolePermissions(ctx context.Context, permCtx *U
 			if summary.Role != nil {
 				roleName = summary.Role.RoleName
 			}
+			success = true
 			return true, "role_permission", fmt.Sprintf("granted by role: %s", roleName)
 		}
 	}
 
+	success = true
 	return false, "", ""
 }
 
@@ -830,6 +927,15 @@ func (s *PermissionService) checkPolicyPermissions(ctx context.Context, permCtx 
 
 // InitializeSystemPermissions creates all system-defined permissions in the database
 func (s *PermissionService) InitializeSystemPermissions(ctx context.Context) error {
+	start := time.Now()
+	queryCount := 0
+	success := false
+
+	defer func() {
+		duration := time.Since(start).Seconds()
+		monitoring.RecordPermissionCheck("InitializeSystemPermissions", duration, success, queryCount)
+	}()
+
 	permissions := s.GetSystemPermissions()
 
 	// Direct SQL upsert for each permission
@@ -851,11 +957,14 @@ func (s *PermissionService) InitializeSystemPermissions(ctx context.Context) err
 		_, err := s.db.ExecContext(ctx, query,
 			perm.Code, perm.Name, perm.Description,
 			string(perm.Category), string(perm.Resource), string(perm.Action), perm.IsActive)
+		queryCount++
 		if err != nil {
+			monitoring.RecordPermissionError("InitializeSystemPermissions", "db_error")
 			return fmt.Errorf("failed to upsert permission %s: %w", perm.Code, err)
 		}
 	}
 
+	success = true
 	return nil
 }
 
