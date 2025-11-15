@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Modal,
   Form,
@@ -88,10 +88,36 @@ const FolderDialog: React.FC<FolderDialogProps> = ({
     ],
   };
 
-  // 构建文件夹树形选择数据
+  // 查找指定ID的文件夹（递归搜索）
+  const findFolderById = useCallback((folderId: number): WorkNoteFolder | undefined => {
+    const findInTree = (folders: WorkNoteFolder[]): WorkNoteFolder | undefined => {
+      for (const folder of folders) {
+        if (folder.id === folderId) return folder;
+        if (folder.children) {
+          const found = findInTree(folder.children);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    return findInTree(folders);
+  }, [folders]);
+
+  // 获取父文件夹信息
+  const parentFolder = useMemo(() => {
+    if (parentId) {
+      return findFolderById(parentId);
+    }
+    return undefined;
+  }, [parentId, findFolderById]);
+
+  // 构建文件夹树形选择数据（只显示当前树类型的文件夹）
   const buildFolderTreeSelectData = useMemo(() => {
-    const buildTree = (folders: WorkNoteFolder[], parentId?: number): any[] => {
-      return folders
+    // 过滤出当前树类型的文件夹
+    const filteredFolders = folders.filter(f => f.visibility === treeType);
+
+    const buildTree = (folderList: WorkNoteFolder[], parentId?: number): any[] => {
+      return folderList
         .filter(f => f.parent_id === parentId)
         .map(folder => ({
           value: folder.id,
@@ -101,12 +127,12 @@ const FolderDialog: React.FC<FolderDialogProps> = ({
               {folder.name}
             </span>
           ),
-          children: buildTree(folders, folder.id),
+          children: buildTree(folderList, folder.id),
         }));
     };
 
-    return buildTree(folders, undefined);
-  }, [folders]);
+    return buildTree(filteredFolders, undefined);
+  }, [folders, treeType]);
 
   // 初始化表单
   useEffect(() => {
@@ -204,15 +230,33 @@ const FolderDialog: React.FC<FolderDialogProps> = ({
 
         {/* 父文件夹选择（仅创建模式） */}
         {!folder && (
-          <Form.Item name="parent_id" label="父文件夹">
-            <TreeSelect
-              placeholder="选择父文件夹（留空则为根级文件夹）"
-              treeData={buildFolderTreeSelectData}
-              allowClear
-              showSearch
-              treeDefaultExpandAll
-              style={{ width: '100%' }}
-            />
+          <Form.Item
+            name="parent_id"
+            label="父文件夹"
+            tooltip={parentId ? "创建子文件夹时父文件夹已固定" : "选择父文件夹或留空创建根级文件夹"}
+          >
+            {parentId && parentFolder ? (
+              <Input
+                disabled
+                prefix={
+                  <span>
+                    {parentFolder.icon && <span style={{ marginRight: 4 }}>{parentFolder.icon}</span>}
+                    <FolderOutlined />
+                  </span>
+                }
+                value={parentFolder.name}
+                style={{ width: '100%' }}
+              />
+            ) : (
+              <TreeSelect
+                placeholder="选择父文件夹（留空则为根级文件夹）"
+                treeData={buildFolderTreeSelectData}
+                allowClear
+                showSearch
+                treeDefaultExpandAll
+                style={{ width: '100%' }}
+              />
+            )}
           </Form.Item>
         )}
 

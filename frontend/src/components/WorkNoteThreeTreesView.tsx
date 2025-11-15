@@ -116,6 +116,37 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
     return configs[treeType];
   };
 
+  // 将扁平数组转换为树形结构
+  const buildTree = useCallback((flatFolders: WorkNoteFolder[]): WorkNoteFolder[] => {
+    const folderMap = new Map<number, WorkNoteFolder>();
+    const rootFolders: WorkNoteFolder[] = [];
+
+    // 创建所有文件夹的映射
+    flatFolders.forEach(folder => {
+      folderMap.set(folder.id, { ...folder, children: [] });
+    });
+
+    // 构建树形结构
+    flatFolders.forEach(folder => {
+      const folderNode = folderMap.get(folder.id)!;
+      if (folder.parent_id) {
+        const parent = folderMap.get(folder.parent_id);
+        if (parent) {
+          if (!parent.children) parent.children = [];
+          parent.children.push(folderNode);
+        } else {
+          // 父文件夹不在当前列表中，作为根节点处理
+          rootFolders.push(folderNode);
+        }
+      } else {
+        // 无父文件夹，是根节点
+        rootFolders.push(folderNode);
+      }
+    });
+
+    return rootFolders;
+  }, []);
+
   // 加载指定树的根文件夹
   const loadTreeFolders = useCallback(async (treeType: TreeType, parentId?: number, maxDepth: number = 2) => {
     setLoading(true);
@@ -124,8 +155,10 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
       const loadedFolders = data.folders || [];
 
       if (parentId === undefined) {
-        // 加载根文件夹
-        setFolders(loadedFolders);
+        // 加载根文件夹时，构建完整的树形结构
+        const treeFolders = buildTree(loadedFolders);
+        setFolders(treeFolders);
+        return treeFolders;
       }
 
       return loadedFolders;
@@ -135,7 +168,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [buildTree]);
 
   // 当切换树时，重新加载数据
   useEffect(() => {
@@ -149,6 +182,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
 
   // 自动展开所有文件夹节点 (防止重复更新导致insertBefore错误)
   const lastFoldersLength = React.useRef(0);
+  const expandKeysTimerRef = React.useRef<number | null>(null);
 
   useEffect(() => {
     // 只在文件夹数量变化时更新expandedKeys,避免频繁触发
@@ -168,12 +202,29 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
       };
 
       const allKeys = collectAllKeys(folders);
-      // 使用 requestAnimationFrame 延迟DOM更新,避免与React的渲染周期冲突
-      requestAnimationFrame(() => {
-        setExpandedKeys(allKeys);
+
+      // 清除之前的延迟更新
+      if (expandKeysTimerRef.current !== null) {
+        cancelAnimationFrame(expandKeysTimerRef.current);
+      }
+
+      // 使用双重延迟确保DOM完全稳定
+      expandKeysTimerRef.current = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setExpandedKeys(allKeys);
+          expandKeysTimerRef.current = null;
+        });
       });
+
       lastFoldersLength.current = folders.length;
     }
+
+    // 清理函数
+    return () => {
+      if (expandKeysTimerRef.current !== null) {
+        cancelAnimationFrame(expandKeysTimerRef.current);
+      }
+    };
   }, [folders]);
 
   // 同步选中状态
@@ -208,7 +259,9 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
           visibilityMap[activeTreeType]
         );
 
-        setFolders(results);
+        // 将搜索结果构建为树形结构
+        const treeFolders = buildTree(results);
+        setFolders(treeFolders);
 
         // 展开所有搜索结果
         const allKeys = results.map(folder => `folder-${folder.id}`);
@@ -221,7 +274,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
     };
 
     performSearch();
-  }, [debouncedSearchValue, activeTreeType, loadTreeFolders]);
+  }, [debouncedSearchValue, activeTreeType, loadTreeFolders, buildTree]);
 
   // 将WorkNoteFolder转换为Tree DataNode
   const folderToTreeNode = useCallback((folder: WorkNoteFolder): DataNode => {
@@ -275,6 +328,10 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
   // 构建树数据
   const treeData: DataNode[] = useMemo(() => {
     const config = getTreeConfig(activeTreeType);
+
+    // 过滤出根级文件夹（parent_id 为 null 或 undefined）
+    const rootFolders = folders.filter(folder => !folder.parent_id);
+
     const rootNode: DataNode = {
       key: 'root',
       title: (
@@ -287,7 +344,7 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
       ),
       icon: undefined, // 不显示根节点图标，避免重复
       isLeaf: false,
-      children: folders.map(folderToTreeNode),
+      children: rootFolders.map(folderToTreeNode),
     };
 
     return [rootNode];
