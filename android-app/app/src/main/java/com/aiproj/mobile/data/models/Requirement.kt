@@ -17,7 +17,7 @@ data class Requirement(
 
     val priority: RequirementPriority,
 
-    val category: RequirementCategory,
+    val category: RequirementCategory?,
 
     @SerializedName("submitter_id")
     val submitterId: Int,

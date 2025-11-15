@@ -73,16 +73,21 @@ class RequirementRepository @Inject constructor(
             )
 
             if (response.isSuccessful && response.body() != null) {
-                val requirements = response.body()!!.data
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    val requirements = apiResponse.data.data
 
-                // 更新缓存
-                cacheMutex.withLock {
-                    requirementsCache.clear()
-                    requirements.forEach { requirementsCache[it.id] = it }
-                    cacheTimestamp = System.currentTimeMillis()
+                    // 更新缓存
+                    cacheMutex.withLock {
+                        requirementsCache.clear()
+                        requirements.forEach { requirementsCache[it.id] = it }
+                        cacheTimestamp = System.currentTimeMillis()
+                    }
+
+                    emit(Result.success(requirements))
+                } else {
+                    emit(Result.failure(Exception(apiResponse.message ?: "Failed to load requirements")))
                 }
-
-                emit(Result.success(requirements))
             } else {
                 emit(Result.failure(Exception("Failed to load requirements")))
             }
@@ -98,14 +103,19 @@ class RequirementRepository @Inject constructor(
         return try {
             val response = requirementApi.getRequirement(id)
             if (response.isSuccessful && response.body() != null) {
-                val requirement = response.body()!!
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    val requirement = apiResponse.data
 
-                // 更新缓存
-                cacheMutex.withLock {
-                    requirementsCache[id] = requirement
+                    // 更新缓存
+                    cacheMutex.withLock {
+                        requirementsCache[id] = requirement
+                    }
+
+                    Result.success(requirement)
+                } else {
+                    Result.failure(Exception(apiResponse.message ?: "Failed"))
                 }
-
-                Result.success(requirement)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed"))
             }
@@ -121,8 +131,13 @@ class RequirementRepository @Inject constructor(
         return try {
             val response = requirementApi.createRequirement(dto)
             if (response.isSuccessful && response.body() != null) {
-                clearCache() // 清除缓存
-                Result.success(response.body()!!)
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    clearCache() // 清除缓存
+                    Result.success(apiResponse.data)
+                } else {
+                    Result.failure(Exception(apiResponse.message ?: "Failed"))
+                }
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed"))
             }
@@ -138,8 +153,13 @@ class RequirementRepository @Inject constructor(
         return try {
             val response = requirementApi.updateRequirement(id, dto)
             if (response.isSuccessful && response.body() != null) {
-                clearCache()
-                Result.success(response.body()!!)
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    clearCache()
+                    Result.success(apiResponse.data)
+                } else {
+                    Result.failure(Exception(apiResponse.message ?: "Failed"))
+                }
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed"))
             }
@@ -172,8 +192,13 @@ class RequirementRepository @Inject constructor(
         return try {
             val response = requirementApi.submitRequirement(id)
             if (response.isSuccessful && response.body() != null) {
-                clearCache()
-                Result.success(response.body()!!)
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    clearCache()
+                    Result.success(apiResponse.data)
+                } else {
+                    Result.failure(Exception(apiResponse.message ?: "Failed"))
+                }
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed"))
             }

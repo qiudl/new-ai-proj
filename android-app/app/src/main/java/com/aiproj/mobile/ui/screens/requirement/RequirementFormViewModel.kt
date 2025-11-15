@@ -53,7 +53,7 @@ class RequirementFormViewModel @Inject constructor(
                         title = requirement.title,
                         description = requirement.description ?: "",
                         priority = requirement.priority,
-                        category = requirement.category,
+                        category = requirement.category ?: RequirementCategory.FEATURE,
                         acceptanceCriteria = requirement.acceptanceCriteria ?: ""
                     )
                     _uiState.update {

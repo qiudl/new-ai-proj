@@ -253,12 +253,13 @@ private fun StatItem(label: String, value: String, icon: androidx.compose.ui.gra
     }
 }
 
-private fun getCategoryText(category: RequirementCategory) = when (category) {
+private fun getCategoryText(category: RequirementCategory?) = when (category) {
     RequirementCategory.FEATURE -> "功能"
     RequirementCategory.BUG -> "缺陷"
     RequirementCategory.IMPROVEMENT -> "改进"
     RequirementCategory.DOCUMENTATION -> "文档"
     RequirementCategory.OTHER -> "其他"
+    null -> "未分类"
 }
 
 private fun getComplexityText(complexity: ComplexityRating) = when (complexity) {

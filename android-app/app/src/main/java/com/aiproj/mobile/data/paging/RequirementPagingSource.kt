@@ -31,15 +31,20 @@ class RequirementPagingSource(
             )
 
             if (response.isSuccessful && response.body() != null) {
-                val body = response.body()!!
-                val requirements = body.data
-                val pagination = body.pagination
+                val apiResponse = response.body()!!
+                if (apiResponse.success && apiResponse.data != null) {
+                    val requirementListResponse = apiResponse.data
+                    val requirements = requirementListResponse.data
+                    val pagination = requirementListResponse.pagination
 
-                LoadResult.Page(
-                    data = requirements,
-                    prevKey = if (page == 1) null else page - 1,
-                    nextKey = if (page >= pagination.total_pages) null else page + 1
-                )
+                    LoadResult.Page(
+                        data = requirements,
+                        prevKey = if (page == 1) null else page - 1,
+                        nextKey = if (page >= pagination.total_pages) null else page + 1
+                    )
+                } else {
+                    LoadResult.Error(Exception(apiResponse.message ?: "Failed to load requirements"))
+                }
             } else {
                 LoadResult.Error(Exception("Failed to load requirements: ${response.code()}"))
             }

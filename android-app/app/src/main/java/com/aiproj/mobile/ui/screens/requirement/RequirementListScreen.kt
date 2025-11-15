@@ -455,10 +455,11 @@ private fun getPriorityText(priority: RequirementPriority): String = when (prior
     RequirementPriority.URGENT -> "紧急"
 }
 
-private fun getCategoryText(category: RequirementCategory): String = when (category) {
+private fun getCategoryText(category: RequirementCategory?): String = when (category) {
     RequirementCategory.FEATURE -> "功能"
     RequirementCategory.BUG -> "缺陷"
     RequirementCategory.IMPROVEMENT -> "改进"
     RequirementCategory.DOCUMENTATION -> "文档"
     RequirementCategory.OTHER -> "其他"
+    null -> "未分类"
 }

@@ -19,7 +19,7 @@ interface RequirementApi {
         @Query("priority") priority: String? = null,
         @Query("search") search: String? = null,
         @Query("project_id") projectId: Int? = null
-    ): Response<RequirementListResponse>
+    ): Response<ApiResponse<RequirementListResponse>>
 
     /**
      * 获取需求详情
@@ -27,7 +27,7 @@ interface RequirementApi {
     @GET("requirements/{id}")
     suspend fun getRequirement(
         @Path("id") id: Int
-    ): Response<Requirement>
+    ): Response<ApiResponse<Requirement>>
 
     /**
      * 创建需求
@@ -35,7 +35,7 @@ interface RequirementApi {
     @POST("requirements")
     suspend fun createRequirement(
         @Body dto: CreateRequirementDTO
-    ): Response<Requirement>
+    ): Response<ApiResponse<Requirement>>
 
     /**
      * 更新需求
@@ -44,7 +44,7 @@ interface RequirementApi {
     suspend fun updateRequirement(
         @Path("id") id: Int,
         @Body dto: UpdateRequirementDTO
-    ): Response<Requirement>
+    ): Response<ApiResponse<Requirement>>
 
     /**
      * 删除需求
@@ -60,7 +60,7 @@ interface RequirementApi {
     @POST("requirements/{id}/submit")
     suspend fun submitRequirement(
         @Path("id") id: Int
-    ): Response<Requirement>
+    ): Response<ApiResponse<Requirement>>
 
     /**
      * 批准需求

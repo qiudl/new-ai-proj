@@ -256,23 +256,25 @@ private fun getPriorityColor(priority: RequirementPriority): Color = when (prior
 /**
  * 根据类别返回对应的图标
  */
-private fun getCategoryIcon(category: RequirementCategory): ImageVector = when (category) {
+private fun getCategoryIcon(category: RequirementCategory?): ImageVector = when (category) {
     RequirementCategory.FEATURE -> Icons.Default.StarRate
     RequirementCategory.BUG -> Icons.Default.BugReport
     RequirementCategory.IMPROVEMENT -> Icons.Default.TrendingUp
     RequirementCategory.DOCUMENTATION -> Icons.Default.Description
     RequirementCategory.OTHER -> Icons.Default.MoreHoriz
+    null -> Icons.Default.MoreHoriz  // 默认图标
 }
 
 /**
  * 根据类别返回对应的颜色
  */
-private fun getCategoryColor(category: RequirementCategory): Color = when (category) {
+private fun getCategoryColor(category: RequirementCategory?): Color = when (category) {
     RequirementCategory.FEATURE -> Color(0xFF4CAF50)      // 绿色
     RequirementCategory.BUG -> Color(0xFFF44336)          // 红色
     RequirementCategory.IMPROVEMENT -> Color(0xFF2196F3)  // 蓝色
     RequirementCategory.DOCUMENTATION -> Color(0xFF9C27B0) // 紫色
     RequirementCategory.OTHER -> Color(0xFF757575)        // 灰色
+    null -> Color(0xFF9E9E9E)  // 默认灰色
 }
 
 /**
