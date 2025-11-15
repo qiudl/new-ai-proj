@@ -1611,7 +1611,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // 使用curl绕过认证问题
         const reqBody: any = {
           title: args.title,
-          project_id: args.projectId
+          project_id: args.projectId || 1  // 默认项目ID为1
         };
         if ((args as any).description) reqBody.description = (args as any).description;
         if ((args as any).priority) reqBody.priority = (args as any).priority;

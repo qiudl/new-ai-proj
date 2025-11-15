@@ -337,19 +337,21 @@ func (r *enterpriseRoleRepositoryImpl) RemoveRoleFromUser(ctx context.Context, e
 }
 
 // GetUserRoles gets all enterprise roles for a user within an enterprise
-func (r *enterpriseRoleRepositoryImpl) GetUserRoles(ctx context.Context, enterpriseUserID uint, enterpriseID uint) ([]*interfaces.EnterpriseRole, error) {
+// Note: enterpriseUserID is actually the user_id from users table (not enterprise_users.id)
+// This is because RBAC v2 uses user_id in enterprise_user_roles table
+func (r *enterpriseRoleRepositoryImpl) GetUserRoles(ctx context.Context, userID uint, enterpriseID uint) ([]*interfaces.EnterpriseRole, error) {
 	query := `
-		SELECT er.id, er.enterprise_id, er.role_code, er.role_name, er.description, er.is_active, er.is_built_in, er.created_by, er.created_at, er.updated_at
+		SELECT er.id, er.enterprise_id, er.code, er.name, er.description, er.is_active, er.is_preset, er.created_by, er.created_at, er.updated_at
 		FROM enterprise_roles er
-		JOIN enterprise_user_roles eur ON er.id = eur.enterprise_role_id
-		WHERE eur.enterprise_user_id = $1
+		JOIN enterprise_user_roles eur ON er.id = eur.role_id
+		WHERE eur.user_id = $1
 		AND eur.enterprise_id = $2
 		AND eur.is_active = true
-		AND (eur.expires_at IS NULL OR eur.expires_at > NOW())
+		AND eur.deleted_at IS NULL
 		ORDER BY er.created_at
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, enterpriseUserID, enterpriseID)
+	rows, err := r.db.QueryContext(ctx, query, userID, enterpriseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user roles: %w", err)
 	}

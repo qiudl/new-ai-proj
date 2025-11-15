@@ -80,7 +80,8 @@ func (r *PostgresEnterpriseUserManagementRepository) CountEnterpriseUsers(ctx co
 
 // ListEnterpriseUsers retrieves a paginated list of enterprise users
 func (r *PostgresEnterpriseUserManagementRepository) ListEnterpriseUsers(ctx context.Context, filters EnterpriseUserFilters, pagination EnterpriseUserPagination) ([]EnterpriseUser, error) {
-	fmt.Printf("🔍 [DEBUG] ListEnterpriseUsers called - EnterpriseID: %d, WITH user_type filter\n", filters.EnterpriseID)
+	fmt.Printf("===== [UNIQUE_LOG_12345] REPOSITORY CODE IS RUNNING - EnterpriseID: %d =====\n", filters.EnterpriseID)
+	fmt.Printf("===== [UNIQUE_LOG_12345] Using user_type='enterprise' filter =====\n")
 	query := `
 		SELECT
 			u.id AS user_id,
@@ -293,6 +294,7 @@ func (r *PostgresEnterpriseUserManagementRepository) GetEnterpriseUser(ctx conte
 		  AND eu.user_id = $2
 		  AND eu.deleted_at IS NULL
 		  AND u.deleted_at IS NULL
+		  AND u.user_type = 'enterprise'
 	`
 
 	var user EnterpriseUser

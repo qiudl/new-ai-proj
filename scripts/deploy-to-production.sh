@@ -804,7 +804,43 @@ EOF
         }
     fi
 
-    # 步骤9: 重启服务
+    # 步骤9: 检查并修复Nginx配置
+    if [ "$DRY_RUN" != true ]; then
+        log_info "检查Nginx配置..."
+        ssh $SSH_OPTS "$REMOTE_HOST" bash -s << 'NGINX_FIX_EOF'
+            NGINX_CONF="/home/ubuntu/apps/new-ai-proj/nginx/sites/ai-project.conf"
+            CHANGED=false
+
+            if [ -f "$NGINX_CONF" ]; then
+                # 1. 修复后端代理地址
+                if grep -q "172.30.0.1:8080" "$NGINX_CONF"; then
+                    echo "发现错误的后端地址,正在修复..."
+                    sed -i.bak 's|http://172.30.0.1:8080|http://172.17.0.1:8080|g' "$NGINX_CONF"
+                    CHANGED=true
+                fi
+
+                # 2. 修复CSP配置 - 确保connect-src允许必要的连接
+                if grep -q "connect-src 'self' wss: https:;" "$NGINX_CONF"; then
+                    echo "发现过于严格的CSP配置,正在修复..."
+                    sed -i.csp 's|connect-src '\''self'\'' wss: https:|connect-src '\''self'\'' wss: ws: https: http: https://152.136.104.251|g' "$NGINX_CONF"
+                    CHANGED=true
+                fi
+
+                # 3. 重新加载nginx
+                if [ "$CHANGED" = true ]; then
+                    docker exec ai_nginx nginx -s reload 2>/dev/null || true
+                    echo "Nginx配置已修复并重新加载"
+                else
+                    echo "Nginx配置正确"
+                fi
+            else
+                echo "警告: Nginx配置文件不存在"
+            fi
+NGINX_FIX_EOF
+        log_success "Nginx配置检查完成"
+    fi
+
+    # 步骤10: 重启服务
     if [ "$NO_RESTART" = false ] && [ "$FRONTEND_ONLY" = false ]; then
         restart_backend || {
             log_error "服务重启失败，尝试回滚..."

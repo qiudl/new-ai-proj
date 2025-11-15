@@ -280,6 +280,7 @@ func (h *EnterpriseHandler) GetEnterpriseStats(c *gin.Context) {
 
 // GetEnterpriseUsers handles GET /api/v1/enterprises/:id/users
 func (h *EnterpriseHandler) GetEnterpriseUsers(c *gin.Context) {
+	fmt.Printf("\n\n=== [OLD HANDLER] EnterpriseHandler.GetEnterpriseUsers CALLED ===\n\n")
 	enterpriseIDStr := c.Param("id")
 	enterpriseID, err := strconv.Atoi(enterpriseIDStr)
 	if err != nil {

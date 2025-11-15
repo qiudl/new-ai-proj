@@ -76,6 +76,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Disable D8 desugaring to avoid jlink issues
+        isCoreLibraryDesugaringEnabled = false
     }
 
     kotlinOptions {

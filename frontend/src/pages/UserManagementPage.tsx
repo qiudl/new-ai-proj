@@ -42,7 +42,7 @@ import {
   SettingOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-// import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { 
   User, 
   UserType,
@@ -608,27 +608,42 @@ const UserManagementPage: React.FC = () => {
       width: 180,
       sorter: true,
       sortOrder: sortField === 'username' ? sortOrder : null,
-      render: (_, user) => (
-        <Space >
-          <Avatar 
-            size={32}
-            src={user.profile?.avatar} 
-            icon={user.user_type === 'system' ? <BuildOutlined /> : <BankOutlined />}
-            style={{ backgroundColor: USER_TYPE_CONFIG[user.user_type].color }}
-          />
-          <div>
-            <div style={{ fontWeight: 500, fontSize: '13px' }}>
-              {user.profile?.name || user.username}
-            </div>
-            <div style={{ fontSize: '11px', color: '#666', lineHeight: '1.2' }}>
-              @{user.username}
-            </div>
-            <div style={{ fontSize: '11px', color: '#999', lineHeight: '1.2' }}>
-              {user.email}
-            </div>
-          </div>
-        </Space>
-      ),
+      render: (_, user) => {
+        // 根据用户类型生成不同的详情页链接
+        const getDetailLink = (user: User) => {
+          if (user.user_type === 'enterprise' && user.enterprise_id) {
+            // 企业用户：跳转到企业用户详情页
+            return `/enterprises/${user.enterprise_id}/users/${user.id}`;
+          } else {
+            // 系统用户：跳转到旧的用户详情页
+            return `/users/${user.id}`;
+          }
+        };
+
+        return (
+          <Link to={getDetailLink(user)} style={{ color: 'inherit', textDecoration: 'none' }}>
+            <Space style={{ cursor: 'pointer' }}>
+              <Avatar
+                size={32}
+                src={user.profile?.avatar}
+                icon={user.user_type === 'system' ? <BuildOutlined /> : <BankOutlined />}
+                style={{ backgroundColor: USER_TYPE_CONFIG[user.user_type].color }}
+              />
+              <div>
+                <div style={{ fontWeight: 500, fontSize: '13px', color: '#1890ff' }}>
+                  {user.profile?.name || user.username}
+                </div>
+                <div style={{ fontSize: '11px', color: '#666', lineHeight: '1.2' }}>
+                  @{user.username}
+                </div>
+                <div style={{ fontSize: '11px', color: '#999', lineHeight: '1.2' }}>
+                  {user.email}
+                </div>
+              </div>
+            </Space>
+          </Link>
+        );
+      },
     },
     type_role: {
       title: '类型/角色',

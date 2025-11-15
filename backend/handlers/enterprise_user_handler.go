@@ -54,6 +54,7 @@ func NewEnterpriseUserHandler(
 // @Router /api/v1/enterprises/{enterprise_id}/users [get]
 // REFACTORED: Now uses Service layer (2 SQL violations eliminated: lines 154, 172)
 func (h *EnterpriseUserHandler) ListEnterpriseUsers(c *gin.Context) {
+	fmt.Printf("\n\n=== [NEW HANDLER] EnterpriseUserHandler.ListEnterpriseUsers CALLED ===\n\n")
 	// Get user identity from context (set by middleware)
 	identityRaw, exists := c.Get("user_identity")
 	if !exists {

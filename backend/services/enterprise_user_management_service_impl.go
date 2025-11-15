@@ -128,8 +128,8 @@ func (s *DefaultEnterpriseUserManagementService) GetEnterpriseUser(
 		return nil, fmt.Errorf("user not found in enterprise: %w", err)
 	}
 
-	// Get user roles
-	roles, err := s.roleRepo.GetUserRoles(ctx, user.EnterpriseUserID, enterpriseID)
+	// Get user roles (use UserID from users table, not EnterpriseUserID)
+	roles, err := s.roleRepo.GetUserRoles(ctx, user.UserID, enterpriseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user roles: %w", err)
 	}
@@ -177,8 +177,8 @@ func (s *DefaultEnterpriseUserManagementService) UpdateEnterpriseUserRoles(
 		return nil, fmt.Errorf("user not found in enterprise: %w", err)
 	}
 
-	// Get current roles
-	currentRoles, err := s.roleRepo.GetUserRoles(ctx, enterpriseUserID, enterpriseID)
+	// Get current roles (use userID from users table, not enterpriseUserID)
+	currentRoles, err := s.roleRepo.GetUserRoles(ctx, userID, enterpriseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current roles: %w", err)
 	}
@@ -238,8 +238,8 @@ func (s *DefaultEnterpriseUserManagementService) UpdateEnterpriseUserRoles(
 		rolesRemoved++
 	}
 
-	// Get updated roles
-	updatedRoles, err := s.roleRepo.GetUserRoles(ctx, enterpriseUserID, enterpriseID)
+	// Get updated roles (use userID from users table, not enterpriseUserID)
+	updatedRoles, err := s.roleRepo.GetUserRoles(ctx, userID, enterpriseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get updated roles: %w", err)
 	}
@@ -277,8 +277,8 @@ func (s *DefaultEnterpriseUserManagementService) RemoveEnterpriseUser(
 		return nil, fmt.Errorf("user not found in enterprise: %w", err)
 	}
 
-	// Get all user roles for statistics
-	roles, err := s.roleRepo.GetUserRoles(ctx, enterpriseUserID, enterpriseID)
+	// Get all user roles for statistics (use userID from users table, not enterpriseUserID)
+	roles, err := s.roleRepo.GetUserRoles(ctx, userID, enterpriseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user roles: %w", err)
 	}

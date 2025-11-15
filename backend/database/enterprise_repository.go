@@ -632,8 +632,15 @@ func (r *PostgresEnterpriseRepository) GetUserByID(ctx context.Context, id int) 
 
 // GetUsers retrieves users for an enterprise
 func (r *PostgresEnterpriseRepository) GetUsers(ctx context.Context, enterpriseID int, limit, offset int) ([]*models.EnterpriseUser, int, error) {
-	// Count query
-	countQuery := `SELECT COUNT(*) FROM enterprise_users WHERE enterprise_id = $1 AND deleted_at IS NULL`
+	// Count query - FIXED: Join with users table and filter by user_type='enterprise'
+	countQuery := `
+		SELECT COUNT(*)
+		FROM enterprise_users eu
+		JOIN users u ON eu.user_id = u.id
+		WHERE eu.enterprise_id = $1
+		  AND eu.deleted_at IS NULL
+		  AND u.deleted_at IS NULL
+		  AND u.user_type = 'enterprise'`
 	exec := r.getExecer()
 
 	var total int
@@ -642,14 +649,19 @@ func (r *PostgresEnterpriseRepository) GetUsers(ctx context.Context, enterpriseI
 		return nil, 0, fmt.Errorf("failed to count enterprise users: %w", err)
 	}
 
-	// Main query
+	// Main query - FIXED: Join with users table and filter by user_type='enterprise'
 	query := `
-		SELECT id, enterprise_id, username, email, name, phone, position,
-		       is_primary_contact, access_level, status, last_login_at, bio,
-		       created_by, updated_by, created_at, updated_at, deleted_at
-		FROM enterprise_users 
-		WHERE enterprise_id = $1 AND deleted_at IS NULL
-		ORDER BY created_at DESC
+		SELECT eu.id, eu.enterprise_id, eu.username, eu.email, eu.name, eu.phone, eu.position,
+		       eu.is_primary_contact, eu.access_level, eu.status, eu.last_login_at, eu.bio,
+		       eu.created_by, eu.updated_by, eu.created_at, eu.updated_at, eu.deleted_at,
+		       u.user_type
+		FROM enterprise_users eu
+		JOIN users u ON eu.user_id = u.id
+		WHERE eu.enterprise_id = $1
+		  AND eu.deleted_at IS NULL
+		  AND u.deleted_at IS NULL
+		  AND u.user_type = 'enterprise'
+		ORDER BY eu.created_at DESC
 		LIMIT $2 OFFSET $3`
 
 	rows, err := exec.QueryContext(ctx, query, enterpriseID, limit, offset)
