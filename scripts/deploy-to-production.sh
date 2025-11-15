@@ -708,7 +708,7 @@ deploy_with_compose() {
         cd /opt/ai-project/current
 
         echo "=== 验证Docker Compose配置 ==="
-        if ! docker-compose -f docker-compose.prod.yml config --quiet 2>&1; then
+        if ! docker compose -f docker-compose.prod.yml config --quiet 2>&1; then
             echo "ERROR: docker-compose配置验证失败"
             exit 1
         fi
@@ -718,28 +718,28 @@ deploy_with_compose() {
         echo "=== 构建镜像 ==="
         if [ "$backend_only" != "true" ] && [ "$frontend_only" != "true" ]; then
             # 完整部署
-            docker-compose -f docker-compose.prod.yml build --no-cache backend-prod frontend-prod
+            docker compose -f docker-compose.prod.yml build --no-cache backend-prod frontend-prod
         elif [ "$backend_only" = "true" ]; then
             # 仅后端
-            docker-compose -f docker-compose.prod.yml build --no-cache backend-prod
+            docker compose -f docker-compose.prod.yml build --no-cache backend-prod
         elif [ "$frontend_only" = "true" ]; then
             # 仅前端
-            docker-compose -f docker-compose.prod.yml build --no-cache frontend-prod
+            docker compose -f docker-compose.prod.yml build --no-cache frontend-prod
         fi
 
         echo ""
         echo "=== 停止旧容器 ==="
         if [ "$backend_only" != "true" ] && [ "$frontend_only" != "true" ]; then
-            docker-compose -f docker-compose.prod.yml stop backend-prod frontend-prod
+            docker compose -f docker-compose.prod.yml stop backend-prod frontend-prod
         elif [ "$backend_only" = "true" ]; then
-            docker-compose -f docker-compose.prod.yml stop backend-prod
+            docker compose -f docker-compose.prod.yml stop backend-prod
         elif [ "$frontend_only" = "true" ]; then
-            docker-compose -f docker-compose.prod.yml stop frontend-prod
+            docker compose -f docker-compose.prod.yml stop frontend-prod
         fi
 
         echo ""
         echo "=== 启动新容器 ==="
-        docker-compose -f docker-compose.prod.yml up -d
+        docker compose -f docker-compose.prod.yml up -d
 
         echo ""
         echo "=== 等待服务启动 ==="
@@ -747,7 +747,7 @@ deploy_with_compose() {
 
         echo ""
         echo "=== 检查服务状态 ==="
-        docker-compose -f docker-compose.prod.yml ps
+        docker compose -f docker-compose.prod.yml ps
 
         echo ""
         echo "=== 健康检查 ==="
@@ -758,7 +758,7 @@ deploy_with_compose() {
             fi
             if [ $i -eq 30 ]; then
                 echo "✗ 后端健康检查超时"
-                docker-compose -f docker-compose.prod.yml logs --tail=50 backend-prod
+                docker compose -f docker-compose.prod.yml logs --tail=50 backend-prod
                 exit 1
             fi
             echo "等待后端就绪... ($i/30)"

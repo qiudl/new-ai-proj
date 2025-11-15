@@ -1,13 +1,12 @@
 package handlers
 
 import (
+	"ai-project-backend/config"
 	"ai-project-backend/database"
 	"ai-project-backend/models"
-	"bytes"
+	"ai-project-backend/utils"
 	"encoding/csv"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -118,24 +117,12 @@ func (h *UserManagementHandler) GetUser(c *gin.Context) {
 
 // CreateUser creates a new user with the specified role and profile
 func (h *UserManagementHandler) CreateUser(c *gin.Context) {
-	// DEBUG: Read raw body first
-	bodyBytes, _ := c.GetRawData()
-	fmt.Printf("\n=== [CreateUser DEBUG] Raw Request Body ===\n%s\n=== END ===\n\n", string(bodyBytes))
-
-	// Restore body for ShouldBindJSON
-	c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
 	var req models.UserCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		fmt.Printf("[CreateUser] ShouldBindJSON ERROR: %v\n", err)
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", err.Error())
 		c.JSON(models.GetStatusCode(models.ErrCodeBadRequest), response)
 		return
 	}
-
-	// DEBUG: Log parsed request
-	fmt.Printf("[CreateUser] After ShouldBindJSON - UserType=%s, EnterpriseID=%v, CompanyID=%v\n",
-		req.UserType, req.EnterpriseID, req.CompanyID)
 
 	// Validate request
 	if err := h.validator.Struct(&req); err != nil {
@@ -153,10 +140,6 @@ func (h *UserManagementHandler) CreateUser(c *gin.Context) {
 
 	// Validate company requirements
 	// v1.5: Use new validation function that accepts both fields
-	// Debug: Print the values to understand parsing issue
-	log.Printf("[CreateUser] UserType=%s, EnterpriseID=%v, CompanyID=%v",
-		req.UserType, req.EnterpriseID, req.CompanyID)
-
 	if err := models.ValidateEnterpriseUserFields(req.UserType, req.EnterpriseID, req.CompanyID); err != nil {
 		response := models.NewErrorResponse(models.ErrCodeValidation, "Invalid company fields", err.Error())
 		c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
@@ -348,6 +331,30 @@ func (h *UserManagementHandler) ResetUserPassword(c *gin.Context) {
 		return
 	}
 
+	// Validate password strength using password policy
+	passwordConfig := config.LoadPasswordConfig()
+	validationResult := utils.ValidatePasswordWithCommonCheck(req.NewPassword, passwordConfig.Policy)
+	if !validationResult.Valid {
+		errorMessage := strings.Join(validationResult.Errors, "; ")
+		response := models.NewErrorResponse(models.ErrCodeValidation, "密码不符合安全要求", errorMessage)
+		c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
+
+		// Record failed attempt in audit log
+		if h.auditRepo != nil {
+			currentUserIDVal, _ := c.Get("user_id")
+			currentUserID := currentUserIDVal.(int)
+			clientIP := c.ClientIP()
+			desc := fmt.Sprintf("Failed to reset password for user ID %d: %s", userID, errorMessage)
+			h.auditRepo.CreateAuditLog(c.Request.Context(), &models.AuditLog{
+				Action:      "reset_password_failed",
+				UserID:      &currentUserID,
+				Description: &desc,
+				IPAddress:   &clientIP,
+			})
+		}
+		return
+	}
+
 	// Hash new password
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
@@ -367,6 +374,20 @@ func (h *UserManagementHandler) ResetUserPassword(c *gin.Context) {
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to reset password", err.Error())
 		c.JSON(models.GetStatusCode(models.ErrCodeInternal), response)
 		return
+	}
+
+	// Record successful password reset in audit log
+	if h.auditRepo != nil {
+		currentUserIDVal, _ := c.Get("user_id")
+		currentUserID := currentUserIDVal.(int)
+		clientIP := c.ClientIP()
+		desc := fmt.Sprintf("Successfully reset password for user ID %d", userID)
+		h.auditRepo.CreateAuditLog(c.Request.Context(), &models.AuditLog{
+			Action:      "reset_password",
+			UserID:      &currentUserID,
+			Description: &desc,
+			IPAddress:   &clientIP,
+		})
 	}
 
 	response := models.NewSuccessResponse(nil, "Password reset successfully")

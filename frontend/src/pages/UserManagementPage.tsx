@@ -63,6 +63,7 @@ import userManagementService from '../services/userManagementService';
 import enterpriseService from '../services/enterpriseService';
 import EnterpriseSelector from '../components/EnterpriseSelector';
 import DepartmentSelector from '../components/DepartmentSelector';
+import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator';
 import { Enterprise } from '../types/enterprise';
 import PermissionWrapper from '../components/PermissionWrapper';
 import { USER_PERMISSIONS } from '../constants/permissions';
@@ -1639,10 +1640,24 @@ const UserManagementPage: React.FC = () => {
             label="新密码"
             rules={[
               { required: true, message: '请输入新密码' },
-              { min: 6, message: '密码至少6个字符' }
+              { min: 8, message: '密码至少8个字符' },
+              {
+                pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]).{8,}$/,
+                message: '密码必须包含大小写字母、数字和特殊字符',
+              },
             ]}
           >
-            <Input.Password placeholder="请输入新密码" />
+            <Input.Password placeholder="请输入新密码(至少8个字符,包含大小写字母、数字和特殊字符)" />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.new_password !== currentValues.new_password}>
+            {({ getFieldValue }) => (
+              <PasswordStrengthIndicator
+                password={getFieldValue('new_password') || ''}
+                minLength={8}
+                showRequirements={true}
+                showSuggestions={false}
+              />
+            )}
           </Form.Item>
           <Form.Item
             name="confirm_password"
@@ -1659,6 +1674,7 @@ const UserManagementPage: React.FC = () => {
                 },
               }),
             ]}
+            style={{ marginTop: 16 }}
           >
             <Input.Password placeholder="请再次输入新密码" />
           </Form.Item>

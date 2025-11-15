@@ -104,18 +104,6 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # Stage 4: Production Runtime
 # ======================================
 
-# ======================================
-# Stage: Prepare Gojieba Dictionary  
-# ======================================
-FROM base AS gojieba-prep
-WORKDIR /tmp
-RUN --mount=type=cache,target=/go/pkg/mod \
-    mkdir -p /tmp/gojieba && \
-    cp -r /go/pkg/mod/github.com/yanyiwu /tmp/gojieba/ 2>/dev/null || \
-    (echo "Downloading gojieba..." && \
-     go mod download github.com/yanyiwu/gojieba && \
-     cp -r /go/pkg/mod/github.com/yanyiwu /tmp/gojieba/)
-
 FROM ${REGISTRY_PREFIX}alpine:latest AS production
 
 # Use faster APK mirror for CN networks (fallback to default if sed fails)
@@ -142,13 +130,8 @@ COPY --from=builder /app/main .
 # Copy configuration files
 COPY --from=builder /app/config ./config
 
-# Copy gojieba dictionary files
-RUN mkdir -p /go/pkg/mod/github.com/yanyiwu
-COPY --from=gojieba-prep /tmp/gojieba/yanyiwu /go/pkg/mod/github.com/yanyiwu
-
-
 # Change ownership
-RUN chown -R appuser:appgroup /app /go
+RUN chown -R appuser:appgroup /app
 
 USER appuser
 

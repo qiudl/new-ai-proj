@@ -66,7 +66,7 @@ export abstract class BaseClient {
     // });
 
     // 强制使用有效的硬编码token（绕过所有环境变量和文件读取）
-    const VALID_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3OTQ2MzEwOTQsIm5iZiI6MTc2MzA5NTA5NCwiaWF0IjoxNzYzMDk1MDk0LCJqdGkiOiI0NjQyY2FmMjgwZWUzZTdlOWIyYTBhYjhlOTI2NmIwYiJ9.dyFIWdWZEYoQ2_DKPlBc65-R9NYvJ1-U8J0jhGieWaM';
+    const VALID_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NjM4MTE4NTUsIm5iZiI6MTc2MzIwNzA1NSwiaWF0IjoxNzYzMjA3MDU1LCJqdGkiOiI2NDA4ZmZjYmEzN2NmM2Q0YTY4MDczMjIyMDQzNDcwMiJ9.56H29ejPKX5qm0cxsiKtAiOZvYCKWLJv1W5qSCKCJAE';
 
     this.authToken = VALID_TOKEN;
     console.error('[BASE_CLIENT] Using hardcoded VALID_TOKEN, length:', this.authToken.length);
@@ -127,7 +127,7 @@ export abstract class BaseClient {
 
       // 强制添加Authorization header（调试用）
       if (!headers['Authorization'] && !headers['X-API-Key']) {
-        const FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3OTQ2MzEwOTQsIm5iZiI6MTc2MzA5NTA5NCwiaWF0IjoxNzYzMDk1MDk0LCJqdGkiOiI0NjQyY2FmMjgwZWUzZTdlOWIyYTBhYjhlOTI2NmIwYiJ9.dyFIWdWZEYoQ2_DKPlBc65-R9NYvJ1-U8J0jhGieWaM';
+        const FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NjM4MTE4NTUsIm5iZiI6MTc2MzIwNzA1NSwiaWF0IjoxNzYzMjA3MDU1LCJqdGkiOiI2NDA4ZmZjYmEzN2NmM2Q0YTY4MDczMjIyMDQzNDcwMiJ9.56H29ejPKX5qm0cxsiKtAiOZvYCKWLJv1W5qSCKCJAE';
         headers['Authorization'] = `Bearer ${FALLBACK_TOKEN}`;
         console.error('[MAKE_REQUEST] Using FALLBACK_TOKEN because no auth header was set');
       }
