@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aiproj.mobile.data.models.*
 import com.aiproj.mobile.data.repository.RequirementRepository
+import com.aiproj.mobile.data.repository.ProjectRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -21,7 +22,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class RequirementListViewModel @Inject constructor(
-    private val requirementRepository: RequirementRepository
+    private val requirementRepository: RequirementRepository,
+    private val projectRepository: ProjectRepository
 ) : ViewModel() {
 
     companion object {
@@ -39,6 +41,14 @@ class RequirementListViewModel @Inject constructor(
     // 需求列表数据
     private val _requirements = MutableStateFlow<List<Requirement>>(emptyList())
     val requirements: StateFlow<List<Requirement>> = _requirements.asStateFlow()
+
+    // 项目列表数据（用于筛选抽屉）
+    private val _projects = MutableStateFlow<List<Project>>(emptyList())
+    val projects: StateFlow<List<Project>> = _projects.asStateFlow()
+
+    // 项目加载状态
+    private val _projectsLoading = MutableStateFlow(false)
+    val projectsLoading: StateFlow<Boolean> = _projectsLoading.asStateFlow()
 
     init {
         loadRequirements()
@@ -141,6 +151,55 @@ class RequirementListViewModel @Inject constructor(
     }
 
     /**
+     * 根据客户(公司)筛选
+     * 通过公司名称过滤项目，然后筛选属于这些项目的需求
+     */
+    fun filterByCompany(companyName: String?) {
+        _filterState.update { it.copy(selectedCompanyName = companyName) }
+
+        if (companyName == null) {
+            // 清除公司筛选，但保留其他筛选
+            _filterState.update { it.copy(selectedProjectId = null) }
+        } else {
+            // 找到属于该公司的所有项目
+            val companyProjects = _projects.value.filter { it.companyName == companyName }
+            if (companyProjects.isNotEmpty()) {
+                // 暂时只支持选择第一个项目，实际应该支持多项目筛选
+                _filterState.update { it.copy(selectedProjectId = companyProjects.first().id) }
+            }
+        }
+
+        loadRequirements(forceRefresh = true)
+    }
+
+    /**
+     * 加载项目列表（用于筛选抽屉）
+     */
+    fun loadProjects(forceRefresh: Boolean = false) {
+        if (_projectsLoading.value && !forceRefresh) {
+            Log.d(TAG, "Projects already loading, skip")
+            return
+        }
+
+        viewModelScope.launch {
+            _projectsLoading.value = true
+
+            val result = projectRepository.getProjectsCached(forceRefresh = forceRefresh)
+            result.fold(
+                onSuccess = { projectListData ->
+                    Log.d(TAG, "Loaded ${projectListData.data.size} projects for filter")
+                    _projects.value = projectListData.data
+                    _projectsLoading.value = false
+                },
+                onFailure = { exception ->
+                    Log.e(TAG, "Failed to load projects", exception)
+                    _projectsLoading.value = false
+                }
+            )
+        }
+    }
+
+    /**
      * 清除所有筛选
      */
     fun clearFilters() {
@@ -199,5 +258,6 @@ data class RequirementFilterState(
     val selectedStatus: RequirementStatus? = null,
     val selectedPriority: RequirementPriority? = null,
     val selectedCategory: RequirementCategory? = null,
-    val selectedProjectId: Int? = null
+    val selectedProjectId: Int? = null,
+    val selectedCompanyName: String? = null
 )

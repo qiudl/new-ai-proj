@@ -14,8 +14,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aiproj.mobile.data.models.*
 import com.aiproj.mobile.ui.components.requirement.RequirementListItem
+import com.aiproj.mobile.ui.screens.requirement.components.RequirementFilterDrawer
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import kotlinx.coroutines.launch
 
 /**
  * 需求列表屏幕
@@ -43,11 +45,48 @@ fun RequirementListScreen(
     val filterState by viewModel.filterState.collectAsState()
     val requirements by viewModel.requirements.collectAsState()
 
+    // 筛选抽屉状态
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
+    // 项目列表状态（用于筛选抽屉）
+    val projects by viewModel.projects.collectAsState()
+    val projectsLoading by viewModel.projectsLoading.collectAsState()
+
+    // 首次加载项目列表
+    LaunchedEffect(Unit) {
+        viewModel.loadProjects()
+    }
+
     var showFilterDialog by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showSearchBar by remember { mutableStateOf(false) }
 
-    Scaffold(
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                RequirementFilterDrawer(
+                    projects = projects,
+                    selectedProjectId = filterState.selectedProjectId,
+                    selectedCompanyName = filterState.selectedCompanyName,
+                    isLoading = projectsLoading,
+                    onProjectSelect = { projectId ->
+                        viewModel.filterByProject(projectId)
+                    },
+                    onCompanySelect = { companyName ->
+                        viewModel.filterByCompany(companyName)
+                    },
+                    onClose = {
+                        scope.launch {
+                            drawerState.close()
+                        }
+                    }
+                )
+            }
+        }
+    ) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = {
@@ -68,6 +107,21 @@ fun RequirementListScreen(
                         )
                     } else {
                         Text("需求列表")
+                    }
+                },
+                navigationIcon = {
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                drawerState.open()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = "打开筛选抽屉",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
                 },
                 actions = {
@@ -167,18 +221,19 @@ fun RequirementListScreen(
         }
     }
 
-    // 筛选对话框
-    if (showFilterDialog) {
-        RequirementFilterDialog(
-            filterState = filterState,
-            onDismiss = { showFilterDialog = false },
-            onApplyFilters = { status, priority, category ->
-                viewModel.filterByStatus(status)
-                viewModel.filterByPriority(priority)
-                viewModel.filterByCategory(category)
-                showFilterDialog = false
-            }
-        )
+        // 筛选对话框
+        if (showFilterDialog) {
+            RequirementFilterDialog(
+                filterState = filterState,
+                onDismiss = { showFilterDialog = false },
+                onApplyFilters = { status, priority, category ->
+                    viewModel.filterByStatus(status)
+                    viewModel.filterByPriority(priority)
+                    viewModel.filterByCategory(category)
+                    showFilterDialog = false
+                }
+            )
+        }
     }
 }
 
@@ -425,6 +480,8 @@ private fun hasActiveFilters(filterState: RequirementFilterState): Boolean {
     return filterState.selectedStatus != null ||
             filterState.selectedPriority != null ||
             filterState.selectedCategory != null ||
+            filterState.selectedProjectId != null ||
+            filterState.selectedCompanyName != null ||
             filterState.searchQuery.isNotEmpty()
 }
 
