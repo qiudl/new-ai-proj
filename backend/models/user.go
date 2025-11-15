@@ -249,6 +249,21 @@ func ValidateCompanyUserFields(userType string, companyID *int) error {
 // ValidateEnterpriseUserFields validates that company users have required enterprise_id
 // v1.5: Accepts either enterprise_id or company_id for backward compatibility
 func ValidateEnterpriseUserFields(userType string, enterpriseID *int, companyID *int) error {
+	// DEBUG: Log what values we receive
+	fmt.Printf("\n=== ValidateEnterpriseUserFields DEBUG ===\n")
+	fmt.Printf("UserType: %s\n", userType)
+	if enterpriseID != nil {
+		fmt.Printf("EnterpriseID: %d (NOT NIL)\n", *enterpriseID)
+	} else {
+		fmt.Printf("EnterpriseID: nil\n")
+	}
+	if companyID != nil {
+		fmt.Printf("CompanyID: %d (NOT NIL)\n", *companyID)
+	} else {
+		fmt.Printf("CompanyID: nil\n")
+	}
+	fmt.Printf("=== END DEBUG ===\n\n")
+
 	if userType == "company" {
 		// v1.5: Accept either field during transition period
 		if enterpriseID == nil && companyID == nil {

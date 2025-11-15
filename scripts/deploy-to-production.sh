@@ -56,30 +56,48 @@ log_error() {
 # 显示帮助
 show_help() {
     cat << EOF
-生产环境部署脚本 v5.0
+生产环境部署脚本 v7.0
 
 用法: $0 [选项]
 
 选项:
   --backend-only      仅部署后端
   --frontend-only     仅部署前端(仅更新现有版本,不创建新release)
+  --use-containers    使用Docker容器化部署后端 (推荐)
+  --use-compose       使用Docker Compose统一部署所有服务 (最推荐) 🆕
   --no-build          跳过构建步骤
   --no-restart        跳过服务重启
   --dry-run           模拟运行
   --help              显示此帮助
 
-v5.0 新增功能:
-  ✅ 部署锁机制 - 防止并发部署导致冲突
-  ✅ 三步验证 - mv前、mv后、最终验证，确保文件完整
-  ✅ 详细日志 - 记录每步的文件数量
-  ✅ 智能锁超时 - 自动清理30分钟以上的过期锁
+v7.0 新增功能:
+  ✅ Docker Compose统一部署 - 一键部署所有服务
+  ✅ 资源限制 - 自动应用CPU和内存限制
+  ✅ 日志轮转 - 自动日志轮转和压缩
+  ✅ 健康检查 - 自动监控所有服务健康状态
 
-v4.0 修复:
-  ✅ 修复 rsync --delete 导致目录清空问题
-  ✅ 修复 EXIT trap 误删除问题
-  ✅ 修复 frontend-only 模式错误创建新release
-  ✅ 采用临时目录+原子切换策略
-  ✅ 增强错误处理和回滚机制
+v6.0 功能:
+  ✅ Docker容器化部署 - 推荐使用容器化方式部署后端
+  ✅ 自动健康检查 - 检查容器健康状态
+  ✅ 统一架构 - 后端、前端、Nginx、PostgreSQL全部容器化
+
+示例:
+  # Docker Compose统一部署 (最推荐) 🆕
+  $0 --use-compose
+
+  # 仅使用Compose部署后端和前端
+  $0 --use-compose --backend-only
+
+  # 容器化部署后端
+  $0 --backend-only --use-containers
+
+  # 仅部署前端
+  $0 --frontend-only
+
+推荐使用顺序:
+  1. --use-compose (最推荐，统一管理)
+  2. --use-containers (容器化单服务)
+  3. 传统部署 (已废弃)
 EOF
 }
 
@@ -553,8 +571,227 @@ ATOMIC_SWITCH_EOF
     log_success "已切换到新版本: $release_name (包含 $final_files 个文件)"
 }
 
-# 重启后端服务
+# 容器化后端部署（推荐使用）
+deploy_backend_container() {
+    log_info "部署后端容器..."
+
+    if [ "$DRY_RUN" = true ]; then
+        log_warning "[模拟] 部署容器"
+        return 0
+    fi
+
+    ssh $SSH_OPTS "$REMOTE_HOST" bash -s << 'CONTAINER_DEPLOY_EOF'
+        set -e
+
+        echo "=== 构建Docker镜像 ==="
+        cd /opt/ai-project/current/backend
+
+        # 构建生产镜像
+        docker build --target production -t ai-backend-prod:latest . 2>&1
+
+        echo "=== 停止旧容器 ==="
+        docker stop ai_backend_prod 2>/dev/null || true
+        docker rm ai_backend_prod 2>/dev/null || true
+
+        echo "=== 启动新容器 ==="
+        docker run -d \
+          --name ai_backend_prod \
+          --network ai_prod_network \
+          --env-file /home/ubuntu/apps/new-ai-proj/.env \
+          -e DB_HOST=ai_postgres_prod \
+          -e DB_PORT=5432 \
+          -e APP_ENV=production \
+          -e GIN_MODE=release \
+          -e HTTP_PROXY= \
+          -e HTTPS_PROXY= \
+          -e NO_PROXY='*' \
+          -p 127.0.0.1:8080:8080 \
+          --restart always \
+          ai-backend-prod:latest
+
+        echo "=== 等待容器启动 ==="
+        sleep 8
+
+        echo "=== 检查容器状态 ==="
+        if ! docker ps --filter name=ai_backend_prod --format '{{.Status}}' | grep -q 'Up'; then
+            echo "ERROR: 容器启动失败"
+            docker logs ai_backend_prod --tail 50
+            exit 1
+        fi
+
+        echo "SUCCESS: 容器启动成功"
+CONTAINER_DEPLOY_EOF
+
+    if [ $? -ne 0 ]; then
+        log_error "容器部署失败"
+        return 1
+    fi
+
+    # 健康检查
+    log_info "健康检查..."
+    for i in {1..15}; do
+        local health=$(ssh $SSH_OPTS "$REMOTE_HOST" "curl -s http://localhost:8080/health 2>&1" || echo "ERROR")
+
+        if [[ "$health" == *'"status":"ok"'* ]]; then
+            log_success "健康检查通过"
+
+            # 检查容器健康状态
+            local container_health=$(ssh $SSH_OPTS "$REMOTE_HOST" "docker inspect ai_backend_prod --format='{{.State.Health.Status}}' 2>/dev/null || echo 'none'")
+            log_info "容器健康状态: $container_health"
+
+            return 0
+        fi
+
+        if [ $i -lt 15 ]; then
+            log_info "等待服务就绪... ($i/15)"
+            sleep 3
+        fi
+    done
+
+    log_error "健康检查失败"
+    ssh $SSH_OPTS "$REMOTE_HOST" "docker logs ai_backend_prod --tail 30"
+    return 1
+}
+
+# Docker Compose统一部署（最推荐）
+deploy_with_compose() {
+    log_info "使用Docker Compose统一部署..."
+
+    if [ "$DRY_RUN" = true ]; then
+        log_warning "[模拟] Docker Compose部署"
+        return 0
+    fi
+
+    # 1. 同步docker-compose配置
+    log_info "同步docker-compose配置..."
+    rsync -avz --timeout=300 \
+        -e "ssh $SSH_OPTS" \
+        "$LOCAL_DIR/docker-compose.prod.yml" \
+        "$REMOTE_HOST:$REMOTE_BASE/" || {
+        log_error "docker-compose.prod.yml同步失败"
+        return 1
+    }
+
+    # 2. 同步代码
+    if [ "$BACKEND_ONLY" = false ]; then
+        log_info "同步前端代码..."
+        rsync -avz --timeout=300 \
+            -e "ssh $SSH_OPTS" \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude 'build' \
+            "$LOCAL_DIR/frontend/" \
+            "$REMOTE_HOST:$REMOTE_BASE/frontend/" || {
+            log_warning "前端代码同步失败"
+        }
+    fi
+
+    if [ "$FRONTEND_ONLY" = false ]; then
+        log_info "同步后端代码..."
+        rsync -avz --timeout=300 \
+            -e "ssh $SSH_OPTS" \
+            --exclude 'vendor' \
+            --exclude '.git' \
+            "$LOCAL_DIR/backend/" \
+            "$REMOTE_HOST:$REMOTE_BASE/backend/" || {
+            log_error "后端代码同步失败"
+            return 1
+        }
+    fi
+
+    # 3. 使用Docker Compose部署
+    ssh $SSH_OPTS "$REMOTE_HOST" bash -s "$BACKEND_ONLY" "$FRONTEND_ONLY" << 'COMPOSE_DEPLOY_EOF'
+        set -e
+        backend_only=$1
+        frontend_only=$2
+
+        cd /opt/ai-project/current
+
+        echo "=== 验证Docker Compose配置 ==="
+        if ! docker-compose -f docker-compose.prod.yml config --quiet 2>&1; then
+            echo "ERROR: docker-compose配置验证失败"
+            exit 1
+        fi
+        echo "✓ 配置验证通过"
+
+        echo ""
+        echo "=== 构建镜像 ==="
+        if [ "$backend_only" != "true" ] && [ "$frontend_only" != "true" ]; then
+            # 完整部署
+            docker-compose -f docker-compose.prod.yml build --no-cache backend-prod frontend-prod
+        elif [ "$backend_only" = "true" ]; then
+            # 仅后端
+            docker-compose -f docker-compose.prod.yml build --no-cache backend-prod
+        elif [ "$frontend_only" = "true" ]; then
+            # 仅前端
+            docker-compose -f docker-compose.prod.yml build --no-cache frontend-prod
+        fi
+
+        echo ""
+        echo "=== 停止旧容器 ==="
+        if [ "$backend_only" != "true" ] && [ "$frontend_only" != "true" ]; then
+            docker-compose -f docker-compose.prod.yml stop backend-prod frontend-prod
+        elif [ "$backend_only" = "true" ]; then
+            docker-compose -f docker-compose.prod.yml stop backend-prod
+        elif [ "$frontend_only" = "true" ]; then
+            docker-compose -f docker-compose.prod.yml stop frontend-prod
+        fi
+
+        echo ""
+        echo "=== 启动新容器 ==="
+        docker-compose -f docker-compose.prod.yml up -d
+
+        echo ""
+        echo "=== 等待服务启动 ==="
+        sleep 10
+
+        echo ""
+        echo "=== 检查服务状态 ==="
+        docker-compose -f docker-compose.prod.yml ps
+
+        echo ""
+        echo "=== 健康检查 ==="
+        for i in {1..30}; do
+            if docker exec ai_backend_prod wget --no-proxy -O- -q http://localhost:8080/health > /dev/null 2>&1; then
+                echo "✓ 后端健康检查通过"
+                break
+            fi
+            if [ $i -eq 30 ]; then
+                echo "✗ 后端健康检查超时"
+                docker-compose -f docker-compose.prod.yml logs --tail=50 backend-prod
+                exit 1
+            fi
+            echo "等待后端就绪... ($i/30)"
+            sleep 2
+        done
+
+        echo ""
+        echo "=== 容器资源使用 ==="
+        docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}" $(docker ps --filter "name=ai_" -q)
+
+        echo ""
+        echo "SUCCESS: Docker Compose部署完成"
+COMPOSE_DEPLOY_EOF
+
+    if [ $? -eq 0 ]; then
+        log_success "Docker Compose部署完成"
+
+        echo ""
+        log_info "可用命令："
+        log_info "  查看状态: ./scripts/docker-compose-manage.sh status"
+        log_info "  查看日志: ./scripts/docker-compose-manage.sh logs -f"
+        log_info "  重启服务: ./scripts/docker-compose-manage.sh restart-backend"
+
+        return 0
+    else
+        log_error "Docker Compose部署失败"
+        return 1
+    fi
+}
+
+# 重启后端服务（宿主机模式 - 已废弃，建议使用容器化）
 restart_backend() {
+    log_warning "使用宿主机模式部署后端（已废弃，建议使用 --use-containers 或 --use-compose）"
     log_info "重启后端服务..."
 
     if [ "$DRY_RUN" = true ]; then
@@ -683,13 +920,15 @@ EOF
 # 主函数
 main() {
     echo "=================================="
-    echo "🚀 生产环境部署工具 v3.0"
+    echo "🚀 生产环境部署工具 v7.0"
     echo "=================================="
     echo ""
 
     # 解析参数
     BACKEND_ONLY=false
     FRONTEND_ONLY=false
+    USE_CONTAINERS=false
+    USE_COMPOSE=false
     NO_BUILD=false
     NO_RESTART=false
     DRY_RUN=false
@@ -698,6 +937,8 @@ main() {
         case $1 in
             --backend-only) BACKEND_ONLY=true; shift ;;
             --frontend-only) FRONTEND_ONLY=true; shift ;;
+            --use-containers) USE_CONTAINERS=true; shift ;;
+            --use-compose) USE_COMPOSE=true; shift ;;
             --no-build) NO_BUILD=true; shift ;;
             --no-restart) NO_RESTART=true; shift ;;
             --dry-run) DRY_RUN=true; shift ;;
@@ -710,6 +951,12 @@ main() {
         esac
     done
 
+    if [ "$USE_COMPOSE" = true ]; then
+        log_info "使用Docker Compose统一部署模式 (最推荐) 🆕"
+    elif [ "$USE_CONTAINERS" = true ]; then
+        log_info "使用Docker容器化部署模式 (推荐)"
+    fi
+
     if [ "$DRY_RUN" = true ]; then
         log_warning "=== 模拟运行模式 ==="
     fi
@@ -719,6 +966,13 @@ main() {
 
     # 步骤1.5: 获取部署锁（防止并发部署）
     acquire_deploy_lock
+
+    # Docker Compose部署分支
+    if [ "$USE_COMPOSE" = true ]; then
+        deploy_with_compose
+        release_deploy_lock
+        exit $?
+    fi
 
     # 步骤2: 创建临时目录
     TEMP_DIR=$(create_temp_build_dir)
@@ -842,19 +1096,42 @@ NGINX_FIX_EOF
 
     # 步骤10: 重启服务
     if [ "$NO_RESTART" = false ] && [ "$FRONTEND_ONLY" = false ]; then
-        restart_backend || {
-            log_error "服务重启失败，尝试回滚..."
-            rollback
-            exit 1
-        }
+        if [ "$USE_CONTAINERS" = true ]; then
+            deploy_backend_container || {
+                log_error "容器部署失败，尝试回滚..."
+                rollback
+                exit 1
+            }
+        else
+            restart_backend || {
+                log_error "服务重启失败，尝试回滚..."
+                rollback
+                exit 1
+            }
+        fi
     fi
 
     echo ""
     log_success "🎉 部署完成！"
     echo ""
-    log_info "可用命令："
-    log_info "  查看日志: ssh $REMOTE_HOST 'tail -f /opt/ai-project/current/backend/backend.log'"
-    log_info "  健康检查: ssh $REMOTE_HOST 'curl http://localhost:8080/health'"
+
+    if [ "$USE_COMPOSE" = true ]; then
+        log_info "可用命令（Docker Compose）："
+        log_info "  管理脚本: ssh $REMOTE_HOST 'cd $REMOTE_BASE/current && ./scripts/docker-compose-manage.sh status'"
+        log_info "  查看日志: ssh $REMOTE_HOST 'cd $REMOTE_BASE/current && ./scripts/docker-compose-manage.sh logs -f backend-prod'"
+        log_info "  重启后端: ssh $REMOTE_HOST 'cd $REMOTE_BASE/current && ./scripts/docker-compose-manage.sh restart-backend'"
+        log_info "  资源统计: ssh $REMOTE_HOST 'cd $REMOTE_BASE/current && ./scripts/docker-compose-manage.sh stats'"
+    elif [ "$USE_CONTAINERS" = true ]; then
+        log_info "可用命令："
+        log_info "  查看容器日志: ssh $REMOTE_HOST 'docker logs -f ai_backend_prod'"
+        log_info "  容器状态: ssh $REMOTE_HOST 'docker ps --filter name=ai_backend_prod'"
+        log_info "  健康检查: ssh $REMOTE_HOST 'curl http://localhost:8080/health'"
+        log_info "  进入容器: ssh $REMOTE_HOST 'docker exec -it ai_backend_prod sh'"
+    else
+        log_info "可用命令："
+        log_info "  查看日志: ssh $REMOTE_HOST 'tail -f /opt/ai-project/current/backend/backend.log'"
+        log_info "  健康检查: ssh $REMOTE_HOST 'curl http://localhost:8080/health'"
+    fi
 
     if [ "$DRY_RUN" = true ]; then
         log_warning "这是一次模拟运行"

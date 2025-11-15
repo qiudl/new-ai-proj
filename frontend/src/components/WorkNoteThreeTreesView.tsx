@@ -180,52 +180,13 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
     setLoadedKeys([]);
   }, [activeTreeType, loadTreeFolders]);
 
-  // 自动展开所有文件夹节点 (防止重复更新导致insertBefore错误)
-  const lastFoldersLength = React.useRef(0);
-  const expandKeysTimerRef = React.useRef<number | null>(null);
-
+  // 初始化时展开根节点
   useEffect(() => {
-    // 只在文件夹数量变化时更新expandedKeys,避免频繁触发
-    if (folders.length > 0 && folders.length !== lastFoldersLength.current) {
-      const collectAllKeys = (folderList: WorkNoteFolder[]): React.Key[] => {
-        const keys: React.Key[] = ['root'];
-        const traverse = (folders: WorkNoteFolder[]) => {
-          folders.forEach(folder => {
-            keys.push(`folder-${folder.id}`);
-            if (folder.children && folder.children.length > 0) {
-              traverse(folder.children);
-            }
-          });
-        };
-        traverse(folderList);
-        return keys;
-      };
-
-      const allKeys = collectAllKeys(folders);
-
-      // 清除之前的延迟更新
-      if (expandKeysTimerRef.current !== null) {
-        cancelAnimationFrame(expandKeysTimerRef.current);
-      }
-
-      // 使用双重延迟确保DOM完全稳定
-      expandKeysTimerRef.current = requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setExpandedKeys(allKeys);
-          expandKeysTimerRef.current = null;
-        });
-      });
-
-      lastFoldersLength.current = folders.length;
+    // 只在组件首次加载时展开根节点
+    if (expandedKeys.length === 0) {
+      setExpandedKeys(['root']);
     }
-
-    // 清理函数
-    return () => {
-      if (expandKeysTimerRef.current !== null) {
-        cancelAnimationFrame(expandKeysTimerRef.current);
-      }
-    };
-  }, [folders]);
+  }, []);  // 空依赖数组，只在挂载时执行一次
 
   // 同步选中状态
   useEffect(() => {
@@ -451,7 +412,11 @@ const WorkNoteThreeTreesView: React.FC<WorkNoteThreeTreesViewProps> = ({
     switch (action) {
       case 'create':
         if (folder) {
-          // 在文件夹下创建子文件夹
+          // 在文件夹下创建子文件夹，展开该文件夹
+          const folderKey = `folder-${folder.id}`;
+          if (!expandedKeys.includes(folderKey)) {
+            setExpandedKeys(prev => [...prev, folderKey]);
+          }
           onFolderCreate?.(folder.id, activeTreeType);
         } else {
           // 在根节点下创建根级文件夹

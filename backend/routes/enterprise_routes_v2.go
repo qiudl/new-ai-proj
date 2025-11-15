@@ -220,6 +220,20 @@ func registerEnterpriseDepartmentRoutes(
 
 	departments := enterprise.Group("/departments")
 
+	// 部门列表
+	departments.GET("",
+		permMiddleware.RequireEnterprisePermission("enterprise.department.read"),
+		func(c *gin.Context) {
+			// 将enterprise_id从路径参数转换为:id参数供handler使用
+			enterpriseID := c.Param("enterprise_id")
+			// 完全替换params以避免冲突
+			c.Params = []gin.Param{
+				{Key: "id", Value: enterpriseID},
+			}
+			enterpriseHandler.GetEnterpriseDepartments(c)
+		},
+	)
+
 	// 部门统计（带实际人数）
 	departments.GET("/stats",
 		permMiddleware.RequireEnterprisePermission("enterprise.department.read"),
@@ -231,6 +245,46 @@ func registerEnterpriseDepartmentRoutes(
 				{Key: "id", Value: enterpriseID},
 			}
 			enterpriseHandler.GetEnterpriseDepartmentStats(c)
+		},
+	)
+
+	// 创建部门
+	departments.POST("",
+		permMiddleware.RequireEnterprisePermission("enterprise.department.create"),
+		func(c *gin.Context) {
+			enterpriseID := c.Param("enterprise_id")
+			c.Params = []gin.Param{
+				{Key: "id", Value: enterpriseID},
+			}
+			enterpriseHandler.CreateEnterpriseDepartment(c)
+		},
+	)
+
+	// 更新部门
+	departments.PUT("/:dept_id",
+		permMiddleware.RequireEnterprisePermission("enterprise.department.update"),
+		func(c *gin.Context) {
+			enterpriseID := c.Param("enterprise_id")
+			deptID := c.Param("dept_id")
+			c.Params = []gin.Param{
+				{Key: "id", Value: enterpriseID},
+				{Key: "dept_id", Value: deptID},
+			}
+			enterpriseHandler.UpdateEnterpriseDepartment(c)
+		},
+	)
+
+	// 删除部门
+	departments.DELETE("/:dept_id",
+		permMiddleware.RequireEnterprisePermission("enterprise.department.delete"),
+		func(c *gin.Context) {
+			enterpriseID := c.Param("enterprise_id")
+			deptID := c.Param("dept_id")
+			c.Params = []gin.Param{
+				{Key: "id", Value: enterpriseID},
+				{Key: "dept_id", Value: deptID},
+			}
+			enterpriseHandler.DeleteEnterpriseDepartment(c)
 		},
 	)
 

@@ -23,6 +23,21 @@ class AuthInterceptor @Inject constructor(
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
+        val requestPath = originalRequest.url.encodedPath
+
+        // 跳过不需要认证的端点（登录、注册等）
+        val skipAuthPaths = listOf(
+            "/api/v1/auth/login",
+            "/api/v1/auth/register",
+            "/api/v1/auth/refresh"  // refresh 有自己的 token 逻辑
+        )
+
+        val shouldSkipAuth = skipAuthPaths.any { requestPath.endsWith(it) }
+
+        if (shouldSkipAuth) {
+            android.util.Log.d("AuthInterceptor", "Skipping auth for: $requestPath")
+            return chain.proceed(originalRequest)
+        }
 
         // 获取 Token
         val token = runBlocking {

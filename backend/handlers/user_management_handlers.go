@@ -3,8 +3,11 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"bytes"
 	"encoding/csv"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -115,12 +118,24 @@ func (h *UserManagementHandler) GetUser(c *gin.Context) {
 
 // CreateUser creates a new user with the specified role and profile
 func (h *UserManagementHandler) CreateUser(c *gin.Context) {
+	// DEBUG: Read raw body first
+	bodyBytes, _ := c.GetRawData()
+	fmt.Printf("\n=== [CreateUser DEBUG] Raw Request Body ===\n%s\n=== END ===\n\n", string(bodyBytes))
+
+	// Restore body for ShouldBindJSON
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
 	var req models.UserCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		fmt.Printf("[CreateUser] ShouldBindJSON ERROR: %v\n", err)
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", err.Error())
 		c.JSON(models.GetStatusCode(models.ErrCodeBadRequest), response)
 		return
 	}
+
+	// DEBUG: Log parsed request
+	fmt.Printf("[CreateUser] After ShouldBindJSON - UserType=%s, EnterpriseID=%v, CompanyID=%v\n",
+		req.UserType, req.EnterpriseID, req.CompanyID)
 
 	// Validate request
 	if err := h.validator.Struct(&req); err != nil {
@@ -138,6 +153,10 @@ func (h *UserManagementHandler) CreateUser(c *gin.Context) {
 
 	// Validate company requirements
 	// v1.5: Use new validation function that accepts both fields
+	// Debug: Print the values to understand parsing issue
+	log.Printf("[CreateUser] UserType=%s, EnterpriseID=%v, CompanyID=%v",
+		req.UserType, req.EnterpriseID, req.CompanyID)
+
 	if err := models.ValidateEnterpriseUserFields(req.UserType, req.EnterpriseID, req.CompanyID); err != nil {
 		response := models.NewErrorResponse(models.ErrCodeValidation, "Invalid company fields", err.Error())
 		c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
@@ -153,12 +172,20 @@ func (h *UserManagementHandler) CreateUser(c *gin.Context) {
 	}
 
 	// Create user
+	// v1.5: Handle both enterprise_id and company_id for backward compatibility
+	var companyID *int
+	if req.EnterpriseID != nil {
+		companyID = req.EnterpriseID
+	} else if req.CompanyID != nil {
+		companyID = req.CompanyID
+	}
+
 	user := &models.User{
 		Username:     req.Username,
 		Email:        req.Email,
 		PasswordHash: string(passwordHash),
 		UserType:     req.UserType,
-		CompanyID:    req.CompanyID,
+		CompanyID:    companyID,
 		Role:         req.Role,
 		Status:       "active", // Default status
 		Profile:      req.Profile,

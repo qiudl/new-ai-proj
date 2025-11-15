@@ -1,14 +1,16 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Card, Select, Input, Space, Tag, Button, DatePicker, Table, Avatar, Popconfirm, message } from 'antd';
-import { 
-  ContactsOutlined, 
+import {
+  ContactsOutlined,
   CheckCircleOutlined,
   StopOutlined,
   ExclamationCircleOutlined,
   CrownOutlined,
   UserOutlined,
   EyeOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  PlusOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useEnterpriseUsers } from '../../hooks/useUserManagement';
@@ -17,6 +19,7 @@ import userManagementService from '../../services/userManagementService';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import type { ColumnsType } from 'antd/es/table';
+import UserFormModal from './UserFormModal';
 
 interface EnterpriseUsersTabProps {
   params: EnterpriseUserParams;
@@ -34,10 +37,43 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
   const { users, total, stats, loading, refreshUsers, refreshStats } = useEnterpriseUsers(params);
   const navigate = useNavigate();
 
+  // 用户表单状态
+  const [formVisible, setFormVisible] = useState(false);
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
+  const [editingUser, setEditingUser] = useState<User | undefined>(undefined);
+
   // 处理筛选变更
   const handleFilterChange = useCallback((key: keyof EnterpriseUserParams, value: any) => {
     onParamsChange({ [key]: value, page: 1 });
   }, [onParamsChange]);
+
+  // 打开创建用户表单
+  const handleOpenCreateForm = useCallback(() => {
+    setFormMode('create');
+    setEditingUser(undefined);
+    setFormVisible(true);
+  }, []);
+
+  // 打开编辑用户表单
+  const handleOpenEditForm = useCallback((user: User) => {
+    setFormMode('edit');
+    setEditingUser(user);
+    setFormVisible(true);
+  }, []);
+
+  // 表单成功回调
+  const handleFormSuccess = useCallback(() => {
+    setFormVisible(false);
+    setEditingUser(undefined);
+    refreshUsers();
+    refreshStats();
+  }, [refreshUsers, refreshStats]);
+
+  // 表单取消回调
+  const handleFormCancel = useCallback(() => {
+    setFormVisible(false);
+    setEditingUser(undefined);
+  }, []);
 
   // 用户操作处理
   const handleViewUser = useCallback((userId: number) => {
@@ -185,6 +221,13 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
             onClick={() => handleViewUser(user.id)}
             title="查看详情"
           />
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleOpenEditForm(user)}
+            title="编辑用户"
+          />
           <Popconfirm
             title={`确定要${user.status === 'active' ? '停用' : '激活'}这个用户吗？`}
             onConfirm={() => handleToggleUserStatus(user)}
@@ -215,7 +258,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
           </Popconfirm>
         </Space>
       ),
-      width: 120,
+      width: 150,
       fixed: 'right'
     }
   ];
@@ -225,86 +268,96 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
   const renderFilters = () => {
     return (
       <Card  style={{ marginBottom: 16 }}>
-        <Space wrap>
-          <Select
-            mode="multiple"
-            placeholder="选择企业"
-            allowClear
-            style={{ minWidth: 200 }}
-            value={params.enterprise_ids}
-            onChange={(value) => handleFilterChange('enterprise_ids', value)}
-            options={enterprises.map(enterprise => ({
-              label: enterprise.name,
-              value: enterprise.id
-            }))}
-          />
-          
-          <Select
-            placeholder="联系人类型"
-            allowClear
-            style={{ width: 120 }}
-            value={params.contact_type}
-            onChange={(value) => handleFilterChange('contact_type', value)}
-            options={[
-              { 
-                label: <><CrownOutlined style={{ color: '#faad14' }} /> 主要联系人</>, 
-                value: 'primary' 
-              },
-              { 
-                label: <><ContactsOutlined style={{ color: '#1890ff' }} /> 普通联系人</>, 
-                value: 'normal' 
+        <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space wrap>
+            <Select
+              mode="multiple"
+              placeholder="选择企业"
+              allowClear
+              style={{ minWidth: 200 }}
+              value={params.enterprise_ids}
+              onChange={(value) => handleFilterChange('enterprise_ids', value)}
+              options={enterprises.map(enterprise => ({
+                label: enterprise.name,
+                value: enterprise.id
+              }))}
+            />
+
+            <Select
+              placeholder="联系人类型"
+              allowClear
+              style={{ width: 120 }}
+              value={params.contact_type}
+              onChange={(value) => handleFilterChange('contact_type', value)}
+              options={[
+                {
+                  label: <><CrownOutlined style={{ color: '#faad14' }} /> 主要联系人</>,
+                  value: 'primary'
+                },
+                {
+                  label: <><ContactsOutlined style={{ color: '#1890ff' }} /> 普通联系人</>,
+                  value: 'normal'
+                }
+              ]}
+            />
+
+            <Select
+              placeholder="用户状态"
+              allowClear
+              style={{ width: 120 }}
+              value={params.status}
+              onChange={(value) => handleFilterChange('status', value)}
+              options={[
+                {
+                  label: <Tag color="success">正常</Tag>,
+                  value: 'active'
+                },
+                {
+                  label: <Tag color="warning">未激活</Tag>,
+                  value: 'inactive'
+                },
+                {
+                  label: <Tag color="error">已停用</Tag>,
+                  value: 'suspended'
+                }
+              ]}
+            />
+
+            <DatePicker.RangePicker
+              placeholder={['账户过期开始', '账户过期结束']}
+              style={{ width: 240 }}
+              value={params.expire_date_range ?
+                [params.expire_date_range[0] as any, params.expire_date_range[1] as any] :
+                undefined
               }
-            ]}
-          />
+              onChange={(dates, dateStrings) => {
+                handleFilterChange('expire_date_range', dateStrings as [string, string]);
+              }}
+            />
 
-          <Select
-            placeholder="用户状态"
-            allowClear
-            style={{ width: 120 }}
-            value={params.status}
-            onChange={(value) => handleFilterChange('status', value)}
-            options={[
-              { 
-                label: <Tag color="success">正常</Tag>, 
-                value: 'active' 
-              },
-              { 
-                label: <Tag color="warning">未激活</Tag>, 
-                value: 'inactive' 
-              },
-              { 
-                label: <Tag color="error">已停用</Tag>, 
-                value: 'suspended' 
-              }
-            ]}
-          />
+            <Input.Search
+              placeholder="搜索用户名或联系人"
+              allowClear
+              style={{ width: 200 }}
+              value={params.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)}
+              onSearch={() => {/* 搜索逻辑已在onChange中处理 */}}
+            />
 
-          <DatePicker.RangePicker
-            placeholder={['账户过期开始', '账户过期结束']}
-            style={{ width: 240 }}
-            value={params.expire_date_range ? 
-              [params.expire_date_range[0] as any, params.expire_date_range[1] as any] : 
-              undefined
-            }
-            onChange={(dates, dateStrings) => {
-              handleFilterChange('expire_date_range', dateStrings as [string, string]);
-            }}
-          />
+            <Button onClick={() => {
+              refreshUsers();
+              refreshStats();
+            }}>
+              刷新
+            </Button>
+          </Space>
 
-          <Input.Search
-            placeholder="搜索用户名或联系人"
-            allowClear
-            style={{ width: 200 }}
-            value={params.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-            onSearch={() => {/* 搜索逻辑已在onChange中处理 */}}
-          />
-
-          <Button onClick={() => {
-            refreshUsers();
-            refreshStats();
-          }}>
-            刷新
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleOpenCreateForm}
+          >
+            创建用户
           </Button>
         </Space>
       </Card>
@@ -314,7 +367,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
   return (
     <div className="enterprise-users-tab">
       {renderFilters()}
-      
+
       {/* 用户表格 */}
       <Card>
         <Table<User>
@@ -337,6 +390,15 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
           size="small"
         />
       </Card>
+
+      {/* 用户表单模态框 */}
+      <UserFormModal
+        visible={formVisible}
+        mode={formMode}
+        user={editingUser}
+        onCancel={handleFormCancel}
+        onSuccess={handleFormSuccess}
+      />
     </div>
   );
 };

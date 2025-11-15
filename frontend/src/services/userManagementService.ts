@@ -55,8 +55,9 @@ class UserManagementService {
   async getUserById(id: number): Promise<{ data: User }> {
     try {
       const response = await api.get(`/admin/users/${id}`);
-      // ✅ FIXED - Extract data from AxiosResponse (TS2740)
-      return { data: response.data };
+      // API directly returns user object (not wrapped in {success, data, message})
+      // response is the Axios response, response.data is the user object
+      return { data: response as any };
     } catch (error) {
       console.error('Error fetching user:', error);
       throw new Error('Failed to fetch user details');

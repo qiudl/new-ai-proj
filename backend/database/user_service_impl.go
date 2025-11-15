@@ -78,7 +78,10 @@ func (s *DefaultUserService) UpdateUser(ctx context.Context, id int, req *models
 	if req.UserType != nil {
 		user.UserType = *req.UserType
 	}
-	if req.CompanyID != nil {
+	// v1.5: Handle both enterprise_id and company_id for backward compatibility
+	if req.EnterpriseID != nil {
+		user.CompanyID = req.EnterpriseID
+	} else if req.CompanyID != nil {
 		user.CompanyID = req.CompanyID
 	}
 	if req.Role != nil {

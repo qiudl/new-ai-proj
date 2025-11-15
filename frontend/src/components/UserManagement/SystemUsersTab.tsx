@@ -1,15 +1,17 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Card, Select, Input, Space, Tag, Button, Table, Avatar, Popconfirm, message } from 'antd';
-import { 
-  UserOutlined, 
-  CrownOutlined, 
-  TeamOutlined, 
+import {
+  UserOutlined,
+  CrownOutlined,
+  TeamOutlined,
   BuildOutlined,
   CheckCircleOutlined,
   StopOutlined,
   ExclamationCircleOutlined,
   EyeOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  PlusOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useSystemUsers } from '../../hooks/useUserManagement';
@@ -18,6 +20,7 @@ import userManagementService from '../../services/userManagementService';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import type { ColumnsType } from 'antd/es/table';
+import UserFormModal from './UserFormModal';
 
 interface SystemUsersTabProps {
   params: SystemUserParams;
@@ -33,10 +36,43 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
   const { users, total, stats, loading, refreshUsers, refreshStats } = useSystemUsers(params);
   const navigate = useNavigate();
 
+  // 用户表单状态
+  const [formVisible, setFormVisible] = useState(false);
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
+  const [editingUser, setEditingUser] = useState<User | undefined>(undefined);
+
   // 处理筛选变更
   const handleFilterChange = useCallback((key: keyof SystemUserParams, value: any) => {
     onParamsChange({ [key]: value, page: 1 });
   }, [onParamsChange]);
+
+  // 打开创建用户表单
+  const handleOpenCreateForm = useCallback(() => {
+    setFormMode('create');
+    setEditingUser(undefined);
+    setFormVisible(true);
+  }, []);
+
+  // 打开编辑用户表单
+  const handleOpenEditForm = useCallback((user: User) => {
+    setFormMode('edit');
+    setEditingUser(user);
+    setFormVisible(true);
+  }, []);
+
+  // 表单成功回调
+  const handleFormSuccess = useCallback(() => {
+    setFormVisible(false);
+    setEditingUser(undefined);
+    refreshUsers();
+    refreshStats();
+  }, [refreshUsers, refreshStats]);
+
+  // 表单取消回调
+  const handleFormCancel = useCallback(() => {
+    setFormVisible(false);
+    setEditingUser(undefined);
+  }, []);
 
   // 用户操作处理
   const handleViewUser = useCallback((userId: number) => {
@@ -151,6 +187,13 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
             onClick={() => handleViewUser(user.id)}
             title="查看详情"
           />
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleOpenEditForm(user)}
+            title="编辑用户"
+          />
           <Popconfirm
             title={`确定要${user.status === 'active' ? '停用' : '激活'}这个用户吗？`}
             onConfirm={() => handleToggleUserStatus(user)}
@@ -181,7 +224,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
           </Popconfirm>
         </Space>
       ),
-      width: 120,
+      width: 150,
       fixed: 'right'
     }
   ];
@@ -191,65 +234,75 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
   const renderFilters = () => {
     return (
       <Card  style={{ marginBottom: 16 }}>
-        <Space wrap>
-          <Select
-            placeholder="选择角色"
-            allowClear
-            style={{ width: 160 }}
-            value={params.role}
-            onChange={(value) => handleFilterChange('role', value)}
-            options={[
-              { 
-                label: <><CrownOutlined style={{ color: '#f50' }} /> 系统管理员</>, 
-                value: 'admin' 
-              },
-              { 
-                label: <><TeamOutlined style={{ color: '#1890ff' }} /> 项目经理</>, 
-                value: 'project_manager' 
-              },
-              { 
-                label: <><BuildOutlined style={{ color: '#52c41a' }} /> 开发工程师</>, 
-                value: 'developer' 
-              }
-            ]}
-          />
-          
-          <Select
-            placeholder="用户状态"
-            allowClear
-            style={{ width: 120 }}
-            value={params.status}
-            onChange={(value) => handleFilterChange('status', value)}
-            options={[
-              { 
-                label: <Tag color="success">正常</Tag>, 
-                value: 'active' 
-              },
-              { 
-                label: <Tag color="warning">未激活</Tag>, 
-                value: 'inactive' 
-              },
-              { 
-                label: <Tag color="error">已停用</Tag>, 
-                value: 'suspended' 
-              }
-            ]}
-          />
+        <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space wrap>
+            <Select
+              placeholder="选择角色"
+              allowClear
+              style={{ width: 160 }}
+              value={params.role}
+              onChange={(value) => handleFilterChange('role', value)}
+              options={[
+                {
+                  label: <><CrownOutlined style={{ color: '#f50' }} /> 系统管理员</>,
+                  value: 'admin'
+                },
+                {
+                  label: <><TeamOutlined style={{ color: '#1890ff' }} /> 项目经理</>,
+                  value: 'project_manager'
+                },
+                {
+                  label: <><BuildOutlined style={{ color: '#52c41a' }} /> 开发工程师</>,
+                  value: 'developer'
+                }
+              ]}
+            />
 
-          <Input.Search
-            placeholder="搜索用户名或邮箱"
-            allowClear
-            style={{ width: 200 }}
-            value={params.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-            onSearch={() => {/* 搜索逻辑已在onChange中处理 */}}
-          />
+            <Select
+              placeholder="用户状态"
+              allowClear
+              style={{ width: 120 }}
+              value={params.status}
+              onChange={(value) => handleFilterChange('status', value)}
+              options={[
+                {
+                  label: <Tag color="success">正常</Tag>,
+                  value: 'active'
+                },
+                {
+                  label: <Tag color="warning">未激活</Tag>,
+                  value: 'inactive'
+                },
+                {
+                  label: <Tag color="error">已停用</Tag>,
+                  value: 'suspended'
+                }
+              ]}
+            />
 
-          <Button onClick={() => {
-            refreshUsers();
-            refreshStats();
-          }}>
-            刷新
+            <Input.Search
+              placeholder="搜索用户名或邮箱"
+              allowClear
+              style={{ width: 200 }}
+              value={params.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)}
+              onSearch={() => {/* 搜索逻辑已在onChange中处理 */}}
+            />
+
+            <Button onClick={() => {
+              refreshUsers();
+              refreshStats();
+            }}>
+              刷新
+            </Button>
+          </Space>
+
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleOpenCreateForm}
+          >
+            创建用户
           </Button>
         </Space>
       </Card>
@@ -259,7 +312,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
   return (
     <div className="system-users-tab">
       {renderFilters()}
-      
+
       {/* 用户表格 */}
       <Card>
         <Table<User>
@@ -282,6 +335,15 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
           size="small"
         />
       </Card>
+
+      {/* 用户表单模态框 */}
+      <UserFormModal
+        visible={formVisible}
+        mode={formMode}
+        user={editingUser}
+        onCancel={handleFormCancel}
+        onSuccess={handleFormSuccess}
+      />
     </div>
   );
 };
