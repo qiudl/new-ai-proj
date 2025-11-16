@@ -23,6 +23,8 @@ type ApplicationInterface interface {
 	// 认证处理器
 	GetAuthHandler() *handlers.AuthHandler
 	GetServiceAccountHandler() *handlers.ServiceAccountHandler
+	// TODO: password功能开发中,暂时注释
+	// GetPasswordResetHandler() *handlers.PasswordResetHandler
 
 	// 基础处理器 (for backward compatibility)
 	GetHealthHandler() gin.HandlerFunc
@@ -114,8 +116,6 @@ type ApplicationInterface interface {
 	GetUserProfileHandler() *handlers.UserProfileHandler
 	GetUserManagementHandler() *handlers.UserManagementHandler
 	GetUserEnterpriseHandler() *handlers.UserEnterpriseHandler
-	GetPasswordHandler() *handlers.PasswordHandler
-	GetPasswordResetHandler() *handlers.PasswordResetHandler
 
 	// 企业管理处理器
 	GetEnterpriseHandler() *handlers.EnterpriseHandler

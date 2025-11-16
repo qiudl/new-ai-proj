@@ -23,21 +23,21 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# 日志函数
+# 日志函数 - 输出到stderr避免污染函数返回值
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1" >&2
 }
 
 log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
 }
 
 log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} $1" >&2
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
 # 显示帮助
@@ -215,6 +215,7 @@ transfer_backend() {
     log_info "传输配置和迁移文件..."
     scp -r $SSH_OPTS "$LOCAL_DIR/backend/migrations" "$REMOTE_HOST:$temp_dir/" 2>/dev/null || true
     scp -r $SSH_OPTS "$LOCAL_DIR/backend/docs" "$REMOTE_HOST:$temp_dir/" 2>/dev/null || true
+    scp $SSH_OPTS "$LOCAL_DIR/backend/Dockerfile.prod" "$REMOTE_HOST:$temp_dir/Dockerfile" 2>/dev/null || true
 
     echo "$temp_dir"
 }
@@ -236,7 +237,7 @@ transfer_frontend() {
 
     # 传输构建产物
     log_info "上传前端构建产物..."
-    rsync -az $SSH_OPTS "$LOCAL_DIR/frontend/build/" "$REMOTE_HOST:$temp_dir/build/"
+    rsync -az -e "ssh $SSH_OPTS" "$LOCAL_DIR/frontend/build/" "$REMOTE_HOST:$temp_dir/build/"
 
     if [ $? -ne 0 ]; then
         log_error "传输失败"
@@ -257,42 +258,48 @@ deploy_backend_container() {
         return 0
     fi
 
-    ssh $SSH_OPTS "$REMOTE_HOST" bash -s "$temp_dir" << 'BACKEND_DEPLOY_EOF'
+    ssh $SSH_OPTS "$REMOTE_HOST" bash <<EOF
         set -e
-        temp_dir=$1
+        temp_dir="$temp_dir"
 
         echo "=== 复制配置文件 ==="
-        if [ -f /opt/ai-project/current/backend/.env ]; then
-            cp /opt/ai-project/current/backend/.env $temp_dir/.env
+        if [ -f /opt/ai-project/backend/.env ]; then
+            cp /opt/ai-project/backend/.env "\$temp_dir/.env"
+        elif [ -f /opt/ai-project/.env ]; then
+            cp /opt/ai-project/.env "\$temp_dir/.env"
+        elif [ -f /home/ubuntu/apps/new-ai-proj/.env ]; then
+            cp /home/ubuntu/apps/new-ai-proj/.env "\$temp_dir/.env"
         else
             echo "ERROR: 配置文件不存在"
             exit 1
         fi
 
         echo "=== 备份当前版本 ==="
-        if [ -d /opt/ai-project/current/backend ]; then
-            mv /opt/ai-project/current/backend /opt/ai-project/current/backend.bak.$(date +%s)
+        if [ -d /opt/ai-project/backend ]; then
+            mv /opt/ai-project/backend /opt/ai-project/backend.bak.\$(date +%s)
         fi
 
         echo "=== 部署新版本 ==="
-        mv $temp_dir /opt/ai-project/current/backend
+        mv "\$temp_dir" /opt/ai-project/backend
 
         echo "=== 重启Docker容器 ==="
-        cd /opt/ai-project/current
+        cd /opt/ai-project
 
         # 停止旧容器
         docker stop ai_backend_prod 2>/dev/null || true
         docker rm ai_backend_prod 2>/dev/null || true
 
-        # 重建并启动容器
+        # 构建新镜像（使用本地编译的二进制）
         docker compose -f docker-compose.prod.yml build --no-cache backend-prod
+
+        # 启动新容器
         docker compose -f docker-compose.prod.yml up -d backend-prod
 
         # 等待启动
         sleep 8
 
         echo "SUCCESS: 后端部署完成"
-BACKEND_DEPLOY_EOF
+EOF
 
     if [ $? -ne 0 ]; then
         log_error "后端部署失败"
@@ -336,19 +343,19 @@ deploy_frontend() {
         temp_dir=$1
 
         echo "=== 备份当前版本 ==="
-        if [ -d /opt/ai-project/current/frontend/build ]; then
-            mv /opt/ai-project/current/frontend/build /opt/ai-project/current/frontend/build.bak.$(date +%s)
+        if [ -d /opt/ai-project/frontend/build ]; then
+            mv /opt/ai-project/frontend/build /opt/ai-project/frontend/build.bak.$(date +%s)
         fi
 
         echo "=== 部署新版本 ==="
-        mkdir -p /opt/ai-project/current/frontend
-        mv $temp_dir/build /opt/ai-project/current/frontend/build
+        mkdir -p /opt/ai-project/frontend
+        mv $temp_dir/build /opt/ai-project/frontend/build
 
         echo "=== 清理临时目录 ==="
         rm -rf $temp_dir
 
         echo "=== 重启前端容器 ==="
-        cd /opt/ai-project/current
+        cd /opt/ai-project
         docker compose -f docker-compose.prod.yml restart frontend-prod
 
         echo "SUCCESS: 前端部署完成"
@@ -449,7 +456,7 @@ main() {
     log_info "可用命令:"
     log_info "  查看后端日志: ssh $REMOTE_HOST 'docker logs -f ai_backend_prod'"
     log_info "  健康检查: ssh $REMOTE_HOST 'curl http://localhost:8080/health'"
-    log_info "  容器状态: ssh $REMOTE_HOST 'cd $REMOTE_BASE/current && docker compose -f docker-compose.prod.yml ps'"
+    log_info "  容器状态: ssh $REMOTE_HOST 'cd $REMOTE_BASE && docker compose -f docker-compose.prod.yml ps'"
 }
 
 # 执行主函数

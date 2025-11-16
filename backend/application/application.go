@@ -50,6 +50,8 @@ type Application struct {
 	// Legacy individual handlers for compatibility
 	authHandler              *handlers.AuthHandler              // Auth handler instance
 	serviceAccountHandler    *handlers.ServiceAccountHandler    // Service account handler instance
+	// TODO: password功能开发中,暂时注释
+	// passwordResetHandler     *handlers.PasswordResetHandler     // Password reset handler instance
 	documentHandler          *handlers.DocumentHandler          // Document handler instance (legacy)
 	routerDocumentHandler    *handlers.RouterDocumentHandler    // Router-based document handler
 	userProfileHandler    *handlers.UserProfileHandler    // User profile handler instance
@@ -573,14 +575,6 @@ func (app *Application) GetUserManagementHandler() *handlers.UserManagementHandl
 	projectRepo := database.NewPostgresProjectRepository(app.db.(*database.PostgresDB).DB())
 	auditRepo := database.NewAuditRepository(app.db.(*database.PostgresDB).DB())
 	return handlers.NewUserManagementHandler(userRepo, projectRepo, auditRepo)
-}
-
-// GetPasswordHandler returns the password handler
-func (app *Application) GetPasswordHandler() *handlers.PasswordHandler {
-	userRepo := database.NewUserManagementRepository(app.db.(*database.PostgresDB).DB())
-	auditRepo := database.NewAuditRepository(app.db.(*database.PostgresDB).DB())
-	passwordHistoryService := services.NewPasswordHistoryService(app.db.(*database.PostgresDB).DB())
-	return handlers.NewPasswordHandler(userRepo, auditRepo, passwordHistoryService)
 }
 
 // GetUserEnterpriseHandler returns the user enterprise handler

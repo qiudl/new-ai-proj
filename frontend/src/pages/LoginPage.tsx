@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, message, Tag, Divider, Space } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { detectEnvironment, createEnvironmentTagProps, getEnvironmentConfig } from '../utils/environmentDetection';
 
 interface LoginForm {
@@ -192,8 +192,14 @@ const LoginPage: React.FC = () => {
               登录
             </Button>
           </Form.Item>
+
+          <div style={{ textAlign: 'center', marginTop: '-8px', marginBottom: '16px' }}>
+            <Link to="/forgot-password" style={{ color: '#1890ff', fontSize: '14px' }}>
+              忘记密码?
+            </Link>
+          </div>
         </Form>
-        
+
         {/* 本地开发环境下显示快速登录区块 */}
         {envInfo.text.includes('本地开发') && (
           <div style={{ marginTop: 16 }}>

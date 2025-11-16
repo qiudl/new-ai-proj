@@ -1,0 +1,47 @@
+# 简化的生产环境 Dockerfile
+# 用于快速部署 - 直接使用预编译的二进制文件
+FROM alpine:latest AS production
+
+# 使用国内镜像加速
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencent.com/g' /etc/apk/repositories || true
+
+# 安装运行时依赖
+RUN apk --no-cache add \
+    ca-certificates \
+    curl \
+    tzdata libstdc++ libgcc \
+    && rm -rf /var/cache/apk/*
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+
+# 创建非 root 用户
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+WORKDIR /app
+
+# 复制预编译的二进制文件
+COPY main .
+
+# 复制配置文件和迁移
+COPY .env* ./
+COPY migrations ./migrations/
+COPY docs ./docs/
+
+# 设置权限
+RUN chown -R appuser:appgroup /app && \
+    chmod +x /app/main
+
+# 切换到非 root 用户
+USER appuser
+
+# 健康检查
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
+
+# 暴露端口
+EXPOSE 8080
+
+# 运行应用
+CMD ["./main"]
