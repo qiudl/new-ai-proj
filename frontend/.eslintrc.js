@@ -1,8 +1,5 @@
 module.exports = {
-  extends: [
-    'react-app',
-    'react-app/jest'
-  ],
+  extends: ['react-app', 'react-app/jest', 'plugin:storybook/recommended'],
   rules: {
     // TypeScript规则 - 优化any类型使用
     '@typescript-eslint/no-unused-vars': ['error', { 

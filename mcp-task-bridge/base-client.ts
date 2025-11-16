@@ -91,7 +91,20 @@ export abstract class BaseClient {
       'Content-Type': 'application/json',
     };
 
+    // 尝试从统一上下文获取最新的 token
+    let effectiveToken = this.authToken;
+    try {
+      const context = this.contextManager.getCurrentContext();
+      if (context && context.token) {
+        effectiveToken = context.token;
+        console.error('[GET_HEADERS] Using token from unified context:', effectiveToken.substring(0, 50) + '...');
+      }
+    } catch (error) {
+      console.error('[GET_HEADERS] Failed to get token from unified context, using instance token');
+    }
+
     console.error('[GET_HEADERS] this.authToken:', this.authToken ? `${this.authToken.substring(0, 50)}... (${this.authToken.length} chars)` : 'NULL');
+    console.error('[GET_HEADERS] effectiveToken:', effectiveToken ? `${effectiveToken.substring(0, 50)}... (${effectiveToken.length} chars)` : 'NULL');
 
     // 优先使用X-API-Key认证（服务账号）
     const apiKey = process.env.API_KEY || process.env.MCP_API_KEY;
@@ -100,9 +113,9 @@ export abstract class BaseClient {
     if (apiKey) {
       headers['X-API-Key'] = apiKey;
       console.error('[GET_HEADERS] Using X-API-Key authentication');
-    } else if (this.authToken) {
-      // 回退到JWT Bearer token
-      headers['Authorization'] = `Bearer ${this.authToken}`;
+    } else if (effectiveToken) {
+      // 使用有效的 token（优先使用统一上下文中的）
+      headers['Authorization'] = `Bearer ${effectiveToken}`;
       console.error('[GET_HEADERS] Using Bearer token authentication');
     } else {
       console.error('[GET_HEADERS] WARNING: No authentication method available!');
@@ -602,10 +615,12 @@ export abstract class BaseClient {
 
   // 设置认证令牌
   public setAuthToken(token: string): void {
+    console.error(`[SET_AUTH_TOKEN] Setting token in ${this.constructor.name}: ${token.substring(0, 50)}... (${token.length} chars)`);
     this.authToken = token;
     this.permissionManager.setAuth(token);
     // 更新统一上下文
     this.initializeContextFromToken(token);
+    console.error(`[SET_AUTH_TOKEN] Token successfully set in ${this.constructor.name}`);
   }
 
   // 获取API基础URL

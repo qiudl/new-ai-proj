@@ -1,0 +1,19 @@
+{
+  "codeConnect": {
+    "include": [
+      "src/components/FigmaPractice/**/*.figma.tsx"
+    ],
+    "exclude": [
+      "**/*.test.tsx",
+      "**/*.stories.tsx",
+      "**/node_modules/**"
+    ],
+    "parser": "react",
+    "importPaths": {
+      "src": "./src"
+    }
+  },
+  "documentUrlSubstitutions": {
+    "FIGMA_FILE_KEY": "YOUR_FIGMA_FILE_KEY"
+  }
+}

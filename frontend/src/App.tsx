@@ -81,6 +81,7 @@ const APIKeyManagement = React.lazy(() => import('./components/APIKeyManagement'
 const APIKeyDetail = React.lazy(() => import('./components/APIKeyDetail'));
 const APIKeyEdit = React.lazy(() => import('./components/APIKeyEdit'));
 const FigmaIntegrationPage = React.lazy(() => import('./pages/FigmaIntegrationPage'));
+const FigmaPracticeDemo = React.lazy(() => import('./pages/FigmaPracticeDemo'));
 
 // Enterprise Organization Management Pages
 const EnterpriseManagementPage = React.lazy(() => import('./pages/EnterpriseManagementPage'));
@@ -523,6 +524,11 @@ const AppContent: React.FC = () => {
                   <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
                     <FigmaIntegrationPage />
                   </PermissionRoute>
+                } />
+
+                {/* Figma Practice Components Demo */}
+                <Route path="/figma-practice-demo" element={
+                  <FigmaPracticeDemo />
                 } />
 
                 {/* Enterprise Organization Management Routes */}

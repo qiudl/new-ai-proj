@@ -415,6 +415,9 @@ export class DocumentService extends BaseClient {
   // @requiresPermission('update_document')
   async appendDocumentContent(taskId: number, documentId: number, content: string, projectId?: number): Promise<ApiResponse> {
     try {
+      console.error(`[APPEND_DOCUMENT] Starting append for task ${taskId}, doc ${documentId}`);
+      console.error(`[APPEND_DOCUMENT] Current authToken: ${(this as any).authToken ? `${(this as any).authToken.substring(0, 50)}... (${(this as any).authToken.length} chars)` : 'NULL'}`);
+
       const payload: any = {
         taskId: taskId,
         documentId: documentId,
@@ -425,6 +428,7 @@ export class DocumentService extends BaseClient {
         payload.projectId = projectId;
       }
 
+      console.error(`[APPEND_DOCUMENT] Calling makeRequest with payload:`, JSON.stringify(payload, null, 2));
       const response = await this.makeRequest('POST', '/mcp/documents/append', payload);
 
       if (response.success) {

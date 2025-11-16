@@ -13,6 +13,35 @@
 
 ---
 
+## 🚀 最新增强功能 (2025-11-16)
+
+### ✅ 1. Storybook 交互式文档
+**访问**: `npm run storybook` → http://localhost:6006
+- 91个交互式 story 展示所有组件
+- 实时 props 控制
+- 多种使用场景示例
+- 详细文档说明
+
+### ✅ 2. 单元测试
+**运行**: `npm test -- --testPathPattern="FigmaPractice"`
+- 180+ 测试用例
+- 覆盖渲染、交互、可访问性、边界情况
+- 9个测试文件覆盖所有组件
+
+### ✅ 3. Figma Code Connect
+**文档**: `FIGMA_CODE_CONNECT.md`
+- 配置文件和模板已就绪
+- 4个组件示例
+- 完整设置指南
+
+### ✅ 4. 集成示例页面
+**访问**: `npm start` → http://localhost:3000/figma-practice-demo
+- 完整电商演示
+- 所有组件真实集成
+- 状态管理示例
+
+---
+
 ## 🎯 核心功能
 
 ### 1. 设计 Token 系统 (`designTokens.ts`)
@@ -800,11 +829,13 @@ interface ColorOption {
 ### 进行中 🚧
 - [ ] Scene 3.1: 从 Figma 提取变量 (get_variable_defs) - 等待 API 限制恢复
 
+### 最近完成 ✨ (2025-11-16)
+- [x] **Storybook 集成** - 91 stories across 9 components
+- [x] **单元测试** - 180+ test cases with Jest + React Testing Library
+- [x] **Figma Code Connect** - Configuration and templates
+- [x] **集成示例页面** - Full e-commerce demo at `/figma-practice-demo`
+
 ### 计划中 📋
-- [ ] Storybook 集成
-- [ ] Code Connect 配置
-- [ ] 添加单元测试 (Jest + React Testing Library)
-- [ ] 集成到实际项目页面
 - [ ] 性能优化和代码分割
 - [ ] Scene 4-6 其他练习场景
 
