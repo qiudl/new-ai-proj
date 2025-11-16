@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React 组件演示 - Figma Practice</title>
+
+    <!-- React 和 ReactDOM CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Babel Standalone 用于 JSX 转换 -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: #f8f9fa;
+        }
+
+        #root {
+            min-height: 100vh;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 24px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="loading">⏳ 加载 React 组件中...</div>
+    </div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // ========== 设计 Token ==========
+        const colors = {
+            primary: '#333333',
+            primaryHover: '#000000',
+            secondary: '#1890ff',
+            white: '#ffffff',
+            gray: {
+                50: '#f8f9fa',
+                100: '#f0f0f0',
+                200: '#e0e0e0',
+                400: '#999',
+                500: '#666',
+                700: '#333',
+            },
+            text: {
+                primary: '#333',
+                secondary: '#666',
+                tertiary: '#999',
+            },
+            gradients: {
+                productBlack: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
+                productPink: 'linear-gradient(135deg, #fda085 0%, #f6d365 100%)',
+            },
+        };
+
+        const typography = {
+            fontSize: {
+                sm: '13px',
+                base: '14px',
+                lg: '18px',
+                xl: '20px',
+                '2xl': '24px',
+                '3xl': '28px',
+                '4xl': '32px',
+            },
+            fontWeight: {
+                normal: 400,
+                medium: 500,
+                semibold: 600,
+                bold: 700,
+            },
+        };
+
+        const spacing = {
+            2: '8px',
+            3: '12px',
+            4: '16px',
+            5: '20px',
+            6: '24px',
+            8: '32px',
+        };
+
+        const borderRadius = {
+            base: '8px',
+            md: '12px',
+            lg: '16px',
+        };
+
+        const shadows = {
+            base: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            lg: '0 12px 24px rgba(0, 0, 0, 0.12)',
+            md: '0 8px 20px rgba(0, 0, 0, 0.15)',
+        };
+
+        // ========== Button 组件 ==========
+        const Button = ({ children, variant = 'primary', size = 'medium', block = false, disabled = false, loading = false, onClick }) => {
+            const baseStyle = {
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing[2],
+                border: 'none',
+                cursor: disabled || loading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease',
+                fontWeight: typography.fontWeight.semibold,
+                textDecoration: 'none',
+                userSelect: 'none',
+                opacity: disabled || loading ? 0.6 : 1,
+                width: block ? '100%' : 'auto',
+            };
+
+            const sizeStyles = {
+                small: {
+                    padding: `${spacing[2]} ${spacing[4]}`,
+                    fontSize: typography.fontSize.sm,
+                    borderRadius: borderRadius.base,
+                    minHeight: '32px',
+                },
+                medium: {
+                    padding: `${spacing[3]} ${spacing[6]}`,
+                    fontSize: typography.fontSize.base,
+                    borderRadius: borderRadius.md,
+                    minHeight: '40px',
+                },
+                large: {
+                    padding: `${spacing[4]} ${spacing[8]}`,
+                    fontSize: typography.fontSize.lg,
+                    borderRadius: borderRadius.md,
+                    minHeight: '48px',
+                },
+            };
+
+            const variantStyles = {
+                primary: {
+                    background: colors.primary,
+                    color: colors.white,
+                },
+                secondary: {
+                    background: colors.secondary,
+                    color: colors.white,
+                },
+                outline: {
+                    background: 'transparent',
+                    color: colors.primary,
+                    border: `2px solid ${colors.gray[200]}`,
+                },
+                text: {
+                    background: 'transparent',
+                    color: colors.primary,
+                },
+            };
+
+            const buttonStyle = {
+                ...baseStyle,
+                ...sizeStyles[size],
+                ...variantStyles[variant],
+            };
+
+            const handleClick = (e) => {
+                if (disabled || loading) {
+                    e.preventDefault();
+                    return;
+                }
+                onClick?.(e);
+            };
+
+            const hoverClass = `button-hover-${variant}`;
+
+            return (
+                <button
+                    style={buttonStyle}
+                    className={hoverClass}
+                    onClick={handleClick}
+                    disabled={disabled || loading}
+                >
+                    {loading && <span>⏳</span>}
+                    {children}
+                </button>
+            );
+        };
+
+        // ========== ProductCard 组件 ==========
+        const ProductCard = ({ id, name, price, colorTheme = 'default', icon = '👕', onClick }) => {
+            const getBackground = () => {
+                if (colorTheme === 'black') return colors.gradients.productBlack;
+                if (colorTheme === 'pink') return colors.gradients.productPink;
+                return 'linear-gradient(135deg, #e0e7ff 0%, #f0e7ff 100%)';
+            };
+
+            const cardStyle = {
+                background: colors.gray[50],
+                borderRadius: borderRadius.lg,
+                overflow: 'hidden',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+            };
+
+            const imageStyle = {
+                width: '100%',
+                height: '240px',
+                background: getBackground(),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '64px',
+            };
+
+            const infoStyle = {
+                padding: spacing[4],
+            };
+
+            const nameStyle = {
+                fontSize: typography.fontSize.base,
+                color: colors.text.secondary,
+                marginBottom: spacing[2],
+            };
+
+            const priceStyle = {
+                fontSize: typography.fontSize.lg,
+                fontWeight: typography.fontWeight.bold,
+                color: colors.text.primary,
+            };
+
+            return (
+                <div
+                    className="product-card-hover"
+                    style={cardStyle}
+                    onClick={() => onClick?.(id)}
+                >
+                    <div style={imageStyle}>{icon}</div>
+                    <div style={infoStyle}>
+                        <div style={nameStyle}>{name}</div>
+                        <div style={priceStyle}>${price}</div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ========== SearchBar 组件 ==========
+        const SearchBar = ({ placeholder = 'Search clothes...', value, onChange, onSearch }) => {
+            const [internalValue, setInternalValue] = useState('');
+            const currentValue = value !== undefined ? value : internalValue;
+
+            const containerStyle = {
+                position: 'relative',
+                width: '100%',
+            };
+
+            const inputStyle = {
+                width: '100%',
+                padding: `${spacing[3]} ${spacing[12]} ${spacing[3]} ${spacing[5]}`,
+                border: `1px solid ${colors.gray[200]}`,
+                borderRadius: borderRadius.md,
+                fontSize: typography.fontSize.base,
+                background: colors.gray[50],
+                transition: 'all 0.3s ease',
+                outline: 'none',
+            };
+
+            const iconStyle = {
+                position: 'absolute',
+                left: spacing[4],
+                top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: typography.fontSize.lg,
+                pointerEvents: 'none',
+            };
+
+            const handleChange = (e) => {
+                const newValue = e.target.value;
+                if (value === undefined) {
+                    setInternalValue(newValue);
+                }
+                onChange?.(newValue);
+            };
+
+            const handleKeyDown = (e) => {
+                if (e.key === 'Enter') {
+                    onSearch?.(currentValue);
+                }
+            };
+
+            return (
+                <div style={containerStyle}>
+                    <span style={iconStyle}>🔍</span>
+                    <input
+                        type="text"
+                        className="search-bar-input"
+                        style={inputStyle}
+                        placeholder={placeholder}
+                        value={currentValue}
+                        onChange={handleChange}
+                        onKeyDown={handleKeyDown}
+                    />
+                </div>
+            );
+        };
+
+        // ========== 演示页面 ==========
+        const Demo = () => {
+            const [searchValue, setSearchValue] = useState('');
+            const [selectedProduct, setSelectedProduct] = useState(null);
+
+            const products = [
+                { id: 1, name: 'Black Crew Neck T-shirt', price: 100, colorTheme: 'black' },
+                { id: 2, name: 'Black Crew Neck T-shirt', price: 100, colorTheme: 'black' },
+                { id: 3, name: 'Pink Crew Neck T-shirt', price: 100, colorTheme: 'pink' },
+                { id: 4, name: 'Pink Crew Neck T-shirt', price: 100, colorTheme: 'pink' },
+            ];
+
+            const pageStyle = {
+                minHeight: '100vh',
+                background: colors.gray[50],
+                padding: spacing[8],
+            };
+
+            const containerStyle = {
+                maxWidth: '1200px',
+                margin: '0 auto',
+            };
+
+            const titleStyle = {
+                fontSize: typography.fontSize['4xl'],
+                fontWeight: typography.fontWeight.bold,
+                color: colors.text.primary,
+                marginBottom: spacing[8],
+                textAlign: 'center',
+            };
+
+            const sectionStyle = {
+                background: colors.white,
+                padding: spacing[8],
+                borderRadius: borderRadius.lg,
+                marginBottom: spacing[6],
+                boxShadow: shadows.base,
+            };
+
+            const sectionTitleStyle = {
+                fontSize: typography.fontSize['2xl'],
+                fontWeight: typography.fontWeight.semibold,
+                color: colors.text.primary,
+                marginBottom: spacing[6],
+            };
+
+            const gridStyle = {
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                gap: spacing[5],
+            };
+
+            const buttonGroupStyle = {
+                display: 'flex',
+                gap: spacing[4],
+                flexWrap: 'wrap',
+            };
+
+            const statsBoxStyle = {
+                background: '#fff3cd',
+                padding: spacing[6],
+                borderRadius: borderRadius.md,
+                borderLeft: '4px solid #faad14',
+                marginTop: spacing[6],
+            };
+
+            return (
+                <div style={pageStyle}>
+                    <style>{`
+                        .button-hover-primary:hover:not(:disabled) {
+                            background: ${colors.primaryHover};
+                            transform: translateY(-2px);
+                            box-shadow: ${shadows.md};
+                        }
+                        .button-hover-secondary:hover:not(:disabled) {
+                            background: #096dd9;
+                            transform: translateY(-2px);
+                            box-shadow: ${shadows.md};
+                        }
+                        .button-hover-outline:hover:not(:disabled) {
+                            border-color: ${colors.secondary};
+                            color: ${colors.secondary};
+                            background: rgba(24, 144, 255, 0.05);
+                        }
+                        .button-hover-text:hover:not(:disabled) {
+                            background: ${colors.gray[50]};
+                        }
+                        .product-card-hover:hover {
+                            transform: translateY(-6px);
+                            box-shadow: ${shadows.lg};
+                        }
+                        .search-bar-input:focus {
+                            border-color: ${colors.secondary};
+                            background: ${colors.white};
+                            box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
+                        }
+                    `}</style>
+
+                    <div style={containerStyle}>
+                        <h1 style={titleStyle}>🎨 React 组件库演示</h1>
+
+                        {/* SearchBar 演示 */}
+                        <div style={sectionStyle}>
+                            <h2 style={sectionTitleStyle}>1. SearchBar 组件</h2>
+                            <SearchBar
+                                placeholder="Search clothes..."
+                                value={searchValue}
+                                onChange={setSearchValue}
+                                onSearch={(value) => alert(`搜索: ${value}`)}
+                            />
+                            {searchValue && (
+                                <p style={{ marginTop: spacing[4], color: colors.text.secondary }}>
+                                    当前输入: {searchValue}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Button 演示 */}
+                        <div style={sectionStyle}>
+                            <h2 style={sectionTitleStyle}>2. Button 组件</h2>
+
+                            <p style={{ color: colors.text.secondary, marginBottom: spacing[4] }}>
+                                不同样式：
+                            </p>
+                            <div style={buttonGroupStyle}>
+                                <Button variant="primary" onClick={() => alert('Primary clicked!')}>
+                                    Primary Button
+                                </Button>
+                                <Button variant="secondary">Secondary Button</Button>
+                                <Button variant="outline">Outline Button</Button>
+                                <Button variant="text">Text Button</Button>
+                            </div>
+
+                            <p style={{ color: colors.text.secondary, marginBottom: spacing[4], marginTop: spacing[6] }}>
+                                不同尺寸：
+                            </p>
+                            <div style={buttonGroupStyle}>
+                                <Button size="small">Small</Button>
+                                <Button size="medium">Medium</Button>
+                                <Button size="large">Large</Button>
+                            </div>
+
+                            <p style={{ color: colors.text.secondary, marginBottom: spacing[4], marginTop: spacing[6] }}>
+                                特殊状态：
+                            </p>
+                            <div style={buttonGroupStyle}>
+                                <Button loading>Loading...</Button>
+                                <Button disabled>Disabled</Button>
+                                <Button block>Block Button (100% width)</Button>
+                            </div>
+                        </div>
+
+                        {/* ProductCard 演示 */}
+                        <div style={sectionStyle}>
+                            <h2 style={sectionTitleStyle}>3. ProductCard 组件</h2>
+                            <div style={gridStyle}>
+                                {products.map((product) => (
+                                    <ProductCard
+                                        key={product.id}
+                                        id={product.id}
+                                        name={product.name}
+                                        price={product.price}
+                                        colorTheme={product.colorTheme}
+                                        icon="👕"
+                                        onClick={(id) => {
+                                            setSelectedProduct(id);
+                                            alert(`选择了商品 ID: ${id}`);
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                            {selectedProduct && (
+                                <p style={{ marginTop: spacing[4], color: colors.secondary, fontWeight: typography.fontWeight.medium }}>
+                                    ✓ 已选择商品 ID: {selectedProduct}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* 学习总结 */}
+                        <div style={statsBoxStyle}>
+                            <h3 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold, color: '#d46b08', marginBottom: spacing[4] }}>
+                                📚 React 组件演示说明
+                            </h3>
+                            <ul style={{ listStyle: 'none', padding: 0, color: colors.text.primary, margin: 0 }}>
+                                <li style={{ marginBottom: spacing[3], lineHeight: 1.6 }}>
+                                    ✅ 本页面使用 React 18 + Babel Standalone CDN
+                                </li>
+                                <li style={{ marginBottom: spacing[3], lineHeight: 1.6 }}>
+                                    ✅ 所有组件完全复刻自 TypeScript 版本
+                                </li>
+                                <li style={{ marginBottom: spacing[3], lineHeight: 1.6 }}>
+                                    ✅ 包含完整的交互功能和动画效果
+                                </li>
+                                <li style={{ marginBottom: spacing[3], lineHeight: 1.6 }}>
+                                    ✅ 使用设计 Token 统一管理样式
+                                </li>
+                                <li style={{ marginBottom: spacing[3], lineHeight: 1.6 }}>
+                                    ✅ 可直接在浏览器中查看，无需构建
+                                </li>
+                                <li style={{ lineHeight: 1.6 }}>
+                                    💡 生产环境请使用 TypeScript 版本（/src/components/FigmaPractice/）
+                                </li>
+                            </ul>
+                        </div>
+
+                        {/* 代码示例 */}
+                        <div style={sectionStyle}>
+                            <h2 style={sectionTitleStyle}>4. 使用示例</h2>
+                            <pre style={{
+                                background: colors.gray[50],
+                                padding: spacing[4],
+                                borderRadius: borderRadius.base,
+                                overflowX: 'auto',
+                                fontSize: typography.fontSize.sm,
+                                color: colors.gray[700],
+                            }}>
+{`// 在 TypeScript 项目中使用
+import { Button, ProductCard, SearchBar } from '@/components/FigmaPractice';
+
+function MyComponent() {
+  const [search, setSearch] = useState('');
+
+  return (
+    <div>
+      <SearchBar
+        value={search}
+        onChange={setSearch}
+      />
+
+      <ProductCard
+        id={1}
+        name="Product Name"
+        price={99}
+        colorTheme="black"
+      />
+
+      <Button variant="primary">
+        Add to Cart
+      </Button>
+    </div>
+  );
+}`}
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ========== 渲染应用 ==========
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Demo />);
+    </script>
+</body>
+</html>

@@ -171,9 +171,9 @@ build_frontend_local() {
     # 清理旧文件
     rm -rf build
 
-    # 构建生产版本
-    log_info "构建中... (npm run build)"
-    CI=false npm run build
+    # 构建生产版本（显式设置生产环境）
+    log_info "构建中... (NODE_ENV=production npm run build)"
+    NODE_ENV=production CI=false npm run build
 
     if [ $? -ne 0 ] || [ ! -d build ]; then
         log_error "构建失败"

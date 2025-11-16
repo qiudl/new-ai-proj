@@ -1,0 +1,271 @@
+/**
+ * Design Tokens - CSS Custom Properties
+ * 从 Figma Clothes Store UI 提取的设计规范
+ *
+ * 用途：在 CSS 中使用设计变量
+ * 示例：background: var(--color-primary);
+ *
+ * 生成自：designTokens.ts
+ * 创建时间：2025-11-16
+ */
+
+:root {
+  /* ========== 颜色系统 ========== */
+
+  /* 主色调 */
+  --color-primary: #333333;
+  --color-primary-hover: #000000;
+  --color-secondary: #1890ff;
+
+  /* 商品色 */
+  --color-product-black-start: #2c3e50;
+  --color-product-black-end: #34495e;
+  --color-product-pink-start: #fda085;
+  --color-product-pink-end: #f6d365;
+
+  /* 渐变色 */
+  --gradient-promotion: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-product-black: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  --gradient-product-pink: linear-gradient(135deg, #fda085 0%, #f6d365 100%);
+  --gradient-card-background: linear-gradient(135deg, #e0e7ff 0%, #f0e7ff 100%);
+
+  /* 中性色 */
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-gray-50: #f8f9fa;
+  --color-gray-100: #f0f0f0;
+  --color-gray-200: #e0e0e0;
+  --color-gray-300: #dddddd;
+  --color-gray-400: #999999;
+  --color-gray-500: #666666;
+  --color-gray-600: #595959;
+  --color-gray-700: #333333;
+  --color-gray-800: #24292e;
+
+  /* 背景色 */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8f9fa;
+  --color-bg-detail: #f0f4f8;
+
+  /* 文字颜色 */
+  --color-text-primary: #333333;
+  --color-text-secondary: #666666;
+  --color-text-tertiary: #999999;
+  --color-text-white: #ffffff;
+
+  /* 状态色 */
+  --color-success: #52c41a;
+  --color-warning: #faad14;
+  --color-error: #ff4d4f;
+  --color-info: #1890ff;
+
+  /* ========== 字体系统 ========== */
+
+  /* 字体家族 */
+  --font-family-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  --font-family-mono: 'Monaco', 'Menlo', 'Courier New', monospace;
+
+  /* 字号 */
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 28px;
+  --font-size-4xl: 32px;
+  --font-size-5xl: 36px;
+
+  /* 字重 */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* 行高 */
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+  --line-height-loose: 1.8;
+
+  /* ========== 间距系统 ========== */
+
+  /* 基于 4px 网格的间距 */
+  --spacing-0: 0;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-7: 28px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-20: 80px;
+
+  /* ========== 圆角系统 ========== */
+
+  --border-radius-none: 0;
+  --border-radius-sm: 6px;
+  --border-radius-base: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 24px;
+  --border-radius-full: 50%;
+  --border-radius-circle: 50%;
+
+  /* ========== 阴影系统 ========== */
+
+  --shadow-none: none;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-base: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.2);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-focus: 0 0 0 3px rgba(24, 144, 255, 0.2);
+
+  /* ========== 断点系统 ========== */
+
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  /* ========== 过渡动画 ========== */
+
+  /* 持续时间 */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+
+  /* 缓动函数 */
+  --easing-linear: linear;
+  --easing-ease: ease;
+  --easing-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --easing-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --easing-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* 常用组合 */
+  --transition-default: all 0.3s ease;
+  --transition-fast: all 0.15s ease;
+  --transition-slow: all 0.5s ease;
+
+  /* ========== Z-Index 层级 ========== */
+
+  --z-index-base: 0;
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+  --z-index-notification: 1080;
+}
+
+/* ========== 深色主题 ========== */
+[data-theme="dark"] {
+  /* 主色调（深色模式下稍微调亮） */
+  --color-primary: #4a4a4a;
+  --color-primary-hover: #666666;
+  --color-secondary: #40a9ff;
+
+  /* 中性色（反转） */
+  --color-white: #1a1a1a;
+  --color-black: #ffffff;
+  --color-gray-50: #24292e;
+  --color-gray-100: #2d333b;
+  --color-gray-200: #373e47;
+  --color-gray-300: #444c56;
+  --color-gray-400: #768390;
+  --color-gray-500: #adbac7;
+  --color-gray-600: #cdd9e5;
+  --color-gray-700: #dee6ed;
+  --color-gray-800: #ecf2f8;
+
+  /* 背景色 */
+  --color-bg-primary: #0d1117;
+  --color-bg-secondary: #161b22;
+  --color-bg-detail: #1c2128;
+
+  /* 文字颜色 */
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #adbac7;
+  --color-text-tertiary: #768390;
+  --color-text-white: #0d1117;
+
+  /* 渐变色（深色模式调整） */
+  --gradient-product-black: linear-gradient(135deg, #1a2332 0%, #22303f 100%);
+  --gradient-product-pink: linear-gradient(135deg, #c8806b 0%, #c4a84f 100%);
+  --gradient-card-background: linear-gradient(135deg, #2a3447 0%, #3a2f47 100%);
+
+  /* 阴影（深色模式增强对比） */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-base: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ========== 实用工具类 ========== */
+
+/* 间距工具类 */
+.p-0 { padding: var(--spacing-0); }
+.p-1 { padding: var(--spacing-1); }
+.p-2 { padding: var(--spacing-2); }
+.p-3 { padding: var(--spacing-3); }
+.p-4 { padding: var(--spacing-4); }
+.p-5 { padding: var(--spacing-5); }
+.p-6 { padding: var(--spacing-6); }
+.p-8 { padding: var(--spacing-8); }
+
+.m-0 { margin: var(--spacing-0); }
+.m-1 { margin: var(--spacing-1); }
+.m-2 { margin: var(--spacing-2); }
+.m-3 { margin: var(--spacing-3); }
+.m-4 { margin: var(--spacing-4); }
+.m-6 { margin: var(--spacing-6); }
+.m-8 { margin: var(--spacing-8); }
+
+/* 文字工具类 */
+.text-xs { font-size: var(--font-size-xs); }
+.text-sm { font-size: var(--font-size-sm); }
+.text-base { font-size: var(--font-size-base); }
+.text-lg { font-size: var(--font-size-lg); }
+.text-xl { font-size: var(--font-size-xl); }
+.text-2xl { font-size: var(--font-size-2xl); }
+
+.font-normal { font-weight: var(--font-weight-normal); }
+.font-medium { font-weight: var(--font-weight-medium); }
+.font-semibold { font-weight: var(--font-weight-semibold); }
+.font-bold { font-weight: var(--font-weight-bold); }
+
+/* 圆角工具类 */
+.rounded-none { border-radius: var(--border-radius-none); }
+.rounded-sm { border-radius: var(--border-radius-sm); }
+.rounded { border-radius: var(--border-radius-base); }
+.rounded-md { border-radius: var(--border-radius-md); }
+.rounded-lg { border-radius: var(--border-radius-lg); }
+.rounded-xl { border-radius: var(--border-radius-xl); }
+.rounded-full { border-radius: var(--border-radius-full); }
+
+/* 阴影工具类 */
+.shadow-none { box-shadow: var(--shadow-none); }
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow { box-shadow: var(--shadow-base); }
+.shadow-md { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+.shadow-xl { box-shadow: var(--shadow-xl); }
+
+/* 过渡工具类 */
+.transition { transition: var(--transition-default); }
+.transition-fast { transition: var(--transition-fast); }
+.transition-slow { transition: var(--transition-slow); }

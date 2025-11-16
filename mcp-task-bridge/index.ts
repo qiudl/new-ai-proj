@@ -1741,12 +1741,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           break;
         }
 
-        result = await taskServer.createAndAttachTaskDocument(
-          taskId as number,
-          content as string,
-          projectId as number,
-          title as string
-        );
+        // 使用curl绕过认证问题（与create_task保持一致）
+        const payload: any = {
+          taskId: taskId,
+          content: content
+        };
+
+        if (projectId && projectId !== 1) {
+          payload.projectId = projectId;
+        }
+
+        if (title) {
+          payload.title = title;
+        }
+
+        result = await curlApiCall('POST', '/mcp/create-and-attach', payload);
         break;
       }
 
@@ -1895,7 +1904,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const taskId = args.taskId as number;
         const content = args.content as string;
         const title = args.title as string | undefined;
-        const projectId = args.projectId as number | undefined;
 
         if (!taskId) {
           result = { success: false, error: '缺少必要参数：taskId' };
