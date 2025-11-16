@@ -60,6 +60,7 @@ const BulkImportPage = React.lazy(() => import('./pages/BulkImportPage'));
 const RecycleBinPage = React.lazy(() => import('./pages/RecycleBinPage'));
 const AuditLogPage = React.lazy(() => import('./pages/AuditLogPage'));
 const UserProfilePage = React.lazy(() => import('./pages/UserProfilePage'));
+const ChangePasswordPage = React.lazy(() => import('./pages/ChangePasswordPage'));
 // ✅ FIXED - Commented out unused lazy-loaded pages (ESLint)
 // const PermissionManagementPage = React.lazy(() => import('./pages/PermissionManagementPage'));
 // const EnhancedPermissionManagementPage = React.lazy(() => import('./pages/EnhancedPermissionManagementPage'));
@@ -77,6 +78,7 @@ const NavigationManagementPage = React.lazy(() => import('./pages/NavigationMana
 const APIKeyManagement = React.lazy(() => import('./components/APIKeyManagement'));
 const APIKeyDetail = React.lazy(() => import('./components/APIKeyDetail'));
 const APIKeyEdit = React.lazy(() => import('./components/APIKeyEdit'));
+const FigmaIntegrationPage = React.lazy(() => import('./pages/FigmaIntegrationPage'));
 
 // Enterprise Organization Management Pages
 const EnterpriseManagementPage = React.lazy(() => import('./pages/EnterpriseManagementPage'));
@@ -353,6 +355,10 @@ const AppContent: React.FC = () => {
                   </PermissionRoute>
                 } />
 
+                <Route path="/change-password" element={
+                  <ChangePasswordPage />
+                } />
+
                 {/* Enterprise management routes */}
                 <Route path="/enterprises" element={<EnterpriseManagementPage />} />
                 <Route path="/enterprises/create" element={<EnterpriseCreatePage />} />
@@ -507,6 +513,13 @@ const AppContent: React.FC = () => {
                 <Route path="/api-keys/:id/edit" element={
                   <PermissionRoute permission={API_KEY_PERMISSIONS.UPDATE}>
                     <APIKeyEdit />
+                  </PermissionRoute>
+                } />
+
+                {/* Integrations - Figma */}
+                <Route path="/integrations/figma" element={
+                  <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
+                    <FigmaIntegrationPage />
                   </PermissionRoute>
                 } />
 

@@ -19,6 +19,18 @@ func RegisterAuthRoutes(api *gin.RouterGroup, app ApplicationInterface) *gin.Rou
 		auth.POST("/logout", authHandler.Logout)
 		auth.POST("/refresh", authHandler.RefreshToken)
 
+		// 密码强度验证（公开路由，无需认证）
+		passwordHandler := app.GetPasswordHandler()
+		auth.POST("/validate-password", passwordHandler.ValidatePasswordStrength)
+
+		// 密码重置路由（公开路由，无需认证）
+		passwordResetHandler := app.GetPasswordResetHandler()
+		if passwordResetHandler != nil {
+			auth.POST("/forgot-password", passwordResetHandler.ForgotPassword)
+			auth.POST("/verify-reset-token", passwordResetHandler.VerifyResetToken)
+			auth.POST("/reset-password", passwordResetHandler.ResetPassword)
+		}
+
 		// Development-only 快速登录
 		auth.POST("/dev-quick-login", authHandler.DevQuickLogin)
 		auth.POST("/dev/quick-login", authHandler.DevQuickLogin) // 兼容两种路径

@@ -12,6 +12,7 @@ import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -136,7 +137,7 @@ fun NotesScreen(
                         IconButton(onClick = { isGridView = !isGridView }) {
                             Icon(
                                 imageVector = if (isGridView) {
-                                    Icons.Default.ViewList
+                                    Icons.AutoMirrored.Filled.ViewList
                                 } else {
                                     Icons.Default.GridView
                                 },
@@ -488,7 +489,7 @@ fun NotesScreen(
                 ) {
                     ListItem(
                         headlineContent = { Text("移动") },
-                        leadingContent = { Icon(Icons.Default.DriveFileMove, null) }
+                        leadingContent = { Icon(Icons.AutoMirrored.Filled.DriveFileMove, null) }
                     )
                 }
 

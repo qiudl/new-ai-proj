@@ -477,7 +477,7 @@ fun TaskDetailContent(
                         enabled = commentText.isNotBlank()
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Send,
+                            imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = "发送评论",
                             tint = if (commentText.isNotBlank()) {
                                 MaterialTheme.colorScheme.primary

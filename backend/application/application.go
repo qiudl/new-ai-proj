@@ -80,9 +80,10 @@ type Application struct {
 	skuHandler               *handlers.SKUHandler               // SKU handler instance
 	inventoryHandler         *handlers.InventoryHandler         // Inventory handler instance
 	// MCP Dev Plans Handler
-	mcpDevPlansHandler       *handlers.MCPDevPlansHandler       // MCP Dev Plans document sync handler
-	devPlansExportService    *services.DevPlansExportService    // Dev Plans export service
-	mirrorWritable           bool
+  mcpDevPlansHandler       *handlers.MCPDevPlansHandler       // MCP Dev Plans document sync handler
+  devPlansExportService    *services.DevPlansExportService    // Dev Plans export service
+  figmaHandler             *handlers.FigmaHandler             // Figma integration handler
+  mirrorWritable           bool
 }
 
 // NewApplication creates a new application instance
@@ -361,8 +362,11 @@ func NewApplication() (*Application, error) {
 	// Initialize MCP Dev Plans Handler
 	devPlansDir := filepath.Join("docs", "dev-plans")
 	devPlansExportService := services.NewDevPlansExportService(devPlansDir)
-	mcpDevPlansHandler := handlers.NewMCPDevPlansHandler(db, logger, devPlansExportService)
-	logger.Println("✅ MCP Dev Plans handler initialized")
+  mcpDevPlansHandler := handlers.NewMCPDevPlansHandler(db, logger, devPlansExportService)
+  logger.Println("✅ MCP Dev Plans handler initialized")
+
+  // Initialize Figma Handler (reads token from environment)
+  figmaHandler := handlers.NewFigmaHandler()
 
 	// Initialize WebSocket Hub (temporarily disabled)
 	// wsHub := ws.NewHub(logger)
@@ -379,7 +383,7 @@ func NewApplication() (*Application, error) {
 	// 	go progressPusher.StartRedisSubscriber(context.Background())
 	// }
 
-	app := &Application{
+  app := &Application{
 		config:         cfg,
 		db:             db,
 		logger:         logger,
@@ -430,9 +434,10 @@ func NewApplication() (*Application, error) {
 		skuHandler:               skuHandler,               // SKU handler
 		inventoryHandler:         inventoryHandler,         // Inventory handler
 		// MCP Dev Plans Handler
-		devPlansExportService:    devPlansExportService,    // Dev Plans export service
-		mcpDevPlansHandler:       mcpDevPlansHandler,       // MCP Dev Plans handler
-	}
+    devPlansExportService:    devPlansExportService,    // Dev Plans export service
+    mcpDevPlansHandler:       mcpDevPlansHandler,       // MCP Dev Plans handler
+    figmaHandler:             figmaHandler,             // Figma integration handler
+  }
 
 	// Perform startup permission/volume checks
 	app.mirrorWritable = app.checkMirrorWritable()
@@ -568,6 +573,14 @@ func (app *Application) GetUserManagementHandler() *handlers.UserManagementHandl
 	projectRepo := database.NewPostgresProjectRepository(app.db.(*database.PostgresDB).DB())
 	auditRepo := database.NewAuditRepository(app.db.(*database.PostgresDB).DB())
 	return handlers.NewUserManagementHandler(userRepo, projectRepo, auditRepo)
+}
+
+// GetPasswordHandler returns the password handler
+func (app *Application) GetPasswordHandler() *handlers.PasswordHandler {
+	userRepo := database.NewUserManagementRepository(app.db.(*database.PostgresDB).DB())
+	auditRepo := database.NewAuditRepository(app.db.(*database.PostgresDB).DB())
+	passwordHistoryService := services.NewPasswordHistoryService(app.db.(*database.PostgresDB).DB())
+	return handlers.NewPasswordHandler(userRepo, auditRepo, passwordHistoryService)
 }
 
 // GetUserEnterpriseHandler returns the user enterprise handler
@@ -1137,5 +1150,10 @@ func (app *Application) GetEnterpriseRoleHandler() *handlers.EnterpriseRoleHandl
 
 // GetMCPDevPlansHandler returns the MCP Dev Plans handler
 func (app *Application) GetMCPDevPlansHandler() *handlers.MCPDevPlansHandler {
-	return app.mcpDevPlansHandler
+  return app.mcpDevPlansHandler
+}
+
+// GetFigmaHandler returns the Figma integration handler
+func (app *Application) GetFigmaHandler() *handlers.FigmaHandler {
+  return app.figmaHandler
 }

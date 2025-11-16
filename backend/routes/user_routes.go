@@ -11,6 +11,7 @@ func RegisterUserRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	userProfileHandler := app.GetUserProfileHandler()
 	userManagementHandler := app.GetUserManagementHandler()
 	userEnterpriseHandler := app.GetUserEnterpriseHandler()
+	passwordHandler := app.GetPasswordHandler()
 
 	// 用户资料路由 - 已经通过authorized组应用了JWT中间件，不需要重复应用
 	users := authorized.Group("/users")
@@ -18,7 +19,8 @@ func RegisterUserRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	{
 		users.GET("/profile", userProfileHandler.GetUserProfile)
 		users.PUT("/profile", userProfileHandler.UpdateUserProfile)
-		users.POST("/change-password", userProfileHandler.ChangePassword)
+		users.POST("/change-password", passwordHandler.ChangePassword) // 使用新的PasswordHandler
+		users.POST("/me/change-password", passwordHandler.ChangePassword) // 更直观的路径
 		users.POST("/upload-avatar", userProfileHandler.UploadAvatar)
 		users.GET("/statistics", userProfileHandler.GetUserStatistics)
 

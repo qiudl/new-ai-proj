@@ -5,6 +5,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -151,7 +152,7 @@ fun NoteCard(
 
 private fun getNoteTypeIcon(type: WorkNoteType): ImageVector = when (type) {
     WorkNoteType.GENERAL -> Icons.Default.Description
-    WorkNoteType.MARKDOWN -> Icons.Default.Article
+    WorkNoteType.MARKDOWN -> Icons.AutoMirrored.Filled.Article
     WorkNoteType.TEXT -> Icons.Default.Description
     WorkNoteType.HTML -> Icons.Default.Code
     WorkNoteType.RESEARCH -> Icons.Default.Search

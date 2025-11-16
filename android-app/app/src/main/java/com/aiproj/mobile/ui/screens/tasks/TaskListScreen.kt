@@ -10,10 +10,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -36,7 +38,7 @@ private const val TAG = "TaskListScreen"
 /**
  * 任务列表页面 (使用Paging 3)
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material.ExperimentalMaterialApi::class)
 @Composable
 fun TaskListScreen(
     onTaskClick: (Int) -> Unit,
@@ -364,10 +366,20 @@ fun TaskListScreen(
                 }
 
             // 任务列表 (使用Paging 3)
-            SwipeRefresh(
-                state = rememberSwipeRefreshState(isRefreshing),
+            val pullRefreshState = rememberPullRefreshState(
+                refreshing = isRefreshing,
                 onRefresh = { tasksPagingItems.refresh() }
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pullRefresh(pullRefreshState)
             ) {
+                PullRefreshIndicator(
+                    refreshing = isRefreshing,
+                    state = pullRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter).zIndex(1f)
+                )
                 when {
                     // 初始加载中
                     tasksPagingItems.loadState.refresh is LoadState.Loading && tasksPagingItems.itemCount == 0 -> {
@@ -963,7 +975,7 @@ fun TaskIdSearchResultCard(
                 Text("跳转到任务详情")
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
-                    Icons.Default.ArrowForward,
+                    Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )

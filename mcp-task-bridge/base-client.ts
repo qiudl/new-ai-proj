@@ -65,11 +65,12 @@ export abstract class BaseClient {
     //   console.error('[BASE_CLIENT] 加载持久化Token失败:', error);
     // });
 
-    // 强制使用有效的硬编码token（绕过所有环境变量和文件读取）
-    const VALID_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NjM4MTE4NTUsIm5iZiI6MTc2MzIwNzA1NSwiaWF0IjoxNzYzMjA3MDU1LCJqdGkiOiI2NDA4ZmZjYmEzN2NmM2Q0YTY4MDczMjIyMDQzNDcwMiJ9.56H29ejPKX5qm0cxsiKtAiOZvYCKWLJv1W5qSCKCJAE';
+    // 从环境变量读取token，如果不存在则使用备用token
+    const envToken = process.env.TASK_API_TOKEN || process.env.API_TOKEN;
+    const FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NjM4MjA4ODcsIm5iZiI6MTc2MzIxNjA4NywiaWF0IjoxNzYzMjE2MDg3LCJqdGkiOiJkODUxYWI3OGY1ZDcxNWE3ODUzYzAzZjNlYWFiMDJiMCJ9.SCaYu-MQvr9ha0qB1DUDDIHYaabkRNOlijgAcQJr4Co';
 
-    this.authToken = VALID_TOKEN;
-    console.error('[BASE_CLIENT] Using hardcoded VALID_TOKEN, length:', this.authToken.length);
+    this.authToken = envToken || FALLBACK_TOKEN;
+    console.error('[BASE_CLIENT] Using token from:', envToken ? 'environment variable' : 'fallback', 'length:', this.authToken.length);
 
     // 创建用户上下文
     this.initializeContextFromToken(this.authToken);
@@ -127,7 +128,7 @@ export abstract class BaseClient {
 
       // 强制添加Authorization header（调试用）
       if (!headers['Authorization'] && !headers['X-API-Key']) {
-        const FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NjM4MTE4NTUsIm5iZiI6MTc2MzIwNzA1NSwiaWF0IjoxNzYzMjA3MDU1LCJqdGkiOiI2NDA4ZmZjYmEzN2NmM2Q0YTY4MDczMjIyMDQzNDcwMiJ9.56H29ejPKX5qm0cxsiKtAiOZvYCKWLJv1W5qSCKCJAE';
+        const FALLBACK_TOKEN = process.env.TASK_API_TOKEN || process.env.API_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NjM4MjA4ODcsIm5iZiI6MTc2MzIxNjA4NywiaWF0IjoxNzYzMjE2MDg3LCJqdGkiOiJkODUxYWI3OGY1ZDcxNWE3ODUzYzAzZjNlYWFiMDJiMCJ9.SCaYu-MQvr9ha0qB1DUDDIHYaabkRNOlijgAcQJr4Co';
         headers['Authorization'] = `Bearer ${FALLBACK_TOKEN}`;
         console.error('[MAKE_REQUEST] Using FALLBACK_TOKEN because no auth header was set');
       }

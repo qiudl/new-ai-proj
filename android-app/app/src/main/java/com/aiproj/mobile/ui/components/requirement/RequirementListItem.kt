@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -212,7 +213,7 @@ fun RequirementListItem(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Comment,
+                                imageVector = Icons.AutoMirrored.Filled.Comment,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -259,7 +260,7 @@ private fun getPriorityColor(priority: RequirementPriority): Color = when (prior
 private fun getCategoryIcon(category: RequirementCategory?): ImageVector = when (category) {
     RequirementCategory.FEATURE -> Icons.Default.StarRate
     RequirementCategory.BUG -> Icons.Default.BugReport
-    RequirementCategory.IMPROVEMENT -> Icons.Default.TrendingUp
+    RequirementCategory.IMPROVEMENT -> Icons.AutoMirrored.Filled.TrendingUp
     RequirementCategory.DOCUMENTATION -> Icons.Default.Description
     RequirementCategory.OTHER -> Icons.Default.MoreHoriz
     null -> Icons.Default.MoreHoriz  // 默认图标

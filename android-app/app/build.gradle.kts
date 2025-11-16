@@ -166,7 +166,6 @@ dependencies {
     // ErrorProne annotations (required by Tink/security-crypto)
     implementation("com.google.errorprone:error_prone_annotations:2.23.0")
     implementation("io.coil-kt:coil-compose:2.5.0")
-    implementation("com.google.accompanist:accompanist-swiperefresh:0.32.0")
     implementation("androidx.core:core-splashscreen:1.0.1")
 
     // Vico Charts - Jetpack Compose native chart library

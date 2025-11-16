@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -15,8 +16,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.aiproj.mobile.data.models.*
 import com.aiproj.mobile.ui.components.requirement.RequirementListItem
 import com.aiproj.mobile.ui.screens.requirement.components.RequirementFilterDrawer
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import kotlinx.coroutines.launch
 
 /**
@@ -34,7 +36,7 @@ import kotlinx.coroutines.launch
  * @param onCreateRequirement 创建需求回调
  * @param viewModel ViewModel
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material.ExperimentalMaterialApi::class)
 @Composable
 fun RequirementListScreen(
     onRequirementClick: (Int) -> Unit,
@@ -165,13 +167,21 @@ fun RequirementListScreen(
             }
         }
     ) { paddingValues ->
-        SwipeRefresh(
-            state = rememberSwipeRefreshState(uiState.isLoading),
-            onRefresh = { viewModel.refreshRequirements() },
+        val pullRefreshState = rememberPullRefreshState(
+            refreshing = uiState.isLoading,
+            onRefresh = { viewModel.refreshRequirements() }
+        )
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .pullRefresh(pullRefreshState)
         ) {
+            PullRefreshIndicator(
+                refreshing = uiState.isLoading,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter).zIndex(1f)
+            )
             when {
                 uiState.error != null -> {
                     ErrorState(

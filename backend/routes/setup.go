@@ -198,8 +198,8 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册简化的API路由
 	RegisterAPIRoutes(router, authorized, app)
 
-	// 注册文档健康检查
-	RegisterDocumentHealthRoute(router, app)
+  // 注册文档健康检查
+  RegisterDocumentHealthRoute(router, app)
 
 	// ==========================================
 	// RBAC v2 路由注册 (System Domain + Enterprise Domain)
@@ -212,8 +212,11 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册企业域路由 (Enterprise Domain - 企业用户使用)
 	RegisterEnterpriseRoutesV2(router, authMiddleware, app)
 
-	// 注册WebSocket协作路由（不使用认证中间件，通过query参数传递token）
-	SetupCollaborationWebSocketRoutes(router, app)
+  // 注册WebSocket协作路由（不使用认证中间件，通过query参数传递token）
+  SetupCollaborationWebSocketRoutes(router, app)
+
+  // 注册Figma集成路由（受JWT保护）
+  RegisterFigmaRoutes(authorized, app)
 }
 
 // corsMiddleware CORS中间件

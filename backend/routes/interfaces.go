@@ -114,6 +114,8 @@ type ApplicationInterface interface {
 	GetUserProfileHandler() *handlers.UserProfileHandler
 	GetUserManagementHandler() *handlers.UserManagementHandler
 	GetUserEnterpriseHandler() *handlers.UserEnterpriseHandler
+	GetPasswordHandler() *handlers.PasswordHandler
+	GetPasswordResetHandler() *handlers.PasswordResetHandler
 
 	// 企业管理处理器
 	GetEnterpriseHandler() *handlers.EnterpriseHandler
@@ -273,5 +275,8 @@ type ApplicationInterface interface {
 	GetInventoryHandler() *handlers.InventoryHandler
 
 	// MCP Dev Plans 文档同步处理器
-	GetMCPDevPlansHandler() *handlers.MCPDevPlansHandler
+  GetMCPDevPlansHandler() *handlers.MCPDevPlansHandler
+
+  // Figma Integration Handler
+  GetFigmaHandler() *handlers.FigmaHandler
 }

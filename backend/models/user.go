@@ -71,9 +71,14 @@ type User struct {
 	// Pause/Resume fields for Phase 3
 	TimingPausedTime         *time.Time `json:"timing_paused_time,omitempty" db:"timing_paused_time"`       // When the timer was paused
 	TimingAccumulatedSeconds int        `json:"timing_accumulated_seconds" db:"timing_accumulated_seconds"` // Seconds accumulated before pause
-	CreatedAt                time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt                time.Time  `json:"updated_at" db:"updated_at"`
-	DeletedAt                *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
+	// Password expiration fields
+	PasswordChangedAt  *time.Time `json:"password_changed_at,omitempty" db:"password_changed_at"`
+	PasswordExpiresAt  *time.Time `json:"password_expires_at,omitempty" db:"password_expires_at"`
+	MustChangePassword bool       `json:"must_change_password" db:"must_change_password"`
+	PasswordExpiryDays *int       `json:"password_expiry_days,omitempty" db:"password_expiry_days"`
+	CreatedAt          time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at" db:"updated_at"`
+	DeletedAt          *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
 }
 
 // UserCreateRequest represents a user creation request

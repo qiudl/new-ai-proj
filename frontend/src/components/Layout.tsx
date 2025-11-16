@@ -7,6 +7,7 @@ import { User } from '../types/user';
 import { TaskService } from '../services/taskService';
 import { filterMenuItems, getUserType } from '../config/menuVisibility';
 import EnterpriseImpersonation from './EnterpriseImpersonation';
+import PasswordExpirationAlert from './PasswordExpirationAlert';
 import { useImpersonation } from '../contexts/ImpersonationContext';
 import {
   DashboardOutlined,
@@ -25,6 +26,7 @@ import {
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   SafetyOutlined,
+  LockOutlined,
   RobotOutlined,
   FileTextOutlined,
   FolderOutlined,
@@ -277,6 +279,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/admin/permissions') || path.includes('/admin/roles') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management') || path.includes('/api-keys')) {
       return ['/system-management'];
     }
+    if (path.includes('/integrations/figma')) {
+      return ['/system-management'];
+    }
     return [];
   };
 
@@ -286,6 +291,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: '个人资料',
       icon: <UserOutlined />,
       onClick: () => navigate('/user-profile'),
+    },
+    {
+      key: 'change-password',
+      label: '修改密码',
+      icon: <LockOutlined />,
+      onClick: () => navigate('/change-password'),
     },
     {
       type: 'divider' as const,
@@ -447,6 +458,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/api-keys',
           icon: <KeyOutlined />,
           label: 'API Key管理',
+        },
+        {
+          key: '/integrations/figma',
+          icon: <AppstoreOutlined />,
+          label: 'Figma预览',
         },
       ],
     },
@@ -670,6 +686,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           />
         </Sider>
         <Content>
+          <PasswordExpirationAlert />
           {children ?? <Outlet />}
         </Content>
       </AntLayout>

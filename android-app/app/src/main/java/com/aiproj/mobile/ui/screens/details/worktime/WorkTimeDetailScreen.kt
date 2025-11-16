@@ -6,10 +6,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -19,7 +21,7 @@ import com.aiproj.mobile.ui.screens.details.worktime.components.*
 /**
  * 工作时长详情页
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material.ExperimentalMaterialApi::class)
 @Composable
 fun WorkTimeDetailScreen(
     onBackClick: () -> Unit,
@@ -40,13 +42,21 @@ fun WorkTimeDetailScreen(
             )
         }
     ) { paddingValues ->
-        SwipeRefresh(
-            state = rememberSwipeRefreshState(uiState.isLoading),
-            onRefresh = { viewModel.refreshData() },
+        val pullRefreshState = rememberPullRefreshState(
+            refreshing = uiState.isLoading,
+            onRefresh = { viewModel.refreshData() }
+        )
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .pullRefresh(pullRefreshState)
         ) {
+            PullRefreshIndicator(
+                refreshing = uiState.isLoading,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter).zIndex(1f)
+            )
             if (uiState.isLoading && uiState.workTimeStats == null) {
                 Box(
                     modifier = Modifier.fillMaxSize(),

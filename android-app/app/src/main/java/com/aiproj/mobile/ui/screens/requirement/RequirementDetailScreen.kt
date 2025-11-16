@@ -15,7 +15,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aiproj.mobile.data.models.*
-import com.aiproj.mobile.ui.components.requirement.*
+import com.aiproj.mobile.ui.components.requirement.RequirementListItem
+import com.aiproj.mobile.ui.components.requirement.RequirementStatusBadge
+import com.aiproj.mobile.ui.components.requirement.RequirementPriorityBadge
+import androidx.compose.material.icons.automirrored.filled.*
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -202,7 +205,7 @@ private fun RequirementDetailContent(
         Card {
             Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 StatItem("关联任务", requirement.relatedTasksCount.toString(), Icons.Default.Link)
-                StatItem("评论", requirement.commentsCount.toString(), Icons.Default.Comment)
+                StatItem("评论", requirement.commentsCount.toString(), Icons.AutoMirrored.Filled.Comment)
             }
         }
 

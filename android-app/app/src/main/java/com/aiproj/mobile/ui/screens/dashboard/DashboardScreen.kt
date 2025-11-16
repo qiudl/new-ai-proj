@@ -11,12 +11,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -42,6 +44,7 @@ import com.aiproj.mobile.ui.screens.timer.TimerViewModel
 /**
  * Dashboard 仪表盘页面
  */
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material.ExperimentalMaterialApi::class)
 @Composable
 fun DashboardScreen(
     onTaskClick: (Int) -> Unit,
@@ -84,13 +87,21 @@ fun DashboardScreen(
             }
         }
     ) { paddingValues ->
-        SwipeRefresh(
-            state = rememberSwipeRefreshState(uiState.isLoading),
-            onRefresh = { viewModel.refresh() },
+        val pullRefreshState = rememberPullRefreshState(
+            refreshing = uiState.isLoading,
+            onRefresh = { viewModel.refresh() }
+        )
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .pullRefresh(pullRefreshState)
         ) {
+            PullRefreshIndicator(
+                refreshing = uiState.isLoading,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter).zIndex(1f)
+            )
             if (uiState.isLoading && uiState.dashboardData == null) {
                 // 初次加载显示加载指示器
                 Box(

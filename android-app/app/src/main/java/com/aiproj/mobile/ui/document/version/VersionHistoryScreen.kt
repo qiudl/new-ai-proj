@@ -10,12 +10,14 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import kotlinx.coroutines.launch
 
 /**
@@ -23,7 +25,7 @@ import kotlinx.coroutines.launch
  *
  * 显示文档的版本历史列表
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material.ExperimentalMaterialApi::class)
 @Composable
 fun VersionHistoryScreen(
     projectId: Long,
@@ -154,13 +156,21 @@ fun VersionHistoryScreen(
             SnackbarHost(hostState = snackbarHostState)
         }
     ) { paddingValues ->
-        SwipeRefresh(
-            state = rememberSwipeRefreshState(uiState.isRefreshing),
-            onRefresh = { viewModel.refresh() },
+        val pullRefreshState = rememberPullRefreshState(
+            refreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.refresh() }
+        )
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .pullRefresh(pullRefreshState)
         ) {
+            PullRefreshIndicator(
+                refreshing = uiState.isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter).zIndex(1f)
+            )
             when {
                 // 空状态
                 uiState.shouldShowEmptyState -> {

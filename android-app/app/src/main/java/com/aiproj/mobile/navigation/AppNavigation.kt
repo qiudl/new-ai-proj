@@ -694,7 +694,7 @@ data class BottomNavItem(
 private val bottomNavItems = listOf(
     BottomNavItem(Screen.Dashboard.route, "首页", Icons.Default.Home),
     BottomNavItem(Screen.TaskList.route, "任务", Icons.AutoMirrored.Filled.Assignment),
-    BottomNavItem(Screen.RequirementList.route, "需求", Icons.Default.ListAlt),
+    BottomNavItem(Screen.RequirementList.route, "需求", Icons.AutoMirrored.Filled.ListAlt),
     BottomNavItem(Screen.NoteList.route, "笔记", Icons.Default.Description),
     BottomNavItem(Screen.Profile.route, "我的", Icons.Default.Person)
 )
