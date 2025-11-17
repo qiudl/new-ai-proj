@@ -49,7 +49,7 @@ const RealTimeDemo: React.FC = () => {
   const lastMinuteEventsRef = useRef<number[]>([]);
 
   // 模拟WebSocket URL（在实际应用中这会是真实的WebSocket服务器）
-  const websocketUrl = 'ws://localhost:8080/ws/timeline';
+  const websocketUrl = `ws:///ws/timeline`;
 
   // 支持的事件类型
   const eventTypes: { value: TaskTimelineEventType; label: string; color: string }[] = [

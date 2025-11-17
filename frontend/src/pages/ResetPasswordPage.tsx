@@ -40,7 +40,7 @@ const ResetPasswordPage: React.FC = () => {
     setVerifying(true);
     try {
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/v1/auth/verify-reset-token`,
+        `${process.env.REACT_APP_API_URL || '/api/v1'}/api/v1/auth/verify-reset-token`,
         { token: tokenValue }
       );
 
@@ -105,7 +105,7 @@ const ResetPasswordPage: React.FC = () => {
 
     try {
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/v1/auth/reset-password`,
+        `${process.env.REACT_APP_API_URL || '/api/v1'}/api/v1/auth/reset-password`,
         {
           token: token,
           new_password: values.new_password,

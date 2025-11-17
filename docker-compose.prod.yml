@@ -112,6 +112,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: production
+      args:
+        REACT_APP_API_URL: https://${DOMAIN_NAME}/api/v1
+        REACT_APP_ENV: production
+        GENERATE_SOURCEMAP: "false"
     container_name: ai_frontend_prod
     environment:
       REACT_APP_API_URL: https://${DOMAIN_NAME}/api/v1

@@ -68,24 +68,34 @@ class URLBuilder {
       process.env.REACT_APP_API_URL,
       process.env.REACT_APP_API_BASE_URL,
       process.env.REACT_APP_BASE_URL,
-      'http://localhost:8080'  // 默认fallback
     ];
-    
+
     for (const candidate of candidates) {
       if (candidate && candidate.trim()) {
         const cleanCandidate = candidate.trim();
-        
+
         // 如果URL已经包含API前缀，返回不含前缀的部分
         if (cleanCandidate.includes(apiPrefix)) {
           const baseUrl = cleanCandidate.replace(new RegExp(apiPrefix.replace('/', '\\/') + '.*$'), '');
           return baseUrl;
         }
-        
+
         return cleanCandidate;
       }
     }
-    
-    return 'http://localhost:8080';
+
+    // 生产环境不应该fallback到localhost
+    // 使用当前域名作为fallback
+    if (typeof window !== 'undefined') {
+      const protocol = window.location.protocol;
+      const host = window.location.host;
+      return `${protocol}//${host}`;
+    }
+
+    // SSR环境fallback - 不应该在生产环境运行到这里
+    // 如果运行到这里说明环境变量配置有问题
+    console.error('⚠️ URLBuilder: No environment variable set and window is undefined. This should not happen in production!');
+    return '';
   }
   
   /**
@@ -336,7 +346,7 @@ class URLBuilder {
       .filter(([, value]) => value && value.trim())
       .map(([key]) => key);
     
-    let source = 'default (localhost:8080)';
+    let source = 'default (window.location)';
     if (availableVars.length > 0) {
       source = availableVars[0];
     }

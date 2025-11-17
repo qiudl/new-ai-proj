@@ -120,8 +120,9 @@ export const getEnvironmentConfig = () => {
       // 通过setupProxy.js代理到后端8080端口，使用相对路径
       apiBaseURL = '/api/v1';
     } else {
-      // 直接访问后端端口
-      apiBaseURL = `${protocol}//${hostname}:8080/api/v1`;
+      // 使用环境变量或当前域名（避免硬编码localhost）
+      const backendPort = process.env.REACT_APP_BACKEND_PORT || '8080';
+      apiBaseURL = `${protocol}//${hostname}:${backendPort}/api/v1`;
     }
   } else {
     // 生产环境和Docker测试环境都使用相对路径(通过Nginx代理)

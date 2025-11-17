@@ -48,7 +48,7 @@ interface ConnectionStatus {
 
 const RealTimeTimeline: React.FC<RealTimeTimelineProps> = ({
   taskId,
-  websocketUrl = process.env.REACT_APP_WEBSOCKET_URL || 'ws://localhost:8080/ws/timeline',
+  websocketUrl = process.env.REACT_APP_WEBSOCKET_URL || `ws:///ws/timeline`,
   initialEvents = [],
   enableSound = true,
   enableNotifications = false,

@@ -62,7 +62,7 @@ export function useCollaboration({
 
       // 构建WebSocket URL
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+      const apiUrl = process.env.REACT_APP_API_URL || `${window.location.protocol}//${window.location.host}`;
       const host = new URL(apiUrl).host;
 
       // 构建完整的WebSocket URL，包含所有查询参数

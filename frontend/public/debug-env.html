@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 环境调试页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            font-size: 1.5em;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .info-value {
+            color: #212529;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            font-size: 1em;
+        }
+
+        .status-good {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .status-bad {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .status-warning {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .test-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .test-button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .test-result {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            border-left: 4px solid #0c5460;
+            color: #0c5460;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            border-left: 4px solid #721c24;
+            color: #721c24;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border-left: 4px solid #155724;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 AI-Proj 环境调试工具</h1>
+
+        <!-- 当前URL信息 -->
+        <div class="card">
+            <h2>📍 当前访问信息</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">完整URL</div>
+                    <div class="info-value" id="current-url"></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">协议 (Protocol)</div>
+                    <div class="info-value" id="protocol"></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">主机名 (Hostname)</div>
+                    <div class="info-value" id="hostname"></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">端口 (Port)</div>
+                    <div class="info-value" id="port"></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">路径 (Pathname)</div>
+                    <div class="info-value" id="pathname"></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Origin</div>
+                    <div class="info-value" id="origin"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 环境检测结果 -->
+        <div class="card">
+            <h2>🌍 环境检测</h2>
+            <div id="env-detection"></div>
+        </div>
+
+        <!-- API配置 -->
+        <div class="card">
+            <h2>🔧 API配置</h2>
+            <div id="api-config"></div>
+        </div>
+
+        <!-- JavaScript加载检查 -->
+        <div class="card">
+            <h2>📦 加载的JavaScript文件</h2>
+            <div id="js-files"></div>
+        </div>
+
+        <!-- API测试 -->
+        <div class="card">
+            <h2>🧪 API连接测试</h2>
+            <div>
+                <button class="test-button" onclick="testHealthAPI()">测试 /health 接口</button>
+                <button class="test-button" onclick="testTimerAPI()">测试 /user/timer/active 接口</button>
+                <button class="test-button" onclick="testWithToken()">带Token测试</button>
+                <button class="test-button" onclick="clearCache()">清除缓存并刷新</button>
+            </div>
+            <div id="test-results"></div>
+        </div>
+
+        <!-- LocalStorage检查 -->
+        <div class="card">
+            <h2>💾 LocalStorage 检查</h2>
+            <div id="storage-info"></div>
+        </div>
+
+        <!-- 缓存信息 -->
+        <div class="card">
+            <h2>🗂️ 缓存信息</h2>
+            <div id="cache-info"></div>
+        </div>
+    </div>
+
+    <script>
+        // 显示当前URL信息
+        function displayCurrentURL() {
+            document.getElementById('current-url').textContent = window.location.href;
+            document.getElementById('protocol').textContent = window.location.protocol;
+            document.getElementById('hostname').textContent = window.location.hostname;
+            document.getElementById('port').textContent = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+            document.getElementById('pathname').textContent = window.location.pathname;
+            document.getElementById('origin').textContent = window.location.origin;
+        }
+
+        // 环境检测逻辑 (复制自 environmentDetection.ts)
+        function detectEnvironment() {
+            const currentPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+
+            console.log('🔍 环境检测:', {
+                currentPort,
+                protocol: window.location.protocol,
+                hostname: window.location.hostname,
+                host: window.location.host
+            });
+
+            // 端口3000 = 本地开发环境
+            if (currentPort === '3000') {
+                return {
+                    text: '本地开发环境',
+                    color: '#52c41a',
+                    port: '3000',
+                    detail: '本机PostgreSQL端口5433',
+                    actualEnv: 'local-dev',
+                    expectedAPI: '/api/v1 (通过webpack代理到 http://localhost:8080)'
+                };
+            }
+
+            // 端口443或HTTPS = 生产环境
+            if (currentPort === '443' || window.location.protocol === 'https:') {
+                return {
+                    text: '生产环境',
+                    color: '#fa541c',
+                    port: currentPort,
+                    detail: '生产服务器',
+                    actualEnv: 'production',
+                    expectedAPI: '/api/v1 (通过Nginx代理)'
+                };
+            }
+
+            // 端口80 = Docker测试环境
+            if (currentPort === '80') {
+                return {
+                    text: 'Docker测试环境',
+                    color: '#1890ff',
+                    port: '80',
+                    detail: 'Docker Compose架构',
+                    actualEnv: 'docker-test',
+                    expectedAPI: '/api/v1 (通过Nginx代理)'
+                };
+            }
+
+            return {
+                text: '未知环境',
+                color: '#999',
+                port: currentPort,
+                detail: '无法识别的环境配置',
+                actualEnv: 'unknown',
+                expectedAPI: '未知'
+            };
+        }
+
+        // 显示环境检测结果
+        function displayEnvironment() {
+            const env = detectEnvironment();
+            const html = `
+                <div class="alert ${env.actualEnv === 'production' ? 'alert-success' : 'alert-info'}">
+                    <strong>检测到环境:</strong> ${env.text}
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">环境类型</div>
+                        <div class="info-value" style="color: ${env.color}; font-weight: bold;">
+                            ${env.actualEnv.toUpperCase()}
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">访问端口</div>
+                        <div class="info-value">${env.port}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">环境详情</div>
+                        <div class="info-value">${env.detail}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">预期API地址</div>
+                        <div class="info-value">${env.expectedAPI}</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('env-detection').innerHTML = html;
+        }
+
+        // 显示API配置
+        function displayAPIConfig() {
+            const env = detectEnvironment();
+            let computedAPIBase = '';
+
+            if (env.actualEnv === 'local-dev') {
+                computedAPIBase = '/api/v1';
+            } else {
+                computedAPIBase = '/api/v1';
+            }
+
+            const fullAPIURL = window.location.protocol + '//' + window.location.host + computedAPIBase;
+
+            const isCorrect = env.actualEnv === 'production'
+                ? !fullAPIURL.includes('localhost')
+                : true;
+
+            const html = `
+                <div class="alert ${isCorrect ? 'alert-success' : 'alert-danger'}">
+                    <strong>${isCorrect ? '✅ 配置正确' : '❌ 配置错误'}</strong>
+                    ${isCorrect ? '生产环境不应包含localhost' : '检测到localhost引用！'}
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">计算出的API Base</div>
+                        <div class="info-value ${fullAPIURL.includes('localhost') ? 'status-bad' : 'status-good'}">
+                            ${fullAPIURL}
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">相对路径</div>
+                        <div class="info-value">${computedAPIBase}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">示例完整URL</div>
+                        <div class="info-value">${fullAPIURL}/health</div>
+                    </div>
+                </div>
+                <div class="code-block">
+                    <div>// 如果前端代码正确，应该构建:</div>
+                    <div>const apiUrl = '${computedAPIBase}/user/timer/active';</div>
+                    <div>// 浏览器会自动补全为:</div>
+                    <div>// ${fullAPIURL}/user/timer/active</div>
+                </div>
+            `;
+            document.getElementById('api-config').innerHTML = html;
+        }
+
+        // 显示加载的JS文件
+        function displayJSFiles() {
+            const scripts = document.querySelectorAll('script[src]');
+            let html = '<div class="info-grid">';
+
+            scripts.forEach((script, index) => {
+                const src = script.src;
+                const isMain = src.includes('main.') && src.includes('.js');
+                html += `
+                    <div class="info-item">
+                        <div class="info-label">${isMain ? '🎯 ' : ''}Script ${index + 1}</div>
+                        <div class="info-value">${src}</div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            html += `
+                <div class="alert alert-info" style="margin-top: 15px;">
+                    <strong>💡 提示:</strong> 主JavaScript文件通常以 <code>main.[hash].js</code> 命名。
+                    如果看到旧的hash值，说明浏览器缓存了旧版本。
+                </div>
+            `;
+
+            document.getElementById('js-files').innerHTML = html;
+        }
+
+        // 测试Health API
+        async function testHealthAPI() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="test-result">🔄 正在测试 /health 接口...</div>';
+
+            try {
+                const url = '/api/v1/health';
+                console.log('🧪 测试URL:', url);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                resultsDiv.innerHTML = `
+                    <div class="test-result">
+                        <div class="status-good">✅ Health API 测试成功</div>
+                        <div style="margin-top: 10px;"><strong>请求URL:</strong> ${url}</div>
+                        <div><strong>完整URL:</strong> ${window.location.origin}${url}</div>
+                        <div><strong>响应状态:</strong> ${response.status}</div>
+                        <div style="margin-top: 10px;"><strong>响应数据:</strong></div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="test-result">
+                        <div class="status-bad">❌ Health API 测试失败</div>
+                        <div style="margin-top: 10px;"><strong>错误:</strong> ${error.message}</div>
+                        <div><strong>错误详情:</strong></div>
+                        <pre>${error.stack}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // 测试Timer API
+        async function testTimerAPI() {
+            const resultsDiv = document.getElementById('test-results');
+            const token = localStorage.getItem('accessToken');
+
+            if (!token) {
+                resultsDiv.innerHTML = `
+                    <div class="test-result">
+                        <div class="status-warning">⚠️ 未找到访问令牌</div>
+                        <div style="margin-top: 10px;">请先登录系统获取token</div>
+                    </div>
+                `;
+                return;
+            }
+
+            resultsDiv.innerHTML = '<div class="test-result">🔄 正在测试 /user/timer/active 接口...</div>';
+
+            try {
+                const url = '/api/v1/user/timer/active';
+                console.log('🧪 测试URL:', url);
+                console.log('🔑 使用Token:', token.substring(0, 20) + '...');
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                resultsDiv.innerHTML = `
+                    <div class="test-result">
+                        <div class="${response.ok ? 'status-good' : 'status-bad'}">
+                            ${response.ok ? '✅' : '❌'} Timer API 测试 ${response.ok ? '成功' : '失败'}
+                        </div>
+                        <div style="margin-top: 10px;"><strong>请求URL:</strong> ${url}</div>
+                        <div><strong>完整URL:</strong> ${window.location.origin}${url}</div>
+                        <div><strong>响应状态:</strong> ${response.status}</div>
+                        <div style="margin-top: 10px;"><strong>响应数据:</strong></div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                        ${!response.ok ? '<div class="alert alert-danger" style="margin-top: 10px;">如果报401错误，可能是token过期，请重新登录</div>' : ''}
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="test-result">
+                        <div class="status-bad">❌ Timer API 测试失败</div>
+                        <div style="margin-top: 10px;"><strong>错误:</strong> ${error.message}</div>
+                        <div><strong>错误详情:</strong></div>
+                        <pre>${error.stack}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // 带Token测试
+        async function testWithToken() {
+            const resultsDiv = document.getElementById('test-results');
+            const token = localStorage.getItem('accessToken');
+
+            resultsDiv.innerHTML = `
+                <div class="test-result">
+                    <div><strong>Token状态:</strong> ${token ? '✅ 已找到' : '❌ 未找到'}</div>
+                    ${token ? `
+                        <div style="margin-top: 10px;"><strong>Token前缀:</strong> ${token.substring(0, 50)}...</div>
+                        <div><strong>Token长度:</strong> ${token.length} 字符</div>
+                    ` : ''}
+                </div>
+            `;
+
+            if (token) {
+                await testTimerAPI();
+            }
+        }
+
+        // 清除缓存
+        function clearCache() {
+            if (confirm('确定要清除所有缓存并刷新页面吗？\n\n这将清除:\n- LocalStorage\n- SessionStorage\n- 浏览器缓存(需要硬刷新)')) {
+                localStorage.clear();
+                sessionStorage.clear();
+
+                alert('缓存已清除！\n\n请手动执行硬刷新:\n\nWindows/Linux: Ctrl + Shift + R\nMac: Cmd + Shift + R');
+
+                // 强制刷新
+                window.location.reload(true);
+            }
+        }
+
+        // 显示LocalStorage信息
+        function displayStorage() {
+            const keys = Object.keys(localStorage);
+            let html = '<div class="info-grid">';
+
+            if (keys.length === 0) {
+                html += '<div class="info-item"><div class="info-label">LocalStorage 为空</div></div>';
+            } else {
+                keys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    const displayValue = value && value.length > 100
+                        ? value.substring(0, 100) + '...'
+                        : value;
+
+                    html += `
+                        <div class="info-item">
+                            <div class="info-label">${key}</div>
+                            <div class="info-value">${displayValue || '(空)'}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            html += '</div>';
+            document.getElementById('storage-info').innerHTML = html;
+        }
+
+        // 显示缓存信息
+        function displayCacheInfo() {
+            const html = `
+                <div class="alert alert-info">
+                    <strong>📌 浏览器缓存机制说明</strong>
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">HTTP缓存</div>
+                        <div class="info-value">浏览器会缓存JS/CSS文件，即使服务器更新了文件</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Service Worker</div>
+                        <div class="info-value">可能缓存了整个应用</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">清除方法</div>
+                        <div class="info-value">
+                            1. 硬刷新: Ctrl+Shift+R (Win) / Cmd+Shift+R (Mac)<br>
+                            2. DevTools: Network → Disable cache<br>
+                            3. 无痕模式测试
+                        </div>
+                    </div>
+                </div>
+                <div class="code-block" style="margin-top: 15px;">
+                    <div>// 检查Service Worker状态:</div>
+                    <div>navigator.serviceWorker.getRegistrations().then(regs => {</div>
+                    <div>&nbsp;&nbsp;console.log('Service Workers:', regs.length);</div>
+                    <div>&nbsp;&nbsp;regs.forEach(reg => reg.unregister());</div>
+                    <div>});</div>
+                </div>
+            `;
+            document.getElementById('cache-info').innerHTML = html;
+
+            // 检查Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    if (registrations.length > 0) {
+                        const swInfo = `
+                            <div class="alert alert-danger" style="margin-top: 15px;">
+                                <strong>⚠️ 发现 ${registrations.length} 个Service Worker</strong><br>
+                                Service Worker可能缓存了旧版本的应用。<br>
+                                <button class="test-button" style="margin-top: 10px;" onclick="unregisterServiceWorkers()">
+                                    卸载所有Service Workers
+                                </button>
+                            </div>
+                        `;
+                        document.getElementById('cache-info').innerHTML += swInfo;
+                    }
+                });
+            }
+        }
+
+        // 卸载Service Workers
+        async function unregisterServiceWorkers() {
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (let registration of registrations) {
+                    await registration.unregister();
+                }
+                alert(`已卸载 ${registrations.length} 个Service Worker\n\n请刷新页面查看效果`);
+                window.location.reload();
+            }
+        }
+
+        // 页面加载完成后执行
+        window.onload = function() {
+            console.log('🔍 环境调试页面已加载');
+
+            displayCurrentURL();
+            displayEnvironment();
+            displayAPIConfig();
+            displayJSFiles();
+            displayStorage();
+            displayCacheInfo();
+
+            // 输出到控制台
+            const env = detectEnvironment();
+            console.log('📊 环境检测结果:', env);
+            console.log('🌐 当前Origin:', window.location.origin);
+            console.log('🔧 预期API地址:', window.location.origin + '/api/v1');
+        };
+    </script>
+</body>
+</html>

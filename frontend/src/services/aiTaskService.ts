@@ -2,7 +2,8 @@ import axios from 'axios';
 import api from './api'; // 使用配置好认证拦截器的api实例
 import type { SubtaskPreview } from '../components/TaskDetail/SubtaskPreviewModal';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api/v1';
+// 注意：此常量未使用，所有请求通过api实例发送（api实例已配置baseURL）
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || '/api/v1';
 
 /**
  * AI模型信息
