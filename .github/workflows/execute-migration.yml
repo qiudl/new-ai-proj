@@ -1,0 +1,174 @@
+name: Execute Docker Compose Migration
+
+on:
+  workflow_dispatch:  # 手动触发
+
+permissions:
+  contents: read
+
+jobs:
+  execute-migration:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+    - name: Test SSH Connection
+      run: |
+        ssh -i ~/.ssh/deploy_key \
+          -o StrictHostKeyChecking=no \
+          -o ConnectTimeout=30 \
+          ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} \
+          "echo '✅ SSH连接成功' && hostname"
+
+    - name: Pull Latest Code on Production Server
+      run: |
+        ssh -i ~/.ssh/deploy_key \
+          -o StrictHostKeyChecking=no \
+          ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} << 'ENDSSH'
+        cd /opt/ai-project
+        git fetch origin
+        git checkout main
+        git pull origin main
+        echo "✅ 代码已更新到最新版本"
+        ENDSSH
+
+    - name: Verify Migration Scripts Exist
+      run: |
+        ssh -i ~/.ssh/deploy_key \
+          -o StrictHostKeyChecking=no \
+          ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} << 'ENDSSH'
+        cd /opt/ai-project
+        echo "=== 检查迁移脚本 ==="
+        ls -lh scripts/migration/
+
+        if [ -f "scripts/migration/execute-migration-now.sh" ]; then
+          echo "✅ 一键执行脚本存在"
+        else
+          echo "❌ 一键执行脚本不存在"
+          exit 1
+        fi
+        ENDSSH
+
+    - name: Execute Migration
+      id: migration
+      run: |
+        ssh -i ~/.ssh/deploy_key \
+          -o StrictHostKeyChecking=no \
+          -o ServerAliveInterval=60 \
+          -o ServerAliveCountMax=10 \
+          ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} << 'ENDSSH'
+        cd /opt/ai-project
+
+        echo "🚀 开始执行Docker Compose迁移"
+        echo ""
+
+        # 设置非交互模式
+        export DEBIAN_FRONTEND=noninteractive
+
+        # 执行迁移脚本（自动确认）
+        echo "yes" | bash scripts/migration/execute-migration-now.sh
+
+        migration_result=$?
+
+        if [ $migration_result -eq 0 ]; then
+          echo ""
+          echo "✅ 迁移执行成功"
+          exit 0
+        else
+          echo ""
+          echo "❌ 迁移执行失败，退出码: $migration_result"
+          exit 1
+        fi
+        ENDSSH
+
+    - name: Verify Migration Success
+      if: success()
+      run: |
+        ssh -i ~/.ssh/deploy_key \
+          -o StrictHostKeyChecking=no \
+          ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} << 'ENDSSH'
+        cd /opt/ai-project
+
+        echo "=== 验证迁移结果 ==="
+
+        # 测试API
+        api_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/v1/health 2>&1 || echo "000")
+        echo "API健康检查: HTTP $api_status"
+
+        # 测试前端
+        frontend_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/ 2>&1 || echo "000")
+        echo "前端访问: HTTP $frontend_status"
+
+        # 测试外部访问
+        external_status=$(curl -s -o /dev/null -w "%{http_code}" https://proj.joylodging.com/api/v1/health 2>&1 || echo "000")
+        echo "外部访问: HTTPS $external_status"
+
+        # 查看服务状态
+        echo ""
+        echo "=== Docker Compose服务状态 ==="
+        docker-compose -f docker-compose.prod.yml ps
+
+        # 检查是否所有服务都在运行
+        running_count=$(docker-compose -f docker-compose.prod.yml ps | grep "Up" | wc -l)
+        echo ""
+        echo "运行中的服务数量: $running_count"
+
+        if [ "$api_status" = "200" ] && [ "$frontend_status" = "200" ] && [ $running_count -ge 5 ]; then
+          echo ""
+          echo "✅ 所有验证通过"
+          exit 0
+        else
+          echo ""
+          echo "⚠️  部分验证未通过，请检查日志"
+          exit 1
+        fi
+        ENDSSH
+
+    - name: Rollback on Failure
+      if: failure()
+      run: |
+        echo "⚠️  迁移失败，尝试回滚..."
+        ssh -i ~/.ssh/deploy_key \
+          -o StrictHostKeyChecking=no \
+          ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} << 'ENDSSH'
+        cd /opt/ai-project
+        bash scripts/migration/rollback-migration.sh
+        ENDSSH
+
+    - name: Post Migration Summary
+      if: always()
+      run: |
+        ssh -i ~/.ssh/deploy_key \
+          -o StrictHostKeyChecking=no \
+          ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} << 'ENDSSH'
+        cd /opt/ai-project
+
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "  迁移摘要"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+
+        # 显示最新的备份
+        latest_backup=$(ls -td /opt/ai-project/migration-backup-* 2>/dev/null | head -n 1)
+        if [ -n "$latest_backup" ]; then
+          echo "最新备份: $latest_backup"
+        fi
+
+        # 显示服务状态
+        echo ""
+        echo "当前服务状态:"
+        docker-compose -f docker-compose.prod.yml ps 2>/dev/null || docker ps
+
+        echo ""
+        ENDSSH
