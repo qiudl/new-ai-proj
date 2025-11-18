@@ -13,7 +13,8 @@ dayjs.extend(isBetween);
 
 // 环境配置
 const isDevelopment = process.env.NODE_ENV === 'development';
-const MOCK_API_BASE_URL = 'http://localhost:8888/api';
+// 移除硬编码localhost - 即使在开发环境也应该使用环境变量或相对路径
+const MOCK_API_BASE_URL = process.env.REACT_APP_MOCK_API_URL || '/api';
 
 // 创建专门用于统计的API实例
 const createStatsApi = () => {

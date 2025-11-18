@@ -388,7 +388,8 @@ export abstract class BaseService {
 
 // Default configuration
 export const DEFAULT_API_CONFIG: ApiClientConfig = {
-  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000/api',
+  // 移除硬编码localhost - 使用相对路径作为fallback
+  baseURL: process.env.REACT_APP_API_BASE_URL || '/api',
   timeout: 30000, // 30 seconds
   retryConfig: {
     maxRetries: 3,

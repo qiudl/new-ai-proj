@@ -5,7 +5,8 @@
 
 const axios = require('axios');
 
-const API_BASE = 'http://localhost';
+// 使用环境变量,避免硬编码localhost
+const API_BASE = process.env.REACT_APP_API_URL || process.env.API_BASE_URL || '';
 const PROJECT_ID = 39; // Test with project ID 39
 
 // Test data that matches the new format

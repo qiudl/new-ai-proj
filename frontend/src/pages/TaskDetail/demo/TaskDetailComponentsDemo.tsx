@@ -444,7 +444,7 @@ const { task, relations, ui, actions } = useTaskDetailContext();`}
             <Space direction="vertical" style={{ width: '100%' }}>
               <Title level={4}>访问信息</Title>
               <Text>访问路径: <code>/demo/task-detail-components</code></Text>
-              <Text>完整URL: <code>http://localhost:3000/demo/task-detail-components</code></Text>
+              <Text>完整URL: <code>{typeof window !== 'undefined' ? `${window.location.origin}/demo/task-detail-components` : '/demo/task-detail-components'}</code></Text>
               <Divider />
               <Text type="secondary">
                 提示: 建议在开发环境中测试所有组件功能，确保与实际数据的集成正常。

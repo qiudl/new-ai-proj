@@ -37,9 +37,9 @@ func (s *TaskValidationService) ValidateTaskHierarchy(taskID int, newParentID in
 		return fmt.Errorf("failed to calculate parent depth: %w", err)
 	}
 
-	// Maximum allowed depth is 4 levels (0-indexed: 0, 1, 2, 3)
-	// If parent is at depth 3, child would be at depth 4, which is the maximum
-	const maxDepth = 3
+	// Maximum allowed depth is 5 levels (0-indexed: 0, 1, 2, 3, 4)
+	// If parent is at depth 4, child would be at depth 5, which is the maximum
+	const maxDepth = 4
 	if parentDepth >= maxDepth {
 		return ValidationError{
 			TaskID:  taskID,
@@ -454,7 +454,7 @@ func (s *TaskValidationService) GetBatchUpdatePreview(taskIDs []int, newParentID
 
 				if taskInfo.ChildrenCount > 0 {
 					maxChildDepthAfter := newDepth + taskInfo.MaxChildDepth + 1
-					if maxChildDepthAfter >= 3 { // Approaching max depth
+					if maxChildDepthAfter >= 4 { // Approaching max depth
 						preview.Warnings = append(preview.Warnings,
 							fmt.Sprintf("任务%d的子任务在变更后将达到第%d级，接近最大层级限制",
 								taskID, maxChildDepthAfter+1))
