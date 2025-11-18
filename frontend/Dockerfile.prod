@@ -27,7 +27,7 @@ ENV GENERATE_SOURCEMAP=false
 RUN npm run build
 
 # 生产阶段
-FROM nginx:alpine
+FROM nginx:alpine AS production
 
 # 安装curl用于健康检查
 RUN apk --no-cache add curl
