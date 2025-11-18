@@ -239,30 +239,53 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} "echo 'SSH connection successful!'"
 
       - name: Upload Docker images to server
+        timeout-minutes: 20
         env:
           SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
         run: |
           echo "Uploading backend image..."
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no backend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
+          scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            backend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
 
           echo "Uploading frontend image..."
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no frontend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
+          scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            frontend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
 
           echo "Upload complete!"
 
       - name: Upload deployment scripts
+        timeout-minutes: 5
         env:
           SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
         run: |
           echo "Uploading deployment scripts..."
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no scripts/cicd/*.sh $SSH_USER@$SSH_HOST:${{ env.DEPLOY_ROOT }}/scripts/
+          scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            scripts/cicd/*.sh $SSH_USER@$SSH_HOST:${{ env.DEPLOY_ROOT }}/scripts/
 
           echo "Setting execute permissions..."
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "chmod +x ${{ env.DEPLOY_ROOT }}/scripts/*.sh"
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            $SSH_USER@$SSH_HOST "chmod +x ${{ env.DEPLOY_ROOT }}/scripts/*.sh"
 
       - name: Deploy new version
+        timeout-minutes: 15
         env:
           SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
@@ -272,17 +295,28 @@ jobs:
           echo "Git SHA: ${{ github.sha }}"
           echo "=========================================="
 
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            $SSH_USER@$SSH_HOST \
             "bash ${{ env.DEPLOY_ROOT }}/scripts/deploy.sh ${{ github.sha }}"
 
       - name: Health check
         if: success()
+        timeout-minutes: 5
         env:
           SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
         run: |
           echo "Running health check..."
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            $SSH_USER@$SSH_HOST \
             "bash ${{ env.DEPLOY_ROOT }}/scripts/health-check.sh"
 
       - name: Rollback on failure
