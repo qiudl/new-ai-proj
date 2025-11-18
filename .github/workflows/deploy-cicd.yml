@@ -221,9 +221,14 @@ jobs:
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
-          # Write SSH private key to file
-          echo "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/deploy_key
+          # Write SSH private key to file (properly handle newlines)
+          printf '%s\n' "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+
+          # Verify key format
+          echo "Checking SSH key format:"
+          head -n 1 ~/.ssh/deploy_key
+          tail -n 1 ~/.ssh/deploy_key
 
           # Add server to known hosts
           ssh-keyscan -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
