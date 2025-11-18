@@ -1,5 +1,7 @@
 package main
 
+// CI/CD Deployment: Testing docker-compose.yml fix (2025-11-18)
+
 import (
 	"ai-project-backend/application"
 	_ "ai-project-backend/monitoring" // Import for metrics registration
