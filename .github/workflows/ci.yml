@@ -1,11 +1,14 @@
-name: CI - Migrate, Seed, Sync
+name: CI - Migrate, Seed, Sync (Disabled - Missing Python Scripts)
 
+# Temporarily disabled - missing required Python scripts:
+# - scripts/sync_from_descriptions.py
+# - scripts/generate_execution_plan.py
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:
+  workflow_dispatch:  # Only manual trigger until scripts are added
+  # push:
+  #   branches: [ main, master ]
+  # pull_request:
+  #   branches: [ main, master ]
 
 jobs:
   build-test:
