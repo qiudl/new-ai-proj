@@ -1,0 +1,358 @@
+name: CI/CD Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
+      - '!.github/workflows/deploy-cicd.yml'
+
+  release:
+    types: [published]
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  DEPLOY_ROOT: /opt/ai-project-cicd
+
+jobs:
+  # ================================================
+  # Job 1: Build Backend
+  # ================================================
+  build-backend:
+    name: Build Go Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build backend binary
+        working-directory: ./backend
+        run: |
+          echo "Building backend for Linux..."
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+            -ldflags="-s -w -X main.Version=${{ github.sha }} -X main.BuildTime=$(date -u '+%Y-%m-%d_%H:%M:%S')" \
+            -o ai-project-backend \
+            main.go
+
+          # 验证二进制文件
+          file ai-project-backend
+          ls -lh ai-project-backend
+
+      - name: Upload backend binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-binary
+          path: backend/ai-project-backend
+          retention-days: 7
+
+  # ================================================
+  # Job 2: Build Frontend
+  # ================================================
+  build-frontend:
+    name: Build React Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend
+        env:
+          REACT_APP_API_URL: https://proj.joylodging.com/api/v1
+          REACT_APP_ENV: production
+          GENERATE_SOURCEMAP: false
+          NODE_ENV: production
+        run: |
+          echo "Building frontend for production..."
+          npm run build
+
+          # 显示构建大小
+          du -sh build/
+          ls -la build/
+
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build
+          retention-days: 7
+
+  # ================================================
+  # Job 3: Build Docker Images
+  # ================================================
+  build-docker-images:
+    name: Build Docker Images
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download backend binary
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-binary
+          path: backend/
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build
+
+      - name: Make backend binary executable
+        run: chmod +x backend/ai-project-backend
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend Docker image
+        run: |
+          echo "Building backend Docker image..."
+          docker build \
+            -t ai-backend:${{ github.sha }} \
+            -t ai-backend:latest \
+            -f backend/Dockerfile \
+            --target production \
+            backend/
+
+      - name: Build frontend Docker image
+        run: |
+          echo "Building frontend Docker image..."
+          docker build \
+            -t ai-frontend:${{ github.sha }} \
+            -t ai-frontend:latest \
+            -f frontend/Dockerfile.prod \
+            --target production \
+            frontend/
+
+      - name: List Docker images
+        run: docker images | grep -E "ai-backend|ai-frontend"
+
+      - name: Save Docker images
+        run: |
+          echo "Saving backend image..."
+          docker save ai-backend:${{ github.sha }} | gzip > backend-image.tar.gz
+
+          echo "Saving frontend image..."
+          docker save ai-frontend:${{ github.sha }} | gzip > frontend-image.tar.gz
+
+          # 显示文件大小
+          ls -lh *-image.tar.gz
+
+      - name: Upload Docker images
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-images
+          path: |
+            backend-image.tar.gz
+            frontend-image.tar.gz
+          retention-days: 7
+
+  # ================================================
+  # Job 4: Deploy to Production
+  # ================================================
+  deploy:
+    name: Deploy to Production Server
+    needs: build-docker-images
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Docker images
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-images
+
+      - name: Verify downloaded files
+        run: |
+          ls -lh
+          file backend-image.tar.gz
+          file frontend-image.tar.gz
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Upload Docker images to server
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          echo "Uploading backend image..."
+          scp -o StrictHostKeyChecking=no backend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
+
+          echo "Uploading frontend image..."
+          scp -o StrictHostKeyChecking=no frontend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
+
+          echo "Upload complete!"
+
+      - name: Upload deployment scripts
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          echo "Uploading deployment scripts..."
+          scp -o StrictHostKeyChecking=no scripts/cicd/*.sh $SSH_USER@$SSH_HOST:${{ env.DEPLOY_ROOT }}/scripts/
+
+          echo "Setting execute permissions..."
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "chmod +x ${{ env.DEPLOY_ROOT }}/scripts/*.sh"
+
+      - name: Deploy new version
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          echo "=========================================="
+          echo "Deploying to production..."
+          echo "Git SHA: ${{ github.sha }}"
+          echo "=========================================="
+
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+            "bash ${{ env.DEPLOY_ROOT }}/scripts/deploy.sh ${{ github.sha }}"
+
+      - name: Health check
+        if: success()
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          echo "Running health check..."
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+            "bash ${{ env.DEPLOY_ROOT }}/scripts/health-check.sh"
+
+      - name: Rollback on failure
+        if: failure()
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          echo "Deployment failed! Rolling back..."
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+            "bash ${{ env.DEPLOY_ROOT }}/scripts/rollback.sh --force 'Deployment failure - automatic rollback'"
+
+      - name: Clean up temporary files
+        if: always()
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          echo "Cleaning up temporary files..."
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+            "rm -f /tmp/backend-image.tar.gz /tmp/frontend-image.tar.gz"
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "Deployment Summary"
+          echo "=========================================="
+          echo "Status: ${{ job.status }}"
+          echo "Git SHA: ${{ github.sha }}"
+          echo "Workflow Run: ${{ github.run_number }}"
+          echo "=========================================="
+
+      - name: Notify deployment result
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed!"
+          fi
+
+  # ================================================
+  # Job 5: Post-deployment Verification (Optional)
+  # ================================================
+  verify:
+    name: Post-deployment Verification
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+      - name: Wait for services to stabilize
+        run: sleep 10
+
+      - name: Verify API endpoint
+        run: |
+          echo "Verifying API endpoint..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://proj.joylodging.com/api/v1/health || echo "000")
+
+          if [ "$response" = "200" ]; then
+            echo "✅ API endpoint is healthy (HTTP $response)"
+          else
+            echo "⚠️ API endpoint returned HTTP $response"
+            exit 1
+          fi
+
+      - name: Verify frontend
+        run: |
+          echo "Verifying frontend..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://proj.joylodging.com/ || echo "000")
+
+          if [ "$response" = "200" ] || [ "$response" = "302" ]; then
+            echo "✅ Frontend is accessible (HTTP $response)"
+          else
+            echo "⚠️ Frontend returned HTTP $response"
+          fi
+
+      - name: Final verification summary
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "Verification Complete"
+          echo "Status: ${{ job.status }}"
+          echo "=========================================="
