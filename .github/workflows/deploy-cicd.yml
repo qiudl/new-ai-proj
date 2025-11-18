@@ -221,8 +221,8 @@ jobs:
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
-          # Write SSH private key to file (interpret escape sequences)
-          echo -e "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/deploy_key
+          # Write SSH private key to file (decode from base64)
+          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
           # Verify key format
