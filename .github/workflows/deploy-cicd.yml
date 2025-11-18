@@ -217,14 +217,19 @@ jobs:
           file frontend-image.tar.gz
 
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
-
-      - name: Add server to known hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts
+          chmod 700 ~/.ssh
+
+          # Write SSH private key to file
+          echo "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Add server to known hosts
+          ssh-keyscan -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Test SSH connection
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} "echo 'SSH connection successful!'"
 
       - name: Upload Docker images to server
         env:
@@ -232,10 +237,10 @@ jobs:
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
         run: |
           echo "Uploading backend image..."
-          scp -o StrictHostKeyChecking=no backend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no backend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
 
           echo "Uploading frontend image..."
-          scp -o StrictHostKeyChecking=no frontend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no frontend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
 
           echo "Upload complete!"
 
@@ -245,10 +250,10 @@ jobs:
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
         run: |
           echo "Uploading deployment scripts..."
-          scp -o StrictHostKeyChecking=no scripts/cicd/*.sh $SSH_USER@$SSH_HOST:${{ env.DEPLOY_ROOT }}/scripts/
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no scripts/cicd/*.sh $SSH_USER@$SSH_HOST:${{ env.DEPLOY_ROOT }}/scripts/
 
           echo "Setting execute permissions..."
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "chmod +x ${{ env.DEPLOY_ROOT }}/scripts/*.sh"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "chmod +x ${{ env.DEPLOY_ROOT }}/scripts/*.sh"
 
       - name: Deploy new version
         env:
@@ -260,7 +265,7 @@ jobs:
           echo "Git SHA: ${{ github.sha }}"
           echo "=========================================="
 
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
             "bash ${{ env.DEPLOY_ROOT }}/scripts/deploy.sh ${{ github.sha }}"
 
       - name: Health check
@@ -270,7 +275,7 @@ jobs:
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
         run: |
           echo "Running health check..."
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
             "bash ${{ env.DEPLOY_ROOT }}/scripts/health-check.sh"
 
       - name: Rollback on failure
@@ -280,7 +285,7 @@ jobs:
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
         run: |
           echo "Deployment failed! Rolling back..."
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
             "bash ${{ env.DEPLOY_ROOT }}/scripts/rollback.sh --force 'Deployment failure - automatic rollback'"
 
       - name: Clean up temporary files
@@ -290,7 +295,7 @@ jobs:
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
         run: |
           echo "Cleaning up temporary files..."
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
             "rm -f /tmp/backend-image.tar.gz /tmp/frontend-image.tar.gz"
 
       - name: Deployment summary
