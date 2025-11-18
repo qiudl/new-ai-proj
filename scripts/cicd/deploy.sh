@@ -62,31 +62,40 @@ main() {
         log_warning "没有找到当前版本，跳过备份"
     fi
 
-    # 3. 加载 Docker 镜像
-    log_info "Step 3/7: 加载 Docker 镜像..."
-    if [ -f "/tmp/backend-image.tar.gz" ]; then
+    # 3. 加载 Docker 镜像（可选，兼容旧部署方式）
+    log_info "Step 3/7: 准备 Docker 镜像..."
+    if [ -f "/tmp/backend-image.tar.gz" ] && [ -f "/tmp/frontend-image.tar.gz" ]; then
+        log_info "检测到镜像压缩包，从文件加载..."
+
         log_info "加载后端镜像..."
         docker load < /tmp/backend-image.tar.gz
         log_success "后端镜像加载成功"
-    else
-        log_error "后端镜像文件不存在: /tmp/backend-image.tar.gz"
-        exit 1
-    fi
 
-    if [ -f "/tmp/frontend-image.tar.gz" ]; then
         log_info "加载前端镜像..."
         docker load < /tmp/frontend-image.tar.gz
         log_success "前端镜像加载成功"
-    else
-        log_error "前端镜像文件不存在: /tmp/frontend-image.tar.gz"
-        exit 1
-    fi
 
-    # 4. 标记镜像为 latest
-    log_info "Step 4/7: 标记镜像..."
-    docker tag "ai-backend:$GIT_SHA" ai-backend:latest || true
-    docker tag "ai-frontend:$GIT_SHA" ai-frontend:latest || true
-    log_success "镜像标记完成"
+        # 标记镜像为 latest
+        log_info "标记镜像..."
+        docker tag "ai-backend:$GIT_SHA" ai-backend:latest || true
+        docker tag "ai-frontend:$GIT_SHA" ai-frontend:latest || true
+        log_success "镜像标记完成"
+    else
+        log_info "未检测到镜像压缩包，假定镜像已从 registry pull 完成"
+
+        # 验证镜像是否存在
+        if ! docker images | grep -q "ai-backend.*latest"; then
+            log_error "后端镜像不存在，请确保已从 registry pull 或上传镜像文件"
+            exit 1
+        fi
+
+        if ! docker images | grep -q "ai-frontend.*latest"; then
+            log_error "前端镜像不存在，请确保已从 registry pull 或上传镜像文件"
+            exit 1
+        fi
+
+        log_success "Docker 镜像验证通过"
+    fi
 
     # 5. 复制 docker-compose 配置
     log_info "Step 5/7: 准备配置文件..."

@@ -120,12 +120,15 @@ jobs:
           retention-days: 7
 
   # ================================================
-  # Job 3: Build Docker Images
+  # Job 3: Build and Push Docker Images to Registry
   # ================================================
   build-docker-images:
     name: Build Docker Images
     needs: [build-backend, build-frontend]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout code
@@ -149,48 +152,38 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build backend Docker image
-        run: |
-          echo "Building backend Docker image..."
-          docker build \
-            -t ai-backend:${{ github.sha }} \
-            -t ai-backend:latest \
-            -f backend/Dockerfile \
-            --target production \
-            backend/
-
-      - name: Build frontend Docker image
-        run: |
-          echo "Building frontend Docker image..."
-          docker build \
-            -t ai-frontend:${{ github.sha }} \
-            -t ai-frontend:latest \
-            -f frontend/Dockerfile.prod \
-            --target production \
-            frontend/
-
-      - name: List Docker images
-        run: docker images | grep -E "ai-backend|ai-frontend"
-
-      - name: Save Docker images
-        run: |
-          echo "Saving backend image..."
-          docker save ai-backend:${{ github.sha }} | gzip > backend-image.tar.gz
-
-          echo "Saving frontend image..."
-          docker save ai-frontend:${{ github.sha }} | gzip > frontend-image.tar.gz
-
-          # 显示文件大小
-          ls -lh *-image.tar.gz
-
-      - name: Upload Docker images
-        uses: actions/upload-artifact@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          name: docker-images
-          path: |
-            backend-image.tar.gz
-            frontend-image.tar.gz
-          retention-days: 7
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          target: production
+          tags: |
+            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: true
+          target: production
+          tags: |
+            ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # ================================================
   # Job 4: Deploy to Production
@@ -204,17 +197,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Download Docker images
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-images
-
-      - name: Verify downloaded files
-        run: |
-          ls -lh
-          file backend-image.tar.gz
-          file frontend-image.tar.gz
 
       - name: Setup SSH
         run: |
@@ -238,29 +220,40 @@ jobs:
           # Test SSH connection
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} "echo 'SSH connection successful!'"
 
-      - name: Upload Docker images to server
-        timeout-minutes: 20
+      - name: Pull Docker images on server
+        timeout-minutes: 10
         env:
           SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Uploading backend image..."
-          scp -i ~/.ssh/deploy_key \
+          echo "Logging into GitHub Container Registry on server..."
+          ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -o ConnectTimeout=30 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
-            backend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
+            $SSH_USER@$SSH_HOST \
+            "echo '$GITHUB_TOKEN' | docker login ghcr.io -u ${{ github.actor }} --password-stdin"
 
-          echo "Uploading frontend image..."
-          scp -i ~/.ssh/deploy_key \
+          echo "Pulling backend image..."
+          ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=30 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
-            frontend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/
+            $SSH_USER@$SSH_HOST \
+            "docker pull ghcr.io/${{ github.repository }}/backend:${{ github.sha }}"
 
-          echo "Upload complete!"
+          echo "Pulling frontend image..."
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            $SSH_USER@$SSH_HOST \
+            "docker pull ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}"
+
+          echo "Tagging images as latest..."
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            $SSH_USER@$SSH_HOST \
+            "docker tag ghcr.io/${{ github.repository }}/backend:${{ github.sha }} ai-backend:latest && \
+             docker tag ghcr.io/${{ github.repository }}/frontend:${{ github.sha }} ai-frontend:latest"
+
+          echo "Pull complete!"
 
       - name: Upload deployment scripts
         timeout-minutes: 5
@@ -329,15 +322,20 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
             "bash ${{ env.DEPLOY_ROOT }}/scripts/rollback.sh --force 'Deployment failure - automatic rollback'"
 
-      - name: Clean up temporary files
+      - name: Clean up
         if: always()
         env:
           SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
         run: |
-          echo "Cleaning up temporary files..."
+          echo "Cleaning up..."
+          # 清理可能残留的旧文件（向后兼容）
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
-            "rm -f /tmp/backend-image.tar.gz /tmp/frontend-image.tar.gz"
+            "rm -f /tmp/backend-image.tar.gz /tmp/frontend-image.tar.gz" || true
+
+          # 登出 Docker registry
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+            "docker logout ghcr.io" || true
 
       - name: Deployment summary
         if: always()
