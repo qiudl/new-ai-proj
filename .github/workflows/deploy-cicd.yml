@@ -167,6 +167,9 @@ jobs:
             -t ai-frontend:latest \
             -f frontend/Dockerfile.prod \
             --target production \
+            --build-arg REACT_APP_API_URL=https://proj.joylodging.com/api/v1 \
+            --build-arg REACT_APP_ENV=production \
+            --build-arg GENERATE_SOURCEMAP=false \
             frontend/
 
       - name: List Docker images
