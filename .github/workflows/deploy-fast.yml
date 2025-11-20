@@ -1,0 +1,358 @@
+name: Fast Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'docker-compose*.yml'
+      - '.github/workflows/deploy-fast.yml'
+
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild all images'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/ai-project
+
+jobs:
+  # ================================================
+  # Job 1: Detect Changes (智能检测)
+  # ================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check changed files
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+      - name: Show change detection results
+        run: |
+          echo "Backend changed: ${{ steps.filter.outputs.backend }}"
+          echo "Frontend changed: ${{ steps.filter.outputs.frontend }}"
+
+  # ================================================
+  # Job 2: Build and Push Backend (条件执行)
+  # ================================================
+  build-backend:
+    name: Build Backend Image
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || github.event.inputs.force_rebuild == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-backend
+          tags: |
+            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-backend:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-backend:buildcache,mode=max
+          build-args: |
+            VERSION=${{ github.sha }}
+            BUILD_TIME=${{ github.event.head_commit.timestamp }}
+
+  # ================================================
+  # Job 3: Build and Push Frontend (条件执行)
+  # ================================================
+  build-frontend:
+    name: Build Frontend Image
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || github.event.inputs.force_rebuild == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-frontend
+          tags: |
+            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          target: production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-frontend:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-frontend:buildcache,mode=max
+          build-args: |
+            REACT_APP_API_URL=https://proj.joylodging.com/api/v1
+            REACT_APP_ENV=production
+            GENERATE_SOURCEMAP=false
+
+  # ================================================
+  # Job 4: Deploy to Production (快速部署)
+  # ================================================
+  deploy:
+    name: Deploy to Server
+    needs: [build-backend, build-frontend]
+    if: always() && (needs.build-backend.result == 'success' || needs.build-backend.result == 'skipped') && (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Create deployment directory
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key $SSH_USER@$SSH_HOST "
+            mkdir -p /opt/ai-project-fast/config
+            mkdir -p /opt/ai-project-fast/logs
+          "
+
+      - name: Upload docker-compose configuration
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          # 创建使用registry的docker-compose文件
+          cat > docker-compose.registry.yml << 'EOF'
+          version: '3.8'
+
+          services:
+            backend-prod:
+              image: ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+              container_name: ai_backend_prod
+              environment:
+                ENV: production
+                DB_HOST: ai_postgres_prod
+                DB_PORT: 5432
+                DB_USER: ${DB_USER}
+                DB_PASSWORD: ${DB_PASSWORD}
+                DB_NAME: ${DB_NAME}
+                JWT_SECRET: ${JWT_SECRET}
+                GIN_MODE: release
+              ports:
+                - "127.0.0.1:8080:8080"
+              restart: always
+              networks:
+                - ai_prod_network
+
+            frontend-prod:
+              image: ${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
+              container_name: ai_frontend_prod
+              environment:
+                NODE_ENV: production
+              ports:
+                - "127.0.0.1:3000:80"
+              restart: always
+              networks:
+                - ai_prod_network
+
+            # Postgres, Redis, Nginx等保持不变
+            postgres-prod:
+              image: postgres:16
+              container_name: ai_postgres_prod
+              environment:
+                POSTGRES_USER: ${DB_USER}
+                POSTGRES_PASSWORD: ${DB_PASSWORD}
+                POSTGRES_DB: ${DB_NAME}
+              ports:
+                - "127.0.0.1:5432:5432"
+              volumes:
+                - postgres_data:/var/lib/postgresql/data
+              restart: always
+              networks:
+                - ai_prod_network
+
+            redis-prod:
+              image: redis:7-alpine
+              container_name: ai_redis_prod
+              ports:
+                - "127.0.0.1:6379:6379"
+              restart: always
+              networks:
+                - ai_prod_network
+
+            nginx:
+              image: nginx:alpine
+              container_name: ai_nginx
+              ports:
+                - "80:80"
+                - "443:443"
+              volumes:
+                - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+                - ./nginx/sites:/etc/nginx/conf.d:ro
+                - ./logs/nginx:/var/log/nginx
+              restart: always
+              networks:
+                - ai_prod_network
+
+          networks:
+            ai_prod_network:
+              driver: bridge
+
+          volumes:
+            postgres_data:
+          EOF
+
+          scp -i ~/.ssh/deploy_key docker-compose.registry.yml $SSH_USER@$SSH_HOST:/opt/ai-project-fast/
+
+      - name: Deploy new version
+        timeout-minutes: 10
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key $SSH_USER@$SSH_HOST "
+            set -e
+            cd /opt/ai-project-fast
+
+            echo '🔐 Logging in to GitHub Container Registry...'
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            echo '📥 Pulling new images...'
+            docker pull ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+            docker pull ${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
+
+            echo '🔄 Updating services...'
+            docker-compose -f docker-compose.registry.yml up -d backend-prod frontend-prod
+
+            echo '✅ Deployment complete!'
+            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+          "
+
+      - name: Health check
+        timeout-minutes: 3
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key $SSH_USER@$SSH_HOST "
+            echo 'Waiting for services to be healthy...'
+            sleep 10
+
+            # Check backend
+            if curl -f http://localhost:8080/health; then
+              echo '✅ Backend is healthy'
+            else
+              echo '❌ Backend health check failed'
+              exit 1
+            fi
+
+            # Check frontend
+            if curl -f http://localhost:3000; then
+              echo '✅ Frontend is accessible'
+            else
+              echo '❌ Frontend check failed'
+              exit 1
+            fi
+
+            echo '✅ All health checks passed!'
+          "
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "Deployment Summary"
+          echo "=========================================="
+          echo "Backend Image: ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}"
+          echo "Frontend Image: ${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}"
+          echo "Status: ${{ job.status }}"
+          echo "Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "=========================================="
+
+  # ================================================
+  # Job 5: Notify (可选)
+  # ================================================
+  notify:
+    name: Notify Result
+    needs: deploy
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify deployment result
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "✅ Fast deployment successful!"
+            echo "⏱️ Estimated time saved: 15-18 minutes"
+          else
+            echo "❌ Deployment failed!"
+          fi
