@@ -243,7 +243,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} "echo 'SSH connection successful!'"
 
       - name: Upload Docker images to server
-        timeout-minutes: 20
+        timeout-minutes: 40  # 增加超时时间以适应慢速网络(临时方案,建议使用deploy-fast.yml)
         env:
           SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
