@@ -1,6 +1,6 @@
 package main
 
-// CI/CD Deployment: Testing docker-compose.yml fix (2025-11-18)
+// Production Fix: API URL configuration and fast deployment (2025-11-20)
 
 import (
 	"ai-project-backend/application"
