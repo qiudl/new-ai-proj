@@ -265,7 +265,7 @@ jobs:
           chmod +x deploy-fast.sh
 
       - name: Upload and run deployment script
-        timeout-minutes: 10
+        timeout-minutes: 15
         env:
           SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
@@ -274,12 +274,18 @@ jobs:
           scp -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -o ConnectTimeout=30 \
+            -o ServerAliveInterval=60 \
+            -o ServerAliveCountMax=10 \
+            -o TCPKeepAlive=yes \
             deploy-fast.sh $SSH_USER@$SSH_HOST:/opt/ai-project-cicd/
 
-          # 执行部署
+          # 执行部署(添加SSH保活选项防止长时间操作超时)
           ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -o ConnectTimeout=30 \
+            -o ServerAliveInterval=60 \
+            -o ServerAliveCountMax=10 \
+            -o TCPKeepAlive=yes \
             $SSH_USER@$SSH_HOST "
             cd /opt/ai-project-cicd
             chmod +x deploy-fast.sh
@@ -294,7 +300,12 @@ jobs:
           BACKEND_CHANGED: ${{ needs.detect-changes.outputs.backend }}
           FRONTEND_CHANGED: ${{ needs.detect-changes.outputs.frontend }}
         run: |
-          ssh -i ~/.ssh/deploy_key $SSH_USER@$SSH_HOST "
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ServerAliveInterval=60 \
+            -o ServerAliveCountMax=10 \
+            -o TCPKeepAlive=yes \
+            $SSH_USER@$SSH_HOST "
             echo 'Waiting for services to be healthy...'
             sleep 10
 
