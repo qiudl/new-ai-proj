@@ -62,6 +62,12 @@ jobs:
               git pull origin $BRANCH
           else
               echo "✓ 首次部署,克隆仓库..."
+              # 如果目录非空但不是git仓库,先清空
+              if [ "$(ls -A .)" ]; then
+                  echo "⚠️  目录非空但不是Git仓库,清空后重新克隆..."
+                  rm -rf ./*
+                  rm -rf ./.[!.]*  # 删除隐藏文件,但保留 . 和 ..
+              fi
               git clone -b $BRANCH $GIT_REPO .
           fi
 
