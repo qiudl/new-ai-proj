@@ -1,0 +1,197 @@
+name: Setup Production Git Repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_reclone:
+        description: 'Force re-clone repository (delete existing)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  setup:
+    name: Initialize Git Repository on Production Server
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 45
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Initialize Git Repository
+        timeout-minutes: 40
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          FORCE_RECLONE: ${{ github.event.inputs.force_reclone }}
+        run: |
+          echo "════════════════════════════════════════════════════════"
+          echo "🔧 初始化生产服务器Git仓库"
+          echo "════════════════════════════════════════════════════════"
+          echo ""
+
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=60 \
+            -o ServerAliveCountMax=10 \
+            -o TCPKeepAlive=yes \
+            $SSH_USER@$SSH_HOST << 'ENDSSH'
+
+          set -e
+
+          DEPLOY_DIR="/opt/ai-project-cicd"
+          GIT_REPO="https://github.com/qiudl/new-ai-proj.git"
+          BRANCH="main"
+
+          echo "📁 步骤1: 准备部署目录"
+          echo "────────────────────────────────────────────────────────"
+
+          mkdir -p "$DEPLOY_DIR"
+          cd "$DEPLOY_DIR"
+
+          # 检查是否已经是Git仓库
+          if [ -d ".git" ]; then
+              echo "✓ Git仓库已存在"
+              echo ""
+              echo "📋 当前仓库信息:"
+              git remote -v || true
+              git branch || true
+              echo ""
+
+              if [ "$FORCE_RECLONE" == "true" ]; then
+                  echo "⚠️  强制重新克隆,删除现有仓库..."
+                  cd ..
+                  rm -rf "$DEPLOY_DIR"
+                  mkdir -p "$DEPLOY_DIR"
+                  cd "$DEPLOY_DIR"
+              else
+                  echo "📥 更新现有仓库..."
+                  git fetch origin
+                  git reset --hard origin/$BRANCH
+                  git pull origin $BRANCH
+                  echo ""
+                  echo "✅ 仓库更新完成!"
+                  echo ""
+                  echo "📋 当前版本: $(git log -1 --oneline)"
+                  exit 0
+              fi
+          fi
+
+          echo ""
+          echo "📥 步骤2: 克隆仓库 (浅克隆,自动重试)"
+          echo "────────────────────────────────────────────────────────"
+          echo ""
+
+          # 使用浅克隆,最多重试5次
+          MAX_RETRIES=5
+          RETRY_DELAY=15
+
+          for i in $(seq 1 $MAX_RETRIES); do
+              echo "📡 尝试 $i/$MAX_RETRIES - $(date '+%H:%M:%S')"
+              echo "   仓库: $GIT_REPO"
+              echo "   分支: $BRANCH"
+              echo ""
+
+              # 使用timeout命令限制单次克隆时间为30分钟
+              if timeout 1800 git clone --depth 1 --no-single-branch -b $BRANCH $GIT_REPO . 2>&1 | tee /tmp/git-clone-log.txt; then
+                  echo ""
+                  echo "✅ 仓库克隆成功!"
+                  break
+              else
+                  CLONE_EXIT_CODE=$?
+                  echo ""
+                  echo "❌ 克隆失败 (退出码: $CLONE_EXIT_CODE)"
+
+                  # 显示错误日志的最后几行
+                  if [ -f /tmp/git-clone-log.txt ]; then
+                      echo ""
+                      echo "错误信息:"
+                      tail -5 /tmp/git-clone-log.txt
+                  fi
+
+                  if [ $i -lt $MAX_RETRIES ]; then
+                      echo ""
+                      echo "⏳ ${RETRY_DELAY}秒后重试..."
+                      sleep $RETRY_DELAY
+
+                      # 清理失败的克隆
+                      echo "🧹 清理失败的文件..."
+                      rm -rf .git 2>/dev/null || true
+                      rm -rf * .[!.]* 2>/dev/null || true
+                      rm -f /tmp/git-clone-log.txt
+                      echo ""
+                  else
+                      echo ""
+                      echo "❌ 克隆失败,已达到最大重试次数 ($MAX_RETRIES)"
+                      echo ""
+                      echo "💡 建议:"
+                      echo "  1. 检查生产服务器网络连接到GitHub"
+                      echo "  2. 尝试配置GitHub访问代理"
+                      echo "  3. 考虑使用国内Git镜像服务(Gitee)"
+                      echo "  4. 手动登录服务器进行克隆"
+                      exit 1
+                  fi
+              fi
+          done
+
+          echo ""
+          echo "📋 步骤3: 验证仓库"
+          echo "────────────────────────────────────────────────────────"
+          echo ""
+
+          # 显示当前版本
+          echo "📌 当前版本:"
+          git log -1 --oneline
+          echo ""
+
+          # 显示仓库状态
+          echo "📊 仓库状态:"
+          git status
+          echo ""
+
+          # 显示主要文件
+          echo "📂 主要文件/目录:"
+          ls -la | head -15
+          echo ""
+
+          # 显示仓库大小
+          echo "💾 仓库大小:"
+          du -sh .
+          echo ""
+
+          echo "════════════════════════════════════════════════════════"
+          echo "✅ Git仓库初始化完成!"
+          echo "════════════════════════════════════════════════════════"
+          echo ""
+          echo "📍 仓库位置: $DEPLOY_DIR"
+          echo "🌿 当前分支: $(git branch --show-current)"
+          echo "📝 最新提交: $(git log -1 --oneline)"
+          echo ""
+          echo "💡 后续部署将使用 'git pull' 快速更新(只需几秒)"
+          echo ""
+
+          ENDSSH
+
+          echo ""
+          echo "════════════════════════════════════════════════════════"
+          echo "🎉 操作完成!"
+          echo "════════════════════════════════════════════════════════"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "════════════════════════════════════════════════════════"
+          echo "执行摘要"
+          echo "════════════════════════════════════════════════════════"
+          echo "状态: ${{ job.status }}"
+          echo "强制重新克隆: ${{ github.event.inputs.force_reclone }}"
+          echo "完成时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "════════════════════════════════════════════════════════"
