@@ -44,14 +44,26 @@ jobs:
 
           set -e
 
-          # 进入部署目录
-          cd /opt/ai-project-cicd || { echo "❌ 部署目录不存在!"; exit 1; }
+          # 设置变量
+          DEPLOY_DIR="/opt/ai-project-cicd"
+          GIT_REPO="https://github.com/qiudl/new-ai-proj.git"
+          BRANCH="main"
 
-          # 拉取最新代码
-          echo "📥 拉取最新代码..."
-          git fetch origin
-          git reset --hard origin/main
-          git pull origin main
+          # 创建部署目录(如果不存在)
+          mkdir -p "$DEPLOY_DIR"
+          cd "$DEPLOY_DIR"
+
+          # 拉取或克隆代码
+          echo "📥 获取最新代码..."
+          if [ -d ".git" ]; then
+              echo "✓ Git仓库已存在,拉取最新代码..."
+              git fetch origin
+              git reset --hard origin/$BRANCH
+              git pull origin $BRANCH
+          else
+              echo "✓ 首次部署,克隆仓库..."
+              git clone -b $BRANCH $GIT_REPO .
+          fi
 
           echo ""
           echo "📋 当前版本信息:"
