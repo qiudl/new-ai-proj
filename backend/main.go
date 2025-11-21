@@ -1,6 +1,6 @@
 package main
 
-// Production Deploy: Testing SSH timeout fix with keep-alive settings (2025-11-21)
+// Production Deploy: Testing 25min timeout for slow Docker pulls (2025-11-21)
 
 import (
 	"ai-project-backend/application"
