@@ -83,6 +83,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_PREFIX }}-backend
           tags: |
+            type=sha,format=long
             type=sha,prefix={{branch}}-
             type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
@@ -134,6 +135,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_PREFIX }}-frontend
           tags: |
+            type=sha,format=long
             type=sha,prefix={{branch}}-
             type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
