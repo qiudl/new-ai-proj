@@ -265,7 +265,7 @@ jobs:
           chmod +x deploy-fast.sh
 
       - name: Upload and run deployment script
-        timeout-minutes: 15
+        timeout-minutes: 25
         env:
           SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
           SSH_USER: ${{ secrets.PROD_SSH_USER }}
