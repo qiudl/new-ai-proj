@@ -208,7 +208,7 @@ jobs:
           # 只拉取和更新变化的服务
           if [ "$BACKEND_CHANGED" == "true" ]; then
             echo "📥 Pulling backend image..."
-            docker pull ${IMAGE_PREFIX}-backend:${COMMIT_SHA}
+            docker pull ${IMAGE_PREFIX}-backend:sha-${COMMIT_SHA}
 
             echo "🔄 Stopping old backend container..."
             docker stop ai_backend_prod || true
@@ -233,14 +233,14 @@ jobs:
               -e LOG_LEVEL=info \
               -v /opt/ai-project-cicd/logs:/app/logs \
               --restart=always \
-              ${IMAGE_PREFIX}-backend:${COMMIT_SHA}
+              ${IMAGE_PREFIX}-backend:sha-${COMMIT_SHA}
           else
             echo "⏭️  Backend unchanged, skipping update"
           fi
 
           if [ "$FRONTEND_CHANGED" == "true" ]; then
             echo "📥 Pulling frontend image..."
-            docker pull ${IMAGE_PREFIX}-frontend:${COMMIT_SHA}
+            docker pull ${IMAGE_PREFIX}-frontend:sha-${COMMIT_SHA}
 
             echo "🔄 Stopping old frontend container..."
             docker stop ai_frontend_prod || true
@@ -253,7 +253,7 @@ jobs:
               -p 127.0.0.1:3000:80 \
               -e NODE_ENV=production \
               --restart=always \
-              ${IMAGE_PREFIX}-frontend:${COMMIT_SHA}
+              ${IMAGE_PREFIX}-frontend:sha-${COMMIT_SHA}
           else
             echo "⏭️  Frontend unchanged, skipping update"
           fi
@@ -337,10 +337,10 @@ jobs:
           echo "Backend Changed: $BACKEND_CHANGED"
           echo "Frontend Changed: $FRONTEND_CHANGED"
           if [ "$BACKEND_CHANGED" == "true" ]; then
-            echo "Backend Image: ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}"
+            echo "Backend Image: ${{ env.IMAGE_PREFIX }}-backend:sha-${{ github.sha }}"
           fi
           if [ "$FRONTEND_CHANGED" == "true" ]; then
-            echo "Frontend Image: ${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}"
+            echo "Frontend Image: ${{ env.IMAGE_PREFIX }}-frontend:sha-${{ github.sha }}"
           fi
           echo "Status: ${{ job.status }}"
           echo "Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
