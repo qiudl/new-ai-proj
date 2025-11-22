@@ -94,62 +94,72 @@ jobs:
             echo "  Frontend package: $(du -h frontend-deploy.tar.gz | cut -f1)"
           fi
 
-      - name: Prepare SSH Key
+      - name: Setup SSH
         run: |
-          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > /tmp/deploy_key
-          chmod 600 /tmp/deploy_key
-          SSH_KEY_CONTENT=$(cat /tmp/deploy_key)
-          echo "SSH_KEY<<EOF" >> $GITHUB_ENV
-          echo "$SSH_KEY_CONTENT" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
 
-      - name: Upload Backend
-        if: ${{ !inputs.skip_backend }}
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.PROD_SSH_HOST }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key: ${{ env.SSH_KEY }}
-          source: "backend-deploy.tar.gz"
-          target: "/tmp"
-          timeout: 120s
-          command_timeout: 10m
+          # Add host key
+          ssh-keyscan -T 30 -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Upload Frontend
-        if: ${{ !inputs.skip_frontend }}
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.PROD_SSH_HOST }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key: ${{ env.SSH_KEY }}
-          source: "frontend-deploy.tar.gz"
-          target: "/tmp"
-          timeout: 120s
-          command_timeout: 10m
+          # Create SSH config for faster transfers
+          cat >> ~/.ssh/config << EOF
+          Host deploy-server
+            HostName ${{ secrets.PROD_SSH_HOST }}
+            User ${{ secrets.PROD_SSH_USER }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            Compression yes
+            ServerAliveInterval 30
+            ServerAliveCountMax 10
+            TCPKeepAlive yes
+          EOF
+          chmod 600 ~/.ssh/config
 
-      - name: Deploy on server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.PROD_SSH_HOST }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key: ${{ env.SSH_KEY }}
-          command_timeout: 5m
-          script: |
+      - name: Upload and Deploy
+        run: |
+          echo "=========================================="
+          echo "📤 Uploading and deploying..."
+          echo "=========================================="
+
+          # Upload files using rsync (handles slow connections better)
+          for file in backend-deploy.tar.gz frontend-deploy.tar.gz; do
+            if [ -f "$file" ]; then
+              FILE_SIZE=$(du -h $file | cut -f1)
+              echo "  Uploading: $file ($FILE_SIZE)"
+
+              # Use rsync with partial resume and progress
+              timeout 300 rsync -avz --progress \
+                -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o Compression=yes" \
+                "$file" ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:/tmp/ || {
+                echo "  rsync failed, trying scp..."
+                timeout 300 scp -C -i ~/.ssh/deploy_key \
+                  -o StrictHostKeyChecking=no \
+                  -o Compression=yes \
+                  "$file" ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:/tmp/
+              }
+              echo "  ✅ Uploaded: $file"
+            fi
+          done
+
+          echo ""
+          echo "=========================================="
+          echo "🚀 Deploying on server..."
+          echo "=========================================="
+
+          ssh deploy-server << 'ENDSSH'
             set -e
 
             DEPLOY_DIR="/opt/ai-project"
             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
-            echo "=========================================="
-            echo "🚀 Starting deployment..."
-            echo "=========================================="
-
-            # 创建目录
+            echo "Creating directories..."
             mkdir -p "$DEPLOY_DIR"/{backend,frontend,logs,backups}
 
             cd "$DEPLOY_DIR"
 
-            # 部署后端
+            # Deploy backend
             if [ -f "/tmp/backend-deploy.tar.gz" ]; then
               echo "📦 Backing up current backend..."
               if [ -f "backend/ai-backend" ]; then
@@ -171,7 +181,7 @@ jobs:
               }
             fi
 
-            # 部署前端
+            # Deploy frontend
             if [ -f "/tmp/frontend-deploy.tar.gz" ]; then
               echo "📥 Extracting new frontend..."
               rm -rf frontend/build
@@ -181,16 +191,17 @@ jobs:
               sudo nginx -t && sudo systemctl reload nginx || echo "  Nginx reload failed"
             fi
 
-            # 清理
+            # Cleanup
             echo "🧹 Cleaning up..."
             rm -f /tmp/backend-deploy.tar.gz /tmp/frontend-deploy.tar.gz
 
-            # 保留最近10个备份
+            # Keep last 10 backups
             cd "backups" 2>/dev/null && ls -t ai-backend.* 2>/dev/null | tail -n +11 | xargs -r rm -f || true
 
             echo "=========================================="
             echo "✅ Deployment complete!"
             echo "=========================================="
+          ENDSSH
 
       - name: Health Check
         if: ${{ !inputs.skip_backend }}
