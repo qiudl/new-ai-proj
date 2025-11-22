@@ -99,7 +99,17 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Add host key with timeout
+          ssh-keyscan -T 30 -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          # Test SSH connection
+          echo "Testing SSH connection..."
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            -o BatchMode=yes \
+            ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} "echo 'SSH connection successful'"
 
       - name: Upload files
         run: |
@@ -109,7 +119,12 @@ jobs:
 
           for file in backend-deploy.tar.gz frontend-deploy.tar.gz; do
             if [ -f "$file" ]; then
-              scp -i ~/.ssh/deploy_key "$file" ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:/tmp/
+              echo "  Uploading: $file ($(du -h $file | cut -f1))"
+              scp -v -i ~/.ssh/deploy_key \
+                -o StrictHostKeyChecking=no \
+                -o ConnectTimeout=30 \
+                -o ServerAliveInterval=10 \
+                "$file" ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:/tmp/
               echo "  ✅ Uploaded: $file"
             fi
           done
