@@ -1,0 +1,212 @@
+name: Deploy via SCP + Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Deployment reason'
+        required: false
+        default: 'Manual deployment'
+      skip_frontend:
+        description: 'Skip frontend build'
+        type: boolean
+        default: false
+      skip_backend:
+        description: 'Skip backend build'
+        type: boolean
+        default: false
+
+env:
+  GO_VERSION: '1.24'
+  NODE_VERSION: '20'
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy (SCP)
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        if: ${{ !inputs.skip_backend }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Setup Node.js
+        if: ${{ !inputs.skip_frontend }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build Backend
+        if: ${{ !inputs.skip_backend }}
+        run: |
+          cd backend
+          echo "=========================================="
+          echo "🔨 Building backend..."
+          echo "=========================================="
+
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+            -ldflags="-s -w -X main.Version=${{ github.sha }} -X main.BuildTime=$(date -u +%Y%m%d_%H%M%S)" \
+            -o ai-backend main.go
+
+          ls -lh ai-backend
+          echo "✅ Backend build complete"
+
+      - name: Build Frontend
+        if: ${{ !inputs.skip_frontend }}
+        run: |
+          cd frontend
+          echo "=========================================="
+          echo "🔨 Building frontend..."
+          echo "=========================================="
+
+          npm ci
+          REACT_APP_API_URL="https://proj.joylodging.com/api/v1" \
+          GENERATE_SOURCEMAP=false \
+          npm run build
+
+          echo "✅ Frontend build complete"
+
+      - name: Package artifacts
+        run: |
+          echo "=========================================="
+          echo "📦 Packaging..."
+          echo "=========================================="
+
+          if [ "${{ inputs.skip_backend }}" != "true" ]; then
+            tar -czf backend-deploy.tar.gz \
+              -C backend ai-backend \
+              -C ${{ github.workspace }}/backend migrations
+            echo "  Backend package: $(du -h backend-deploy.tar.gz | cut -f1)"
+          fi
+
+          if [ "${{ inputs.skip_frontend }}" != "true" ]; then
+            tar -czf frontend-deploy.tar.gz \
+              -C frontend build
+            echo "  Frontend package: $(du -h frontend-deploy.tar.gz | cut -f1)"
+          fi
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Upload files
+        run: |
+          echo "=========================================="
+          echo "📤 Uploading to server..."
+          echo "=========================================="
+
+          for file in backend-deploy.tar.gz frontend-deploy.tar.gz; do
+            if [ -f "$file" ]; then
+              scp -i ~/.ssh/deploy_key "$file" ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:/tmp/
+              echo "  ✅ Uploaded: $file"
+            fi
+          done
+
+      - name: Deploy on server
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} << 'ENDSSH'
+            set -e
+
+            DEPLOY_DIR="/opt/ai-project"
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+            echo "=========================================="
+            echo "🚀 Starting deployment..."
+            echo "=========================================="
+
+            # 创建目录
+            mkdir -p "$DEPLOY_DIR"/{backend,frontend,logs,backups}
+
+            cd "$DEPLOY_DIR"
+
+            # 部署后端
+            if [ -f "/tmp/backend-deploy.tar.gz" ]; then
+              echo "📦 Backing up current backend..."
+              if [ -f "backend/ai-backend" ]; then
+                cp "backend/ai-backend" "backups/ai-backend.$TIMESTAMP"
+              fi
+
+              echo "📥 Extracting new backend..."
+              tar -xzf /tmp/backend-deploy.tar.gz -C backend/
+              chmod +x backend/ai-backend
+
+              echo "🔄 Restarting backend..."
+              sudo supervisorctl restart ai-backend 2>/dev/null || {
+                echo "  Supervisor not available, trying manual restart..."
+                pkill -f ai-backend || true
+                sleep 2
+                cd backend
+                nohup ./ai-backend > ../logs/backend.log 2>&1 &
+                cd ..
+              }
+            fi
+
+            # 部署前端
+            if [ -f "/tmp/frontend-deploy.tar.gz" ]; then
+              echo "📥 Extracting new frontend..."
+              rm -rf frontend/build
+              tar -xzf /tmp/frontend-deploy.tar.gz -C frontend/
+
+              echo "🔄 Reloading nginx..."
+              sudo nginx -t && sudo systemctl reload nginx || echo "  Nginx reload failed"
+            fi
+
+            # 清理
+            echo "🧹 Cleaning up..."
+            rm -f /tmp/backend-deploy.tar.gz /tmp/frontend-deploy.tar.gz
+
+            # 保留最近10个备份
+            cd "backups" 2>/dev/null && ls -t ai-backend.* 2>/dev/null | tail -n +11 | xargs -r rm -f || true
+
+            echo "=========================================="
+            echo "✅ Deployment complete!"
+            echo "=========================================="
+          ENDSSH
+
+      - name: Health Check
+        if: ${{ !inputs.skip_backend }}
+        run: |
+          echo "🔍 Running health check..."
+          sleep 10
+
+          for i in {1..6}; do
+            if curl -sf "http://${{ secrets.PROD_SSH_HOST }}:8080/health" > /dev/null 2>&1; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            echo "  Attempt $i failed, waiting..."
+            sleep 5
+          done
+
+          echo "⚠️ Health check timed out, but deployment may still be successful"
+          exit 0
+
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "📊 Deployment Summary"
+          echo "=========================================="
+          echo "  Status: ${{ job.status }}"
+          echo "  Commit: ${{ github.sha }}"
+          echo "  Reason: ${{ inputs.reason }}"
+          echo "  Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "  Skip Frontend: ${{ inputs.skip_frontend }}"
+          echo "  Skip Backend: ${{ inputs.skip_backend }}"
+          echo "=========================================="

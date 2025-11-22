@@ -1,0 +1,27 @@
+# /etc/logrotate.d/ai-project
+# AI Project 日志轮转配置
+
+/opt/ai-project/logs/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 aiproject aiproject
+    sharedscripts
+    postrotate
+        # 通知 supervisor 重新打开日志文件
+        supervisorctl signal HUP ai-backend > /dev/null 2>&1 || true
+    endscript
+}
+
+/opt/ai-project/logs/*.err {
+    daily
+    missingok
+    rotate 7
+    compress
+    delaycompress
+    notifempty
+    create 0640 aiproject aiproject
+}
