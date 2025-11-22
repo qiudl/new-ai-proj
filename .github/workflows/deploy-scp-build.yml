@@ -128,20 +128,31 @@ jobs:
           echo "📤 Uploading files..."
           echo "=========================================="
 
-          # Upload each file with explicit timeout
+          # Upload each file with extended timeout (10 min for slow China network)
           for file in backend-deploy.tar.gz frontend-deploy.tar.gz; do
             if [ -f "$file" ]; then
               FILE_SIZE=$(du -h $file | cut -f1)
               echo "  Uploading: $file ($FILE_SIZE)"
+              echo "  Started at: $(date '+%H:%M:%S')"
 
-              # Use scp with BatchMode to prevent hanging
-              timeout 300 scp $SSH_OPTS -C -i ~/.ssh/deploy_key \
-                "$file" ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:/tmp/
+              # Use scp with Compression and extended timeout
+              timeout 600 scp -v -C -i ~/.ssh/deploy_key \
+                -o StrictHostKeyChecking=no \
+                -o ConnectTimeout=30 \
+                -o ServerAliveInterval=15 \
+                -o ServerAliveCountMax=3 \
+                "$file" ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:/tmp/ 2>&1 | \
+                tee /tmp/scp-output.log | grep -E "(Transferred|Sending|Connected|debug1:)" || true
 
-              if [ $? -eq 0 ]; then
+              SCP_EXIT=${PIPESTATUS[0]}
+              echo "  Finished at: $(date '+%H:%M:%S')"
+
+              if [ $SCP_EXIT -eq 0 ]; then
                 echo "  ✅ Uploaded: $file"
               else
-                echo "  ❌ Failed to upload: $file"
+                echo "  ❌ Failed to upload: $file (exit code: $SCP_EXIT)"
+                echo "  Last 20 lines of output:"
+                tail -20 /tmp/scp-output.log
                 exit 1
               fi
             fi
