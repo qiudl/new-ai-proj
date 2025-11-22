@@ -94,49 +94,47 @@ jobs:
             echo "  Frontend package: $(du -h frontend-deploy.tar.gz | cut -f1)"
           fi
 
-      - name: Setup SSH
+      - name: Prepare SSH Key
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          SSH_KEY_CONTENT=$(cat /tmp/deploy_key)
+          echo "SSH_KEY<<EOF" >> $GITHUB_ENV
+          echo "$SSH_KEY_CONTENT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
-          # Add host key with timeout
-          ssh-keyscan -T 30 -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+      - name: Upload Backend
+        if: ${{ !inputs.skip_backend }}
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          source: "backend-deploy.tar.gz"
+          target: "/tmp"
+          timeout: 120s
+          command_timeout: 10m
 
-          # Test SSH connection
-          echo "Testing SSH connection..."
-          ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=30 \
-            -o BatchMode=yes \
-            ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} "echo 'SSH connection successful'"
-
-      - name: Upload files
-        run: |
-          echo "=========================================="
-          echo "📤 Uploading to server..."
-          echo "=========================================="
-
-          for file in backend-deploy.tar.gz frontend-deploy.tar.gz; do
-            if [ -f "$file" ]; then
-              FILE_SIZE=$(du -h $file | cut -f1)
-              echo "  Uploading: $file ($FILE_SIZE)"
-              scp -i ~/.ssh/deploy_key \
-                -o StrictHostKeyChecking=no \
-                -o ConnectTimeout=60 \
-                -o ServerAliveInterval=15 \
-                -o ServerAliveCountMax=10 \
-                "$file" ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:/tmp/
-              echo "  ✅ Uploaded: $file"
-            fi
-          done
+      - name: Upload Frontend
+        if: ${{ !inputs.skip_frontend }}
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          source: "frontend-deploy.tar.gz"
+          target: "/tmp"
+          timeout: 120s
+          command_timeout: 10m
 
       - name: Deploy on server
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=30 \
-            ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} << 'ENDSSH'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          command_timeout: 5m
+          script: |
             set -e
 
             DEPLOY_DIR="/opt/ai-project"
@@ -193,7 +191,6 @@ jobs:
             echo "=========================================="
             echo "✅ Deployment complete!"
             echo "=========================================="
-          ENDSSH
 
       - name: Health Check
         if: ${{ !inputs.skip_backend }}
