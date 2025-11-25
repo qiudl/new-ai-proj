@@ -1,0 +1,101 @@
+name: Deploy via Server-Side Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Deployment reason'
+        required: false
+        default: 'Manual deployment via server-side build'
+
+jobs:
+  deploy:
+    name: Server-Side Build and Deploy
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.PROD_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy via SSH
+        timeout-minutes: 25
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          echo "=========================================="
+          echo "🚀 开始生产服务器本地构建部署"
+          echo "=========================================="
+
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=60 \
+            -o ServerAliveCountMax=10 \
+            -o TCPKeepAlive=yes \
+            $SSH_USER@$SSH_HOST << 'ENDSSH'
+
+          set -e
+
+          # 设置变量
+          DEPLOY_DIR="/opt/ai-project-cicd"
+          GIT_REPO="https://github.com/qiudl/new-ai-proj.git"
+          BRANCH="main"
+
+          # 创建部署目录(如果不存在)
+          mkdir -p "$DEPLOY_DIR"
+          cd "$DEPLOY_DIR"
+
+          # 拉取或克隆代码
+          echo "📥 获取最新代码..."
+          if [ -d ".git" ]; then
+              echo "✓ Git仓库已存在,拉取最新代码..."
+              git fetch origin
+              git reset --hard origin/$BRANCH
+              git pull origin $BRANCH
+          else
+              echo "✓ 首次部署,克隆仓库..."
+              # 如果目录非空但不是git仓库,先清空
+              if [ "$(ls -A .)" ]; then
+                  echo "⚠️  目录非空但不是Git仓库,清空后重新克隆..."
+                  rm -rf ./*
+                  rm -rf ./.[!.]*  # 删除隐藏文件,但保留 . 和 ..
+              fi
+              git clone -b $BRANCH $GIT_REPO .
+          fi
+
+          echo ""
+          echo "📋 当前版本信息:"
+          git log -1 --oneline
+
+          # 给脚本执行权限
+          chmod +x scripts/deploy-on-server.sh
+
+          echo ""
+          echo "🔨 执行本地构建部署..."
+          bash scripts/deploy-on-server.sh
+
+          ENDSSH
+
+          echo ""
+          echo "=========================================="
+          echo "✅ 部署完成!"
+          echo "=========================================="
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "Deployment Summary"
+          echo "=========================================="
+          echo "Status: ${{ job.status }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "=========================================="

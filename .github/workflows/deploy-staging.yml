@@ -171,20 +171,19 @@ jobs:
         fi
 
     - name: Notify staging deployment status
-      if: always()
+      if: ${{ always() && secrets.SLACK_WEBHOOK_URL != '' }}
       uses: 8398a7/action-slack@v3
       with:
         status: ${{ job.status }}
         text: |
           🚧 Staging deployment ${{ job.status }}!
-          
+
           Repository: ${{ github.repository }}
           Branch: ${{ github.ref_name }}
           Commit: ${{ github.sha }}
-          
+
           Backend Image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-backend:staging-${{ github.sha }}
           Frontend Image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-frontend:staging-${{ github.sha }}
           MCP Image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-mcp:staging-${{ github.sha }}
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      if: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -179,20 +179,19 @@ jobs:
           fi
 
     - name: Notify deployment status
-      if: always()
+      if: ${{ always() && secrets.SLACK_WEBHOOK_URL != '' }}
       uses: 8398a7/action-slack@v3
       with:
         status: ${{ job.status }}
         text: |
           🚀 Production deployment ${{ job.status }}!
-          
+
           Repository: ${{ github.repository }}
           Branch: ${{ github.ref_name }}
           Commit: ${{ github.sha }}
-          
+
           Backend Image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}
           Frontend Image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-frontend:${{ github.sha }}
           MCP Image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}-mcp:${{ github.sha }}
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      if: ${{ secrets.SLACK_WEBHOOK_URL }}
