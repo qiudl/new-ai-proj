@@ -83,7 +83,7 @@
   },
   "scripts": {
     "start": "craco start",
-    "build": "craco build",
+    "build": "FAST_REFRESH=false craco build",
     "build:cloudflare": "GENERATE_SOURCEMAP=false npm run build && npm run optimize:build",
     "optimize:build": "npm run compress:build && npm run copy:cf-files",
     "compress:build": "find build -name '*.js' -o -name '*.css' | xargs gzip -k",

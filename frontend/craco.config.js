@@ -7,12 +7,6 @@ module.exports = {
   typescript: {
     enableTypeChecking: false, // 禁用TypeScript类型检查以提升性能
   },
-  babel: {
-    plugins: [
-      // 仅在开发环境启用React Refresh
-      ...(process.env.NODE_ENV === 'development' ? [require.resolve('react-refresh/babel')] : []),
-    ],
-  },
   webpack: {
     configure: (webpackConfig) => {
       // 完全移除ForkTsCheckerWebpackPlugin以避免内存问题
@@ -142,9 +136,11 @@ module.exports = {
         };
       }
 
-      // 确保输出配置正确
+      // 确保输出配置正确，避免chunk命名冲突
       if (webpackConfig.output) {
         webpackConfig.output.publicPath = '/';
+        webpackConfig.output.filename = 'static/js/[name].[contenthash:8].js';
+        webpackConfig.output.chunkFilename = 'static/js/[name].[contenthash:8].chunk.js';
       }
 
       return webpackConfig;
