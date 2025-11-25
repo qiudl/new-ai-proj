@@ -7,12 +7,6 @@ module.exports = {
   typescript: {
     enableTypeChecking: false, // 禁用TypeScript类型检查以提升性能
   },
-  babel: {
-    plugins: [
-      // 禁用生产环境的React Refresh
-      process.env.NODE_ENV !== 'production' && require.resolve('react-refresh/babel'),
-    ].filter(Boolean),
-  },
   webpack: {
     configure: (webpackConfig) => {
       // 完全移除ForkTsCheckerWebpackPlugin以避免内存问题
