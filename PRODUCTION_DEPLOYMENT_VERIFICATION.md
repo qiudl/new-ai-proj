@@ -1,10 +1,10 @@
-# 生产环境部署验证报告 - 最终版本
+# 生产环境部署验证报告 - 最终版本 v2
 
-**部署时间**: 2025-11-25 18:59 CST
-**部署分支**: main (commit: latest)
+**部署时间**: 2025-11-25 19:16 CST
+**部署分支**: main (commit: dacb20ab)
 **部署方式**: SCP部署 (frontend-only)
-**验证时间**: 2025-11-25 19:01 CST
-**状态**: ✅ 全部问题已解决
+**验证时间**: 2025-11-25 19:17 CST
+**状态**: ✅ 全部问题已解决（包括API连接错误）
 
 ---
 
@@ -12,11 +12,19 @@
 
 ### ✅ 部署成功
 
-- **部署耗时**: 19秒
-- **构建包大小**: 84MB (本地)
-- **压缩上传包**: 15MB
-- **Nginx状态**: ✅ 配置测试通过
-- **部署状态**: ✅ 远程部署完成
+- **第一次部署** (修复环境标签):
+  - 部署耗时: 19秒
+  - 提交: 0f0d91e0
+  - 状态: ✅ 环境标签问题修复
+
+- **第二次部署** (修复API连接):
+  - 部署耗时: 20秒
+  - 构建包大小: 84MB (本地)
+  - 压缩上传包: 15MB
+  - 提交: dacb20ab
+  - Nginx状态: ✅ 配置测试通过
+  - 部署状态: ✅ 远程部署完成
+  - API验证: ✅ 所有API URL指向生产域名
 
 ---
 
@@ -169,7 +177,37 @@ git push origin main
 
 ### 已解决的所有问题
 
-#### 1. ❌ **React Refresh生产环境错误** (最严重)
+#### 问题A. ❌ **生产环境显示"开发环境"标签** (2025-11-25 18:59)
+   - **错误**: 生产环境页面头部显示绿色"开发环境"徽章
+   - **原因**: `.env`基础文件包含`REACT_APP_LOCAL_DEV=true`，在所有环境中生效
+   - **解决**:
+     - 从`.env`移除环境特定配置
+     - 将`REACT_APP_LOCAL_DEV=true`移至`.env.development`
+     - 在`.env.production`添加`REACT_APP_ENVIRONMENT=production`
+     - 更新部署脚本显式设置环境变量
+   - **验证**: 部署后环境徽章正确消失
+   - **提交**: commit 0f0d91e0
+   - **状态**: ✅ 已完全修复
+
+#### 问题B. ❌ **生产环境API连接失败 ERR_CONNECTION_REFUSED** (2025-11-25 19:15)
+   - **错误**: 前端API调用失败，所有请求指向`http://localhost:8080/api/v1`
+   - **原因**: 部署脚本只设置`REACT_APP_API_URL`，未设置`REACT_APP_API_BASE_URL`
+   - **现象**:
+     - 控制台显示多个`ERR_CONNECTION_REFUSED`错误
+     - `/current`, `/status`, `/enterprises`等接口全部连接失败
+   - **调查过程**:
+     1. 检查构建产物，发现`REACT_APP_API_BASE_URL`仍指向localhost
+     2. 确认`.env.production`配置正确
+     3. 发现部署脚本遗漏了部分环境变量
+   - **解决**:
+     - 在`deploy-scp.sh`添加`REACT_APP_API_BASE_URL`环境变量
+     - 在`deploy-scp.sh`添加`REACT_APP_BASE_URL`环境变量
+     - 重新构建并部署
+   - **验证**: 构建产物中API URL全部指向生产域名
+   - **提交**: commit dacb20ab
+   - **状态**: ✅ 已完全修复
+
+#### 1. ❌ **React Refresh生产环境错误** (最严重) (性能优化期间)
    - **错误**: "React Refresh Babel transform should only be enabled in development environment"
    - **原因**: CRA自动在生产build中包含了React Refresh
    - **尝试方案**:
@@ -288,6 +326,8 @@ git push origin main
 **验证人员**: AI Assistant (Claude Code)
 **验证结论**: ✅ 全部问题已解决，优化完全成功，生产环境稳定运行
 **部署方式**: 直接生产部署（跳过staging）
-**解决的问题**: 3个严重生产错误 + 2个构建问题
-**文档版本**: 2.0 (最终版)
-**最后更新**: 2025-11-25 19:01 CST
+**解决的问题**:
+  - 性能优化期间: 3个严重生产错误 + 2个构建问题
+  - 生产环境配置: 2个生产环境错误（环境标签 + API连接）
+**文档版本**: 2.1 (最终版 - 包含API连接修复)
+**最后更新**: 2025-11-25 19:17 CST
