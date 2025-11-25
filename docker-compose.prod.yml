@@ -56,7 +56,7 @@ services:
       ENV: production
       NODE_ENV: production
       APP_ENV: production
-      DB_HOST: ai_postgres_prod  # 使用容器名
+      DB_HOST: postgres-prod  # 使用服务名而不是容器名
       DB_PORT: 5432
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
@@ -236,9 +236,9 @@ services:
       dockerfile: Dockerfile.sse
     container_name: ai_mcp_server_prod
     environment:
-      # API基础地址（使用容器名）
-      API_BASE_URL: http://ai_backend_prod:8080/api/v1
-      TASK_API_BASE: http://ai_backend_prod:8080/api/v1
+      # API基础地址（使用服务名）
+      API_BASE_URL: http://backend-prod:8080/api/v1
+      TASK_API_BASE: http://backend-prod:8080/api/v1
       # SSE服务端口配置
       MCP_PORT: 3000
       PORT: 3000

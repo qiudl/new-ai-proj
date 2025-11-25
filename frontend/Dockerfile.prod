@@ -13,8 +13,8 @@ COPY package*.json ./
 # 设置npm镜像源（加速下载）
 RUN npm config set registry https://registry.npmmirror.com
 
-# 安装依赖
-RUN npm ci --only=production && npm cache clean --force
+# 安装所有依赖（包括devDependencies，构建需要）
+RUN npm ci && npm cache clean --force
 
 # 复制源代码
 COPY . .
