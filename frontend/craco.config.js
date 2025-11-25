@@ -7,6 +7,12 @@ module.exports = {
   typescript: {
     enableTypeChecking: false, // 禁用TypeScript类型检查以提升性能
   },
+  babel: {
+    plugins: [
+      // 禁用生产环境的React Refresh
+      process.env.NODE_ENV !== 'production' && require.resolve('react-refresh/babel'),
+    ].filter(Boolean),
+  },
   webpack: {
     configure: (webpackConfig) => {
       // 完全移除ForkTsCheckerWebpackPlugin以避免内存问题
@@ -14,49 +20,118 @@ module.exports = {
         plugin => plugin.constructor.name !== 'ForkTsCheckerWebpackPlugin'
       );
 
-      // 优化chunk命名和分割策略
+      // 优化chunk命名和分割策略（性能优化版本）
       if (webpackConfig.optimization) {
+        // 只覆盖splitChunks，保留CRA的其他优化配置
         webpackConfig.optimization.splitChunks = {
-          ...webpackConfig.optimization.splitChunks,
           chunks: 'all',
-          maxInitialRequests: 10,
-          maxAsyncRequests: 10,
+          maxInitialRequests: 30,
+          maxAsyncRequests: 30,
           minSize: 20000,
-          maxSize: 300000, // 限制chunk大小防止文件名过长
+          maxSize: 244000,
           cacheGroups: {
-            // 将antd相关依赖单独分组
-            antd: {
-              name: 'antd',
-              test: /[\\/]node_modules[\\/]antd[\\/]/,
+            // React核心库（最高优先级）
+            react: {
+              name: 'vendor-react',
+              test: /[\\/]node_modules[\\/](react|react-dom|react-router-dom|react-router)[\\/]/,
               chunks: 'all',
-              priority: 20,
+              priority: 40,
+              enforce: true,
               reuseExistingChunk: true,
             },
-            // antd图标单独分组
+            // Ant Design UI库
+            antd: {
+              name: 'vendor-antd',
+              test: /[\\/]node_modules[\\/]antd[\\/]/,
+              chunks: 'all',
+              priority: 35,
+              enforce: true,
+              reuseExistingChunk: true,
+            },
+            // Ant Design图标（体积大，单独拆分）
             antdIcons: {
-              name: 'antd-icons', 
-              test: /[\\/]node_modules[\\/]@ant-design[\\/]icons[\\/]/,
+              name: 'vendor-antd-icons',
+              test: /[\\/]node_modules[\\/]@ant-design[\\/](icons|icons-svg)[\\/]/,
+              chunks: 'all',
+              priority: 37,
+              enforce: true,
+              reuseExistingChunk: true,
+            },
+            // ECharts图表库（体积大，单独拆分）
+            echarts: {
+              name: 'vendor-echarts',
+              test: /[\\/]node_modules[\\/](echarts|zrender)[\\/]/,
+              chunks: 'all',
+              priority: 32,
+              enforce: true,
+              reuseExistingChunk: true,
+            },
+            // Recharts和Ant Design Charts
+            charts: {
+              name: 'vendor-charts',
+              test: /[\\/]node_modules[\\/](recharts|@antv|@ant-design\/plots|@ant-design\/charts)[\\/]/,
+              chunks: 'all',
+              priority: 30,
+              reuseExistingChunk: true,
+            },
+            // Redux状态管理
+            redux: {
+              name: 'vendor-redux',
+              test: /[\\/]node_modules[\\/](redux|react-redux|@reduxjs)[\\/]/,
+              chunks: 'all',
+              priority: 28,
+              reuseExistingChunk: true,
+            },
+            // React Query (TanStack)
+            query: {
+              name: 'vendor-query',
+              test: /[\\/]node_modules[\\/]@tanstack[\\/]/,
+              chunks: 'all',
+              priority: 27,
+              reuseExistingChunk: true,
+            },
+            // Axios和HTTP客户端
+            axios: {
+              name: 'vendor-axios',
+              test: /[\\/]node_modules[\\/](axios)[\\/]/,
+              chunks: 'all',
+              priority: 26,
+              reuseExistingChunk: true,
+            },
+            // Moment.js（日期库，体积大）
+            moment: {
+              name: 'vendor-moment',
+              test: /[\\/]node_modules[\\/]moment[\\/]/,
               chunks: 'all',
               priority: 25,
               reuseExistingChunk: true,
             },
-            // 其他vendor依赖
-            vendor: {
+            // Lodash工具库
+            lodash: {
+              name: 'vendor-lodash',
+              test: /[\\/]node_modules[\\/]lodash[\\/]/,
+              chunks: 'all',
+              priority: 24,
+              reuseExistingChunk: true,
+            },
+            // 其他第三方库
+            vendors: {
               name: 'vendors',
               test: /[\\/]node_modules[\\/]/,
               chunks: 'all',
               priority: 10,
+              minChunks: 1,
               reuseExistingChunk: true,
             },
-            // React相关
-            react: {
-              name: 'react',
-              test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-              chunks: 'all',
-              priority: 30,
+            // 公共代码（被多次引用的代码）
+            common: {
+              name: 'common',
+              minChunks: 2,
+              priority: 5,
               reuseExistingChunk: true,
-            }
-          }
+              enforce: true,
+            },
+          },
         };
       }
 
