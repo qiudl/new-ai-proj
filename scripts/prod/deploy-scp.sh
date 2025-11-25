@@ -97,6 +97,8 @@ build_frontend() {
 
     # 构建 (生产环境配置)
     REACT_APP_API_URL="${API_URL:-https://$SERVER_DOMAIN/api/v1}" \
+    REACT_APP_API_BASE_URL="${API_URL:-https://$SERVER_DOMAIN/api/v1}" \
+    REACT_APP_BASE_URL="${BASE_URL:-https://$SERVER_DOMAIN}" \
     REACT_APP_ENV=production \
     REACT_APP_ENVIRONMENT=production \
     REACT_APP_LOCAL_DEV=false \
