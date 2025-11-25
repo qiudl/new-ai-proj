@@ -95,8 +95,11 @@ build_frontend() {
         npm ci
     fi
 
-    # 构建
+    # 构建 (生产环境配置)
     REACT_APP_API_URL="${API_URL:-https://$SERVER_DOMAIN/api/v1}" \
+    REACT_APP_ENV=production \
+    REACT_APP_ENVIRONMENT=production \
+    REACT_APP_LOCAL_DEV=false \
     GENERATE_SOURCEMAP=false \
     npm run build
 
