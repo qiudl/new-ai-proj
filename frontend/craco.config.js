@@ -7,12 +7,25 @@ module.exports = {
   typescript: {
     enableTypeChecking: false, // 禁用TypeScript类型检查以提升性能
   },
+  babel: {
+    plugins: [
+      // 仅在开发环境启用React Refresh
+      ...(process.env.NODE_ENV === 'development' ? [require.resolve('react-refresh/babel')] : []),
+    ],
+  },
   webpack: {
     configure: (webpackConfig) => {
       // 完全移除ForkTsCheckerWebpackPlugin以避免内存问题
       webpackConfig.plugins = webpackConfig.plugins.filter(
         plugin => plugin.constructor.name !== 'ForkTsCheckerWebpackPlugin'
       );
+
+      // 生产环境移除ReactRefreshPlugin
+      if (process.env.NODE_ENV === 'production') {
+        webpackConfig.plugins = webpackConfig.plugins.filter(
+          plugin => plugin.constructor.name !== 'ReactRefreshPlugin'
+        );
+      }
 
       // 优化chunk命名和分割策略（性能优化版本）
       if (webpackConfig.optimization) {
