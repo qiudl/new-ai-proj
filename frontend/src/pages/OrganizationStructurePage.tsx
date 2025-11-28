@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card,
   Button,
@@ -42,7 +42,8 @@ const { TextArea } = Input;
 const OrganizationStructurePage: React.FC = () => {
   const { enterpriseId } = useParams<{ enterpriseId: string }>();
   const enterpriseIdNum = enterpriseId ? parseInt(enterpriseId, 10) : null;
-  
+  const navigate = useNavigate();
+
   // 支持新的Enterprise API和旧的Company API
   const [departments, setDepartments] = useState<(Department | EnterpriseDepartment)[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -513,7 +514,7 @@ const OrganizationStructurePage: React.FC = () => {
             type="link"
             
             icon={<EditOutlined />}
-            onClick={() => message.info('编辑员工功能待实现')}
+            onClick={() => navigate(`/enterprises/${selectedEnterpriseId}/users/${record.id}`)}
           >
             编辑
           </Button>
