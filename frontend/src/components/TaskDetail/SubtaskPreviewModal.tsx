@@ -126,7 +126,7 @@ const SubtaskPreviewModal: React.FC<SubtaskPreviewModalProps> = ({
       onCancel={onClose}
       width={900}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
     >
       {/* 任务信息 */}
       <Card size="small" style={{ marginBottom: 16, background: '#f8f9fa' }}>

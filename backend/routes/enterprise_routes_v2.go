@@ -30,6 +30,22 @@ func RegisterEnterpriseRoutesV2(
 
 	fmt.Printf("✅ 注册企业域路由组: /api/v1/enterprises/:enterprise_id\n")
 
+	// 获取当前企业信息 (企业用户可访问自己的企业)
+	enterpriseHandler := app.GetEnterpriseHandler()
+	fmt.Printf("DEBUG: enterpriseHandler is nil: %v\n", enterpriseHandler == nil)
+	if enterpriseHandler != nil {
+		enterprise.GET("/info",
+			permMiddleware.RequireEnterprisePermission("enterprise.info.read"),
+			func(c *gin.Context) {
+				// 将 enterprise_id 参数转换为 id 参数供 handler 使用
+				enterpriseIDStr := c.Param("enterprise_id")
+				c.Params = append(c.Params, gin.Param{Key: "id", Value: enterpriseIDStr})
+				enterpriseHandler.GetEnterprise(c)
+			},
+		)
+		fmt.Printf("  ✓ 企业信息路由: /api/v1/enterprises/:enterprise_id/info\n")
+	}
+
 	// 注册企业用户管理路由
 	registerEnterpriseUserManagementRoutes(enterprise, permMiddleware, app)
 

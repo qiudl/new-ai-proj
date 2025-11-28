@@ -300,7 +300,7 @@ const OrganizationStructurePage: React.FC = () => {
           <Tag color={dept.status === 'active' ? 'green' : 'red'}>
             {dept.status === 'active' ? '活跃' : '停用'}
           </Tag>
-          <Text type="secondary">({'user_count' in dept ? dept.user_count : ('employee_count' in dept ? dept.employee_count : 0)}人)</Text>
+          <Text type="secondary">({dept.employee_count || 0}人)</Text>
         </Space>
       ),
       children: ('children' in dept && dept.children && Array.isArray(dept.children)) ? convertToTreeData(dept.children) : undefined,
@@ -651,7 +651,7 @@ const OrganizationStructurePage: React.FC = () => {
                   </Col>
                   <Col span={12}>
                     <Text strong>员工数量：</Text>
-                    <Text>{'user_count' in selectedDepartment ? selectedDepartment.user_count : ('employee_count' in selectedDepartment ? selectedDepartment.employee_count : 0)}人</Text>
+                    <Text>{selectedDepartment.employee_count || 0}人</Text>
                   </Col>
                 </Row>
                 <Divider style={{ margin: '12px 0' }} />
@@ -709,7 +709,7 @@ const OrganizationStructurePage: React.FC = () => {
         onOk={handleDepartmentSave}
         onCancel={() => setModalVisible(false)}
         width={600}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={form}

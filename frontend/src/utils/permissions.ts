@@ -57,7 +57,11 @@ export function isCompanyAdmin(user: User | null | undefined): boolean {
     return false;
   }
 
-  return user.user_type === 'company' && user.role === 'company_admin';
+  // 兼容 'company' 和 'enterprise' 两种 user_type
+  // 兼容 'company_admin' 和 'enterprise_admin' 两种角色
+  const isEnterpriseUserType = user.user_type === 'company' || user.user_type === 'enterprise';
+  const isAdminRole = user.role === 'company_admin' || user.role === 'enterprise_admin';
+  return isEnterpriseUserType && isAdminRole;
 }
 
 /**

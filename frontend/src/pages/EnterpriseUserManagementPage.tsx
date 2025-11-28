@@ -99,7 +99,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
   const loadEnterprise = async () => {
     if (!enterpriseIdNum) return;
     try {
-      const result = await enterpriseService.getEnterprise(enterpriseIdNum);
+      const result = await enterpriseService.getEnterpriseAuto(enterpriseIdNum);
       setEnterprise(result);
     } catch (error) {
       console.error('加载企业信息失败:', error);
@@ -597,7 +597,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
         onCancel={closeModal}
         width={600}
         footer={null}
-        destroyOnClose={true}
+        destroyOnHidden={true}
         getContainer={() => document.body}
       >
         <Form

@@ -239,7 +239,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       open={visible}
       onCancel={onCancel}
       width={800}
-      destroyOnClose
+      destroyOnHidden
       footer={[
         <Button key="preview" icon={<EyeOutlined />} onClick={() => setShowPreview(!showPreview)}>
           {showPreview ? '隐藏预览' : '预览'}

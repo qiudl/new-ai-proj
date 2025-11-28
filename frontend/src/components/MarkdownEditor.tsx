@@ -624,7 +624,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             onCancel={() => setImageUploadVisible(false)}
             footer={null}
             width={600}
-            destroyOnClose
+            destroyOnHidden
           >
             <ImageUpload
               onImageInsert={(imageUrl, fileName) => {
@@ -645,7 +645,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             onCancel={() => setPdfUploadVisible(false)}
             footer={null}
             width={700}
-            destroyOnClose
+            destroyOnHidden
           >
             <PDFViewer
               onPDFInsert={(pdfUrl, fileName) => {

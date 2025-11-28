@@ -58,14 +58,38 @@ interface EnterpriseFilter {
   industryType?: string;
 }
 
+// 从 JWT token 获取用户信息
+const getUserFromToken = (): { user_type?: string; enterprise_id?: number } | null => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return {
+      user_type: payload.user_type,
+      enterprise_id: payload.enterprise_id
+    };
+  } catch {
+    return null;
+  }
+};
+
 const EnterpriseManagementPage: React.FC = () => {
   const navigate = useNavigate();
-  
+
+  // 企业用户自动跳转到自己的企业详情页
+  useEffect(() => {
+    const user = getUserFromToken();
+    if (user?.user_type === 'enterprise' && user?.enterprise_id) {
+      console.log('[EnterpriseManagementPage] 企业用户，跳转到自己的企业:', user.enterprise_id);
+      navigate(`/enterprises/${user.enterprise_id}`, { replace: true });
+    }
+  }, [navigate]);
+
   // 基础状态
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  
+
   // 分页状态
   const [pagination, setPagination] = useState({
     current: 1,
@@ -75,12 +99,18 @@ const EnterpriseManagementPage: React.FC = () => {
     showQuickJumper: true,
     showTotal: (total: number) => `共 ${total} 条记录`,
   });
-  
+
   // 筛选状态
   const [filters, setFilters] = useState<EnterpriseFilter>({});
 
   // 加载企业列表
   const loadEnterprises = useCallback(async () => {
+    // 企业用户不需要加载列表
+    const user = getUserFromToken();
+    if (user?.user_type === 'enterprise') {
+      return;
+    }
+
     setLoading(true);
     try {
       // 准备筛选参数

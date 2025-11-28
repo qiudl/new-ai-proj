@@ -136,7 +136,14 @@ ensure_tunnel() {
         return 1
     fi
 
-    # 检查隧道状态
+    # 检查隧道状态 - 优先检查端口是否监听（更宽松的检查）
+    # tunnel.sh check 要求数据库连接成功，但有时只需要端口通就行
+    if is_port_busy "5433"; then
+        log_success "数据库隧道已运行 (端口 5433 已监听)"
+        return 0
+    fi
+
+    # 备选：使用 tunnel.sh 的完整检查
     if "$TUNNEL_SCRIPT" check > /dev/null 2>&1; then
         log_success "数据库隧道已运行"
         return 0
@@ -467,10 +474,16 @@ stop_frontend() {
 show_status() {
     log_section "📊 开发环境状态"
 
-    # 隧道状态
+    # 隧道状态 - 使用端口检测，更可靠
     echo -e "${YELLOW}数据库隧道:${NC}"
-    if "$TUNNEL_SCRIPT" check > /dev/null 2>&1; then
-        echo -e "  状态: ${GREEN}运行中${NC}"
+    if is_port_busy "5433"; then
+        echo -e "  状态: ${GREEN}运行中${NC} (端口 5433 已监听)"
+        # 额外显示数据库连接状态
+        if "$TUNNEL_SCRIPT" check > /dev/null 2>&1; then
+            echo -e "  数据库: ${GREEN}连接正常${NC}"
+        else
+            echo -e "  数据库: ${YELLOW}连接测试失败 (可能缺少密码配置)${NC}"
+        fi
     else
         echo -e "  状态: ${RED}未运行${NC}"
     fi

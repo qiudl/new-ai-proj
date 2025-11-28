@@ -81,9 +81,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	log.Printf("[DEBUG] Login: Found user %s, ID=%d, UserType=%s, HasPasswordHash=%v, PasswordHashLen=%d",
+		user.Username, user.ID, user.UserType, user.PasswordHash != "", len(user.PasswordHash))
+
 	// Check password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		log.Printf("Password verification failed: %v", err)
+		log.Printf("Password verification failed for user %s: %v", user.Username, err)
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse("AUTHENTICATION_ERROR", "用户名或密码错误", nil))
 		return
 	}

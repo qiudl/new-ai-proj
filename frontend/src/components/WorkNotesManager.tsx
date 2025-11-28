@@ -1704,7 +1704,11 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
       sorter: (a: WorkNoteWithTask, b: WorkNoteWithTask) =>
         dayjs(a.updated_at).unix() - dayjs(b.updated_at).unix(),
       render: (date: string) => {
-        if (!date || !dayjs(date).isValid()) {
+        // 检查日期是否有效，包括检测零值时间 (Go time.Time zero value: "0001-01-01T00:00:00Z")
+        const parsedDate = dayjs(date);
+        const isValidDate = date && parsedDate.isValid() && parsedDate.year() > 1900;
+
+        if (!isValidDate) {
           return (
             <div style={{ fontSize: isMobile ? 10 : 11, color: '#bfbfbf' }}>
               <div>未知</div>
@@ -1714,8 +1718,8 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
         }
         return (
           <div style={{ fontSize: isMobile ? 10 : 11 }}>
-            <div>{dayjs(date).format('MM-DD')}</div>
-            <div style={{ color: '#8c8c8c' }}>{dayjs(date).format('HH:mm')}</div>
+            <div>{parsedDate.format('MM-DD')}</div>
+            <div style={{ color: '#8c8c8c' }}>{parsedDate.format('HH:mm')}</div>
           </div>
         );
       },
@@ -2119,7 +2123,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           overflowY: 'auto',
           padding: '24px'
         }}
-        destroyOnClose
+        forceRender
         confirmLoading={saving}
         okText="保存"
         cancelText="取消"
@@ -2268,6 +2272,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = memo(({
           quickCreateForm.resetFields();
         }}
         width={600}
+        forceRender
         okText="立即创建"
         cancelText="取消"
       >

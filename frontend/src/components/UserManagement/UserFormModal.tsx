@@ -69,7 +69,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
       width={700}
       okText={mode === 'create' ? '创建' : '保存'}
       cancelText="取消"
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

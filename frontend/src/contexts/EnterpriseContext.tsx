@@ -3,6 +3,7 @@ import { message } from 'antd';
 import { Enterprise, EnterpriseUser } from '../types/enterprise';
 import { User } from '../types/user';
 import enterpriseService from '../services/enterpriseService';
+import { getCurrentUser } from '../utils/userUtils';
 
 interface EnterpriseContextType {
   currentEnterprise: Enterprise | null;
@@ -36,12 +37,49 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 检查是否为企业用户（user_type 为 'company' 或 'enterprise'）
+  const isEnterpriseUser = (user: User | null): boolean => {
+    return user?.user_type === 'company' || user?.user_type === 'enterprise';
+  };
+
   // 获取企业列表
   const refreshEnterprises = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // 获取当前用户信息
+      const currentUser = getCurrentUser();
+
+      // 企业用户：只获取自己所属的企业信息，使用企业级 API
+      if (isEnterpriseUser(currentUser)) {
+        if (currentUser?.enterprise_id) {
+          try {
+            // 使用 getEnterpriseAuto 自动选择正确的 API 端点
+            const enterprise = await enterpriseService.getEnterpriseAuto(currentUser.enterprise_id);
+            setEnterprises([enterprise]);
+            // 同时设置为当前企业
+            if (!currentEnterprise) {
+              setCurrentEnterprise(enterprise);
+            }
+          } catch (err: any) {
+            // 获取自己企业信息失败，静默处理
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('⚠️ 获取用户所属企业信息失败:', err);
+            }
+            setEnterprises([]);
+          }
+        } else {
+          // 企业用户但没有 enterprise_id，设置空列表
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('⚠️ 企业用户缺少 enterprise_id');
+          }
+          setEnterprises([]);
+        }
+        return;
+      }
+
+      // 系统用户：获取所有企业列表
       const response = await enterpriseService.getEnterprises(1, 100);
       setEnterprises(response.data);
 
@@ -73,7 +111,7 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
       setLoading(true);
       setError(null);
 
-      const enterprise = await enterpriseService.getEnterprise(enterpriseId);
+      const enterprise = await enterpriseService.getEnterpriseAuto(enterpriseId);
       setCurrentEnterprise(enterprise);
 
       // 保存到本地存储
@@ -106,7 +144,7 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
         return null;
       }
 
-      const enterprise = await enterpriseService.getEnterprise(enterpriseId);
+      const enterprise = await enterpriseService.getEnterpriseAuto(enterpriseId);
       return enterprise;
 
     } catch (err: any) {

@@ -109,7 +109,7 @@ const EnterpriseUserDetailPage: React.FC = () => {
 
       // 并行加载所有数据
       const [enterpriseResult, userResult, statsResult, projectsResult, activitiesResult] = await Promise.all([
-        enterpriseService.getEnterprise(entId),
+        enterpriseService.getEnterpriseAuto(entId),
         enterpriseService.getEnterpriseUser(entId, usrId),
         enterpriseUserService.getEnterpriseUserStats(entId, usrId),
         enterpriseUserService.getEnterpriseUserProjects(entId, usrId),

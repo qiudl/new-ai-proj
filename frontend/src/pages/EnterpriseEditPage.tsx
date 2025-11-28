@@ -55,7 +55,7 @@ const EnterpriseEditPage: React.FC = () => {
 
       try {
         setLoading(true);
-        const enterpriseData = await enterpriseService.getEnterprise(enterpriseId);
+        const enterpriseData = await enterpriseService.getEnterpriseAuto(enterpriseId);
         setEnterprise(enterpriseData);
         
         // 设置表单初始值

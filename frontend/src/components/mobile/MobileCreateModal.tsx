@@ -60,7 +60,7 @@ const MobileCreateModal: React.FC<MobileCreateModalProps> = ({
           flexDirection: 'column',
         }
       }}
-      destroyOnClose
+      destroyOnHidden
       maskClosable={false}
     >
       {/* 顶部导航栏 */}

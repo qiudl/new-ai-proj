@@ -544,10 +544,8 @@ const ProjectDetailPage: React.FC = () => {
       if (enterpriseId) {
         try {
           setEnterpriseLoadError(false);
-          // 尝试获取企业信息
-          // 注意: /system/enterprises API需要系统管理员权限
-          // 如果用户没有权限会返回404，这是正常的，不影响主流程
-          const enterprise = await enterpriseService.getEnterprise(enterpriseId);
+          // 使用 getEnterpriseAuto 根据用户类型自动选择正确的 API
+          const enterprise = await enterpriseService.getEnterpriseAuto(enterpriseId);
           setEnterpriseInfo(enterprise);
         } catch (error: any) {
           // 仅在非404/403错误时记录日志，避免权限不足导致的正常错误污染控制台

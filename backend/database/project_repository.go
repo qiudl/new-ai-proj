@@ -735,7 +735,7 @@ func (r *PostgresProjectRepository) HardDeleteProject(ctx context.Context, id in
 	return nil
 }
 
-// GetProjectsByMemberUserID gets all projects where the user is a member (through project_members table)
+// GetProjectsByMemberUserID gets all projects where the user is a member (through project_users table)
 func (r *PostgresProjectRepository) GetProjectsByMemberUserID(ctx context.Context, userID int) ([]map[string]interface{}, error) {
 	query := `
 		SELECT
@@ -744,14 +744,13 @@ func (r *PostgresProjectRepository) GetProjectsByMemberUserID(ctx context.Contex
 			p.status,
 			p.created_at,
 			p.updated_at,
-			pm.created_at as joined_at,
-			r.name as role_name
+			pu.created_at as joined_at,
+			pu.role as role_name
 		FROM projects p
-		INNER JOIN project_members pm ON p.id = pm.project_id
-		LEFT JOIN roles r ON pm.role_id = r.id
-		WHERE pm.user_id = $1
+		INNER JOIN project_users pu ON p.id = pu.project_id
+		WHERE pu.user_id = $1
 			AND p.deleted_at IS NULL
-		ORDER BY pm.created_at DESC`
+		ORDER BY pu.created_at DESC`
 
 	exec := r.getExecer()
 	rows, err := exec.QueryContext(ctx, query, userID)

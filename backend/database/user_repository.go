@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -259,15 +260,23 @@ func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username str
 	// First try system users
 	user, err := r.getSystemUserByUsername(ctx, username)
 	if err == nil {
+		log.Printf("[DEBUG] GetByUsername: Found user %s in system users table, ID=%d, UserType=%s, HasPassword=%v",
+			username, user.ID, user.UserType, user.PasswordHash != "")
 		return user, nil
 	}
-	
+
 	// Then try enterprise users
-	return r.getEnterpriseUserByUsername(ctx, username)
+	user, err = r.getEnterpriseUserByUsername(ctx, username)
+	if err == nil {
+		log.Printf("[DEBUG] GetByUsername: Found user %s in enterprise_users table, ID=%d, UserType=%s, HasPassword=%v",
+			username, user.ID, user.UserType, user.PasswordHash != "")
+	}
+	return user, err
 }
 
 // getSystemUserByUsername gets a system user by username
 func (r *PostgresUserRepository) getSystemUserByUsername(ctx context.Context, username string) (*models.User, error) {
+	log.Printf("[DEBUG] getSystemUserByUsername: Looking for username=%s in users table", username)
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at,
@@ -287,19 +296,23 @@ func (r *PostgresUserRepository) getSystemUserByUsername(ctx context.Context, us
 	)
 
 	if err == sql.ErrNoRows {
+		log.Printf("[DEBUG] getSystemUserByUsername: User %s not found in users table", username)
 		return nil, fmt.Errorf("system user not found")
 	}
 	if err != nil {
+		log.Printf("[DEBUG] getSystemUserByUsername: Error querying user %s: %v", username, err)
 		return nil, fmt.Errorf("failed to get system user: %w", err)
 	}
 
+	log.Printf("[DEBUG] getSystemUserByUsername: FOUND user %s in users table, ID=%d, UserType=%s, HasPassword=%v, PasswordLen=%d",
+		username, user.ID, user.UserType, user.PasswordHash != "", len(user.PasswordHash))
 	return user, nil
 }
 
 // getEnterpriseUserByUsername gets an enterprise user by username
 func (r *PostgresUserRepository) getEnterpriseUserByUsername(ctx context.Context, username string) (*models.User, error) {
 	query := `
-		SELECT eu.id, eu.username, eu.email, eu.enterprise_id, eu.name, eu.phone, eu.position,
+		SELECT eu.id, eu.username, eu.email, eu.password_hash, eu.enterprise_id, eu.name, eu.phone, eu.position,
 		       eu.is_primary_contact, eu.access_level, eu.status, eu.last_login_at, eu.bio,
 		       eu.created_at, eu.updated_at
 		FROM enterprise_users eu
@@ -310,6 +323,7 @@ func (r *PostgresUserRepository) getEnterpriseUserByUsername(ctx context.Context
 
 	var euID int
 	var user_username, email string
+	var passwordHash sql.NullString
 	var enterpriseID int
 	var name, phone, position sql.NullString
 	var isPrimaryContact bool
@@ -319,7 +333,7 @@ func (r *PostgresUserRepository) getEnterpriseUserByUsername(ctx context.Context
 	var bio sql.NullString
 	var createdAt, updatedAt time.Time
 
-	err := row.Scan(&euID, &user_username, &email, &enterpriseID, &name, &phone, &position,
+	err := row.Scan(&euID, &user_username, &email, &passwordHash, &enterpriseID, &name, &phone, &position,
 		&isPrimaryContact, &accessLevel, &status, &lastLoginAt, &bio, &createdAt, &updatedAt)
 
 	if err == sql.ErrNoRows {
@@ -341,6 +355,11 @@ func (r *PostgresUserRepository) getEnterpriseUserByUsername(ctx context.Context
 		IsPrimaryContact: isPrimaryContact,
 		CreatedAt:        createdAt,
 		UpdatedAt:        updatedAt,
+	}
+
+	// Set password hash if exists
+	if passwordHash.Valid {
+		user.PasswordHash = passwordHash.String
 	}
 
 	// Map optional fields
@@ -1100,20 +1119,24 @@ func (r *PostgresUserRepository) UpdatePassword(ctx context.Context, userID int,
 	if err != nil {
 		return fmt.Errorf("user not found: %w", err)
 	}
-	
-	if user.UserType == "company" {
-		// Enterprise users don't have passwords in enterprise_users table
-		// For now, return an error or handle differently
-		return fmt.Errorf("password update not supported for enterprise users")
-	}
-	
-	// Update system user password
-	query := `
-		UPDATE users 
-		SET password_hash = $2, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
+	var query string
+
+	if user.UserType == "company" {
+		// Update enterprise user password in enterprise_users table
+		query = `
+			UPDATE enterprise_users
+			SET password_hash = $2, updated_at = CURRENT_TIMESTAMP
+			WHERE id = $1 AND deleted_at IS NULL`
+	} else {
+		// Update system user password
+		query = `
+			UPDATE users
+			SET password_hash = $2, updated_at = CURRENT_TIMESTAMP
+			WHERE id = $1 AND deleted_at IS NULL`
+	}
+
 	result, err := exec.ExecContext(ctx, query, userID, passwordHash)
 	if err != nil {
 		return fmt.Errorf("failed to update password: %w", err)

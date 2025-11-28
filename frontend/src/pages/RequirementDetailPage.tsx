@@ -467,7 +467,7 @@ const RequirementDetailPage: React.FC = () => {
         footer={null}
         width={previewType === 'image' ? 800 : 1000}
         centered
-        destroyOnClose
+        destroyOnHidden
       >
         {previewType === 'image' ? (
           <div style={{ textAlign: 'center' }}>

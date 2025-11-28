@@ -46,7 +46,7 @@ export const isSystemAdmin = (user: User | null): boolean => {
  * @returns 是否为企业用户
  */
 export const isCompanyUser = (user: User | null): boolean => {
-  return user?.user_type === 'company';
+  return user?.user_type === 'company' || user?.user_type === 'enterprise';
 };
 
 /**

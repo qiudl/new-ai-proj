@@ -344,7 +344,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
         disabled: validationError !== null || isValidating,
         loading: isValidating,
       }}
-      destroyOnClose={false}
+      destroyOnHidden={false}
     >
       <ErrorBoundary>
         <div className="parent-selector-modal-content">

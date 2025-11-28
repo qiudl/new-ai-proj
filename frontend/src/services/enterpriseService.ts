@@ -67,7 +67,7 @@ export interface EnterpriseDepartment {
   path?: string;
   status: 'active' | 'inactive';
   status_text: string;
-  user_count: number;
+  employee_count: number;  // 匹配后端返回的字段名
   created_at: string;
   updated_at: string;
 }
@@ -523,6 +523,63 @@ class EnterpriseService {
     } catch (error) {
       console.error('❌ 更新用户部门失败:', error);
       throw error;
+    }
+  }
+
+  // ========== 企业用户专用 API ==========
+
+  /**
+   * 获取当前企业信息（企业用户专用）
+   * 使用企业级 API: /api/v1/enterprises/:enterprise_id/info
+   * 需要 enterprise.info.read 权限
+   * @param enterpriseId 企业ID
+   * @returns 企业详情
+   */
+  async getEnterpriseInfo(enterpriseId: number): Promise<Enterprise> {
+    try {
+      const response = await api.get(`${this.API_BASE_URL}/${enterpriseId}/info`);
+      const result = this.handleApiResponse<Enterprise>(response);
+      return result;
+    } catch (error: any) {
+      console.error('❌ 获取企业信息失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 智能获取企业详情
+   * 根据用户类型自动选择正确的 API 端点:
+   * - 系统用户: 使用 /system/enterprises/:id
+   * - 企业用户: 使用 /enterprises/:id/info
+   * @param enterpriseId 企业ID
+   * @returns 企业详情
+   */
+  async getEnterpriseAuto(enterpriseId: number): Promise<Enterprise> {
+    const user = this.getUserFromToken();
+
+    // 企业用户（user_type 为 'enterprise' 或 'company'）使用企业级 API
+    if (user?.user_type === 'enterprise' || user?.user_type === 'company') {
+      return this.getEnterpriseInfo(enterpriseId);
+    } else {
+      // 系统用户使用系统级 API
+      return this.getEnterprise(enterpriseId);
+    }
+  }
+
+  /**
+   * 从 JWT token 获取用户信息
+   */
+  private getUserFromToken(): { user_type?: string; enterprise_id?: number } | null {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return {
+        user_type: payload.user_type,
+        enterprise_id: payload.enterprise_id
+      };
+    } catch {
+      return null;
     }
   }
 }

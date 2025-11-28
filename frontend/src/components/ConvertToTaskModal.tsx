@@ -155,7 +155,7 @@ const ConvertToTaskModal: React.FC<ConvertToTaskModalProps> = ({
           转换
         </Button>,
       ]}
-      destroyOnClose
+      destroyOnHidden
     >
       {requirement && (
         <div style={{ marginBottom: '16px' }}>

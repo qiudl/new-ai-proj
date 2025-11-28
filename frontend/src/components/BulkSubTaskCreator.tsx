@@ -447,7 +447,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
       onCancel={onCancel}
       width={1200}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       maskClosable={false}
       className="bulk-subtask-creator"
     >

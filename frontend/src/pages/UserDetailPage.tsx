@@ -56,7 +56,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 const { Title, Text, Paragraph } = Typography;
-const { TabPane } = Tabs;
+// TabPane is deprecated, using items prop instead
 
 interface UserActivityLog {
   id: string;
@@ -497,69 +497,82 @@ const UserDetailPage: React.FC = () => {
         {/* Detailed Info & Tabs */}
         <Col xs={24} lg={16}>
           <Card>
-            <Tabs defaultActiveKey="details">
-              <TabPane tab="详细信息" key="details">
-                <Descriptions column={2} bordered>
-                  <Descriptions.Item label="用户名">{user.username}</Descriptions.Item>
-                  <Descriptions.Item label="邮箱">{user.email}</Descriptions.Item>
-                  <Descriptions.Item label="用户类型">
-                    <Tag color={userTypeConfig.color}>{userTypeConfig.label}</Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="角色">
-                    <Tag color={userRoleConfig?.color}>{userRoleConfig?.label}</Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="状态">
-                    <Tag color={userStatusConfig.color}>{userStatusConfig.label}</Tag>
-                  </Descriptions.Item>
-                  {user.user_type === 'company' && (
-                    <>
-                      <Descriptions.Item label="联系人姓名">
-                        {user.contact_person_name || '-'}
+            <Tabs
+              defaultActiveKey="details"
+              items={[
+                {
+                  key: 'details',
+                  label: '详细信息',
+                  children: (
+                    <Descriptions column={2} bordered>
+                      <Descriptions.Item label="用户名">{user.username}</Descriptions.Item>
+                      <Descriptions.Item label="邮箱">{user.email}</Descriptions.Item>
+                      <Descriptions.Item label="用户类型">
+                        <Tag color={userTypeConfig.color}>{userTypeConfig.label}</Tag>
                       </Descriptions.Item>
-                      <Descriptions.Item label="联系电话">
-                        {user.contact_phone || '-'}
+                      <Descriptions.Item label="角色">
+                        <Tag color={userRoleConfig?.color}>{userRoleConfig?.label}</Tag>
                       </Descriptions.Item>
-                      <Descriptions.Item label="部门职位">
-                        {user.department_title || '-'}
+                      <Descriptions.Item label="状态">
+                        <Tag color={userStatusConfig.color}>{userStatusConfig.label}</Tag>
                       </Descriptions.Item>
-                      <Descriptions.Item label="主要联系人">
-                        {user.is_primary_contact ? '是' : '否'}
-                      </Descriptions.Item>
-                      {user.account_expires_at && (
-                        <Descriptions.Item label="账户到期时间">
-                          {new Date(user.account_expires_at).toLocaleString()}
-                        </Descriptions.Item>
+                      {user.user_type === 'company' && (
+                        <>
+                          <Descriptions.Item label="联系人姓名">
+                            {user.contact_person_name || '-'}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="联系电话">
+                            {user.contact_phone || '-'}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="部门职位">
+                            {user.department_title || '-'}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="主要联系人">
+                            {user.is_primary_contact ? '是' : '否'}
+                          </Descriptions.Item>
+                          {user.account_expires_at && (
+                            <Descriptions.Item label="账户到期时间">
+                              {new Date(user.account_expires_at).toLocaleString()}
+                            </Descriptions.Item>
+                          )}
+                          {user.notes && (
+                            <Descriptions.Item label="备注" span={2}>
+                              {user.notes}
+                            </Descriptions.Item>
+                          )}
+                        </>
                       )}
-                      {user.notes && (
-                        <Descriptions.Item label="备注" span={2}>
-                          {user.notes}
-                        </Descriptions.Item>
-                      )}
-                    </>
-                  )}
-                </Descriptions>
-              </TabPane>
-
-              <TabPane tab="项目参与" key="projects">
-                <Table
-                  columns={projectColumns}
-                  dataSource={userProjects}
-                  rowKey="id"
-                  pagination={false}
-                  size="small"
-                />
-              </TabPane>
-
-              <TabPane tab="活动日志" key="activity">
-                <Table
-                  columns={activityColumns}
-                  dataSource={activityLogs}
-                  rowKey="id"
-                  pagination={{ pageSize: 10 }}
-                  size="small"
-                />
-              </TabPane>
-            </Tabs>
+                    </Descriptions>
+                  )
+                },
+                {
+                  key: 'projects',
+                  label: '项目参与',
+                  children: (
+                    <Table
+                      columns={projectColumns}
+                      dataSource={userProjects}
+                      rowKey="id"
+                      pagination={false}
+                      size="small"
+                    />
+                  )
+                },
+                {
+                  key: 'activity',
+                  label: '活动日志',
+                  children: (
+                    <Table
+                      columns={activityColumns}
+                      dataSource={activityLogs}
+                      rowKey="id"
+                      pagination={{ pageSize: 10 }}
+                      size="small"
+                    />
+                  )
+                }
+              ]}
+            />
           </Card>
         </Col>
       </Row>
@@ -568,10 +581,14 @@ const UserDetailPage: React.FC = () => {
       <Modal
         title="编辑用户"
         open={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
+        onCancel={() => {
+          setEditModalVisible(false);
+          editForm.resetFields();
+        }}
         footer={null}
         width={600}
-        destroyOnClose={true}
+        destroyOnHidden={false}
+        forceRender
         maskClosable={false}
         wrapClassName="user-edit-modal"
       >
@@ -694,9 +711,13 @@ const UserDetailPage: React.FC = () => {
       <Modal
         title="重置密码"
         open={resetPasswordModalVisible}
-        onCancel={() => setResetPasswordModalVisible(false)}
+        onCancel={() => {
+          setResetPasswordModalVisible(false);
+          resetPasswordForm.resetFields();
+        }}
         footer={null}
-        destroyOnClose={true}
+        destroyOnHidden={false}
+        forceRender
         maskClosable={false}
         wrapClassName="user-reset-password-modal"
       >
@@ -705,15 +726,46 @@ const UserDetailPage: React.FC = () => {
           layout="vertical"
           onFinish={handleResetPassword}
         >
+          <Alert
+            message="密码安全要求"
+            description={
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                <li>至少8个字符</li>
+                <li>包含至少一个大写字母（A-Z）</li>
+                <li>包含至少一个小写字母（a-z）</li>
+                <li>包含至少一个数字（0-9）</li>
+                <li>包含至少一个特殊字符（如 @#$%^&* 等）</li>
+              </ul>
+            }
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
           <Form.Item
             label="新密码"
             name="new_password"
             rules={[
               { required: true, message: '请输入新密码' },
-              { min: 6, message: '密码至少6个字符' }
+              { min: 8, message: '密码至少8个字符' },
+              {
+                pattern: /[A-Z]/,
+                message: '密码必须包含至少一个大写字母'
+              },
+              {
+                pattern: /[a-z]/,
+                message: '密码必须包含至少一个小写字母'
+              },
+              {
+                pattern: /[0-9]/,
+                message: '密码必须包含至少一个数字'
+              },
+              {
+                pattern: /[!@#$%^&*(),.?":{}|<>]/,
+                message: '密码必须包含至少一个特殊字符'
+              }
             ]}
           >
-            <Input.Password prefix={<KeyOutlined />} />
+            <Input.Password prefix={<KeyOutlined />} placeholder="例如：Test123@" />
           </Form.Item>
 
           <Form.Item

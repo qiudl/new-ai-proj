@@ -803,7 +803,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
       width={isMobile ? '95vw' : 600}
       style={isMobile ? { top: 20, paddingBottom: 0, margin: 'auto' } : undefined}
       styles={isMobile ? { body: { maxHeight: 'calc(100vh - 120px)', overflow: 'auto' } } : undefined}
-      destroyOnClose
+      destroyOnHidden
       maskClosable={true}
     >
       <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
@@ -1629,7 +1629,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             overflow: 'auto'
           }
         } : undefined}
-        destroyOnClose
+        destroyOnHidden
         closable={true}
         maskClosable={true}
       >
@@ -1708,7 +1708,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           }
         } : undefined)}
         className="document-preview-modal"
-        destroyOnClose
+        destroyOnHidden
         maskClosable={true}
       >
         <div className="document-preview-content">
@@ -1781,7 +1781,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             padding: '16px 12px'
           }
         } : undefined}
-        destroyOnClose
+        destroyOnHidden
       >
         {currentBatchOperation && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>

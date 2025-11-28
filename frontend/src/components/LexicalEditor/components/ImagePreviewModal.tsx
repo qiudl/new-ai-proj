@@ -125,7 +125,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({
           background: '#000',
         },
       }}
-      destroyOnClose
+      destroyOnHidden
     >
       {/* 工具栏 */}
       <div className="image-preview-toolbar">

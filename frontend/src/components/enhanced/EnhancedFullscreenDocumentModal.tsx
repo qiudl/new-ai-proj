@@ -665,7 +665,7 @@ const EnhancedFullscreenDocumentModal: React.FC<EnhancedFullscreenDocumentModalP
         }
       }}
       maskStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.9)' }}
-      destroyOnClose
+      destroyOnHidden
       centered={false}
       maskClosable={false}
       keyboard={false}

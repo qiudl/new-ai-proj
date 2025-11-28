@@ -774,7 +774,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
       onCancel={onClose}
       footer={null}
       width={1200}
-      destroyOnClose
+      destroyOnHidden
     >
       {content}
     </Modal>

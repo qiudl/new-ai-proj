@@ -442,7 +442,7 @@ const AdminRoleDetailPage: React.FC = () => {
           <Card>
             <Statistic
               title="分配权限"
-              value={role.permissionsCount || 0}
+              value={rolePermissions.length}
               prefix={<SecurityScanOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -526,30 +526,6 @@ const AdminRoleDetailPage: React.FC = () => {
                   <Switch checkedChildren="启用" unCheckedChildren="禁用" />
                 </Form.Item>
 
-                <Form.Item>
-                  <Space>
-                    <Button 
-                      type="primary" 
-                      htmlType="submit"
-                      loading={saving}
-                      icon={<SaveOutlined />}
-                    >
-                      保存更改
-                    </Button>
-                    <Button onClick={() => {
-                      setEditMode(false);
-                      form.resetFields();
-                      form.setFieldsValue({
-                        roleCode: role.roleCode,
-                        roleName: role.roleName,
-                        roleDescription: role.roleDescription,
-                        isActive: role.isActive
-                      });
-                    }}>
-                      取消
-                    </Button>
-                  </Space>
-                </Form.Item>
               </Form>
             ) : (
               <div>
@@ -693,6 +669,40 @@ const AdminRoleDetailPage: React.FC = () => {
             />
           </TabPane>
         </Tabs>
+
+        {/* 全局保存按钮 - 编辑模式下显示 */}
+        {editMode && (
+          <div style={{
+            marginTop: '24px',
+            paddingTop: '16px',
+            borderTop: '1px solid #f0f0f0',
+            display: 'flex',
+            justifyContent: 'flex-end'
+          }}>
+            <Space>
+              <Button onClick={() => {
+                setEditMode(false);
+                form.resetFields();
+                form.setFieldsValue({
+                  roleCode: role.roleCode,
+                  roleName: role.roleName,
+                  roleDescription: role.roleDescription,
+                  isActive: role.isActive
+                });
+              }}>
+                取消
+              </Button>
+              <Button
+                type="primary"
+                loading={saving}
+                icon={<SaveOutlined />}
+                onClick={() => form.submit()}
+              >
+                保存更改
+              </Button>
+            </Space>
+          </div>
+        )}
       </Card>
     </div>
   );

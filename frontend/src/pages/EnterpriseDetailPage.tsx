@@ -50,11 +50,12 @@ const EnterpriseDetailPage: React.FC = () => {
 
   const loadEnterpriseDetail = async () => {
     if (!id) return;
-    
+
     setLoading(true);
     try {
       const enterpriseId = parseInt(id);
-      const result = await enterpriseService.getEnterprise(enterpriseId);
+      // 使用智能 API 选择器，根据用户类型自动选择正确的端点
+      const result = await enterpriseService.getEnterpriseAuto(enterpriseId);
       setEnterprise(result);
     } catch (error) {
       console.error('加载企业详情失败:', error);
