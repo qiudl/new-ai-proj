@@ -1,52 +1,60 @@
 package com.aiproj.mobile.data.models
 
+import com.google.gson.annotations.SerializedName
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * 工作笔记请求/响应模型
+ *
+ * 注意: 本应用使用 Gson 进行 Retrofit 网络请求的 JSON 解析
+ * 因此必须同时使用 @SerializedName (Gson) 和 @SerialName (Kotlinx Serialization) 注解
+ */
+
 @Serializable
 data class CreateWorkNoteRequest(
-    @SerialName("title") val title: String,
-    @SerialName("content") val content: String? = null,
-    @SerialName("description") val description: String? = null,
-    @SerialName("work_note_folder_id") val workNoteFolderId: Int? = null,
-    @SerialName("work_note_type") val workNoteType: WorkNoteType,
-    @SerialName("priority") val priority: WorkNotePriority,
-    @SerialName("visibility") val visibility: WorkNoteVisibility,
-    @SerialName("tags") val tags: List<String>? = null,
-    @SerialName("is_pinned") val isPinned: Boolean = false,
-    @SerialName("is_bookmarked") val isBookmarked: Boolean = false,
-    @SerialName("related_tasks") val relatedTasks: List<Int>? = null,
-    @SerialName("related_notes") val relatedNotes: List<Int>? = null
+    @SerializedName("title") @SerialName("title") val title: String,
+    @SerializedName("content") @SerialName("content") val content: String? = null,
+    @SerializedName("description") @SerialName("description") val description: String? = null,
+    @SerializedName("work_note_folder_id") @SerialName("work_note_folder_id") val workNoteFolderId: Int? = null,
+    @SerializedName("work_note_type") @SerialName("work_note_type") val workNoteType: WorkNoteType,
+    @SerializedName("priority") @SerialName("priority") val priority: WorkNotePriority,
+    @SerializedName("visibility") @SerialName("visibility") val visibility: WorkNoteVisibility,
+    @SerializedName("tags") @SerialName("tags") val tags: List<String>? = null,
+    @SerializedName("is_pinned") @SerialName("is_pinned") val isPinned: Boolean = false,
+    @SerializedName("is_bookmarked") @SerialName("is_bookmarked") val isBookmarked: Boolean = false,
+    @SerializedName("related_tasks") @SerialName("related_tasks") val relatedTasks: List<Int>? = null,
+    @SerializedName("related_notes") @SerialName("related_notes") val relatedNotes: List<Int>? = null
 )
 
 @Serializable
 data class UpdateWorkNoteRequest(
-    @SerialName("title") val title: String? = null,
-    @SerialName("content") val content: String? = null,
-    @SerialName("description") val description: String? = null,
-    @SerialName("work_note_folder_id") val workNoteFolderId: Int? = null,
-    @SerialName("work_note_type") val workNoteType: WorkNoteType? = null,
-    @SerialName("priority") val priority: WorkNotePriority? = null,
-    @SerialName("visibility") val visibility: WorkNoteVisibility? = null,
-    @SerialName("status") val status: WorkNoteStatus? = null,
-    @SerialName("tags") val tags: List<String>? = null,
-    @SerialName("is_pinned") val isPinned: Boolean? = null,
-    @SerialName("is_bookmarked") val isBookmarked: Boolean? = null,
-    @SerialName("related_tasks") val relatedTasks: List<Int>? = null,
-    @SerialName("related_notes") val relatedNotes: List<Int>? = null
+    @SerializedName("title") @SerialName("title") val title: String? = null,
+    @SerializedName("content") @SerialName("content") val content: String? = null,
+    @SerializedName("description") @SerialName("description") val description: String? = null,
+    @SerializedName("work_note_folder_id") @SerialName("work_note_folder_id") val workNoteFolderId: Int? = null,
+    @SerializedName("work_note_type") @SerialName("work_note_type") val workNoteType: WorkNoteType? = null,
+    @SerializedName("priority") @SerialName("priority") val priority: WorkNotePriority? = null,
+    @SerializedName("visibility") @SerialName("visibility") val visibility: WorkNoteVisibility? = null,
+    @SerializedName("status") @SerialName("status") val status: WorkNoteStatus? = null,
+    @SerializedName("tags") @SerialName("tags") val tags: List<String>? = null,
+    @SerializedName("is_pinned") @SerialName("is_pinned") val isPinned: Boolean? = null,
+    @SerializedName("is_bookmarked") @SerialName("is_bookmarked") val isBookmarked: Boolean? = null,
+    @SerializedName("related_tasks") @SerialName("related_tasks") val relatedTasks: List<Int>? = null,
+    @SerializedName("related_notes") @SerialName("related_notes") val relatedNotes: List<Int>? = null
 )
 
 @Serializable
 data class WorkNoteListResponse(
-    @SerialName("data") val data: WorkNoteListData
+    @SerializedName("data") @SerialName("data") val data: WorkNoteListData
 )
 
 @Serializable
 data class WorkNoteListData(
-    @SerialName("notes") val notes: List<WorkNote>,
-    @SerialName("total") val total: Int,
-    @SerialName("page") val page: Int,
-    @SerialName("limit") val limit: Int
+    @SerializedName("notes") @SerialName("notes") val notes: List<WorkNote>,
+    @SerializedName("total") @SerialName("total") val total: Int,
+    @SerializedName("page") @SerialName("page") val page: Int,
+    @SerializedName("limit") @SerialName("limit") val limit: Int
 )
 
 @Serializable

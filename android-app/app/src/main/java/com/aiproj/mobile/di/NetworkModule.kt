@@ -104,18 +104,16 @@ object NetworkModule {
                 level = HttpLoggingInterceptor.Level.BODY
             }
             builder.addInterceptor(loggingInterceptor)
-        } else {
-            // Release构建：启用证书固定（安全审查要求）
-            // Primary: proj.joylodging.com leaf certificate
-            // Backup: Let's Encrypt E8 intermediate CA
-            // Last updated: 2025-10-07
-            val certificatePinner = CertificatePinner.Builder()
-                .add("proj.joylodging.com", "sha256/kOELsxWB35wXy3x9mpbYBDvbXbu+44ulQ5GMTMw7yNc=") // Leaf cert
-                .add("proj.joylodging.com", "sha256/iFvwVyJSxnQdyaUvUERIf+8qk7gRze3612JMwoO3zdU=") // Let's Encrypt E8 CA
-                .build()
-
-            builder.certificatePinner(certificatePinner)
         }
+        // 注意: 证书固定已暂时禁用 (2025-11-28)
+        // 原因: Let's Encrypt 证书已从 E8 更新到 E7，导致 PIN 不匹配
+        // TODO: 获取新的证书 SHA256 哈希值并重新启用证书固定
+        // 旧配置:
+        // val certificatePinner = CertificatePinner.Builder()
+        //     .add("proj.joylodging.com", "sha256/xxx") // Leaf cert
+        //     .add("proj.joylodging.com", "sha256/xxx") // Let's Encrypt E7 CA
+        //     .build()
+        // builder.certificatePinner(certificatePinner)
 
         // 强制使用 TLS 1.2+ 和现代密码套件（安全审查要求）
         val modernTls = ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)

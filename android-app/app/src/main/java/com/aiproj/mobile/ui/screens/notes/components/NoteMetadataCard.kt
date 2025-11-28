@@ -192,7 +192,7 @@ fun NoteMetadataCard(
             MetadataRow(
                 icon = Icons.Default.Update,
                 label = "更新时间",
-                value = DateTimeUtils.formatFullDateTime(note.updatedAt)
+                value = DateTimeUtils.formatFullDateTimeWithFallback(note.updatedAt, note.createdAt)
             )
 
             note.lastReadAt?.let {

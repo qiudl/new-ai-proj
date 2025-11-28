@@ -34,6 +34,12 @@ object DateTimeUtils {
         return try {
             val instant = Instant.parse(dateStr)
             val dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
+
+            // 检查是否是无效的零值时间（后端返回的 NULL 值会被转为 0001-01-01T00:00:00Z）
+            if (dateTime.year < 1900) {
+                Log.w(TAG, "formatTime: date is zero/invalid value: $dateStr")
+                return "未知时间"
+            }
             val now = LocalDateTime.now()
 
             when {
@@ -61,6 +67,64 @@ object DateTimeUtils {
     }
 
     /**
+     * 格式化时间，支持后备时间
+     * 当主时间无效时使用后备时间
+     *
+     * @param primaryDate 主要时间（如 updatedAt）
+     * @param fallbackDate 后备时间（如 createdAt）
+     * @return 格式化后的时间字符串
+     */
+    fun formatTimeWithFallback(primaryDate: String?, fallbackDate: String?): String {
+        val primaryResult = formatTimeOrNull(primaryDate)
+        if (primaryResult != null) {
+            return primaryResult
+        }
+        val fallbackResult = formatTimeOrNull(fallbackDate)
+        if (fallbackResult != null) {
+            return fallbackResult
+        }
+        return "未知时间"
+    }
+
+    /**
+     * 格式化时间，返回 null 如果无效
+     */
+    private fun formatTimeOrNull(dateStr: String?): String? {
+        if (dateStr.isNullOrBlank()) {
+            return null
+        }
+
+        return try {
+            val instant = Instant.parse(dateStr)
+            val dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
+
+            // 检查是否是无效的零值时间
+            if (dateTime.year < 1900) {
+                return null
+            }
+
+            val now = LocalDateTime.now()
+
+            when {
+                isSameDay(dateTime, now) -> {
+                    dateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+                }
+                isYesterday(dateTime, now) -> {
+                    "昨天 ${dateTime.format(DateTimeFormatter.ofPattern("HH:mm"))}"
+                }
+                dateTime.year == now.year -> {
+                    dateTime.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
+                }
+                else -> {
+                    dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                }
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
      * 格式化时间为相对时间显示
      * - 1分钟内: "刚刚"
      * - 1小时内: "X分钟前"
@@ -78,6 +142,12 @@ object DateTimeUtils {
         return try {
             val instant = Instant.parse(dateStr)
             val dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
+
+            // 检查是否是无效的零值时间
+            if (dateTime.year < 1900) {
+                return "未知时间"
+            }
+
             val now = LocalDateTime.now()
 
             val minutesDiff = ChronoUnit.MINUTES.between(dateTime, now)
@@ -112,12 +182,67 @@ object DateTimeUtils {
 
         return try {
             val instant = Instant.parse(dateStr)
+            val dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
+
+            // 检查是否是无效的零值时间
+            if (dateTime.year < 1900) {
+                return "未知时间"
+            }
+
             val formatter = DateTimeFormatter.ofPattern(pattern)
                 .withZone(ZoneId.systemDefault())
             formatter.format(instant)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to format full date time: $dateStr with pattern: $pattern", e)
             "未知时间"
+        }
+    }
+
+    /**
+     * 格式化完整日期时间，支持后备时间
+     *
+     * @param primaryDate 主要时间（如 updatedAt）
+     * @param fallbackDate 后备时间（如 createdAt）
+     * @param pattern 格式化模式
+     * @return 格式化后的时间字符串
+     */
+    fun formatFullDateTimeWithFallback(
+        primaryDate: String?,
+        fallbackDate: String?,
+        pattern: String = "yyyy-MM-dd HH:mm:ss"
+    ): String {
+        val primaryResult = formatFullDateTimeOrNull(primaryDate, pattern)
+        if (primaryResult != null) {
+            return primaryResult
+        }
+        val fallbackResult = formatFullDateTimeOrNull(fallbackDate, pattern)
+        if (fallbackResult != null) {
+            return fallbackResult
+        }
+        return "未知时间"
+    }
+
+    /**
+     * 格式化完整日期时间，返回 null 如果无效
+     */
+    private fun formatFullDateTimeOrNull(dateStr: String?, pattern: String): String? {
+        if (dateStr.isNullOrBlank()) {
+            return null
+        }
+
+        return try {
+            val instant = Instant.parse(dateStr)
+            val dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
+
+            if (dateTime.year < 1900) {
+                return null
+            }
+
+            val formatter = DateTimeFormatter.ofPattern(pattern)
+                .withZone(ZoneId.systemDefault())
+            formatter.format(instant)
+        } catch (e: Exception) {
+            null
         }
     }
 

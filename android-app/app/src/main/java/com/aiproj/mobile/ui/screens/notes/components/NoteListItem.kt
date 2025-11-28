@@ -145,9 +145,9 @@ fun NoteListItem(
                         }
                     }
 
-                    // 时间
+                    // 时间（优先显示 updatedAt，无效时显示 createdAt）
                     Text(
-                        text = DateTimeUtils.formatTime(note.updatedAt),
+                        text = DateTimeUtils.formatTimeWithFallback(note.updatedAt, note.createdAt),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

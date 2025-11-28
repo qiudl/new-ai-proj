@@ -36,8 +36,8 @@ android {
         applicationId = "com.aiproj.mobile"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.0.1"
+        versionCode = 7
+        versionName = "0.0.7"
 
         testInstrumentationRunner = "com.aiproj.mobile.HiltTestRunner"
         vectorDrawables {
