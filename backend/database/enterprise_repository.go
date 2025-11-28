@@ -877,15 +877,24 @@ func (r *PostgresEnterpriseRepository) GetDepartmentByID(ctx context.Context, id
 	return dept, nil
 }
 
-// GetDepartments retrieves departments for an enterprise
+// GetDepartments retrieves departments for an enterprise with real-time employee count
 func (r *PostgresEnterpriseRepository) GetDepartments(ctx context.Context, enterpriseID int) ([]*models.EnterpriseDepartment, error) {
+	// 使用 LEFT JOIN 动态计算每个部门的实际员工数量
+	// 注意: eu.enterprise_id = d.enterprise_id 确保只计算同一企业的员工
 	query := `
-		SELECT id, enterprise_id, name, parent_id, level, path, sort_order,
-		       manager_id, description, employee_count, status,
-		       created_by, updated_by, created_at, updated_at, deleted_at
-		FROM enterprise_departments 
-		WHERE enterprise_id = $1 AND deleted_at IS NULL
-		ORDER BY COALESCE(path || '/' || id::TEXT, id::TEXT)`
+		SELECT d.id, d.enterprise_id, d.name, d.parent_id, d.level, d.path, d.sort_order,
+		       d.manager_id, d.description,
+		       COUNT(DISTINCT eu.id) as employee_count,
+		       d.status, d.created_by, d.updated_by, d.created_at, d.updated_at, d.deleted_at
+		FROM enterprise_departments d
+		LEFT JOIN enterprise_users eu ON d.id = eu.department_id
+		    AND eu.enterprise_id = d.enterprise_id
+		    AND eu.deleted_at IS NULL AND eu.status = 'active'
+		WHERE d.enterprise_id = $1 AND d.deleted_at IS NULL
+		GROUP BY d.id, d.enterprise_id, d.name, d.parent_id, d.level, d.path, d.sort_order,
+		         d.manager_id, d.description, d.status, d.created_by, d.updated_by,
+		         d.created_at, d.updated_at, d.deleted_at
+		ORDER BY COALESCE(d.path || '/' || d.id::TEXT, d.id::TEXT)`
 
 	exec := r.getExecer()
 	rows, err := exec.QueryContext(ctx, query, enterpriseID)
@@ -990,17 +999,19 @@ func (r *PostgresEnterpriseRepository) GetDepartmentStats(ctx context.Context, e
 		EnterpriseID: enterpriseID,
 	}
 
-	// Get basic counts
+	// Get basic counts with dynamic employee count
 	countQuery := `
 		SELECT
-			COUNT(*) FILTER (WHERE deleted_at IS NULL) as total,
-			COUNT(*) FILTER (WHERE status = 'active' AND deleted_at IS NULL) as active,
-			COUNT(*) FILTER (WHERE status = 'inactive' AND deleted_at IS NULL) as inactive,
-			COUNT(*) FILTER (WHERE status = 'archived' AND deleted_at IS NULL) as archived,
-			COALESCE(MAX(level), 0) as max_depth,
-			COALESCE(SUM(employee_count), 0) as total_employees
-		FROM enterprise_departments
-		WHERE enterprise_id = $1`
+			COUNT(*) FILTER (WHERE d.deleted_at IS NULL) as total,
+			COUNT(*) FILTER (WHERE d.status = 'active' AND d.deleted_at IS NULL) as active,
+			COUNT(*) FILTER (WHERE d.status = 'inactive' AND d.deleted_at IS NULL) as inactive,
+			COUNT(*) FILTER (WHERE d.status = 'archived' AND d.deleted_at IS NULL) as archived,
+			COALESCE(MAX(d.level), 0) as max_depth,
+			(SELECT COUNT(DISTINCT eu.id) FROM enterprise_users eu
+			 WHERE eu.enterprise_id = $1 AND eu.department_id IS NOT NULL
+			   AND eu.deleted_at IS NULL AND eu.status = 'active') as total_employees
+		FROM enterprise_departments d
+		WHERE d.enterprise_id = $1`
 
 	err := exec.QueryRowContext(ctx, countQuery, enterpriseID).Scan(
 		&stats.TotalDepartments,
@@ -1022,6 +1033,7 @@ func (r *PostgresEnterpriseRepository) GetDepartmentStats(ctx context.Context, e
 func (r *PostgresEnterpriseRepository) GetDepartmentsWithActualCount(ctx context.Context, enterpriseID int) ([]map[string]interface{}, error) {
 	exec := r.getExecer()
 
+	// 注意: eu.enterprise_id = d.enterprise_id 确保只计算同一企业的员工
 	query := `
 		SELECT
 			d.id,
@@ -1037,7 +1049,9 @@ func (r *PostgresEnterpriseRepository) GetDepartmentsWithActualCount(ctx context
 			eu_mgr.name as manager_name,
 			COUNT(DISTINCT eu.id) as actual_employee_count
 		FROM enterprise_departments d
-		LEFT JOIN enterprise_users eu ON d.id = eu.department_id AND eu.deleted_at IS NULL AND eu.status = 'active'
+		LEFT JOIN enterprise_users eu ON d.id = eu.department_id
+		    AND eu.enterprise_id = d.enterprise_id
+		    AND eu.deleted_at IS NULL AND eu.status = 'active'
 		LEFT JOIN enterprise_users eu_mgr ON d.manager_id = eu_mgr.id AND eu_mgr.deleted_at IS NULL
 		WHERE d.enterprise_id = $1 AND d.deleted_at IS NULL
 		GROUP BY d.id, d.name, d.parent_id, d.level, d.path, d.manager_id, d.employee_count,

@@ -52,17 +52,22 @@ func (r *DepartmentRepository) GetAllByCompany(companyID int) ([]Department, err
 	return r.GetAllByEnterprise(companyID)
 }
 
-// GetAllByEnterprise 获取指定企业的所有部门（树形结构）
+// GetAllByEnterprise 获取指定企业的所有部门（树形结构），动态计算员工数量
 func (r *DepartmentRepository) GetAllByEnterprise(enterpriseID int) ([]Department, error) {
 	query := `
-		SELECT 
-			d.id, d.enterprise_id, d.name, d.parent_id, d.manager_id, d.description, 
-			d.level, d.employee_count, d.status, d.sort_order, d.path,
+		SELECT
+			d.id, d.enterprise_id, d.name, d.parent_id, d.manager_id, d.description,
+			d.level, COUNT(DISTINCT emp.id) as employee_count, d.status, d.sort_order, d.path,
 			d.created_at, d.updated_at,
 			eu.name as manager_name
 		FROM enterprise_departments d
 		LEFT JOIN enterprise_users eu ON d.manager_id = eu.id
+		LEFT JOIN enterprise_users emp ON d.id = emp.department_id
+			AND emp.enterprise_id = d.enterprise_id
+			AND emp.deleted_at IS NULL AND emp.status = 'active'
 		WHERE d.enterprise_id = $1 AND d.deleted_at IS NULL
+		GROUP BY d.id, d.enterprise_id, d.name, d.parent_id, d.manager_id, d.description,
+			d.level, d.status, d.sort_order, d.path, d.created_at, d.updated_at, eu.name
 		ORDER BY d.level, d.sort_order, d.id
 	`
 
@@ -493,11 +498,13 @@ func (r *DepartmentRepository) GetStatsByEnterprise(enterpriseID int) (map[strin
 	}
 	stats["maxLevel"] = maxLevel
 
-	// 总员工数（所有部门员工数之和）
+	// 总员工数（动态计算已分配到部门的活跃员工数）
 	var totalEmployees int
 	err = r.db.QueryRow(`
-		SELECT COALESCE(SUM(employee_count), 0) FROM enterprise_departments 
-		WHERE enterprise_id = $1 AND deleted_at IS NULL
+		SELECT COUNT(DISTINCT eu.id) FROM enterprise_users eu
+		INNER JOIN enterprise_departments ed ON eu.department_id = ed.id
+		WHERE eu.enterprise_id = $1 AND eu.deleted_at IS NULL AND eu.status = 'active'
+		  AND ed.deleted_at IS NULL
 	`, enterpriseID).Scan(&totalEmployees)
 	if err != nil {
 		return nil, err
@@ -511,4 +518,69 @@ func (r *DepartmentRepository) GetStatsByEnterprise(enterpriseID int) (map[strin
 func (r *DepartmentRepository) GetAll() ([]Department, error) {
 	// 旧版本兼容，返回空列表并警告
 	return []Department{}, fmt.Errorf("GetAll is deprecated, use GetAllByCompany/GetAllByEnterprise instead")
+}
+
+// DepartmentEmployee 部门员工信息
+type DepartmentEmployee struct {
+	ID           int     `json:"id"`
+	EnterpriseID int     `json:"enterprise_id"`
+	DepartmentID *int    `json:"department_id"`
+	Username     string  `json:"username"`
+	Name         *string `json:"name"`
+	Email        string  `json:"email"`
+	Phone        *string `json:"phone"`
+	Position     *string `json:"position"`
+	Status       string  `json:"status"`
+	Avatar       *string `json:"avatar"`
+	CreatedAt    string  `json:"created_at"`
+}
+
+// GetEmployeesByDepartment 获取指定部门的员工列表
+func (r *DepartmentRepository) GetEmployeesByDepartment(departmentID int, enterpriseID int) ([]DepartmentEmployee, error) {
+	query := `
+		SELECT id, enterprise_id, department_id, username, name, email, phone, position, status, avatar, created_at
+		FROM enterprise_users
+		WHERE department_id = $1 AND enterprise_id = $2 AND deleted_at IS NULL AND status = 'active'
+		ORDER BY name, username
+	`
+	rows, err := r.db.Query(query, departmentID, enterpriseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var employees []DepartmentEmployee
+	for rows.Next() {
+		var emp DepartmentEmployee
+		if err := rows.Scan(&emp.ID, &emp.EnterpriseID, &emp.DepartmentID, &emp.Username, &emp.Name, &emp.Email, &emp.Phone, &emp.Position, &emp.Status, &emp.Avatar, &emp.CreatedAt); err != nil {
+			return nil, err
+		}
+		employees = append(employees, emp)
+	}
+	return employees, nil
+}
+
+// GetAllEmployeesByEnterprise 获取企业的所有员工列表
+func (r *DepartmentRepository) GetAllEmployeesByEnterprise(enterpriseID int) ([]DepartmentEmployee, error) {
+	query := `
+		SELECT id, enterprise_id, department_id, username, name, email, phone, position, status, avatar, created_at
+		FROM enterprise_users
+		WHERE enterprise_id = $1 AND deleted_at IS NULL AND status = 'active'
+		ORDER BY department_id NULLS LAST, name, username
+	`
+	rows, err := r.db.Query(query, enterpriseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var employees []DepartmentEmployee
+	for rows.Next() {
+		var emp DepartmentEmployee
+		if err := rows.Scan(&emp.ID, &emp.EnterpriseID, &emp.DepartmentID, &emp.Username, &emp.Name, &emp.Email, &emp.Phone, &emp.Position, &emp.Status, &emp.Avatar, &emp.CreatedAt); err != nil {
+			return nil, err
+		}
+		employees = append(employees, emp)
+	}
+	return employees, nil
 }

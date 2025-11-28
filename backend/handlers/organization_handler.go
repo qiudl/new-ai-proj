@@ -402,14 +402,48 @@ func (h *OrganizationHandler) GetDepartmentEmployees(c *gin.Context) {
 		return
 	}
 
-	// 从用户表获取部门员工
-	// 注意：这里假设users表有department_id字段
-	// 如果没有，需要创建员工表或修改用户表
-	employees := []gin.H{}
-	
-	// TODO: 实现从数据库获取员工的逻辑
-	// 这里返回空数组作为占位
-	_ = departmentID
+	// 从用户上下文获取enterprise_id，如果没有则使用查询参数
+	var enterpriseID int
+	if contextEnterpriseID, exists := c.Get("enterprise_id"); exists && contextEnterpriseID != nil {
+		if eid, ok := contextEnterpriseID.(int); ok {
+			enterpriseID = eid
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid enterprise ID in context",
+			})
+			return
+		}
+	} else {
+		// 如果上下文中没有enterprise_id，则使用查询参数
+		enterpriseIDStr := c.Query("enterprise_id")
+		if enterpriseIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Enterprise ID is required",
+			})
+			return
+		}
+		enterpriseID, err = strconv.Atoi(enterpriseIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid enterprise ID",
+			})
+			return
+		}
+	}
+
+	// 从enterprise_users表获取部门员工
+	employees, err := h.deptRepo.GetEmployeesByDepartment(departmentID, enterpriseID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "获取部门员工失败",
+			"details": err.Error(),
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -419,8 +453,49 @@ func (h *OrganizationHandler) GetDepartmentEmployees(c *gin.Context) {
 
 // GetAllEmployees 获取所有员工列表
 func (h *OrganizationHandler) GetAllEmployees(c *gin.Context) {
-	// TODO: 实现获取所有员工的逻辑
-	employees := []gin.H{}
+	// 从用户上下文获取enterprise_id，如果没有则使用查询参数
+	var enterpriseID int
+	var err error
+	if contextEnterpriseID, exists := c.Get("enterprise_id"); exists && contextEnterpriseID != nil {
+		if eid, ok := contextEnterpriseID.(int); ok {
+			enterpriseID = eid
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid enterprise ID in context",
+			})
+			return
+		}
+	} else {
+		// 如果上下文中没有enterprise_id，则使用查询参数
+		enterpriseIDStr := c.Query("enterprise_id")
+		if enterpriseIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Enterprise ID is required",
+			})
+			return
+		}
+		enterpriseID, err = strconv.Atoi(enterpriseIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid enterprise ID",
+			})
+			return
+		}
+	}
+
+	// 从enterprise_users表获取所有员工
+	employees, err := h.deptRepo.GetAllEmployeesByEnterprise(enterpriseID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "获取员工列表失败",
+			"details": err.Error(),
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
