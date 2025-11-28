@@ -89,7 +89,6 @@ const EnterpriseDetailPage = React.lazy(() => import('./pages/EnterpriseDetailPa
 const EnterpriseEditPage = React.lazy(() => import('./pages/EnterpriseEditPage'));
 const EnterpriseCreatePage = React.lazy(() => import('./pages/EnterpriseCreatePage'));
 const OrganizationStructurePage = React.lazy(() => import('./pages/OrganizationStructurePage'));
-const PositionManagementPage = React.lazy(() => import('./pages/PositionManagementPage'));
 const EnterpriseRoleManagementPage = React.lazy(() => import('./pages/EnterpriseRoleManagementPage'));
 const EnterpriseUserManagementPage = React.lazy(() => import('./pages/EnterpriseUserManagementPage'));
 const EnterpriseUserDetailPage = React.lazy(() => import('./pages/EnterpriseUserDetailPage'));
@@ -535,12 +534,6 @@ const AppContent: React.FC = () => {
                 <Route path="/organization-structure" element={
                   <PermissionRoute permission={ORGANIZATION_PERMISSIONS.STRUCTURE_READ}>
                     <OrganizationStructurePage />
-                  </PermissionRoute>
-                } />
-
-                <Route path="/position-management" element={
-                  <PermissionRoute permission={ORGANIZATION_PERMISSIONS.POSITION_READ}>
-                    <PositionManagementPage />
                   </PermissionRoute>
                 } />
 

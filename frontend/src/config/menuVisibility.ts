@@ -166,11 +166,6 @@ export const MENU_VISIBILITY_CONFIG: MenuVisibilityConfig = {
     requiredRole: ['company_admin'],
     description: '组织架构管理 - 仅企业管理员' 
   },
-  '/position-management': { 
-    userType: UserType.COMPANY_USER,
-    requiredRole: ['company_admin'],
-    description: '岗位管理 - 仅企业管理员' 
-  },
   '/enterprise-roles': { 
     userType: UserType.COMPANY_USER,
     requiredRole: ['company_admin'],
@@ -259,15 +254,17 @@ export function isMenuVisible(
   }
 
   // ✅ RBAC v2: Determine effective role (prioritize role_v2)
+  // 无论是 role_v2 还是 legacy role，都需要映射到标准格式
   let effectiveRole: string;
   if (roleV2) {
     // Use RBAC v2 role, map to legacy format for config matching
     effectiveRole = mapRoleV2ToLegacy(roleV2);
     console.log(`[MenuVisibility] Using RBAC v2 role: ${roleV2} → ${effectiveRole}`);
   } else {
-    // Fallback to legacy role field
-    effectiveRole = userRole;
-    console.log(`[MenuVisibility] Using legacy role: ${effectiveRole}`);
+    // Fallback to legacy role field, also apply mapping for consistency
+    // 这样 'enterprise_admin' 也能被正确映射到 'company_admin'
+    effectiveRole = mapRoleV2ToLegacy(userRole);
+    console.log(`[MenuVisibility] Using legacy role: ${userRole} → ${effectiveRole}`);
   }
 
   // 检查用户类型
@@ -297,7 +294,7 @@ export function isMenuVisible(
 
 /**
  * 根据用户类型字符串转换为UserType枚举
- * @param userType JWT中的user_type字段值 ('system' | 'company')
+ * @param userType JWT中的user_type字段值 ('system' | 'company' | 'enterprise')
  * @returns UserType枚举值
  */
 export function getUserType(userType: string): UserType {
@@ -305,6 +302,7 @@ export function getUserType(userType: string): UserType {
     case 'system':
       return UserType.SYSTEM_USER;
     case 'company':
+    case 'enterprise':  // 兼容 enterprise 类型
       return UserType.COMPANY_USER;
     default:
       // 默认归类为系统用户

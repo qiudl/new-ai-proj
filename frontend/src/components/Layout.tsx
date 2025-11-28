@@ -7,7 +7,7 @@ import { User } from '../types/user';
 import { TaskService } from '../services/taskService';
 import { filterMenuItems, getUserType } from '../config/menuVisibility';
 import EnterpriseImpersonation from './EnterpriseImpersonation';
-import PasswordExpirationAlert from './PasswordExpirationAlert';
+// PasswordExpirationAlert 已移除 - 后端 API 未实现
 import { useImpersonation } from '../contexts/ImpersonationContext';
 import {
   DashboardOutlined,
@@ -249,7 +249,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/task-documents')) return ['/task-documents'];
     if (path.includes('/api-keys')) return ['/api-keys'];
     if (path.includes('/organization-structure')) return ['/organization-structure'];
-    if (path.includes('/position-management')) return ['/position-management'];
     if (path.includes('/enterprise-roles')) return ['/enterprise-roles'];
     if (path.includes('/enterprise-users')) return ['/enterprise-users'];
     if (path.includes('/admin/permissions')) return ['/admin/permissions'];
@@ -273,7 +272,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/work-note') || path.includes('/task-documents')) {
       return ['/document-management'];
     }
-    if (path.includes('/organization-structure') || path.includes('/position-management') || path.includes('/enterprise-roles') || path.includes('/enterprise-users')) {
+    if (path.includes('/organization-structure') || path.includes('/enterprise-roles') || path.includes('/enterprise-users')) {
       return ['/organization-management'];
     }
     if (path.includes('/admin/permissions') || path.includes('/admin/roles') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management') || path.includes('/api-keys')) {
@@ -391,11 +390,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/organization-structure',
           icon: <BankOutlined />,
           label: '组织架构',
-        },
-        {
-          key: '/position-management',
-          icon: <ContactsOutlined />,
-          label: '岗位管理',
         },
         {
           key: '/enterprise-roles',
@@ -686,7 +680,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           />
         </Sider>
         <Content>
-          <PasswordExpirationAlert />
           {children ?? <Outlet />}
         </Content>
       </AntLayout>

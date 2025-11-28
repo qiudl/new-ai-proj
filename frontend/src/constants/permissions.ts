@@ -367,7 +367,6 @@ export const ROUTE_PERMISSIONS = {
 
   // 企业组织管理页面
   '/organization-structure': [ORGANIZATION_PERMISSIONS.INFO_READ],
-  '/position-management': [ORGANIZATION_PERMISSIONS.INFO_READ],
   '/enterprise-roles': [ORGANIZATION_PERMISSIONS.ROLES_MANAGE],
   '/enterprise-users': [ORGANIZATION_PERMISSIONS.USERS_READ]
 } as const;
