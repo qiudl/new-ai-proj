@@ -210,6 +210,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	log.Printf("[DEBUG] JWTLoginResponse: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d",
 		response.AccessToken, response.RefreshToken, response.TokenType, response.ExpiresIn)
 
+	// Update last login timestamp
+	if err := h.db.Users().UpdateLastLogin(c.Request.Context(), user.ID); err != nil {
+		log.Printf("[WARN] Failed to update last login for user %d: %v", user.ID, err)
+		// Don't fail the login, just log the warning
+	}
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "登录成功"))
 }
 

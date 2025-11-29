@@ -94,9 +94,18 @@ func (r *PostgresEnterpriseUserManagementRepository) ListEnterpriseUsers(ctx con
 			eu.status AS enterprise_status,
 			TO_CHAR(eu.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
 			TO_CHAR(eu.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
-			TO_CHAR(u.last_login_at, 'YYYY-MM-DD HH24:MI:SS') AS last_login_at
+			TO_CHAR(u.last_login_at, 'YYYY-MM-DD HH24:MI:SS') AS last_login_at,
+			eu.name,
+			eu.phone,
+			eu.position,
+			eu.department_id,
+			ed.name AS department_name,
+			COALESCE(eu.access_level, 1) AS access_level,
+			COALESCE(eu.is_primary_contact, FALSE) AS is_primary_contact,
+			eu.bio
 		FROM users u
 		JOIN enterprise_users eu ON u.id = eu.user_id
+		LEFT JOIN enterprise_departments ed ON eu.department_id = ed.id AND ed.deleted_at IS NULL
 		WHERE eu.enterprise_id = $1
 		  AND eu.deleted_at IS NULL
 		  AND u.deleted_at IS NULL
@@ -154,6 +163,8 @@ func (r *PostgresEnterpriseUserManagementRepository) ListEnterpriseUsers(ctx con
 	for rows.Next() {
 		var user EnterpriseUser
 		var lastLoginAt sql.NullString
+		var name, phone, position, departmentName, bio sql.NullString
+		var departmentID sql.NullInt64
 
 		err := rows.Scan(
 			&user.UserID,
@@ -167,6 +178,14 @@ func (r *PostgresEnterpriseUserManagementRepository) ListEnterpriseUsers(ctx con
 			&user.CreatedAt,
 			&user.UpdatedAt,
 			&lastLoginAt,
+			&name,
+			&phone,
+			&position,
+			&departmentID,
+			&departmentName,
+			&user.AccessLevel,
+			&user.IsPrimaryContact,
+			&bio,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan enterprise user: %w", err)
@@ -174,6 +193,25 @@ func (r *PostgresEnterpriseUserManagementRepository) ListEnterpriseUsers(ctx con
 
 		if lastLoginAt.Valid {
 			user.LastLoginAt = &lastLoginAt.String
+		}
+		if name.Valid {
+			user.Name = &name.String
+		}
+		if phone.Valid {
+			user.Phone = &phone.String
+		}
+		if position.Valid {
+			user.Position = &position.String
+		}
+		if departmentID.Valid {
+			deptID := uint(departmentID.Int64)
+			user.DepartmentID = &deptID
+		}
+		if departmentName.Valid {
+			user.DepartmentName = &departmentName.String
+		}
+		if bio.Valid {
+			user.Bio = &bio.String
 		}
 
 		users = append(users, user)

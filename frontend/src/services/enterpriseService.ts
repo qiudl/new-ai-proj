@@ -34,19 +34,23 @@ export interface Enterprise {
 
 // Enterprise User data types
 export interface EnterpriseUser {
-  id: number;
+  id?: number;  // 兼容旧代码
+  user_id: number;  // 用户表ID - 用于更新API
+  enterprise_user_id?: number;  // 企业用户表ID
   enterprise_id: number;
   username: string;
   email?: string;
-  name: string;
+  name?: string;
   phone?: string;
   position?: string;
   department_id?: number;
   department_name?: string;
-  is_primary_contact: boolean;
-  access_level: number;
+  is_primary_contact?: boolean;
+  access_level?: number;
   status: 'active' | 'inactive' | 'suspended';
-  status_text: string;
+  status_text?: string;
+  enterprise_status?: string;  // API返回的企业状态
+  user_type?: string;  // 用户类型
   last_login_at?: string;
   created_at: string;
   updated_at: string;

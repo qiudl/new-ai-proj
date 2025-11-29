@@ -268,10 +268,13 @@ func (r *PostgresEnterpriseRepository) ListWithStats(ctx context.Context, limit,
 			(SELECT count FROM total_count) as total
 		FROM enterprise_base e
 		LEFT JOIN (
-			SELECT enterprise_id, COUNT(*) as count
-			FROM enterprise_users
-			WHERE deleted_at IS NULL
-			GROUP BY enterprise_id
+			SELECT eu.enterprise_id, COUNT(*) as count
+			FROM enterprise_users eu
+			JOIN users u ON eu.user_id = u.id
+			WHERE eu.deleted_at IS NULL
+			  AND u.deleted_at IS NULL
+			  AND u.user_type = 'enterprise'
+			GROUP BY eu.enterprise_id
 		) user_counts ON e.id = user_counts.enterprise_id
 		LEFT JOIN (
 			SELECT enterprise_id, COUNT(*) as count
@@ -538,18 +541,25 @@ func (r *PostgresEnterpriseRepository) GetStats(ctx context.Context) (*models.En
 // GetEnterpriseStatistics retrieves user and department counts for a specific enterprise
 func (r *PostgresEnterpriseRepository) GetEnterpriseStatistics(ctx context.Context, enterpriseID int) (userCount, departmentCount int, err error) {
 	exec := r.getExecer()
-	
+
 	// Get user count and department count in a single query for better performance
+	// FIXED: user_count now filters by user_type='enterprise' to match GetUsers behavior
 	query := `
-		SELECT 
-			(SELECT COUNT(*) FROM enterprise_users WHERE enterprise_id = $1 AND deleted_at IS NULL) as user_count,
+		SELECT
+			(SELECT COUNT(*)
+			 FROM enterprise_users eu
+			 JOIN users u ON eu.user_id = u.id
+			 WHERE eu.enterprise_id = $1
+			   AND eu.deleted_at IS NULL
+			   AND u.deleted_at IS NULL
+			   AND u.user_type = 'enterprise') as user_count,
 			(SELECT COUNT(*) FROM enterprise_departments WHERE enterprise_id = $1 AND deleted_at IS NULL) as department_count`
-	
+
 	err = exec.QueryRowContext(ctx, query, enterpriseID).Scan(&userCount, &departmentCount)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to get enterprise statistics: %w", err)
 	}
-	
+
 	return userCount, departmentCount, nil
 }
 
@@ -588,13 +598,13 @@ func (r *PostgresEnterpriseRepository) CreateUser(ctx context.Context, user *mod
 	return user, nil
 }
 
-// GetUserByID retrieves an enterprise user by ID
+// GetUserByID retrieves an enterprise user by ID (enterprise_users.id)
 func (r *PostgresEnterpriseRepository) GetUserByID(ctx context.Context, id int) (*models.EnterpriseUser, error) {
 	query := `
-		SELECT id, enterprise_id, username, email, name, phone, position,
+		SELECT id, enterprise_id, user_id, username, email, name, phone, position,
 		       is_primary_contact, access_level, status, last_login_at, bio,
 		       created_by, updated_by, created_at, updated_at, deleted_at
-		FROM enterprise_users 
+		FROM enterprise_users
 		WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
@@ -603,6 +613,7 @@ func (r *PostgresEnterpriseRepository) GetUserByID(ctx context.Context, id int) 
 	err := exec.QueryRowContext(ctx, query, id).Scan(
 		&user.ID,
 		&user.EnterpriseID,
+		&user.UserID,
 		&user.Username,
 		&user.Email,
 		&user.Name,
@@ -625,6 +636,49 @@ func (r *PostgresEnterpriseRepository) GetUserByID(ctx context.Context, id int) 
 			return nil, fmt.Errorf("enterprise user not found")
 		}
 		return nil, fmt.Errorf("failed to get enterprise user: %w", err)
+	}
+
+	return user, nil
+}
+
+// GetUserByUserID retrieves an enterprise user by user_id (users.id)
+func (r *PostgresEnterpriseRepository) GetUserByUserID(ctx context.Context, userID int) (*models.EnterpriseUser, error) {
+	query := `
+		SELECT id, enterprise_id, user_id, username, email, name, phone, position,
+		       is_primary_contact, access_level, status, last_login_at, bio,
+		       created_by, updated_by, created_at, updated_at, deleted_at
+		FROM enterprise_users
+		WHERE user_id = $1 AND deleted_at IS NULL`
+
+	exec := r.getExecer()
+	user := &models.EnterpriseUser{}
+
+	err := exec.QueryRowContext(ctx, query, userID).Scan(
+		&user.ID,
+		&user.EnterpriseID,
+		&user.UserID,
+		&user.Username,
+		&user.Email,
+		&user.Name,
+		&user.Phone,
+		&user.Position,
+		&user.IsPrimaryContact,
+		&user.AccessLevel,
+		&user.Status,
+		&user.LastLoginAt,
+		&user.Bio,
+		&user.CreatedBy,
+		&user.UpdatedBy,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+		&user.DeletedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("enterprise user not found")
+		}
+		return nil, fmt.Errorf("failed to get enterprise user by user_id: %w", err)
 	}
 
 	return user, nil

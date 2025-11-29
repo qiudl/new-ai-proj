@@ -1156,21 +1156,10 @@ func (r *PostgresUserRepository) UpdatePassword(ctx context.Context, userID int,
 
 // UpdateLastLogin updates the last login timestamp for a user
 func (r *PostgresUserRepository) UpdateLastLogin(ctx context.Context, userID int) error {
-	// First get the user to determine if it's a system or enterprise user
-	user, err := r.GetByID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("user not found: %w", err)
-	}
-
 	exec := r.getExecer()
-	var query string
 
-	// Route to appropriate table based on user type
-	if user.UserType == "system" {
-		query = `UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
-	} else {
-		query = `UPDATE enterprise_users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
-	}
+	// Always update the users table - this is the single source of truth for last_login_at
+	query := `UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
 
 	result, err := exec.ExecContext(ctx, query, userID)
 	if err != nil {

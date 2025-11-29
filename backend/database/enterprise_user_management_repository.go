@@ -32,6 +32,15 @@ type EnterpriseUser struct {
 	CreatedAt          string
 	UpdatedAt          string
 	LastLoginAt        *string
+	// Additional profile fields from enterprise_users table
+	Name             *string
+	Phone            *string
+	Position         *string
+	DepartmentID     *uint
+	DepartmentName   *string // From JOIN with enterprise_departments
+	AccessLevel      int
+	IsPrimaryContact bool
+	Bio              *string
 }
 
 // EnterpriseUserCreateParams contains parameters for creating enterprise user

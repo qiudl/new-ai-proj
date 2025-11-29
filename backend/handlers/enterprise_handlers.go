@@ -491,43 +491,8 @@ func (h *EnterpriseHandler) UpdateEnterpriseUser(c *gin.Context) {
 	// Get operator ID from JWT context
 	operatorID := getOperatorID(c)
 
-	// === 权限检查: 企业用户编辑权限 ===
-	// 获取操作者信息
-	operatorType, _ := c.Get("user_type")
-	operatorRole, _ := c.Get("user_role")
-	operatorEnterpriseID := 0
-	if eid, exists := c.Get("enterprise_id"); exists {
-		switch v := eid.(type) {
-		case int:
-			operatorEnterpriseID = v
-		case int64:
-			operatorEnterpriseID = int(v)
-		case float64:
-			operatorEnterpriseID = int(v)
-		}
-	}
-
-	// 判断是否有编辑权限
-	canEdit := false
-	switch {
-	case operatorType == "system" || operatorType == "admin":
-		// 系统管理员可以编辑所有企业的用户
-		canEdit = true
-	case operatorRole == "company_admin" || operatorRole == "enterprise_admin":
-		// 企业管理员只能编辑本企业的用户
-		canEdit = (operatorEnterpriseID == enterpriseID)
-	default:
-		// 普通用户暂不支持编辑其他用户
-		canEdit = false
-	}
-
-	if !canEdit {
-		h.logger.Printf("Permission denied: user %d (type=%v, role=%v, enterprise=%d) cannot edit user in enterprise %d",
-			operatorID, operatorType, operatorRole, operatorEnterpriseID, enterpriseID)
-		response := models.NewErrorResponse("PERMISSION_DENIED", "无权编辑该企业的用户信息", nil)
-		c.JSON(http.StatusForbidden, response)
-		return
-	}
+	// 注意: 权限检查已由 PermissionMiddlewareV2 完成 (enterprise.user.update)
+	// 这里不再重复检查，以避免与新的 RBAC 系统冲突
 
 	// Convert to EnterpriseUserRequest for service layer
 	updateReq := &models.EnterpriseUserRequest{

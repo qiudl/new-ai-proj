@@ -113,11 +113,21 @@ const EnterpriseUserManagementPage: React.FC = () => {
     setLoading(true);
     try {
       const result = await enterpriseService.getEnterpriseUsers(enterpriseIdNum, page, pageSize);
-      setUsers(result?.data || []);
+      console.log('📦 企业用户API返回结果:', result);
+
+      // API返回格式: { users: [...], total: ..., page: ..., page_size: ..., enterprise_id: ... }
+      // 或者分页格式: { data: [...], pagination: { total: ... } }
+      const users = (result as any)?.users || result?.data || [];
+      const total = (result as any)?.total || result?.pagination?.total || 0;
+
+      console.log('📊 解析的用户数据:', users);
+      console.log('📊 用户总数:', total);
+
+      setUsers(users);
       setPagination({
         current: page,
         pageSize: pageSize,
-        total: result?.pagination?.total || 0,
+        total: total,
       });
     } catch (error) {
       console.error('加载用户数据失败:', error);
@@ -139,40 +149,35 @@ const EnterpriseUserManagementPage: React.FC = () => {
       console.log('⚠️ 企业ID无效，跳过部门加载');
       return;
     }
-    
+
     console.log('🔍 ========== 开始加载企业部门 ==========');
     console.log('🏢 企业ID:', enterpriseIdNum);
-    console.log('⏳ 设置加载状态为 true...');
     setDepartmentsLoading(true);
-    
+
     try {
-      console.log('📡 调用API: enterpriseService.getEnterpriseDepartments()');
       const result = await enterpriseService.getEnterpriseDepartments(enterpriseIdNum, 1, 100);
-      console.log('✅ 部门API调用成功！');
-      console.log('📦 原始API响应:', result);
-      console.log('📋 解析的部门数据:', result?.data);
-      console.log('📊 部门数量:', result?.data?.length);
-      
-      if (result?.data && Array.isArray(result.data)) {
-        console.log('📝 部门详细列表:');
-        result.data.forEach((dept, index) => {
-          console.log(`  ${index + 1}. ID:${dept.id} | 名称:${dept.name} | 状态:${dept.status}`);
-        });
+      console.log('📦 部门API返回结果:', result);
+
+      // API可能返回两种格式:
+      // 1. 经过拦截器解包后直接是数组: [...]
+      // 2. 带分页格式: { data: [...], pagination: {...} }
+      // 注意: enterpriseService 返回的 EnterpriseDepartment 类型与 types/enterprise.ts 中的定义兼容
+      let departmentsList: EnterpriseDepartment[] = [];
+      if (Array.isArray(result)) {
+        departmentsList = result as unknown as EnterpriseDepartment[];
+      } else if (result?.data && Array.isArray(result.data)) {
+        departmentsList = result.data as unknown as EnterpriseDepartment[];
       }
-      
-      const departmentsList = result?.data || [];
+
+      console.log('📊 解析的部门数据:', departmentsList);
+      console.log('📊 部门数量:', departmentsList.length);
+
       setDepartments(departmentsList);
-      console.log('🔄 部门状态已更新');
-      console.log('💾 存储的部门数据:', departmentsList);
-      
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('❌ 加载部门数据失败:', error);
-      console.error('❌ 错误详情:', error.message);
-      console.error('❌ 错误堆栈:', error.stack);
-      setDepartments([]); // 确保错误时也设置为空数组
-      console.log('🔄 部门状态已重置为空数组');
+      setDepartments([]);
     } finally {
-      console.log('⏳ 设置加载状态为 false...');
       setDepartmentsLoading(false);
       console.log('🔍 ========== 部门加载完成 ==========');
     }
@@ -214,7 +219,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
     // 详细日志Form数据设置过程
     if (user) {
       console.log('📝 设置编辑用户表单数据:');
-      console.log('  - 用户ID:', user.id);
+      console.log('  - 用户ID:', user.user_id);
       console.log('  - 用户名:', user.username);
       console.log('  - 姓名:', user.name);
       console.log('  - 部门ID:', user.department_id);
@@ -262,7 +267,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
       
       if (editingUser) {
         // 更新用户
-        console.log('🔄 更新用户ID:', editingUser.id);
+        console.log('🔄 更新用户ID:', editingUser.user_id);
         const updateData: EnterpriseUserUpdateRequest = {
           username: values.username,
           name: values.name,
@@ -278,7 +283,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
         console.log('📤 更新数据:', updateData);
 
         // ✅ FIXED - Type assertion for Partial<EnterpriseUserRequest> (TS2345)
-        const result = await enterpriseService.updateEnterpriseUser(enterpriseIdNum, editingUser.id, updateData as Partial<EnterpriseUserRequest>);
+        const result = await enterpriseService.updateEnterpriseUser(enterpriseIdNum, editingUser.user_id, updateData as Partial<EnterpriseUserRequest>);
         console.log('✅ 更新成功:', result);
         message.success('更新用户成功');
       } else {
@@ -342,31 +347,26 @@ const EnterpriseUserManagementPage: React.FC = () => {
     {
       title: '用户信息',
       key: 'user_info',
+      width: 220,
       render: (_, record: EnterpriseUser) => (
-        <div>
-          <div>
-            <Text strong>{record.name}</Text>
+        <div style={{ minWidth: 180 }}>
+          <div style={{ marginBottom: 4 }}>
+            <Text strong>{record.name || record.username}</Text>
             {record.is_primary_contact && (
-              <Tag color="gold" style={{ marginLeft: 8 }}>主要联系人</Tag>
+              <Tag color="gold" size="small" style={{ marginLeft: 8 }}>主要联系人</Tag>
             )}
           </div>
-          <div>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              @{record.username}
-            </Text>
+          <div style={{ color: '#8c8c8c', fontSize: '12px' }}>
+            @{record.username}
           </div>
           {record.email && (
-            <div>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                <MailOutlined /> {record.email}
-              </Text>
+            <div style={{ color: '#8c8c8c', fontSize: '12px', marginTop: 2 }}>
+              <MailOutlined style={{ marginRight: 4 }} />{record.email}
             </div>
           )}
           {record.phone && (
-            <div>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                <PhoneOutlined /> {record.phone}
-              </Text>
+            <div style={{ color: '#8c8c8c', fontSize: '12px', marginTop: 2 }}>
+              <PhoneOutlined style={{ marginRight: 4 }} />{record.phone}
             </div>
           )}
         </div>
@@ -432,7 +432,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
             <Button
               type="text"
               icon={<UserOutlined />}
-              onClick={() => navigate(`/enterprises/${enterpriseId}/users/${record.id}`)}
+              onClick={() => navigate(`/enterprises/${enterpriseId}/users/${record.user_id}`)}
             />
           </Tooltip>
           <Popconfirm

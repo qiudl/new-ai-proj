@@ -83,17 +83,44 @@ func registerEnterpriseUserManagementRoutes(
 		enterpriseUserHandler.ListEnterpriseUsers,
 	)
 
-	// 邀请用户加入企业
-	users.POST("",
-		permMiddleware.RequireEnterprisePermission("enterprise.user.create"),
-		enterpriseUserHandler.InviteUserToEnterprise,
-	)
+	// 创建企业用户
+	enterpriseHandler := app.GetEnterpriseHandler()
+	if enterpriseHandler != nil {
+		users.POST("",
+			permMiddleware.RequireEnterprisePermission("enterprise.user.create"),
+			func(c *gin.Context) {
+				enterpriseID := c.Param("enterprise_id")
+				// 适配参数名称: enterprise_id -> id
+				c.Params = []gin.Param{
+					{Key: "id", Value: enterpriseID},
+				}
+				enterpriseHandler.CreateEnterpriseUser(c)
+			},
+		)
+	}
 
 	// 查看用户详情
 	users.GET("/:user_id",
 		permMiddleware.RequireEnterprisePermission("enterprise.user.read"),
 		enterpriseUserHandler.GetEnterpriseUser,
 	)
+
+	// 更新用户基本信息
+	if enterpriseHandler != nil {
+		users.PUT("/:user_id",
+			permMiddleware.RequireEnterprisePermission("enterprise.user.update"),
+			func(c *gin.Context) {
+				enterpriseID := c.Param("enterprise_id")
+				userID := c.Param("user_id")
+				// 适配参数名称: enterprise_id -> id, user_id -> userId
+				c.Params = []gin.Param{
+					{Key: "id", Value: enterpriseID},
+					{Key: "userId", Value: userID},
+				}
+				enterpriseHandler.UpdateEnterpriseUser(c)
+			},
+		)
+	}
 
 	// 更新用户角色
 	users.PUT("/:user_id/roles",
@@ -108,7 +135,7 @@ func registerEnterpriseUserManagementRoutes(
 	)
 
 	// 获取未分配部门的用户 (新增)
-	enterpriseHandler := app.GetEnterpriseHandler()
+	// enterpriseHandler 已在上方声明
 	if enterpriseHandler != nil {
 		users.GET("/unassigned",
 			permMiddleware.RequireEnterprisePermission("enterprise.user.read"),

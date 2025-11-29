@@ -166,10 +166,30 @@ func (h *EnterpriseUserHandler) ListEnterpriseUsers(c *gin.Context) {
 			"enterprise_status":  user.EnterpriseStatus,
 			"created_at":         user.CreatedAt,
 			"updated_at":         user.UpdatedAt,
+			"access_level":       user.AccessLevel,
+			"is_primary_contact": user.IsPrimaryContact,
 		}
 
 		if user.LastLoginAt != nil {
 			userData["last_login_at"] = *user.LastLoginAt
+		}
+		if user.Name != nil {
+			userData["name"] = *user.Name
+		}
+		if user.Phone != nil {
+			userData["phone"] = *user.Phone
+		}
+		if user.Position != nil {
+			userData["position"] = *user.Position
+		}
+		if user.DepartmentID != nil {
+			userData["department_id"] = *user.DepartmentID
+		}
+		if user.DepartmentName != nil {
+			userData["department_name"] = *user.DepartmentName
+		}
+		if user.Bio != nil {
+			userData["bio"] = *user.Bio
 		}
 
 		users = append(users, userData)

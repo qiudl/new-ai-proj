@@ -207,6 +207,7 @@ type EnterpriseRepository interface {
 	// Enterprise User operations
 	CreateUser(ctx context.Context, user *models.EnterpriseUser) (*models.EnterpriseUser, error)
 	GetUserByID(ctx context.Context, id int) (*models.EnterpriseUser, error)
+	GetUserByUserID(ctx context.Context, userID int) (*models.EnterpriseUser, error)
 	GetUsers(ctx context.Context, enterpriseID int, limit, offset int) ([]*models.EnterpriseUser, int, error)
 	ListUsers(ctx context.Context, enterpriseID int, limit, offset int, filters map[string]interface{}) ([]*models.EnterpriseUser, int, error)
 	UpdateUser(ctx context.Context, user *models.EnterpriseUser) (*models.EnterpriseUser, error)

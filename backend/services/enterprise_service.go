@@ -342,8 +342,8 @@ func (s *EnterpriseService) GetEnterpriseUserByID(ctx context.Context, userID in
 
 // UpdateEnterpriseUser updates an enterprise user
 func (s *EnterpriseService) UpdateEnterpriseUser(ctx context.Context, userID int, req *models.EnterpriseUserRequest, operatorID int) (*models.EnterpriseUser, error) {
-	// Get existing user
-	user, err := s.enterpriseRepo.GetUserByID(ctx, userID)
+	// Get existing user by user_id (from users table, not enterprise_users.id)
+	user, err := s.enterpriseRepo.GetUserByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("enterprise user not found: %w", err)
 	}

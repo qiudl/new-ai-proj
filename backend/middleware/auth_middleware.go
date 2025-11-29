@@ -4,7 +4,6 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/utils"
-	"database/sql"
 	"log"
 	"net/http"
 	"strings"
@@ -81,14 +80,25 @@ func AuthMiddleware(jwtManager *utils.JWTManager, db database.DB) gin.HandlerFun
 
 		// 企业数据隔离支持 - 为企业用户查询并设置enterprise_id
 		if claims.UserType == "enterprise" && (claims.Role == "enterprise_admin" || claims.Role == "enterprise_user") {
+			// Debug: log JWT claims enterprise_id
+			if claims.EnterpriseID != nil {
+				log.Printf("[AUTH] DEBUG: JWT claims.EnterpriseID=%d", *claims.EnterpriseID)
+			} else {
+				log.Printf("[AUTH] DEBUG: JWT claims.EnterpriseID is nil")
+			}
+
 			var enterpriseID int
 			query := `SELECT enterprise_id FROM enterprise_users WHERE user_id = $1 AND deleted_at IS NULL LIMIT 1`
 			err := db.QueryRow(query, claims.UserID).Scan(&enterpriseID)
 			if err == nil {
 				c.Set("enterprise_id", enterpriseID)
-				log.Printf("[AUTH] Set enterprise_id=%d for user_id=%d", enterpriseID, claims.UserID)
-			} else if err != sql.ErrNoRows {
-				log.Printf("[AUTH] Warning: Failed to query enterprise_id for user_id=%d: %v", claims.UserID, err)
+				log.Printf("[AUTH] Set enterprise_id=%d for user_id=%d from database", enterpriseID, claims.UserID)
+			} else if claims.EnterpriseID != nil && *claims.EnterpriseID > 0 {
+				// Fallback to JWT claims if database query fails but JWT has enterprise_id
+				c.Set("enterprise_id", *claims.EnterpriseID)
+				log.Printf("[AUTH] Set enterprise_id=%d for user_id=%d from JWT claims (db query failed: %v)", *claims.EnterpriseID, claims.UserID, err)
+			} else {
+				log.Printf("[AUTH] Warning: Failed to query enterprise_id for user_id=%d: %v, JWT claims.EnterpriseID is nil or 0", claims.UserID, err)
 			}
 		}
 
