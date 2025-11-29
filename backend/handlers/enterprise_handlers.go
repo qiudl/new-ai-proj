@@ -36,6 +36,26 @@ func NewEnterpriseHandler(enterpriseService *services.EnterpriseService, db data
 	}
 }
 
+// getOperatorID 从Gin上下文中获取当前操作者的用户ID
+// 返回用户ID，如果无法获取则返回0
+func getOperatorID(c *gin.Context) int {
+	if userID := c.GetInt("user_id"); userID > 0 {
+		return userID
+	}
+	// 兼容其他获取方式
+	if userIDRaw, exists := c.Get("user_id"); exists {
+		switch v := userIDRaw.(type) {
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case float64:
+			return int(v)
+		}
+	}
+	return 0
+}
+
 // GetEnterprises handles GET /api/v1/enterprises
 func (h *EnterpriseHandler) GetEnterprises(c *gin.Context) {
 	// Parse pagination parameters
@@ -138,8 +158,8 @@ func (h *EnterpriseHandler) CreateEnterprise(c *gin.Context) {
 		return
 	}
 
-	// Get operator ID from context (TODO: implement proper auth context)
-	operatorID := 1
+	/// Get operator ID from JWT context
+	operatorID := getOperatorID(c)
 
 	// Create enterprise using service
 	createdEnterprise, err := h.enterpriseService.CreateEnterprise(c.Request.Context(), &req, operatorID)
@@ -212,8 +232,8 @@ func (h *EnterpriseHandler) UpdateEnterprise(c *gin.Context) {
 		return
 	}
 
-	// Get operator ID from context (TODO: implement proper auth context)
-	operatorID := 1
+	/// Get operator ID from JWT context
+	operatorID := getOperatorID(c)
 
 	// Update enterprise using service
 	updatedEnterprise, err := h.enterpriseService.UpdateEnterprise(c.Request.Context(), enterpriseID, &req, operatorID)
@@ -243,8 +263,8 @@ func (h *EnterpriseHandler) DeleteEnterprise(c *gin.Context) {
 		return
 	}
 
-	// Get operator ID from context (TODO: implement proper auth context)
-	operatorID := 1
+	/// Get operator ID from JWT context
+	operatorID := getOperatorID(c)
 
 	// Delete enterprise using service
 	err = h.enterpriseService.DeleteEnterprise(c.Request.Context(), enterpriseID, operatorID)
@@ -368,8 +388,8 @@ func (h *EnterpriseHandler) CreateEnterpriseUser(c *gin.Context) {
 		return
 	}
 
-	// Get operator ID from context (TODO: implement proper auth context)
-	operatorID := 1
+	/// Get operator ID from JWT context
+	operatorID := getOperatorID(c)
 
 	// Create enterprise user using service
 	createdUser, generatedPassword, err := h.enterpriseService.CreateEnterpriseUser(c.Request.Context(), &req, operatorID)
@@ -468,8 +488,46 @@ func (h *EnterpriseHandler) UpdateEnterpriseUser(c *gin.Context) {
 		return
 	}
 
-	// Get operator ID from context (TODO: implement proper auth context)
-	operatorID := 1
+	// Get operator ID from JWT context
+	operatorID := getOperatorID(c)
+
+	// === 权限检查: 企业用户编辑权限 ===
+	// 获取操作者信息
+	operatorType, _ := c.Get("user_type")
+	operatorRole, _ := c.Get("user_role")
+	operatorEnterpriseID := 0
+	if eid, exists := c.Get("enterprise_id"); exists {
+		switch v := eid.(type) {
+		case int:
+			operatorEnterpriseID = v
+		case int64:
+			operatorEnterpriseID = int(v)
+		case float64:
+			operatorEnterpriseID = int(v)
+		}
+	}
+
+	// 判断是否有编辑权限
+	canEdit := false
+	switch {
+	case operatorType == "system" || operatorType == "admin":
+		// 系统管理员可以编辑所有企业的用户
+		canEdit = true
+	case operatorRole == "company_admin" || operatorRole == "enterprise_admin":
+		// 企业管理员只能编辑本企业的用户
+		canEdit = (operatorEnterpriseID == enterpriseID)
+	default:
+		// 普通用户暂不支持编辑其他用户
+		canEdit = false
+	}
+
+	if !canEdit {
+		h.logger.Printf("Permission denied: user %d (type=%v, role=%v, enterprise=%d) cannot edit user in enterprise %d",
+			operatorID, operatorType, operatorRole, operatorEnterpriseID, enterpriseID)
+		response := models.NewErrorResponse("PERMISSION_DENIED", "无权编辑该企业的用户信息", nil)
+		c.JSON(http.StatusForbidden, response)
+		return
+	}
 
 	// Convert to EnterpriseUserRequest for service layer
 	updateReq := &models.EnterpriseUserRequest{
@@ -564,8 +622,8 @@ func (h *EnterpriseHandler) CreateEnterpriseDepartment(c *gin.Context) {
 		return
 	}
 
-	// Get operator ID from context (TODO: implement proper auth context)
-	operatorID := 1
+	/// Get operator ID from JWT context
+	operatorID := getOperatorID(c)
 
 	// Create enterprise department using service
 	createdDepartment, err := h.enterpriseService.CreateEnterpriseDepartment(c.Request.Context(), &req, operatorID)
@@ -615,8 +673,8 @@ func (h *EnterpriseHandler) UpdateEnterpriseDepartment(c *gin.Context) {
 		return
 	}
 
-	// Get operator ID from context (TODO: implement proper auth context)
-	operatorID := 1
+	/// Get operator ID from JWT context
+	operatorID := getOperatorID(c)
 
 	// Update enterprise department using service
 	updatedDepartment, err := h.enterpriseService.UpdateEnterpriseDepartment(c.Request.Context(), departmentID, &req, operatorID)
@@ -646,8 +704,8 @@ func (h *EnterpriseHandler) DeleteEnterpriseDepartment(c *gin.Context) {
 		return
 	}
 
-	// Get operator ID from context (TODO: implement proper auth context)
-	operatorID := 1
+	/// Get operator ID from JWT context
+	operatorID := getOperatorID(c)
 
 	// Delete enterprise department using service
 	err = h.enterpriseService.DeleteEnterpriseDepartment(c.Request.Context(), departmentID, operatorID)

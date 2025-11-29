@@ -48,6 +48,7 @@ import {
 } from '@ant-design/icons';
 import enterpriseService, { EnterpriseUser, Enterprise } from '../services/enterpriseService';
 import enterpriseUserService from '../services/enterpriseUserService';
+import { useEnterprisePermissions } from '../hooks/useEnterprisePermissions';
 import { formatDistance } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -75,6 +76,12 @@ interface UserProject {
 const EnterpriseUserDetailPage: React.FC = () => {
   const { enterpriseId, userId } = useParams<{ enterpriseId: string; userId: string }>();
   const navigate = useNavigate();
+  const { canEditEnterpriseUser, canDeleteEnterpriseUser } = useEnterprisePermissions();
+
+  // 计算当前用户是否有编辑和删除权限
+  const canEdit = enterpriseId ? canEditEnterpriseUser(Number(enterpriseId)) : false;
+  const canDelete = enterpriseId ? canDeleteEnterpriseUser(Number(enterpriseId)) : false;
+
   const [user, setUser] = useState<EnterpriseUser | null>(null);
   const [enterprise, setEnterprise] = useState<Enterprise | null>(null);
   const [loading, setLoading] = useState(true);
@@ -332,20 +339,24 @@ const EnterpriseUserDetailPage: React.FC = () => {
           </Col>
           <Col>
             <Space>
-              <Button type="primary" icon={<EditOutlined />} onClick={handleEdit}>
-                编辑
-              </Button>
-              <Popconfirm
-                title="确定要删除这个用户吗？"
-                description="此操作不可恢复，请谨慎操作。"
-                onConfirm={handleDelete}
-                okText="确定"
-                cancelText="取消"
-              >
-                <Button danger icon={<DeleteOutlined />}>
-                  删除
+              {canEdit && (
+                <Button type="primary" icon={<EditOutlined />} onClick={handleEdit}>
+                  编辑
                 </Button>
-              </Popconfirm>
+              )}
+              {canDelete && (
+                <Popconfirm
+                  title="确定要删除这个用户吗？"
+                  description="此操作不可恢复，请谨慎操作。"
+                  onConfirm={handleDelete}
+                  okText="确定"
+                  cancelText="取消"
+                >
+                  <Button danger icon={<DeleteOutlined />}>
+                    删除
+                  </Button>
+                </Popconfirm>
+              )}
             </Space>
           </Col>
         </Row>
@@ -549,9 +560,11 @@ const EnterpriseUserDetailPage: React.FC = () => {
             {/* 快速操作卡片 */}
             <Card title="快速操作" size="small">
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Button block icon={<EditOutlined />} onClick={handleEdit}>
-                  编辑用户信息
-                </Button>
+                {canEdit && (
+                  <Button block icon={<EditOutlined />} onClick={handleEdit}>
+                    编辑用户信息
+                  </Button>
+                )}
                 <Button
                   block
                   icon={<SafetyOutlined />}

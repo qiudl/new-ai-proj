@@ -34,6 +34,7 @@ import enterpriseService, { EnterpriseDepartment, EnterpriseDepartmentRequest } 
 import organizationService, { Department, Employee, CreateDepartmentRequest, UpdateDepartmentRequest } from '../services/organizationService';
 import { ensureAuthToken } from '../utils/devAuth';
 import { getCurrentUser, shouldShowCompanyInfo } from '../utils/userUtils';
+import { useEnterprisePermissions } from '../hooks/useEnterprisePermissions';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -43,6 +44,16 @@ const OrganizationStructurePage: React.FC = () => {
   const { enterpriseId } = useParams<{ enterpriseId: string }>();
   const enterpriseIdNum = enterpriseId ? parseInt(enterpriseId, 10) : null;
   const navigate = useNavigate();
+  const {
+    canManageEnterpriseDepartments,
+    canEditEnterpriseUser
+  } = useEnterprisePermissions();
+
+  // 计算当前用户对当前企业的权限
+  const currentUser = getCurrentUser();
+  const effectiveEnterpriseId = enterpriseIdNum || currentUser?.enterprise_id || 2;
+  const canManageDepartments = canManageEnterpriseDepartments(effectiveEnterpriseId);
+  const canEditUsers = canEditEnterpriseUser(effectiveEnterpriseId);
 
   // 支持新的Enterprise API和旧的Company API
   const [departments, setDepartments] = useState<(Department | EnterpriseDepartment)[]>([]);
@@ -53,9 +64,8 @@ const OrganizationStructurePage: React.FC = () => {
   const [editingDepartment, setEditingDepartment] = useState<(Department | EnterpriseDepartment) | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<(Department | EnterpriseDepartment) | null>(null);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
-  
+
   // 使用当前用户的企业ID，如果是企业用户的话，否则使用默认企业ID
-  const currentUser = getCurrentUser();
   const selectedEnterpriseId = currentUser?.enterprise_id || 2;
   const [departmentStats, setDepartmentStats] = useState({
     totalDepartments: 0,
@@ -510,14 +520,15 @@ const OrganizationStructurePage: React.FC = () => {
       key: 'actions',
       render: (record: Employee) => (
         <Space>
-          <Button
-            type="link"
-            
-            icon={<EditOutlined />}
-            onClick={() => navigate(`/enterprises/${selectedEnterpriseId}/users/${record.id}`)}
-          >
-            编辑
-          </Button>
+          {canEditUsers && (
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => navigate(`/enterprises/${selectedEnterpriseId}/users/${record.id}`)}
+            >
+              编辑
+            </Button>
+          )}
         </Space>
       )
     }
@@ -584,13 +595,15 @@ const OrganizationStructurePage: React.FC = () => {
           <Card
             title="组织架构"
             extra={
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => showDepartmentModal()}
-              >
-                新建部门
-              </Button>
+              canManageDepartments && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => showDepartmentModal()}
+                >
+                  新建部门
+                </Button>
+              )
             }
           >
             <Spin spinning={loading}>
@@ -624,24 +637,24 @@ const OrganizationStructurePage: React.FC = () => {
                   </Space>
                 }
                 extra={
-                  <Space>
-                    <Button
-                      type="primary"
-                      
-                      icon={<EditOutlined />}
-                      onClick={() => showDepartmentModal(selectedDepartment)}
-                    >
-                      编辑
-                    </Button>
-                    <Button
-                      danger
-                      
-                      icon={<DeleteOutlined />}
-                      onClick={() => handleDepartmentDelete(selectedDepartment)}
-                    >
-                      删除
-                    </Button>
-                  </Space>
+                  canManageDepartments && (
+                    <Space>
+                      <Button
+                        type="primary"
+                        icon={<EditOutlined />}
+                        onClick={() => showDepartmentModal(selectedDepartment)}
+                      >
+                        编辑
+                      </Button>
+                      <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleDepartmentDelete(selectedDepartment)}
+                      >
+                        删除
+                      </Button>
+                    </Space>
+                  )
                 }
                 
               >
@@ -668,14 +681,15 @@ const OrganizationStructurePage: React.FC = () => {
               <Card
                 title={`${selectedDepartment.name} - 员工列表`}
                 extra={
-                  <Button
-                    type="primary"
-                    
-                    icon={<PlusOutlined />}
-                    onClick={() => message.info('添加员工功能待实现')}
-                  >
-                    添加员工
-                  </Button>
+                  canEditUsers && (
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => message.info('添加员工功能待实现')}
+                    >
+                      添加员工
+                    </Button>
+                  )
                 }
               >
                 <Table

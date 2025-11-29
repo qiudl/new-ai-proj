@@ -377,6 +377,7 @@ const AppContent: React.FC = () => {
 
                 {/* Enterprise users route - redirect to current enterprise users */}
                 <Route path="/enterprise/users" element={<EnterpriseUsersRedirectPage />} />
+                <Route path="/enterprise-users" element={<EnterpriseUsersRedirectPage />} />
 
                 {/* Enterprise customer management routes (legacy) */}
 
