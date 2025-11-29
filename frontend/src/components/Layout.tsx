@@ -7,6 +7,7 @@ import { User } from '../types/user';
 import { TaskService } from '../services/taskService';
 import { filterMenuItems, getUserType } from '../config/menuVisibility';
 import EnterpriseImpersonation from './EnterpriseImpersonation';
+import { useEnterpriseRouting } from '../hooks/useEnterpriseRouting';
 // PasswordExpirationAlert 已移除 - 后端 API 未实现
 import { useImpersonation } from '../contexts/ImpersonationContext';
 import {
@@ -61,6 +62,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isImpersonating, impersonationStatus } = useImpersonation();
+  const { getRoute, isEnterpriseMode, enterpriseId } = useEnterpriseRouting();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [collapsed, setCollapsed] = useState(() => {
     // 从localStorage读取用户的折叠状态偏好，默认为false
@@ -243,17 +245,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/task-list')) return ['/task-list'];
     if (path.includes('/bulk-import')) return ['/bulk-import'];
     if (path === '/projects') return ['/projects'];
-    if (path.includes('/enterprises')) return ['/enterprises'];
     if (path.includes('/requirements')) return ['/requirements'];
     if (path.includes('/work-note')) return ['/work-note'];
     if (path.includes('/task-documents')) return ['/task-documents'];
     if (path.includes('/api-keys')) return ['/api-keys'];
-    if (path.includes('/organization-structure')) return ['/organization-structure'];
-    if (path.includes('/enterprise-roles')) return ['/enterprise-roles'];
-    if (path.includes('/enterprise-users')) return ['/enterprise-users'];
+
+    // 组织管理路由 - 支持企业前缀和普通路径
+    if (path.includes('/organization-structure')) return [getRoute('org-structure')];
+    if (path.includes('/roles') || path.includes('/enterprise-roles')) return [getRoute('org-roles')];
+    if (path.match(/\/enterprises\/\d+\/users/) || path.includes('/enterprise-users')) return [getRoute('org-users')];
+
+    // 企业详情页面（非用户管理）
+    if (path.match(/\/enterprises\/\d+$/) || path.match(/\/enterprises\/\d+\/info/)) return ['/enterprises'];
+    if (path.includes('/enterprises')) return ['/enterprises'];
+
     if (path.includes('/admin/permissions')) return ['/admin/permissions'];
     if (path.includes('/admin/roles')) return ['/admin/roles'];
     if (path.includes('/admin/role-templates')) return ['/admin/role-templates'];
+    if (path.includes('/user-management')) return ['/user-management'];
     return [path];
   };
 
@@ -266,14 +275,29 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path === '/' || path === '/dashboard' || path.includes('/time-weekly-report') || path.includes('/task-dashboard')) {
       return ['/workspace-management'];
     }
-    if (path.includes('/projects') || path.includes('/enterprises') || path.includes('/tasks')) {
+
+    // 组织管理相关路由 - 支持企业前缀
+    if (
+      path.includes('/organization-structure') ||
+      path.includes('/enterprise-roles') ||
+      path.includes('/enterprise-users') ||
+      path.match(/\/enterprises\/\d+\/roles/) ||
+      path.match(/\/enterprises\/\d+\/users/)
+    ) {
+      return ['/organization-management'];
+    }
+
+    // 项目和企业管理
+    if (path.includes('/projects') || path.includes('/tasks')) {
       return ['/project-customer-management'];
     }
+    // 企业详情页（非组织管理）
+    if (path.match(/\/enterprises\/\d+$/) || path.match(/\/enterprises\/\d+\/info/) || path === '/enterprises') {
+      return ['/project-customer-management'];
+    }
+
     if (path.includes('/work-note') || path.includes('/task-documents')) {
       return ['/document-management'];
-    }
-    if (path.includes('/organization-structure') || path.includes('/enterprise-roles') || path.includes('/enterprise-users')) {
-      return ['/organization-management'];
     }
     if (path.includes('/admin/permissions') || path.includes('/admin/roles') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management') || path.includes('/api-keys')) {
       return ['/system-management'];
@@ -387,17 +411,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: '组织管理',
       children: [
         {
-          key: '/organization-structure',
+          key: getRoute('org-structure'),
           icon: <BankOutlined />,
           label: '组织架构',
         },
         {
-          key: '/enterprise-roles',
+          key: getRoute('org-roles'),
           icon: <SafetyCertificateOutlined />,
           label: '角色管理',
         },
         {
-          key: '/enterprise-users',
+          key: getRoute('org-users'),
           icon: <UserOutlined />,
           label: '用户管理',
         },
