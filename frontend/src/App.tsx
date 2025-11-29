@@ -537,8 +537,18 @@ const AppContent: React.FC = () => {
                     <OrganizationStructurePage />
                   </PermissionRoute>
                 } />
+                <Route path="/enterprises/:enterpriseId/organization-structure" element={
+                  <PermissionRoute permission={ORGANIZATION_PERMISSIONS.STRUCTURE_READ}>
+                    <OrganizationStructurePage />
+                  </PermissionRoute>
+                } />
 
                 <Route path="/enterprise-roles" element={
+                  <PermissionRoute permission={ORGANIZATION_PERMISSIONS.ROLE_READ}>
+                    <EnterpriseRoleManagementPage />
+                  </PermissionRoute>
+                } />
+                <Route path="/enterprises/:enterpriseId/roles" element={
                   <PermissionRoute permission={ORGANIZATION_PERMISSIONS.ROLE_READ}>
                     <EnterpriseRoleManagementPage />
                   </PermissionRoute>
