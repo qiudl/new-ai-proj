@@ -81,7 +81,7 @@ type TaskResult struct {
 	Timestamp string      `json:"timestamp"`
 }
 
-// TaskItem 任务项
+// TaskItem 任务项（完整版，用于单任务查询）
 type TaskItem struct {
 	ID          int        `json:"id"`
 	ProjectID   int        `json:"project_id"`
@@ -96,12 +96,23 @@ type TaskItem struct {
 	DueDate     *time.Time `json:"due_date,omitempty"`
 }
 
-// ListTasksResult 任务列表结果
+// TaskListItem 任务列表项（精简版，用于列表查询，减少响应数据量）
+type TaskListItem struct {
+	ID          int    `json:"id"`
+	Title       string `json:"title"`
+	Status      string `json:"status"`
+	Priority    string `json:"priority,omitempty"`
+	ParentID    *int   `json:"parent_id,omitempty"`
+	ProjectName string `json:"project_name,omitempty"`
+	UpdatedAt   string `json:"updated_at"` // 使用简化的日期格式
+}
+
+// ListTasksResult 任务列表结果（使用精简版任务项）
 type ListTasksResult struct {
-	Tasks []TaskItem `json:"tasks"`
-	Total int        `json:"total"`
-	Page  int        `json:"page"`
-	Limit int        `json:"limit"`
+	Tasks []TaskListItem `json:"tasks"`
+	Total int            `json:"total"`
+	Page  int            `json:"page"`
+	Limit int            `json:"limit"`
 }
 
 // ========== 工具注册实现 ==========
@@ -131,9 +142,9 @@ func (s *MCPServer) registerListTasks(server *mcp.Server) {
 			args.SortOrder = "desc"
 		}
 
-		// 构建查询
-		baseQuery := `SELECT t.id, t.project_id, p.name as project_name, t.title, COALESCE(t.description, '') as description,
-			t.status, COALESCE(t.priority, '') as priority, t.parent_id, t.created_at, t.updated_at, t.due_date
+		// 构建查询 - 精简版只查询必要字段，不包含 description
+		baseQuery := `SELECT t.id, t.title, t.status, COALESCE(t.priority, '') as priority,
+			t.parent_id, p.name as project_name, t.updated_at
 			FROM tasks t
 			LEFT JOIN projects p ON t.project_id = p.id
 			WHERE t.deleted_at IS NULL`
@@ -225,14 +236,14 @@ func (s *MCPServer) registerListTasks(server *mcp.Server) {
 		}
 		defer rows.Close()
 
-		var tasks []TaskItem
+		var tasks []TaskListItem
 		for rows.Next() {
-			var task TaskItem
+			var task TaskListItem
 			var projectName sql.NullString
 			var parentID sql.NullInt64
-			var dueDate sql.NullTime
-			err := rows.Scan(&task.ID, &task.ProjectID, &projectName, &task.Title, &task.Description,
-				&task.Status, &task.Priority, &parentID, &task.CreatedAt, &task.UpdatedAt, &dueDate)
+			var updatedAt time.Time
+			err := rows.Scan(&task.ID, &task.Title, &task.Status, &task.Priority,
+				&parentID, &projectName, &updatedAt)
 			if err != nil {
 				log.Printf("[MCP_TOOL] Error scanning task: %v", err)
 				continue
@@ -244,9 +255,8 @@ func (s *MCPServer) registerListTasks(server *mcp.Server) {
 				pid := int(parentID.Int64)
 				task.ParentID = &pid
 			}
-			if dueDate.Valid {
-				task.DueDate = &dueDate.Time
-			}
+			// 使用简化的日期格式 YYYY-MM-DD HH:mm
+			task.UpdatedAt = updatedAt.Format("2006-01-02 15:04")
 			tasks = append(tasks, task)
 		}
 
