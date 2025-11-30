@@ -1,5 +1,32 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+
+// Fix for browser extensions that interfere with React DOM operations
+// This prevents "insertBefore" errors caused by extensions like translators
+if (typeof Node === 'function' && Node.prototype) {
+  const originalRemoveChild = Node.prototype.removeChild;
+  Node.prototype.removeChild = function<T extends Node>(child: T): T {
+    if (child.parentNode !== this) {
+      if (console) {
+        console.warn('Cannot remove a child from a different parent', child, this);
+      }
+      return child;
+    }
+    return originalRemoveChild.apply(this, [child]) as T;
+  };
+
+  const originalInsertBefore = Node.prototype.insertBefore;
+  Node.prototype.insertBefore = function<T extends Node>(newNode: T, referenceNode: Node | null): T {
+    if (referenceNode && referenceNode.parentNode !== this) {
+      if (console) {
+        console.warn('Cannot insert before a reference node from a different parent', referenceNode, this);
+      }
+      return newNode;
+    }
+    return originalInsertBefore.apply(this, [newNode, referenceNode]) as T;
+  };
+}
+
 import './index.css';
 import './styles/z-index-management.css';
 // import './styles/modal-fix.css';          // 禁用旧修复方案
