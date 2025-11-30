@@ -80,6 +80,7 @@ const NavigationManagementPage = React.lazy(() => import('./pages/NavigationMana
 const APIKeyManagement = React.lazy(() => import('./components/APIKeyManagement'));
 const APIKeyDetail = React.lazy(() => import('./components/APIKeyDetail'));
 const APIKeyEdit = React.lazy(() => import('./components/APIKeyEdit'));
+const MCPConfigPage = React.lazy(() => import('./pages/MCPConfigPage'));
 const FigmaIntegrationPage = React.lazy(() => import('./pages/FigmaIntegrationPage'));
 const FigmaPracticeDemo = React.lazy(() => import('./pages/FigmaPracticeDemo'));
 
@@ -516,6 +517,13 @@ const AppContent: React.FC = () => {
                 <Route path="/api-keys/:id/edit" element={
                   <PermissionRoute permission={API_KEY_PERMISSIONS.UPDATE}>
                     <APIKeyEdit />
+                  </PermissionRoute>
+                } />
+
+                {/* MCP Configuration */}
+                <Route path="/mcp-config" element={
+                  <PermissionRoute permission={API_KEY_PERMISSIONS.READ}>
+                    <MCPConfigPage />
                   </PermissionRoute>
                 } />
 

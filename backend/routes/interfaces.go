@@ -279,4 +279,8 @@ type ApplicationInterface interface {
 
   // Figma Integration Handler
   GetFigmaHandler() *handlers.FigmaHandler
+
+  // MCP Public API (API-Key Authentication)
+  GetMCPAPIKeyService() *services.MCPAPIKeyService
+  GetMCPAPIKeyHandler() *handlers.MCPAPIKeyHandler
 }

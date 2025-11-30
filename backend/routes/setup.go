@@ -217,6 +217,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
   // 注册Figma集成路由（受JWT保护）
   RegisterFigmaRoutes(authorized, app)
+
+  // 注册公共 MCP SSE 路由（API-Key 认证）
+  RegisterMCPPublicRoutes(router, app)
 }
 
 // corsMiddleware CORS中间件

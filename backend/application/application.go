@@ -85,6 +85,9 @@ type Application struct {
   mcpDevPlansHandler       *handlers.MCPDevPlansHandler       // MCP Dev Plans document sync handler
   devPlansExportService    *services.DevPlansExportService    // Dev Plans export service
   figmaHandler             *handlers.FigmaHandler             // Figma integration handler
+  // MCP Public API (API-Key Authentication)
+  mcpAPIKeyService         *services.MCPAPIKeyService         // MCP API Key service
+  mcpAPIKeyHandler         *handlers.MCPAPIKeyHandler         // MCP API Key handler
   mirrorWritable           bool
 }
 
@@ -370,6 +373,17 @@ func NewApplication() (*Application, error) {
   // Initialize Figma Handler (reads token from environment)
   figmaHandler := handlers.NewFigmaHandler()
 
+  // Initialize MCP API Key Service and Handler
+  var mcpAPIKeyService *services.MCPAPIKeyService
+  var mcpAPIKeyHandler *handlers.MCPAPIKeyHandler
+  if sqlDB, ok := db.GetDB().(*sql.DB); ok {
+    mcpAPIKeyService = services.NewMCPAPIKeyService(sqlDB)
+    mcpAPIKeyHandler = handlers.NewMCPAPIKeyHandler(mcpAPIKeyService)
+    logger.Println("✅ MCP API Key service and handler initialized")
+  } else {
+    logger.Printf("⚠️ MCP API Key service initialization failed: db.GetDB() returned %T, expected *sql.DB", db.GetDB())
+  }
+
 	// Initialize WebSocket Hub (temporarily disabled)
 	// wsHub := ws.NewHub(logger)
 	// go wsHub.Run() // Start the hub in a goroutine
@@ -439,6 +453,9 @@ func NewApplication() (*Application, error) {
     devPlansExportService:    devPlansExportService,    // Dev Plans export service
     mcpDevPlansHandler:       mcpDevPlansHandler,       // MCP Dev Plans handler
     figmaHandler:             figmaHandler,             // Figma integration handler
+    // MCP Public API
+    mcpAPIKeyService:         mcpAPIKeyService,         // MCP API Key service
+    mcpAPIKeyHandler:         mcpAPIKeyHandler,         // MCP API Key handler
   }
 
 	// Perform startup permission/volume checks
@@ -1150,4 +1167,14 @@ func (app *Application) GetMCPDevPlansHandler() *handlers.MCPDevPlansHandler {
 // GetFigmaHandler returns the Figma integration handler
 func (app *Application) GetFigmaHandler() *handlers.FigmaHandler {
   return app.figmaHandler
+}
+
+// GetMCPAPIKeyService returns the MCP API Key service
+func (app *Application) GetMCPAPIKeyService() *services.MCPAPIKeyService {
+  return app.mcpAPIKeyService
+}
+
+// GetMCPAPIKeyHandler returns the MCP API Key handler
+func (app *Application) GetMCPAPIKeyHandler() *handlers.MCPAPIKeyHandler {
+  return app.mcpAPIKeyHandler
 }

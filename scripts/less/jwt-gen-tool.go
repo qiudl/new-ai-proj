@@ -13,10 +13,11 @@ import (
 )
 
 type JWTClaims struct {
-	UserID   int    `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
-	UserType string `json:"user_type"`
+	UserID       int    `json:"user_id"`
+	Username     string `json:"username"`
+	Role         string `json:"role"`
+	UserType     string `json:"user_type"`
+	EnterpriseID int    `json:"enterprise_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -30,7 +31,7 @@ func generateJTI() (string, error) {
 
 func main() {
 	if len(os.Args) < 7 {
-		fmt.Fprintln(os.Stderr, "Usage: program secret userID username role userType expirationHours")
+		fmt.Fprintln(os.Stderr, "Usage: program secret userID username role userType expirationHours [enterpriseID]")
 		os.Exit(1)
 	}
 
@@ -41,6 +42,12 @@ func main() {
 	userType := os.Args[5]
 	expirationHours, _ := strconv.Atoi(os.Args[6])
 
+	// Optional enterprise_id for enterprise users
+	enterpriseID := 0
+	if len(os.Args) > 7 {
+		enterpriseID, _ = strconv.Atoi(os.Args[7])
+	}
+
 	jti, err := generateJTI()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating JTI: %v\n", err)
@@ -49,10 +56,11 @@ func main() {
 
 	now := time.Now()
 	claims := &JWTClaims{
-		UserID:   userID,
-		Username: username,
-		Role:     role,
-		UserType: userType,
+		UserID:       userID,
+		Username:     username,
+		Role:         role,
+		UserType:     userType,
+		EnterpriseID: enterpriseID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti,
 			Subject:   username,
@@ -77,6 +85,9 @@ func main() {
 		"username":   username,
 		"role":       role,
 		"user_type":  userType,
+	}
+	if enterpriseID > 0 {
+		result["enterprise_id"] = enterpriseID
 	}
 
 	jsonOutput, _ := json.MarshalIndent(result, "", "  ")

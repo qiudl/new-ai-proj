@@ -38,6 +38,7 @@ import {
   BankOutlined,
   ContactsOutlined,
   SafetyCertificateOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 
 // 开发环境下加载菜单测试工具
@@ -476,6 +477,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/api-keys',
           icon: <KeyOutlined />,
           label: 'API Key管理',
+        },
+        {
+          key: '/mcp-config',
+          icon: <ApiOutlined />,
+          label: 'MCP配置',
         },
         {
           key: '/integrations/figma',
