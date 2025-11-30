@@ -101,12 +101,12 @@ func (h *MCPAPIKeyHandler) ListAPIKeys(c *gin.Context) {
 		"success": true,
 		"message": "API keys retrieved successfully",
 		"data": models.ListMCPAPIKeysResponse{
-			Keys:  keys,
-			Total: total,
-			Page:  req.Page,
-			Limit: req.Limit,
+			Keys:    keys,
+			Total:   total,
+			Page:    req.Page,
+			Limit:   req.Limit,
+			IsAdmin: isAdmin, // 告知前端当前用户是否是管理员
 		},
-		"is_admin": isAdmin, // 告知前端当前用户是否是管理员
 	})
 }
 

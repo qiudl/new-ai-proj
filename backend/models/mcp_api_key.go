@@ -157,10 +157,11 @@ type ListMCPAPIKeysRequest struct {
 
 // ListMCPAPIKeysResponse 列出 API Keys 响应
 type ListMCPAPIKeysResponse struct {
-	Keys  []MCPAPIKey `json:"keys"`
-	Total int64       `json:"total"`
-	Page  int         `json:"page"`
-	Limit int         `json:"limit"`
+	Keys    []MCPAPIKey `json:"keys"`
+	Total   int64       `json:"total"`
+	Page    int         `json:"page"`
+	Limit   int         `json:"limit"`
+	IsAdmin bool        `json:"is_admin"` // 告知前端当前用户是否是管理员
 }
 
 // MCPAPIKeyStats API Key 使用统计

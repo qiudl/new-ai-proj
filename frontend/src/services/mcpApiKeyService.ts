@@ -145,9 +145,11 @@ export class MCPAPIKeyService {
    */
   static async listAPIKeys(params?: ListMCPAPIKeysParams): Promise<ListMCPAPIKeysResponse> {
     try {
-      const response = await api.get(this.basePath, { params });
-      // 后端响应格式: { success: true, data: { keys, total, page, limit }, is_admin: boolean }
-      const result = response.data || response;
+      // api.get 返回的响应已经被拦截器解包为 body.data
+      // 后端响应格式: { success: true, data: { keys, total, page, limit, is_admin } }
+      // 拦截器解包后: { keys, total, page, limit, is_admin }
+      const result = await api.get(this.basePath, { params });
+
       // 适配后端响应格式，将 keys 映射为 data
       if (result && result.keys !== undefined) {
         return {
@@ -155,14 +157,11 @@ export class MCPAPIKeyService {
           total: result.total,
           page: result.page,
           limit: result.limit,
-          is_admin: (response as any).is_admin,
+          is_admin: result.is_admin,
         };
       }
       // 兼容直接返回格式
-      return {
-        ...result,
-        is_admin: (response as any).is_admin,
-      };
+      return result;
     } catch (error) {
       console.error('Failed to list MCP API keys:', error);
       throw error;
