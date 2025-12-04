@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch:*)",
+      "Bash(git reset:*)",
+      "Bash(node dist/entrypoints/index.js:*)",
+      "Bash(cat:*)",
+      "Bash(bash scripts/dev.sh:*)",
+      "Bash(npm start)",
+      "Bash(ssh:*)",
+      "Bash(node -e:*)",
+      "mcp__ai-proj__list_tasks",
+      "Bash(scp:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
