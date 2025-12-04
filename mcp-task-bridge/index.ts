@@ -48,23 +48,46 @@ const taskServer = new TaskMCPServer(apiBaseUrl);
 const serverName = process.env.MCP_SERVER_NAME || 'ai-proj';
 console.error('[MCP] 服务器名称:', serverName);
 
-// 通用的curl API调用辅助函数
-const VALID_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3OTQ2MzEwOTQsIm5iZiI6MTc2MzA5NTA5NCwiaWF0IjoxNzYzMDk1MDk0LCJqdGkiOiI0NjQyY2FmMjgwZWUzZTdlOWIyYTBhYjhlOTI2NmIwYiJ9.dyFIWdWZEYoQ2_DKPlBc65-R9NYvJ1-U8J0jhGieWaM';
+// API Token 从环境变量读取，支持 TASK_API_TOKEN 或 MCP_API_TOKEN
+function getApiToken(): string {
+  const token = process.env.TASK_API_TOKEN || process.env.MCP_API_TOKEN || '';
+  if (!token) {
+    console.error('[MCP] 警告: 未设置 TASK_API_TOKEN 或 MCP_API_TOKEN 环境变量');
+  }
+  return token;
+}
 
+// 通用的curl API调用辅助函数
 async function curlApiCall(method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', endpoint: string, body?: any): Promise<any> {
   try {
     const childProcess = await import('child_process');
-    const url = `http://localhost:8080/api/v1${endpoint}`;
+    const token = getApiToken();
+    const url = `${apiBaseUrl}${endpoint}`;
 
-    let cmd = `curl -s -X ${method} "${url}" -H "Authorization: Bearer ${VALID_TOKEN}" -H "Content-Type: application/json"`;
+    // 使用 spawnSync 配合参数数组，避免 shell 引号解析问题
+    const args = [
+      '-s',
+      '-X', method,
+      url,
+      '-H', `Authorization: Bearer ${token}`,
+      '-H', 'Content-Type: application/json'
+    ];
 
     if (body) {
-      const jsonData = JSON.stringify(body).replace(/'/g, "'\\''");
-      cmd += ` -d '${jsonData}'`;
+      args.push('-d', JSON.stringify(body));
     }
 
-    const output = childProcess.execSync(cmd, { encoding: 'utf8' });
-    return JSON.parse(output);
+    const result = childProcess.spawnSync('curl', args, { encoding: 'utf8' });
+
+    if (result.error) {
+      return { success: false, error: result.error.message };
+    }
+
+    if (result.status !== 0) {
+      return { success: false, error: result.stderr || `curl exited with code ${result.status}` };
+    }
+
+    return JSON.parse(result.stdout);
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -1621,7 +1644,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if ((args as any).estimated_hours != null) reqBody.estimated_hours = (args as any).estimated_hours;
         if (Array.isArray((args as any).tags)) reqBody.tags = (args as any).tags;
         if ((args as any).custom_fields) reqBody.custom_fields = (args as any).custom_fields;
-        result = await curlApiCall('POST', '/tasks', reqBody);
+        // 使用正确的API路径: /projects/{projectId}/tasks
+        const projectIdForPath = args.projectId || 1;
+        result = await curlApiCall("POST", `/projects/${projectIdForPath}/tasks`, reqBody);
         break;
       }      
       case 'start_task': {
@@ -2097,27 +2122,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
 
       // 需求管理工具处理
-      case 'create_requirement':
-        // 使用curl绕过认证问题
-        try {
-          const childProcess = await import('child_process');
-          const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3OTQ2MzEwOTQsIm5iZiI6MTc2MzA5NTA5NCwiaWF0IjoxNzYzMDk1MDk0LCJqdGkiOiI0NjQyY2FmMjgwZWUzZTdlOWIyYTBhYjhlOTI2NmIwYiJ9.dyFIWdWZEYoQ2_DKPlBc65-R9NYvJ1-U8J0jhGieWaM';
-          const reqBody = {
-            title: args.title,
-            project_id: args.projectId,
-            description: args.description || '',
-            priority: args.priority || 'medium',
-            category: args.category || 'feature',
-            enterprise_id: args.enterpriseId
-          };
-          const jsonData = JSON.stringify(reqBody).replace(/'/g, "'\\''");
-          const cmd = `curl -s -X POST "http://localhost:8080/api/v1/requirements" -H "Authorization: Bearer ${token}" -H "Content-Type: application/json" -d '${jsonData}'`;
-          const output = childProcess.execSync(cmd, { encoding: 'utf8' });
-          result = JSON.parse(output);
-        } catch (error: any) {
-          result = { success: false, error: error.message };
-        }
+      case 'create_requirement': {
+        const reqBody = {
+          title: args.title,
+          project_id: args.projectId,
+          description: args.description || '',
+          priority: args.priority || 'medium',
+          category: args.category || 'feature',
+          enterprise_id: args.enterpriseId
+        };
+        result = await curlApiCall('POST', '/requirements', reqBody);
         break;
+      }
 
       case 'list_requirements':
         result = await taskServer.listRequirements({

@@ -44,6 +44,7 @@ build/
 mcp-task-bridge/.envrc
 # MCP specific environment files
 mcp-task-bridge/.env
+mcp-task-bridge/.env.*
 
 # Logs
 logs/
@@ -167,6 +168,7 @@ config/design/*.secrets.*
 #claude related
 CLAUDE.md
 ./claude/
+.claude/settings.local.json
 
 /backend/ai-project-backend.worktree-config.json
 

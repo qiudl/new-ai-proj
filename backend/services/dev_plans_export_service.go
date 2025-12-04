@@ -665,22 +665,46 @@ func (s *DevPlansExportService) extractSection(content, sectionHeader, nextSecti
 }
 
 // parseFileNameInfo 从文件名解析任务ID和标题
+// 支持多种文件名格式:
+//   - 4047_db-migration.md (原有格式: taskID_title.md)
+//   - task-4047-db-migration.md (task-taskID-title.md)
+//   - 4047-db-migration.md (taskID-title.md)
 func (s *DevPlansExportService) parseFileNameInfo(fileName string) (int, string, error) {
 	// 移除 .md 后缀
 	fileName = strings.TrimSuffix(fileName, ".md")
 
-	// 分割为 ID 和标题
-	parts := strings.SplitN(fileName, "_", 2)
-	if len(parts) < 2 {
-		return 0, "", fmt.Errorf("invalid file name format: %s", fileName)
-	}
-
-	// 解析任务ID
 	var taskID int
-	_, err := fmt.Sscanf(parts[0], "%d", &taskID)
-	if err != nil {
-		return 0, "", fmt.Errorf("invalid task ID in file name: %s", parts[0])
+	var title string
+
+	// 格式1: taskID_title (原有格式，优先匹配)
+	if parts := strings.SplitN(fileName, "_", 2); len(parts) == 2 {
+		if _, err := fmt.Sscanf(parts[0], "%d", &taskID); err == nil && taskID > 0 {
+			return taskID, parts[1], nil
+		}
 	}
 
-	return taskID, parts[1], nil
+	// 格式2: task-taskID-title (task前缀格式)
+	if strings.HasPrefix(fileName, "task-") {
+		rest := strings.TrimPrefix(fileName, "task-")
+		if idx := strings.Index(rest, "-"); idx > 0 {
+			if _, err := fmt.Sscanf(rest[:idx], "%d", &taskID); err == nil && taskID > 0 {
+				title = rest[idx+1:]
+				if title != "" {
+					return taskID, title, nil
+				}
+			}
+		}
+	}
+
+	// 格式3: taskID-title (仅连字符分隔)
+	if idx := strings.Index(fileName, "-"); idx > 0 {
+		if _, err := fmt.Sscanf(fileName[:idx], "%d", &taskID); err == nil && taskID > 0 {
+			title = fileName[idx+1:]
+			if title != "" {
+				return taskID, title, nil
+			}
+		}
+	}
+
+	return 0, "", fmt.Errorf("invalid file name format: %s (expected: taskID_title, task-taskID-title, or taskID-title)", fileName)
 }

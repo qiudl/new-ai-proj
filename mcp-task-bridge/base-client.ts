@@ -65,12 +65,16 @@ export abstract class BaseClient {
     //   console.error('[BASE_CLIENT] 加载持久化Token失败:', error);
     // });
 
-    // 从环境变量读取token，如果不存在则使用备用token
-    const envToken = process.env.TASK_API_TOKEN || process.env.API_TOKEN;
-    const FALLBACK_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NjM4MjA4ODcsIm5iZiI6MTc2MzIxNjA4NywiaWF0IjoxNzYzMjE2MDg3LCJqdGkiOiJkODUxYWI3OGY1ZDcxNWE3ODUzYzAzZjNlYWFiMDJiMCJ9.SCaYu-MQvr9ha0qB1DUDDIHYaabkRNOlijgAcQJr4Co';
+    // 从环境变量读取 token (支持 JWT 或 MCP API Key)
+    const envToken = process.env.TASK_API_TOKEN || process.env.MCP_API_TOKEN || process.env.API_TOKEN;
 
-    this.authToken = envToken || FALLBACK_TOKEN;
-    console.error('[BASE_CLIENT] Using token from:', envToken ? 'environment variable' : 'fallback', 'length:', this.authToken.length);
+    if (!envToken) {
+      console.error('[BASE_CLIENT] 警告: 未设置 TASK_API_TOKEN 或 MCP_API_TOKEN 环境变量，API 调用可能失败');
+    }
+
+    this.authToken = envToken || '';
+    const tokenType = this.authToken.startsWith('aiproj_pk_') ? 'MCP API Key' : 'JWT Token';
+    console.error('[BASE_CLIENT] Using', tokenType, 'from environment, length:', this.authToken.length);
 
     // 创建用户上下文
     this.initializeContextFromToken(this.authToken);
