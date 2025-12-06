@@ -10,7 +10,8 @@
       "Bash(ssh:*)",
       "Bash(node -e:*)",
       "mcp__ai-proj__list_tasks",
-      "Bash(scp:*)"
+      "Bash(scp:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []
