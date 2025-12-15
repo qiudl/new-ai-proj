@@ -308,9 +308,6 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 
 // CreateTask handles POST /api/v1/projects/:projectId/tasks and POST /api/v1/tasks
 func (h *TaskHandler) CreateTask(c *gin.Context) {
-	userID := c.GetInt("user_id") // For future implementation
-	_ = userID
-
 	var req struct {
 		Title         string                 `json:"title" binding:"required,min=1,max=255"`
 		Description   *string                `json:"description"`
@@ -387,37 +384,13 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	// 默认负责人：使用智能fallback策略
-	if req.AssigneeID == nil {
-		ctx := c.Request.Context()
+	// 获取当前用户ID作为创建人
+	currentUserID := c.GetInt("user_id")
 
-		// 优先级1: 查找ai-pm用户
-		if aiPM, err := h.db.Users().GetByUsername(ctx, "ai-pm"); err == nil && aiPM != nil {
-			req.AssigneeID = &aiPM.ID
-			log.Printf("[CreateTask] Assigned to default user 'ai-pm' (ID: %d)", aiPM.ID)
-		} else {
-			// 优先级2: 查找admin用户作为fallback
-			if admin, err := h.db.Users().GetByUsername(ctx, "admin"); err == nil && admin != nil {
-				req.AssigneeID = &admin.ID
-				log.Printf("[CreateTask] ai-pm not found, fallback to admin user (ID: %d)", admin.ID)
-			} else {
-				// 优先级3: 使用当前创建任务的用户
-				currentUserID := c.GetInt("user_id")
-				if currentUserID > 0 {
-					req.AssigneeID = &currentUserID
-					log.Printf("[CreateTask] admin not found, fallback to current user (ID: %d)", currentUserID)
-				} else {
-					// 优先级4: 查找任何可用的管理员用户
-					if anyAdmin, err := h.db.Users().GetFirstAdminUser(ctx); err == nil && anyAdmin != nil {
-						req.AssigneeID = &anyAdmin.ID
-						log.Printf("[CreateTask] fallback to first available admin user (ID: %d)", anyAdmin.ID)
-					} else {
-						// 最后兜底：创建未分配任务
-						log.Printf("[CreateTask] No assignee found, creating unassigned task")
-					}
-				}
-			}
-		}
+	// 默认负责人：使用当前创建人
+	if req.AssigneeID == nil && currentUserID > 0 {
+		req.AssigneeID = &currentUserID
+		log.Printf("[CreateTask] Assigned to creator (ID: %d)", currentUserID)
 	}
 
 	// Parse due date with multiple format support
@@ -486,6 +459,12 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		customFieldsJSON, _ = json.Marshal(req.CustomFields)
 	}
 
+	// 设置创建人
+	var createdByPtr *int
+	if currentUserID > 0 {
+		createdByPtr = &currentUserID
+	}
+
 	task := &models.Task{
 		Title:       req.Title,
 		Description: req.Description,
@@ -495,6 +474,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		AssigneeID:  req.AssigneeID,
 		ParentID:    req.ParentID,
 		DueDate:     dueDate,
+		CreatedBy:   createdByPtr,
 		// Enhanced time management fields
 		StartDatetime:      startDatetime,
 		DueDatetime:        dueDatetime,
@@ -541,11 +521,11 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 			// Add structured logging with timestamp
 			start := time.Now()
 			log.Printf("[AsyncTask][CreateTask][Start] Creating auto-doc for task_id=%d, user_id=%d",
-				createdTask.ID, userID)
+				createdTask.ID, currentUserID)
 
-			if err := h.autoCreateTaskDescription(ctx, createdTask, userID); err != nil {
+			if err := h.autoCreateTaskDescription(ctx, createdTask, currentUserID); err != nil {
 				log.Printf("[AsyncTask][CreateTask][Error] Failed to create task description: task_id=%d, user_id=%d, duration=%v, error=%v",
-					createdTask.ID, userID, time.Since(start), err)
+					createdTask.ID, currentUserID, time.Since(start), err)
 			} else {
 				log.Printf("[AsyncTask][CreateTask][Success] Auto-doc created: task_id=%d, duration=%v",
 					createdTask.ID, time.Since(start))

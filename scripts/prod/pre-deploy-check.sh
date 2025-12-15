@@ -6,7 +6,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SERVER_IP="${PROD_SERVER_IP:-152.136.104.251}"
+SERVER_IP="${PROD_SERVER_IP:?请设置 PROD_SERVER_IP 环境变量}"
 SERVER_USER="${PROD_SERVER_USER:-ubuntu}"
 SSH_KEY="${PROD_SSH_KEY:-~/.ssh/id_rsa}"
 

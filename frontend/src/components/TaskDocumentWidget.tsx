@@ -28,6 +28,7 @@ import {
   ShrinkOutlined
 } from '@ant-design/icons';
 import TaskDocumentManager from './TaskDocumentManager';
+import MarkdownRenderer from './MarkdownRenderer';
 import { documentService } from '../services/unifiedDocumentService';
 import { Document } from '../types/document';
 import {
@@ -471,9 +472,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                         lineHeight: '1.5',
                         position: 'relative'
                       }}>
-                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                          {doc.content}
-                        </pre>
+                        <MarkdownRenderer content={doc.content} />
                         {!expandedDocIds.has(doc.id) && doc.content.split('\n').length > 15 && (
                           <div style={{
                             position: 'absolute',

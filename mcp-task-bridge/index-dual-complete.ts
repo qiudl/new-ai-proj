@@ -962,7 +962,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             username: {
               type: 'string',
-              description: '登录用户名（可选，默认 admin 或 DEV_LOGIN_USERNAME 环境变量）'
+              description: '登录用户名（可选，默认 qiudl 或 DEV_LOGIN_USERNAME 环境变量，禁止使用 admin）'
             }
           }
         }
@@ -1515,7 +1515,8 @@ async function main() {
     const env = (process.env.APP_ENV || process.env.NODE_ENV || '').toLowerCase();
     const shouldAutoLogin = env === 'development' || env === 'dev' || process.env.AUTO_DEV_LOGIN === 'true';
     if (shouldAutoLogin) {
-      const username = process.env.DEV_LOGIN_USERNAME?.split(',')?.[0]?.trim() || 'admin';
+      // 禁止使用admin作为测试用户，DEV_LOGIN_USERNAME 从根目录 .env 获取
+      const username = process.env.DEV_LOGIN_USERNAME?.split(',')?.[0]?.trim() || 'qiudl';
       console.error(`[MCP] 开发模式自动登录: ${username}`);
       const loginRes = await taskServer.devQuickLogin(username);
       console.error('[MCP] 登录响应:', JSON.stringify(loginRes));

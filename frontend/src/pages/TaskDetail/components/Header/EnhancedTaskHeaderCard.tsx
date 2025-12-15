@@ -16,6 +16,7 @@ import {
   FileTextOutlined,
   TagOutlined,
   UserOutlined,
+  UserAddOutlined,
   CalendarOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -120,6 +121,13 @@ export const EnhancedTaskHeaderCard: React.FC<EnhancedTaskHeaderCardProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <UserOutlined style={{ color: '#666' }} />
                 <Text>负责人: {(task as any).assignee_name || `用户 ${task.assignee_id}`}</Text>
+              </div>
+            )}
+
+            {(task as any).created_by && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <UserAddOutlined style={{ color: '#666' }} />
+                <Text>创建人: {(task as any).creator_name || `用户 ${(task as any).created_by}`}</Text>
               </div>
             )}
 

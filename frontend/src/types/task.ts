@@ -32,6 +32,10 @@ export interface Task {
   time_unit_preference?: 'auto' | 'hours' | 'minutes' | 'days';
   work_hours_per_day?: number;
   time_tracking_mode?: 'manual' | 'automatic' | 'hybrid';
+  // Creator info
+  created_by?: number;
+  creator_name?: string;
+  // Timestamps
   created_at: string;
   updated_at: string;
   updated_by?: number;

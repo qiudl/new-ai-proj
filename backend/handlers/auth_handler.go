@@ -295,6 +295,13 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 		return
 	}
 
+	// 禁止使用admin进行快速登录
+	if req.Username == "admin" {
+		log.Println("[DEV] quick login - admin user is forbidden for dev quick login")
+		c.JSON(http.StatusForbidden, models.NewErrorResponse("FORBIDDEN", "禁止使用admin账户进行快速登录，请使用其他测试账户", nil))
+		return
+	}
+
 	// Get user by username；若不存在则在开发环境下自动创建一个内存用户并签发JWT（不强制写库）
 	user, err := h.db.Users().GetByUsername(c.Request.Context(), req.Username)
 	if err != nil {

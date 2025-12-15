@@ -182,6 +182,25 @@ func CreateAndAttachTaskDocument(app ApplicationInterface) gin.HandlerFunc {
 			return
 		}
 
+		// 优先从URL参数获取taskId（支持RESTful路由）
+		// 路由格式：/projects/:id/tasks/:taskId/documents/create-and-attach
+		if req.TaskID == 0 {
+			if taskIdStr := c.Param("taskId"); taskIdStr != "" {
+				if parsedTaskID, err := strconv.Atoi(taskIdStr); err == nil {
+					req.TaskID = parsedTaskID
+				}
+			}
+		}
+
+		// 同样支持从URL参数获取projectId
+		if req.ProjectID == nil {
+			if projectIdStr := c.Param("id"); projectIdStr != "" {
+				if parsedProjectID, err := strconv.Atoi(projectIdStr); err == nil {
+					req.ProjectID = &parsedProjectID
+				}
+			}
+		}
+
 		// 验证必填字段
 		if err := validateRequest(map[string]interface{}{
 			"taskId":  req.TaskID,

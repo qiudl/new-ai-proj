@@ -57,16 +57,16 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 
 	query := `
 		INSERT INTO tasks (project_id, title, description, status, assignee_id, due_date, custom_fields, parent_id, sort_order,
-		                   start_datetime, due_datetime, estimated_minutes, actual_minutes, 
-		                   time_unit_preference, work_hours_per_day, time_tracking_mode)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		                   start_datetime, due_datetime, estimated_minutes, actual_minutes,
+		                   time_unit_preference, work_hours_per_day, time_tracking_mode, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING id, created_at, task_level`
 
 	row := exec.QueryRowContext(ctx, query,
 		task.ProjectID, task.Title, task.Description, task.Status,
 		task.AssigneeID, task.DueDate, customFieldsJSON, task.ParentID, task.SortOrder,
 		task.StartDatetime, task.DueDatetime, task.EstimatedMinutes, task.ActualMinutes,
-		task.TimeUnitPreference, task.WorkHoursPerDay, task.TimeTrackingMode)
+		task.TimeUnitPreference, task.WorkHoursPerDay, task.TimeTrackingMode, task.CreatedBy)
 
 	err = row.Scan(&task.ID, &task.CreatedAt, &task.TaskLevel)
 	task.UpdatedAt = task.CreatedAt
@@ -84,13 +84,15 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
 		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes,
 		       t.time_unit_preference, t.work_hours_per_day, t.time_tracking_mode,
-		       t.created_at, t.updated_at, t.deleted_at,
+		       t.created_at, t.updated_at, t.deleted_at, t.created_by,
 		       COALESCE(c.children_count, 0) as children_count,
 		       COALESCE(c.completed_children_count, 0) as completed_children_count,
-		       u.id as assignee_user_id, u.username as assignee_username, u.email as assignee_email
+		       u.id as assignee_user_id, u.username as assignee_username, u.email as assignee_email,
+		       creator.username as creator_name
 		FROM tasks t
 		LEFT JOIN projects p ON t.project_id = p.id
 		LEFT JOIN users u ON t.assignee_id = u.id
+		LEFT JOIN users creator ON t.created_by = creator.id
 		LEFT JOIN (
 			SELECT parent_id,
 			       COUNT(*) as children_count,
@@ -115,12 +117,14 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	var timeUnitPreference sql.NullString
 	var workHoursPerDay sql.NullFloat64
 	var timeTrackingMode sql.NullString
+	var createdBy sql.NullInt64
 	var childrenCount int
 	var completedChildrenCount int
 	var projectName sql.NullString
 	var assigneeUserID sql.NullInt64
 	var assigneeUsername sql.NullString
 	var assigneeEmail sql.NullString
+	var creatorName sql.NullString
 
 	err := row.Scan(
 		&task.ID, &task.ProjectID, &projectName, &task.Title, &task.Description,
@@ -128,8 +132,8 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 		&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
 		&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
 		&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
-		&task.CreatedAt, &updatedAt, &task.DeletedAt, &childrenCount, &completedChildrenCount,
-		&assigneeUserID, &assigneeUsername, &assigneeEmail,
+		&task.CreatedAt, &updatedAt, &task.DeletedAt, &createdBy, &childrenCount, &completedChildrenCount,
+		&assigneeUserID, &assigneeUsername, &assigneeEmail, &creatorName,
 	)
 
 	if err == sql.ErrNoRows {
@@ -194,6 +198,15 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 		task.TimeTrackingMode = timeTrackingMode.String
 	} else {
 		task.TimeTrackingMode = "manual"
+	}
+
+	// Handle created_by and creator_name
+	if createdBy.Valid {
+		intVal := int(createdBy.Int64)
+		task.CreatedBy = &intVal
+	}
+	if creatorName.Valid {
+		task.CreatorName = &creatorName.String
 	}
 
 	if len(customFieldsJSON) > 0 {

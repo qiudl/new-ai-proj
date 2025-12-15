@@ -84,8 +84,8 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // 开发环境快速登录
-  const handleQuickLogin = async (username: 'admin' | 'qiudl') => {
+  // 开发环境快速登录（禁止使用admin）
+  const handleQuickLogin = async (username: 'qiudl') => {
     const { apiBaseURL, isLocal } = getEnvironmentConfig();
     if (!isLocal) {
       message.warning('快速登录仅在本地开发环境可用');
@@ -211,15 +211,9 @@ const LoginPage: React.FC = () => {
               padding: 12,
             }}>
               <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 8 }}>
-                本地开发仅：支持免密快速登录以下两个账号
+                本地开发仅：支持免密快速登录以下账号
               </div>
               <Space style={{ width: '100%', justifyContent: 'center' }} wrap>
-                <Button
-                  onClick={() => handleQuickLogin('admin')}
-                  loading={quickLoadingUser === 'admin'}
-                >
-                  快速登录：admin
-                </Button>
                 <Button
                   onClick={() => handleQuickLogin('qiudl')}
                   loading={quickLoadingUser === 'qiudl'}
@@ -228,9 +222,7 @@ const LoginPage: React.FC = () => {
                 </Button>
               </Space>
               <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 8, textAlign: 'center' }}>
-                或手动输入：
-                <span style={{ marginLeft: 6 }}>admin / 任意密码</span>
-                <span style={{ marginLeft: 12 }}>qiudl / 任意密码</span>
+                或手动输入：qiudl / 任意密码
               </div>
             </div>
           </div>

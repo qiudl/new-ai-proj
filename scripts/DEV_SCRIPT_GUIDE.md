@@ -373,10 +373,11 @@ docker compose -f docker-compose.dev.yml down -v  # ❌ 删除数据
 ### Q: Legacy模式SSH隧道连接失败？
 
 **A:** 检查以下几点：
-1. 网络连接：`ping 152.136.104.251`
-2. SSH密钥：`ssh ubuntu@152.136.104.251`
+1. 网络连接：`ping <your-server-ip>`
+2. SSH密钥：`ssh ubuntu@<your-server-ip>`
 3. 端口占用：`lsof -i :5433`
 4. 查看日志：`tail -f /tmp/ai-proj-tunnel.log`
+5. 确保已配置：`~/.ai-proj-tunnel.env`
 
 ### Q: 能同时运行两种模式吗？
 

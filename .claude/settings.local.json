@@ -11,7 +11,10 @@
       "Bash(node -e:*)",
       "mcp__ai-proj__list_tasks",
       "Bash(scp:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(git rebase:*)",
+      "Bash(GIT_EDITOR=true git rebase:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

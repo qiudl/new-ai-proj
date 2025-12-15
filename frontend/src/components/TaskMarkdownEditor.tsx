@@ -349,6 +349,60 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
               {children}
             </p>
           ),
+          table: ({ children, ...props }) => (
+            <table
+              style={{
+                borderCollapse: 'collapse',
+                width: '100%',
+                margin: '12px 0',
+                border: '1px solid #d9d9d9'
+              }}
+              {...props}
+            >
+              {children}
+            </table>
+          ),
+          thead: ({ children, ...props }) => (
+            <thead style={{ backgroundColor: '#fafafa' }} {...props}>
+              {children}
+            </thead>
+          ),
+          tbody: ({ children, ...props }) => (
+            <tbody {...props}>
+              {children}
+            </tbody>
+          ),
+          tr: ({ children, ...props }) => (
+            <tr style={{ borderBottom: '1px solid #d9d9d9' }} {...props}>
+              {children}
+            </tr>
+          ),
+          th: ({ children, ...props }) => (
+            <th
+              style={{
+                border: '1px solid #d9d9d9',
+                padding: '8px 12px',
+                textAlign: 'left',
+                fontWeight: 600,
+                backgroundColor: '#fafafa'
+              }}
+              {...props}
+            >
+              {children}
+            </th>
+          ),
+          td: ({ children, ...props }) => (
+            <td
+              style={{
+                border: '1px solid #d9d9d9',
+                padding: '8px 12px',
+                textAlign: 'left'
+              }}
+              {...props}
+            >
+              {children}
+            </td>
+          ),
               }}
             >
               {value}

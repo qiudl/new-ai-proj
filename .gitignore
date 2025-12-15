@@ -191,3 +191,61 @@ backend/uploads/
 
 # 测试文件
 backend/test_*.js
+
+# ============================================================================
+# 敏感配置文件 (请勿提交)
+# ============================================================================
+
+# 后端环境配置
+backend/.env
+backend/.env.local
+backend/.env.remote
+backend/.env.docker
+backend/.env.backup/
+
+# 根目录环境配置
+.env
+.env.prod
+.env.staging
+.env.local
+
+# 前端本地配置
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.production.local
+
+# 部署配置
+deploy/**/.env
+deploy/**/.env.*
+!deploy/**/.env.example
+
+# MCP 敏感配置
+mcp-task-bridge/.env
+mcp-task-bridge/.env.production
+mcp-task-bridge/.env.local
+
+# 隧道配置
+scripts/tunnel.env
+
+# Prisma
+backend/prisma/.env
+
+# ============================================================================
+# 个人开发文件
+# ============================================================================
+
+# 多AI配置
+*-ai-config.json
+.worktree-config.json
+
+# 个人脚本
+scripts/less/
+
+# 系统服务配置
+systemd/
+launchd/
+
+# 备份文件
+*.backup
+*.backup.*
+*.bak

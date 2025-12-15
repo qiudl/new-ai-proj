@@ -1,3 +1,9 @@
+# AI Project - Production Deployment Workflow
+#
+# 需要在 GitHub Repository Settings > Secrets 中配置以下密钥:
+# - PROD_SERVER_IP: 生产服务器 IP 地址
+# - TENCENT_SSH_KEY: SSH 私钥 (用于部署)
+#
 name: Production Deploy
 
 on:
@@ -18,7 +24,8 @@ on:
 env:
   NODE_VERSION: '18'
   GO_VERSION: '1.23'
-  SERVER_HOST: '152.136.104.251'
+  # 从 GitHub Secrets 获取服务器信息
+  SERVER_HOST: ${{ secrets.PROD_SERVER_IP }}
   SERVER_USER: 'ubuntu'
   DEPLOY_PATH: '/home/ubuntu/apps/new-ai-proj'
 
@@ -65,8 +72,8 @@ jobs:
         run: npm run build
         env:
           GENERATE_SOURCEMAP: false
-          REACT_APP_API_URL: http://152.136.104.251:8080/api/v1
-          REACT_APP_API_BASE_URL: http://152.136.104.251:8080/api/v1
+          REACT_APP_API_URL: http://${{ secrets.PROD_SERVER_IP }}:8080/api/v1
+          REACT_APP_API_BASE_URL: http://${{ secrets.PROD_SERVER_IP }}:8080/api/v1
           NODE_ENV: production
           REACT_APP_ENV: production
       

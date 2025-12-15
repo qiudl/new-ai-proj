@@ -57,6 +57,7 @@ import {
 } from '@ant-design/icons';
 import TaskDocumentUploader from './TaskDocumentUploader';
 import DocumentVersionHistory from './DocumentVersionHistory';
+import MarkdownRenderer from './MarkdownRenderer';
 import { documentService as taskDocumentService } from '../services/unifiedDocumentService';
 
 const { Text, Title } = Typography;
@@ -1712,40 +1713,16 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
         maskClosable={true}
       >
         <div className="document-preview-content">
-          {previewContent.includes('```') || previewContent.includes('#') ? (
-            // Markdown 格式预览
-            <div style={{ 
-              backgroundColor: '#f5f5f5', 
-              padding: '16px', 
-              borderRadius: '4px', 
-              border: '1px solid #d9d9d9'
-            }}>
-              <pre
-                style={{
-                  whiteSpace: 'pre-wrap',
-                  fontFamily: 'Monaco, Consolas, monospace',
-                  fontSize: '14px',
-                  maxHeight: previewExpanded ? 'calc(100vh - 250px)' : '500px',
-                  overflow: 'auto',
-                  margin: 0
-                }}
-              >
-                {previewContent}
-              </pre>
-            </div>
-          ) : (
-            // 纯文本预览
-            <div style={{ 
-              backgroundColor: '#fff', 
-              padding: '16px', 
-              border: '1px solid #d9d9d9', 
-              borderRadius: '4px' 
-            }}>
-              <Text style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {previewContent}
-              </Text>
-            </div>
-          )}
+          <div style={{
+            backgroundColor: '#fff',
+            padding: '16px',
+            borderRadius: '4px',
+            border: '1px solid #d9d9d9',
+            maxHeight: previewExpanded ? 'calc(100vh - 250px)' : '500px',
+            overflow: 'auto'
+          }}>
+            <MarkdownRenderer content={previewContent} />
+          </div>
           
           {/* 预览统计信息 */}
           <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f0f0f0' }}>

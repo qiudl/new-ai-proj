@@ -2,7 +2,8 @@ import { TaskMCPServer } from './dist/task-mcp.js';
 
 async function main() {
   const apiBase = process.env.API_BASE || 'http://localhost:8080/api/v1';
-  const username = process.env.DEV_LOGIN_USERNAME || 'admin';
+  // 禁止使用admin作为测试用户，DEV_LOGIN_USERNAME 从根目录 .env 获取
+  const username = process.env.DEV_LOGIN_USERNAME || 'qiudl';
 
   const server = new TaskMCPServer(apiBase);
 

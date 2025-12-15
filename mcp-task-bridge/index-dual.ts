@@ -299,7 +299,8 @@ async function main() {
     const env = (process.env.APP_ENV || process.env.NODE_ENV || '').toLowerCase();
     const shouldAutoLogin = env === 'development' || env === 'dev' || process.env.AUTO_DEV_LOGIN === 'true';
     if (shouldAutoLogin) {
-      const username = process.env.DEV_LOGIN_USERNAME?.split(',')?.[0]?.trim() || 'admin';
+      // 禁止使用admin作为测试用户，DEV_LOGIN_USERNAME 从根目录 .env 获取
+      const username = process.env.DEV_LOGIN_USERNAME?.split(',')?.[0]?.trim() || 'qiudl';
       console.error(`[MCP] 开发模式自动登录: ${username}`);
       const loginRes = await taskServer.devQuickLogin(username);
       console.error('[MCP] 登录响应:', JSON.stringify(loginRes));

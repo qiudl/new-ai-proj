@@ -444,7 +444,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        username: { type: 'string', description: '登录用户名（可选，默认 admin 或 DEV_LOGIN_USERNAME 环境变量）' }
+        username: { type: 'string', description: '登录用户名（可选，默认 qiudl 或 DEV_LOGIN_USERNAME 环境变量，禁止使用 admin）' }
       }
     },
     handler: async (args) => await taskServer.devQuickLogin(args.username)
@@ -654,7 +654,8 @@ async function performAutoLogin(): Promise<void> {
       return;
     }
     
-    const username = process.env.DEV_LOGIN_USERNAME?.split(',')?.[0]?.trim() || 'admin';
+    // 禁止使用admin作为测试用户，DEV_LOGIN_USERNAME 从根目录 .env 获取
+    const username = process.env.DEV_LOGIN_USERNAME?.split(',')?.[0]?.trim() || 'qiudl';
     console.error(`[HOOK] 开发环境自动登录: ${username}`);
     
     const loginRes = await taskServer.devQuickLogin(username);

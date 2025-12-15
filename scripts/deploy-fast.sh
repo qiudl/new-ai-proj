@@ -8,10 +8,10 @@
 
 set -e
 
-# 配置
-REMOTE_HOST="ubuntu@152.136.104.251"
-REMOTE_BASE="/opt/ai-project"
-LOCAL_DIR="/Users/johnqiu/coding/www/projects/new-ai-proj"
+# 配置 (从环境变量读取，或使用默认值)
+REMOTE_HOST="${DEPLOY_HOST:-ubuntu@your-server-ip}"
+REMOTE_BASE="${DEPLOY_PATH:-/opt/ai-project}"
+LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # SSH配置
 SSH_OPTS="-o ConnectTimeout=10 -o ServerAliveInterval=5 -o ServerAliveCountMax=3"

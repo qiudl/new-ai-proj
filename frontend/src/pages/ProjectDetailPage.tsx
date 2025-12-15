@@ -783,20 +783,27 @@ const ProjectDetailPage: React.FC = () => {
             label="选择用户"
             rules={[{ required: true, message: '请选择用户' }]}
           >
-            <Select placeholder="请选择要添加的用户" showSearch>
+            <Select
+              placeholder="请选择要添加的用户"
+              showSearch
+              getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
+            >
               <Select.Option value={201}>张三 - 前端开发</Select.Option>
               <Select.Option value={202}>李四 - 后端开发</Select.Option>
               <Select.Option value={203}>王五 - UI设计师</Select.Option>
               <Select.Option value={204}>赵六 - 测试工程师</Select.Option>
             </Select>
           </Form.Item>
-          
+
           <Form.Item
             name="role"
             label="角色"
             rules={[{ required: true, message: '请选择角色' }]}
           >
-            <Select placeholder="请选择角色">
+            <Select
+              placeholder="请选择角色"
+              getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
+            >
               <Select.Option value="customer">客户方负责人</Select.Option>
               <Select.Option value="consultant">项目实施顾问</Select.Option>
               <Select.Option value="developer">研发工程师</Select.Option>

@@ -99,6 +99,10 @@ type Task struct {
 	ArchivedAt     *time.Time `json:"archived_at,omitempty" db:"archived_at"`
 	ArchivedBy     *int       `json:"archived_by,omitempty" db:"archived_by"`
 	ArchiveReason  *string    `json:"archive_reason,omitempty" db:"archive_reason"`
+	// Creator info
+	CreatedBy   *int    `json:"created_by" db:"created_by"`
+	Creator     *User   `json:"creator,omitempty" db:"-"` // Added for user info, not stored in tasks table
+	CreatorName *string `json:"creator_name,omitempty" db:"creator_name"` // Added for JOIN queries
 	// Timestamps
 	CreatedAt time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
@@ -168,8 +172,12 @@ type TaskResponse struct {
 	TimeUnitPreference string     `json:"time_unit_preference"`
 	WorkHoursPerDay    float64    `json:"work_hours_per_day"`
 	TimeTrackingMode   string     `json:"time_tracking_mode"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
+	// Creator info
+	CreatedBy   *int   `json:"created_by"`
+	CreatorName string `json:"creator_name,omitempty"`
+	// Timestamps
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // BulkImportRequest represents a bulk task import request
@@ -343,7 +351,7 @@ type RecycledWorkNote struct {
 
 // ToResponse converts Task to TaskResponse
 func (t *Task) ToResponse() TaskResponse {
-	return TaskResponse{
+	response := TaskResponse{
 		ID:               t.ID,
 		ProjectID:        t.ProjectID,
 		Title:            t.Title,
@@ -371,9 +379,19 @@ func (t *Task) ToResponse() TaskResponse {
 		TimeUnitPreference: t.TimeUnitPreference,
 		WorkHoursPerDay:    t.WorkHoursPerDay,
 		TimeTrackingMode:   t.TimeTrackingMode,
+		CreatedBy:          t.CreatedBy,
 		CreatedAt:          t.CreatedAt,
 		UpdatedAt:          t.UpdatedAt,
 	}
+	// Set creator name if available
+	if t.CreatorName != nil {
+		response.CreatorName = *t.CreatorName
+	}
+	// Set assignee name if available from Assignee object
+	if t.Assignee != nil {
+		response.AssigneeName = t.Assignee.Username
+	}
+	return response
 }
 
 // ToResponseWithRelations converts Task to TaskResponse with additional relation info

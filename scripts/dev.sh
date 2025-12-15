@@ -20,10 +20,14 @@ FRONTEND_DIR="$PROJECT_ROOT/frontend"
 TUNNEL_SCRIPT="$SCRIPT_DIR/tunnel.sh"
 BACKEND_PORT="8080"
 FRONTEND_PORT="3000"
+DOCKER_COMPOSE_FILE="$PROJECT_ROOT/docker-compose.dev.yml"
 
 # PID文件
 BACKEND_PID_FILE="/tmp/ai-proj-backend.pid"
 FRONTEND_PID_FILE="/tmp/ai-proj-frontend.pid"
+
+# 运行模式标记
+RUN_MODE="remote"  # remote 或 local
 
 # 日志文件
 BACKEND_LOG_FILE="/tmp/ai-proj-backend.log"
@@ -164,10 +168,11 @@ ensure_tunnel() {
         echo "  4. 防火墙阻止连接"
         echo ""
         log "排查步骤："
-        echo "  1. 检查网络连接: ping 152.136.104.251"
-        echo "  2. 测试SSH: ssh ubuntu@152.136.104.251"
+        echo "  1. 检查网络连接: ping <your-server-ip>"
+        echo "  2. 测试SSH: ssh ubuntu@<your-server-ip>"
         echo "  3. 查看日志: tail -f /tmp/ai-proj-tunnel.log"
         echo "  4. 手动启动: $TUNNEL_SCRIPT start"
+        echo "  (请在 ~/.ai-proj-tunnel.env 中配置 REMOTE_HOST)"
         echo ""
 
         # 检查是否在交互式终端中运行
@@ -186,6 +191,61 @@ ensure_tunnel() {
             return 0
         fi
     fi
+}
+
+# ============================================================================
+# 本地数据库管理 (本机 PostgreSQL)
+# ============================================================================
+
+# 本地数据库配置
+LOCAL_DB_PORT="5432"
+LOCAL_DB_USER="ai_dev"
+LOCAL_DB_NAME="ai_project_local"
+
+# 检查本机 PostgreSQL 是否运行
+is_local_postgres_running() {
+    pg_isready -h localhost -p "$LOCAL_DB_PORT" > /dev/null 2>&1
+}
+
+# 检查本地数据库是否存在
+is_local_database_exists() {
+    psql -h localhost -p "$LOCAL_DB_PORT" -U "$LOCAL_DB_USER" -d "$LOCAL_DB_NAME" -c "SELECT 1" > /dev/null 2>&1
+}
+
+# 确保本地数据库环境就绪
+ensure_local_database() {
+    log_section "📡 检查本地数据库"
+
+    # 检查 PostgreSQL 服务
+    if ! is_local_postgres_running; then
+        log_error "本机 PostgreSQL 未运行"
+        echo ""
+        log "请先启动 PostgreSQL:"
+        echo "  brew services start postgresql@16"
+        echo ""
+        log "如果未安装，请执行:"
+        echo "  brew install postgresql@16"
+        echo "  brew services start postgresql@16"
+        return 1
+    fi
+
+    log_success "本机 PostgreSQL 运行中 (端口 $LOCAL_DB_PORT)"
+
+    # 检查数据库是否存在
+    if ! is_local_database_exists; then
+        log_warning "本地数据库 '$LOCAL_DB_NAME' 不存在"
+        echo ""
+        log "请先初始化本地数据库:"
+        echo "  ./scripts/sync-db.sh init"
+        echo ""
+        log "或手动创建:"
+        echo "  createuser -s $LOCAL_DB_USER"
+        echo "  createdb -O $LOCAL_DB_USER $LOCAL_DB_NAME"
+        return 1
+    fi
+
+    log_success "本地数据库 '$LOCAL_DB_NAME' 就绪"
+    return 0
 }
 
 # ============================================================================
@@ -266,6 +326,24 @@ start_backend() {
     # 清除可能污染环境的旧数据库环境变量
     # 让 backend 从 .env 文件读取正确的配置
     unset DB_HOST DB_PORT DB_USER DB_PASSWORD DB_NAME DB_SSL_MODE DB_SOURCE
+
+    # 根据运行模式选择配置文件
+    local env_file=".env"
+    if [ "$RUN_MODE" = "local" ]; then
+        env_file=".env.local"
+        log "使用本地数据库配置: $env_file"
+
+        # 备份原 .env，使用 .env.local
+        if [ -f ".env.local" ]; then
+            cp .env .env.backup 2>/dev/null || true
+            cp .env.local .env
+        else
+            log_error ".env.local 不存在，请先创建"
+            return 1
+        fi
+    else
+        log "使用远程数据库配置: $env_file"
+    fi
 
     # 启动后端（后台运行）
     nohup ./backend > "$BACKEND_LOG_FILE" 2>&1 &
@@ -474,15 +552,30 @@ stop_frontend() {
 show_status() {
     log_section "📊 开发环境状态"
 
-    # 隧道状态 - 使用端口检测，更可靠
-    echo -e "${YELLOW}数据库隧道:${NC}"
+    # 本机 PostgreSQL 状态
+    echo -e "${YELLOW}本地数据库 (本机 PostgreSQL):${NC}"
+    if is_local_postgres_running; then
+        echo -e "  服务: ${GREEN}运行中${NC} (端口 $LOCAL_DB_PORT)"
+        if is_local_database_exists; then
+            echo -e "  数据库: ${GREEN}$LOCAL_DB_NAME 就绪${NC}"
+        else
+            echo -e "  数据库: ${YELLOW}$LOCAL_DB_NAME 不存在${NC}"
+            echo "  初始化: ./scripts/sync-db.sh init"
+        fi
+    else
+        echo -e "  服务: ${RED}未运行${NC}"
+        echo "  启动: brew services start postgresql@16"
+    fi
+    echo ""
+
+    # 远程隧道状态
+    echo -e "${YELLOW}远程数据库隧道:${NC}"
     if is_port_busy "5433"; then
-        echo -e "  状态: ${GREEN}运行中${NC} (端口 5433 已监听)"
-        # 额外显示数据库连接状态
+        echo -e "  状态: ${GREEN}运行中${NC} (端口 5433)"
         if "$TUNNEL_SCRIPT" check > /dev/null 2>&1; then
             echo -e "  数据库: ${GREEN}连接正常${NC}"
         else
-            echo -e "  数据库: ${YELLOW}连接测试失败 (可能缺少密码配置)${NC}"
+            echo -e "  数据库: ${YELLOW}连接测试失败${NC}"
         fi
     else
         echo -e "  状态: ${RED}未运行${NC}"
@@ -556,26 +649,41 @@ ${CYAN}🚀 AI项目开发环境管理工具${NC}
 ${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}
 
 ${YELLOW}用法:${NC}
-  $0 [backend|frontend|both|stop|status|help]
+  $0 [local|remote|backend|frontend|stop|status|sync|help]
 
-${YELLOW}命令:${NC}
-  ${GREEN}backend${NC}    仅启动后端服务
-  ${GREEN}frontend${NC}   仅启动前端服务
-  ${GREEN}both${NC}       启动后端和前端（默认）
-  ${GREEN}stop${NC}       停止所有服务
-  ${GREEN}status${NC}     查看服务状态
-  ${GREEN}help${NC}       显示此帮助信息
+${MAGENTA}━━━ 本地模式 (推荐) ━━━${NC}
+  ${GREEN}local${NC}         启动本地开发环境 (Docker PostgreSQL)
+  ${GREEN}local-backend${NC} 仅启动后端 (本地数据库)
+
+${MAGENTA}━━━ 远程模式 ━━━${NC}
+  ${GREEN}remote${NC}        启动远程开发环境 (SSH隧道)
+  ${GREEN}backend${NC}       仅启动后端 (远程数据库)
+  ${GREEN}both${NC}          启动后端和前端 (远程数据库)
+
+${MAGENTA}━━━ 通用命令 ━━━${NC}
+  ${GREEN}frontend${NC}      仅启动前端服务
+  ${GREEN}stop${NC}          停止所有服务
+  ${GREEN}status${NC}        查看服务状态
+  ${GREEN}sync${NC}          同步数据库 (本地 <-> 远程)
+  ${GREEN}help${NC}          显示此帮助信息
+
+${YELLOW}推荐使用:${NC}
+  # 日常开发使用本地数据库（稳定、离线可用）
+  ${GREEN}$0 local${NC}
+
+  # 需要生产数据时先同步，再使用本地模式
+  ${GREEN}$0 sync pull${NC}
+  ${GREEN}$0 local${NC}
 
 ${YELLOW}示例:${NC}
-  # 启动完整开发环境（隧道+后端+前端）
-  $0
-  $0 both
+  # 本地模式（推荐）
+  $0 local
 
-  # 仅启动后端
-  $0 backend
+  # 远程模式（需要SSH隧道）
+  $0 remote
 
-  # 仅启动前端
-  $0 frontend
+  # 仅启动后端（本地）
+  $0 local-backend
 
   # 查看状态
   $0 status
@@ -584,14 +692,15 @@ ${YELLOW}示例:${NC}
   $0 stop
 
 ${YELLOW}服务端口:${NC}
-  后端:   http://localhost:$BACKEND_PORT
-  前端:   http://localhost:$FRONTEND_PORT
-  隧道:   localhost:5433
+  后端:     http://localhost:$BACKEND_PORT
+  前端:     http://localhost:$FRONTEND_PORT
+  本地DB:   localhost:5433 (Docker PostgreSQL)
+  远程DB:   localhost:5433 (SSH隧道)
 
 ${YELLOW}快速命令:${NC}
   查看后端日志:  tail -f $BACKEND_LOG_FILE
   查看前端日志:  tail -f $FRONTEND_LOG_FILE
-  隧道状态:      $TUNNEL_SCRIPT status
+  数据库状态:    docker ps | grep postgres
 
 ${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}
 
@@ -606,8 +715,43 @@ main() {
     local command="${1:-both}"
 
     case "$command" in
+        # ===== 本地模式 (推荐) =====
+        local)
+            RUN_MODE="local"
+            log_section "🚀 启动本地开发环境 (Docker PostgreSQL)"
+            ensure_local_database || exit 1
+            start_backend || exit 1
+            start_frontend || exit 1
+            echo ""
+            log_section "🎉 本地开发环境已就绪！"
+            echo -e "${GREEN}✓ 使用本地 Docker PostgreSQL，无需远程连接${NC}"
+            show_status
+            ;;
+
+        local-backend)
+            RUN_MODE="local"
+            log_section "🚀 启动本地开发环境 (仅后端)"
+            ensure_local_database || exit 1
+            start_backend || exit 1
+            echo ""
+            log_success "本地后端服务已就绪！"
+            ;;
+
+        # ===== 远程模式 (原有逻辑) =====
+        remote)
+            RUN_MODE="remote"
+            log_section "🚀 启动远程开发环境 (SSH隧道)"
+            ensure_tunnel || exit 1
+            start_backend || exit 1
+            start_frontend || exit 1
+            echo ""
+            log_section "🎉 远程开发环境已就绪！"
+            show_status
+            ;;
+
         backend)
-            log_section "🚀 启动开发环境 (仅后端)"
+            RUN_MODE="remote"
+            log_section "🚀 启动开发环境 (仅后端-远程)"
             ensure_tunnel || exit 1
             start_backend || exit 1
             echo ""
@@ -622,7 +766,8 @@ main() {
             ;;
 
         both|start)
-            log_section "🚀 启动完整开发环境"
+            RUN_MODE="remote"
+            log_section "🚀 启动完整开发环境 (远程数据库)"
             ensure_tunnel || exit 1
             start_backend || exit 1
             start_frontend || exit 1
@@ -637,6 +782,12 @@ main() {
 
         status)
             show_status
+            ;;
+
+        sync)
+            # 转发到 sync-db.sh
+            shift 2>/dev/null || true
+            exec "$SCRIPT_DIR/sync-db.sh" "$@"
             ;;
 
         help|--help|-h)

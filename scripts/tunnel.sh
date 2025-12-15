@@ -12,7 +12,16 @@ set -e
 # 配置
 # ============================================================================
 
-REMOTE_HOST="ubuntu@152.136.104.251"
+# 清除代理环境变量，避免干扰SSH连接
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy
+
+# SSH密钥配置 (直连模式)
+# 请设置环境变量或在 ~/.ai-proj-tunnel.env 中配置
+DIRECT_SSH_KEY="${DIRECT_SSH_KEY:-$HOME/.ssh/ai_proj.pem}"
+
+# 目标服务器配置
+REMOTE_HOST="${REMOTE_HOST:-ubuntu@your-server-ip}"
+REMOTE_SERVER_IP="${REMOTE_SERVER_IP:-}"
 LOCAL_PORT="5433"
 REMOTE_PORT="5432"
 PID_FILE="/tmp/ai-proj-tunnel.pid"
@@ -134,30 +143,31 @@ start_tunnel() {
     # 清理旧进程
     cleanup_old_processes
 
-    # 先测试SSH连接
-    log "测试SSH连接..."
-    if ! timeout 10 ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no "${REMOTE_HOST}" 'echo "SSH连接成功"' >> "$LOG_FILE" 2>&1; then
-        log_error "SSH连接失败，请检查："
+    # 测试直连目标服务器
+    log "测试服务器连接 (${REMOTE_HOST})..."
+    if ! timeout 10 ssh -i "${DIRECT_SSH_KEY}" -o ConnectTimeout=10 -o StrictHostKeyChecking=no "${REMOTE_HOST}" 'echo "服务器连接成功"' >> "$LOG_FILE" 2>&1; then
+        log_error "服务器连接失败，请检查："
         echo "  1. 网络连接是否正常"
         echo "  2. 服务器 ${REMOTE_HOST} 是否可达"
-        echo "  3. SSH密钥是否配置正确"
+        echo "  3. SSH密钥是否配置正确: ${DIRECT_SSH_KEY}"
         echo "  4. 防火墙设置"
         echo ""
         echo "  查看详细日志: tail -f $LOG_FILE"
         return 1
     fi
 
-    log "建立连接: localhost:${LOCAL_PORT} → ${REMOTE_HOST}:${REMOTE_PORT}"
+    log "建立隧道: localhost:${LOCAL_PORT} → ${REMOTE_HOST}:${REMOTE_PORT}"
 
-    # 启动SSH隧道（后台运行）
-    ssh -f -N \
+    # 启动SSH隧道 (直连模式)
+    nohup ssh -N \
+        -i "${DIRECT_SSH_KEY}" \
         -L "${LOCAL_PORT}:127.0.0.1:${REMOTE_PORT}" \
-        -o ServerAliveInterval=60 \
+        -o ServerAliveInterval=30 \
         -o ServerAliveCountMax=3 \
         -o ExitOnForwardFailure=yes \
         -o StrictHostKeyChecking=no \
-        -o ConnectTimeout=10 \
-        "${REMOTE_HOST}" >> "$LOG_FILE" 2>&1
+        -o ConnectTimeout=15 \
+        "${REMOTE_HOST}" >> "$LOG_FILE" 2>&1 &
 
     local exit_code=$?
 
@@ -279,6 +289,9 @@ show_connection_info() {
     echo "  Database: ${DB_NAME}"
     echo "  User:     ${DB_USER}"
     echo ""
+    echo -e "${YELLOW}  隧道路径:${NC}"
+    echo "  本地:${LOCAL_PORT} → ${REMOTE_HOST}:${REMOTE_PORT} (直连)"
+    echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
@@ -295,7 +308,7 @@ show_status() {
         echo -e "  状态:     ${GREEN}运行中${NC}"
         echo "  PID:      $pid"
         echo "  本地端口: ${LOCAL_PORT}"
-        echo "  远程:     ${REMOTE_HOST}:${REMOTE_PORT}"
+        echo "  目标:     ${REMOTE_HOST}:${REMOTE_PORT} (直连)"
 
         # 连通性测试
         echo ""
@@ -374,9 +387,17 @@ ${YELLOW}示例:${NC}
 
 ${YELLOW}配置:${NC}
   本地端口:   ${LOCAL_PORT}
-  远程主机:   ${REMOTE_HOST}
+  堡垒机:     ${BASTION_HOST}:${BASTION_PORT}
+  目标主机:   ${REMOTE_HOST}
   远程端口:   ${REMOTE_PORT}
   数据库:     ${DB_NAME}
+
+${YELLOW}多跳隧道路径:${NC}
+  本地 (localhost:${LOCAL_PORT})
+    ↓
+  堡垒机 (${BASTION_HOST})
+    ↓
+  目标服务器 (${REMOTE_HOST}:${REMOTE_PORT})
 
 ${YELLOW}环境变量配置:${NC}
   1. 复制配置模板:
@@ -387,6 +408,7 @@ ${YELLOW}环境变量配置:${NC}
 
   或直接使用环境变量:
      export DB_PASSWORD="your_password"
+     export BASTION_HOST="user@bastion-ip"  # 可选，覆盖默认堡垒机
 
 ${YELLOW}日志:${NC}
   查看日志:   tail -f $LOG_FILE
