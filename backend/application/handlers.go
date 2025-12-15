@@ -651,6 +651,13 @@ func (app *Application) GetTaskByIdHandler() gin.HandlerFunc {
 	return app.taskHandler.GetTask
 }
 
+func (app *Application) GetTaskByUUIDHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.GetTaskByUUID
+	}
+	return app.taskHandler.GetTaskByUUID
+}
+
 func (app *Application) GetTaskDetailedInfoHandler() gin.HandlerFunc {
 	if app.handlers != nil && app.handlers.TaskHandler != nil {
 		return app.handlers.TaskHandler.GetTaskDetailedInfo

@@ -223,6 +223,170 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	return task, nil
 }
 
+// GetByUUID gets a task by UUID (only non-deleted)
+func (r *PostgresTaskRepository) GetByUUID(ctx context.Context, uuid string) (*models.Task, error) {
+	query := `
+		SELECT t.id, t.uuid, t.project_id, p.name as project_name, t.title, t.description, t.status, t.assignee_id, t.due_date,
+		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
+		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes,
+		       t.time_unit_preference, t.work_hours_per_day, t.time_tracking_mode,
+		       t.created_at, t.updated_at, t.deleted_at, t.created_by,
+		       t.sync_source, t.sync_remote_id, t.synced_at, t.sync_version,
+		       COALESCE(c.children_count, 0) as children_count,
+		       COALESCE(c.completed_children_count, 0) as completed_children_count,
+		       u.id as assignee_user_id, u.username as assignee_username, u.email as assignee_email,
+		       creator.username as creator_name
+		FROM tasks t
+		LEFT JOIN projects p ON t.project_id = p.id
+		LEFT JOIN users u ON t.assignee_id = u.id
+		LEFT JOIN users creator ON t.created_by = creator.id
+		LEFT JOIN (
+			SELECT parent_id,
+			       COUNT(*) as children_count,
+			       COUNT(*) FILTER (WHERE status = 'completed') as completed_children_count
+			FROM tasks
+			WHERE deleted_at IS NULL AND parent_id IS NOT NULL
+			GROUP BY parent_id
+		) c ON t.id = c.parent_id
+		WHERE t.uuid = $1 AND t.deleted_at IS NULL`
+
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, query, uuid)
+
+	task := &models.Task{}
+	var customFieldsJSON []byte
+	var assigneeID sql.NullInt64
+	var dueDate sql.NullTime
+	var parentID sql.NullInt64
+	var updatedAt sql.NullTime
+	var startDatetime sql.NullTime
+	var dueDatetime sql.NullTime
+	var timeUnitPreference sql.NullString
+	var workHoursPerDay sql.NullFloat64
+	var timeTrackingMode sql.NullString
+	var createdBy sql.NullInt64
+	var childrenCount int
+	var completedChildrenCount int
+	var projectName sql.NullString
+	var assigneeUserID sql.NullInt64
+	var assigneeUsername sql.NullString
+	var assigneeEmail sql.NullString
+	var creatorName sql.NullString
+	var syncSource sql.NullString
+	var syncRemoteID sql.NullInt64
+	var syncedAt sql.NullTime
+
+	err := row.Scan(
+		&task.ID, &task.UUID, &task.ProjectID, &projectName, &task.Title, &task.Description,
+		&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
+		&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
+		&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
+		&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
+		&task.CreatedAt, &updatedAt, &task.DeletedAt, &createdBy,
+		&syncSource, &syncRemoteID, &syncedAt, &task.SyncVersion,
+		&childrenCount, &completedChildrenCount,
+		&assigneeUserID, &assigneeUsername, &assigneeEmail, &creatorName,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("task not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task by UUID: %w", err)
+	}
+
+	// Set project name if available
+	if projectName.Valid {
+		task.ProjectName = &projectName.String
+	}
+
+	// Set sync fields
+	if syncSource.Valid {
+		task.SyncSource = &syncSource.String
+	}
+	if syncRemoteID.Valid {
+		intVal := int(syncRemoteID.Int64)
+		task.SyncRemoteID = &intVal
+	}
+	if syncedAt.Valid {
+		task.SyncedAt = &syncedAt.Time
+	}
+
+	// Set assignee info if available
+	if assigneeUserID.Valid && assigneeUsername.Valid {
+		assignee := &models.User{
+			ID:       int(assigneeUserID.Int64),
+			Username: assigneeUsername.String,
+		}
+		if assigneeEmail.Valid {
+			assignee.Email = assigneeEmail.String
+		}
+		task.Assignee = assignee
+	}
+
+	if assigneeID.Valid {
+		intVal := int(assigneeID.Int64)
+		task.AssigneeID = &intVal
+	}
+	if dueDate.Valid {
+		task.DueDate = &dueDate.Time
+	}
+	if parentID.Valid {
+		intVal := int(parentID.Int64)
+		task.ParentID = &intVal
+	}
+	if updatedAt.Valid {
+		task.UpdatedAt = updatedAt.Time
+	} else {
+		task.UpdatedAt = task.CreatedAt
+	}
+
+	// Handle new time management fields
+	if startDatetime.Valid {
+		task.StartDatetime = &startDatetime.Time
+	}
+	if dueDatetime.Valid {
+		task.DueDatetime = &dueDatetime.Time
+	}
+	if timeUnitPreference.Valid {
+		task.TimeUnitPreference = timeUnitPreference.String
+	} else {
+		task.TimeUnitPreference = "auto"
+	}
+	if workHoursPerDay.Valid {
+		task.WorkHoursPerDay = workHoursPerDay.Float64
+	} else {
+		task.WorkHoursPerDay = 8.0
+	}
+	if timeTrackingMode.Valid {
+		task.TimeTrackingMode = timeTrackingMode.String
+	} else {
+		task.TimeTrackingMode = "manual"
+	}
+
+	// Handle created_by and creator_name
+	if createdBy.Valid {
+		intVal := int(createdBy.Int64)
+		task.CreatedBy = &intVal
+	}
+	if creatorName.Valid {
+		task.CreatorName = &creatorName.String
+	}
+
+	if len(customFieldsJSON) > 0 {
+		if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal custom fields: %w", err)
+		}
+	}
+
+	// Set children count and has children flag
+	task.ChildrenCount = childrenCount
+	task.CompletedChildrenCount = completedChildrenCount
+	task.HasChildren = childrenCount > 0
+
+	return task, nil
+}
+
 // GetByProjectID gets tasks by project ID with pagination (only non-deleted)
 func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error) {
 	// Get total count (exclude archived tasks)

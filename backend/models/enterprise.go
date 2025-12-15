@@ -2,12 +2,21 @@ package models
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Enterprise represents an enterprise/organization in the new system
 type Enterprise struct {
-	ID          int    `json:"id" db:"id"`
-	Name        string `json:"name" db:"name" validate:"required,min=1,max=255"`
+	ID           int        `json:"id" db:"id"`
+	// UUID and sync fields for cross-database synchronization
+	UUID         uuid.UUID  `json:"uuid" db:"uuid"`
+	SyncSource   *string    `json:"sync_source,omitempty" db:"sync_source"`
+	SyncRemoteID *int       `json:"sync_remote_id,omitempty" db:"sync_remote_id"`
+	SyncedAt     *time.Time `json:"synced_at,omitempty" db:"synced_at"`
+	SyncVersion  int        `json:"sync_version" db:"sync_version"`
+	// Core fields
+	Name         string     `json:"name" db:"name" validate:"required,min=1,max=255"`
 	Code        string `json:"code" db:"code" validate:"required,min=1,max=100"`
 	Description *string `json:"description" db:"description"`
 	

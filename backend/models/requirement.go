@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // RequirementStatus represents the status of a requirement
@@ -105,6 +107,13 @@ func (c *CustomFields) Scan(value interface{}) error {
 type Requirement struct {
 	// 主键和编号
 	ID        int    `json:"id" db:"id"`
+	// UUID and sync fields for cross-database synchronization
+	UUID         uuid.UUID  `json:"uuid" db:"uuid"`
+	SyncSource   *string    `json:"sync_source,omitempty" db:"sync_source"`
+	SyncRemoteID *int       `json:"sync_remote_id,omitempty" db:"sync_remote_id"`
+	SyncedAt     *time.Time `json:"synced_at,omitempty" db:"synced_at"`
+	SyncVersion  int        `json:"sync_version" db:"sync_version"`
+	// Core fields
 	DisplayID string `json:"display_id" db:"display_id"`
 
 	// 基础信息

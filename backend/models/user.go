@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // UserProfile represents user profile information
@@ -42,6 +44,13 @@ func (p *UserProfile) Scan(value interface{}) error {
 // User represents a user in the system
 type User struct {
 	ID            int         `json:"id" db:"id"`
+	// UUID and sync fields for cross-database synchronization
+	UUID          uuid.UUID   `json:"uuid" db:"uuid"`
+	SyncSource    *string     `json:"sync_source,omitempty" db:"sync_source"`
+	SyncRemoteID  *int        `json:"sync_remote_id,omitempty" db:"sync_remote_id"`
+	SyncedAt      *time.Time  `json:"synced_at,omitempty" db:"synced_at"`
+	SyncVersion   int         `json:"sync_version" db:"sync_version"`
+	// Core fields
 	Username      string      `json:"username" db:"username" validate:"required,min=3,max=50"`
 	Email         string      `json:"email" db:"email" validate:"required,email"`
 	PasswordHash  string      `json:"-" db:"password_hash"`

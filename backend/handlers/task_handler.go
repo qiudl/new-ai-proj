@@ -1855,6 +1855,39 @@ func (h *TaskHandler) GetTaskById(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(task, "获取任务成功"))
 }
 
+// GetTaskByUUID godoc
+// @Summary		Get task by UUID
+// @Description	Get a task by its globally unique UUID for cross-database sync
+// @Tags			Tasks
+// @Accept			json
+// @Produce		json
+// @Security		BearerAuth
+// @Param			uuid	path		string	true	"Task UUID"
+// @Success		200		{object}	models.SuccessResponse	"Task retrieved successfully"
+// @Failure		400		{object}	models.ErrorResponse	"Invalid UUID"
+// @Failure		404		{object}	models.ErrorResponse	"Task not found"
+// @Failure		500		{object}	models.ErrorResponse	"Internal server error"
+// @Router			/tasks/uuid/{uuid} [get]
+func (h *TaskHandler) GetTaskByUUID(c *gin.Context) {
+	uuidParam := c.Param("uuid")
+	if uuidParam == "" {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_UUID", "UUID is required", ""))
+		return
+	}
+
+	task, err := h.db.Tasks().GetByUUID(c.Request.Context(), uuidParam)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse("TASK_NOT_FOUND", "Task not found", ""))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("DB_ERROR", "Database error", err.Error()))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(task, "获取任务成功"))
+}
+
 // UpdateTaskById handles PUT /api/v1/tasks/:id
 func (h *TaskHandler) UpdateTaskById(c *gin.Context) {
 	taskID, err := strconv.Atoi(c.Param("id"))

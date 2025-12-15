@@ -1,5 +1,15 @@
 // 类型定义文件
-export interface Task {
+
+// UUID and sync metadata mixin for cross-database synchronization
+export interface SyncMixin {
+  uuid: string;
+  sync_source?: string;
+  sync_remote_id?: number;
+  synced_at?: string;
+  sync_version: number;
+}
+
+export interface Task extends Partial<SyncMixin> {
   id: number;
   title: string;
   status: 'draft' | 'planning' | 'todo' | 'in_progress' | 'testing' | 'completed' | 'cancelled' | 'on_hold' | 'suspended' | 'blocked' | 'archived';
@@ -21,7 +31,7 @@ export interface Task {
   };
 }
 
-export interface Project {
+export interface Project extends Partial<SyncMixin> {
   id: number;
   name: string;
   description?: string;
@@ -76,7 +86,7 @@ export interface TimerData {
   description?: string;
 }
 
-export interface WorkNote {
+export interface WorkNote extends Partial<SyncMixin> {
   id: number;
   title: string;
   content: string;
@@ -88,7 +98,7 @@ export interface WorkNote {
   updated_at: string;
 }
 
-export interface Document {
+export interface Document extends Partial<SyncMixin> {
   id: number;
   title: string;
   content: string;
@@ -131,4 +141,76 @@ export interface BatchOptions {
   batch_size?: number;
   skip_existing?: boolean;
   auto_attach?: boolean;
+}
+
+// ===== Sync-related types for cross-database synchronization =====
+
+// Entity types that support sync
+export type SyncableEntityType = 'task' | 'project' | 'enterprise' | 'user' | 'document' | 'requirement';
+
+// Sync direction
+export type SyncDirection = 'to_remote' | 'from_remote';
+
+// Conflict resolution strategy
+export type ConflictStrategy = 'newer_wins' | 'local_wins' | 'remote_wins' | 'version_wins';
+
+// Sync request for a single entity
+export interface SyncEntityRequest {
+  entity_type: SyncableEntityType;
+  entity_id: number;
+  direction: SyncDirection;
+  include_related?: boolean;
+  force_update?: boolean;
+}
+
+// Sync response for a single entity
+export interface SyncEntityResponse {
+  success: boolean;
+  entity_type: SyncableEntityType;
+  uuid: string;
+  local_id: number;
+  remote_id?: number;
+  action: 'created' | 'updated' | 'skipped' | 'conflict' | 'failed';
+  sync_version: number;
+  synced_at: string;
+  message?: string;
+  error?: string;
+}
+
+// Batch sync request
+export interface BatchSyncRequest {
+  entities: SyncEntityRequest[];
+  strategy?: ConflictStrategy;
+  dry_run?: boolean;
+}
+
+// Batch sync response
+export interface BatchSyncResponse {
+  success: boolean;
+  total: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  results: SyncEntityResponse[];
+}
+
+// Get entity by UUID request
+export interface GetByUUIDRequest {
+  entity_type: SyncableEntityType;
+  uuid: string;
+  source?: 'local' | 'remote';
+}
+
+// Sync status for an entity
+export interface SyncStatus {
+  uuid: string;
+  local_id: number;
+  remote_id?: number;
+  sync_source?: string;
+  sync_version: number;
+  synced_at?: string;
+  is_synced: boolean;
+  has_local_changes: boolean;
+  has_remote_changes: boolean;
 }

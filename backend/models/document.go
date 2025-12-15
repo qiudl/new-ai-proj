@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // DocumentType 文档类型枚举
@@ -73,6 +75,13 @@ func (dm *DocumentMetadata) Scan(value interface{}) error {
 // Document 文档模型
 type Document struct {
 	ID            int              `json:"id" db:"id"`
+	// UUID and sync fields for cross-database synchronization
+	UUID          uuid.UUID        `json:"uuid" db:"uuid"`
+	SyncSource    *string          `json:"sync_source,omitempty" db:"sync_source"`
+	SyncRemoteID  *int             `json:"sync_remote_id,omitempty" db:"sync_remote_id"`
+	SyncedAt      *time.Time       `json:"synced_at,omitempty" db:"synced_at"`
+	SyncVersion   int              `json:"sync_version" db:"sync_version"`
+	// Core fields
 	DisplayID     *string          `json:"display_id" db:"display_id"`                   // 对外展示的格式化ID (如 DOC-10001)
 	DocTypePrefix *string          `json:"doc_type_prefix" db:"doc_type_prefix"`         // 文档类型前缀 (DOC/NOTE/API/SPEC/FILE)
 	ProjectID     *int             `json:"project_id" db:"project_id"`

@@ -1585,6 +1585,34 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
 
       {
+        name: 'get_task_by_uuid',
+        description: '通过UUID获取任务（用于跨库同步场景）',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            uuid: {
+              type: 'string',
+              description: '任务的UUID（全局唯一标识符）'
+            }
+          },
+          required: ['uuid']
+        }
+      },
+      {
+        name: 'get_task_sync_status',
+        description: '获取任务的同步状态信息',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: {
+              type: 'number',
+              description: '任务ID'
+            }
+          },
+          required: ['taskId']
+        }
+      },
+      {
         name: 'dev_quick_login',
         description: '开发环境快速登录，自动获取 JWT（仅 APP_ENV=development/dev 有效）',
         inputSchema: {
@@ -2243,6 +2271,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           projectId: args.projectId as number,
           forceOverwrite: args.forceOverwrite as boolean
         });
+        break;
+
+      case 'get_task_by_uuid':
+        console.error(`[MCP] 收到 get_task_by_uuid 调用，UUID: ${args.uuid}`);
+        result = await curlApiCall('GET', `/tasks/uuid/${args.uuid}`);
+        break;
+
+      case 'get_task_sync_status':
+        console.error(`[MCP] 收到 get_task_sync_status 调用，任务ID: ${args.taskId}`);
+        // 获取任务的同步状态（UUID、sync_version、synced_at等）
+        const taskResult = await curlApiCall('GET', `/tasks/${args.taskId}`);
+        if (taskResult.success && taskResult.data) {
+          const task = taskResult.data;
+          result = {
+            success: true,
+            data: {
+              task_id: task.id,
+              uuid: task.uuid || null,
+              sync_source: task.sync_source || null,
+              sync_remote_id: task.sync_remote_id || null,
+              synced_at: task.synced_at || null,
+              sync_version: task.sync_version || 0,
+              is_synced: !!task.synced_at,
+              has_uuid: !!task.uuid
+            }
+          };
+        } else {
+          result = taskResult;
+        }
         break;
 
       case 'dev_quick_login':

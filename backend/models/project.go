@@ -6,11 +6,20 @@ package models
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Project represents a project in the system
 type Project struct {
 	ID            int        `json:"id" db:"id"`
+	// UUID and sync fields for cross-database synchronization
+	UUID          uuid.UUID  `json:"uuid" db:"uuid"`
+	SyncSource    *string    `json:"sync_source,omitempty" db:"sync_source"`
+	SyncRemoteID  *int       `json:"sync_remote_id,omitempty" db:"sync_remote_id"`
+	SyncedAt      *time.Time `json:"synced_at,omitempty" db:"synced_at"`
+	SyncVersion   int        `json:"sync_version" db:"sync_version"`
+	// Core fields
 	ProjectNumber *string    `json:"project_number,omitempty" db:"project_number"`
 	Name          string     `json:"name" db:"name" validate:"required,min=1,max=100"`
 	Description   string     `json:"description" db:"description"`

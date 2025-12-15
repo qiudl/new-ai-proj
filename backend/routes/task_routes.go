@@ -18,6 +18,9 @@ func RegisterTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 		// 创建任务（需要指定项目ID）
 		tasks.POST("", app.CreateGlobalTaskHandler())
 
+		// 通过UUID获取任务（用于跨库同步）
+		tasks.GET("/uuid/:uuid", app.GetTaskByUUIDHandler())
+
 		// 获取特定任务
 		tasks.GET("/:id", app.GetTaskByIdHandler())
 

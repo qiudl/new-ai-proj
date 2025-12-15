@@ -68,6 +68,7 @@ type ProjectRepository interface {
 type TaskRepository interface {
 	Create(ctx context.Context, task *models.Task) (*models.Task, error)
 	GetByID(ctx context.Context, id int) (*models.Task, error)
+	GetByUUID(ctx context.Context, uuid string) (*models.Task, error)
 	GetByProjectID(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error)
 	GetAll(ctx context.Context, limit, offset int) ([]*models.Task, int, error)
 	// New: filtered global listing (status-driven presets etc.)

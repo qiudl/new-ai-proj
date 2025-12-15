@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 
@@ -63,6 +65,13 @@ func (t *Tags) Scan(value interface{}) error {
 // Task represents a task in the system
 type Task struct {
 	ID               int          `json:"id" db:"id"`
+	// UUID and sync fields for cross-database synchronization
+	UUID             uuid.UUID    `json:"uuid" db:"uuid"`
+	SyncSource       *string      `json:"sync_source,omitempty" db:"sync_source"`
+	SyncRemoteID     *int         `json:"sync_remote_id,omitempty" db:"sync_remote_id"`
+	SyncedAt         *time.Time   `json:"synced_at,omitempty" db:"synced_at"`
+	SyncVersion      int          `json:"sync_version" db:"sync_version"`
+	// Core fields
 	ProjectID        int          `json:"project_id" db:"project_id" validate:"required"`
 	ProjectName      *string      `json:"project_name,omitempty" db:"project_name"` // Added for JOIN queries
 	Title            string       `json:"title" db:"title" validate:"required,min=1,max=255"`
