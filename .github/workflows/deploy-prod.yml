@@ -118,7 +118,7 @@ jobs:
       - name: Create docker-compose deployment package
         run: |
           tar -czf "docker-compose-prod.tar.gz" \
-            docker-compose.prod.yml
+            -C deploy docker-compose.prod.yml
       
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
