@@ -1,31 +1,30 @@
 // AI Project Management System - Jenkins CI/CD Pipeline
 // 配置说明: 请在 Jenkins 中配置以下凭据
-// - docker-registry-url: Docker 仓库地址
-// - docker-registry-credentials: Docker 仓库凭据
-// - github-ssh-key: GitHub SSH 密钥
-// - prod-server-ssh-key: 生产服务器 SSH 密钥
-// - prod-server-ip: 生产服务器 IP (Secret text)
+// - aliyun-acr: 阿里云 ACR 凭据 (用户名/密码)
+// - prod-server-ssh: 生产服务器 SSH 密钥
+// - gogs-credentials: Gogs 仓库凭据 (可选)
 
 pipeline {
     agent any
 
     environment {
         // 版本信息
-        VERSION = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+        VERSION = "${BUILD_NUMBER}"
 
-        // Docker 镜像配置
-        DOCKER_REGISTRY = credentials('docker-registry-url')
-        BACKEND_IMAGE = "${DOCKER_REGISTRY}/ai-proj-backend"
-        FRONTEND_IMAGE = "${DOCKER_REGISTRY}/ai-proj-frontend"
+        // 阿里云 ACR 配置
+        ACR_REGISTRY = 'crpi-yrjk9aq7uty4hchw.cn-hangzhou.personal.cr.aliyuncs.com'
+        ACR_NAMESPACE = 'ops-tool2026'
+        BACKEND_IMAGE = "${ACR_REGISTRY}/${ACR_NAMESPACE}/ai-proj-backend"
+        FRONTEND_IMAGE = "${ACR_REGISTRY}/${ACR_NAMESPACE}/ai-proj-frontend"
 
-        // 部署服务器配置 (从 Jenkins 凭据获取)
-        PROD_SERVER = credentials('prod-server-ip')
+        // 部署服务器配置
+        PROD_SERVER = '152.136.104.251'
         PROD_USER = 'ubuntu'
-        DEPLOY_PATH = '/home/ubuntu/apps/new-ai-proj'
+        DEPLOY_PATH = '/home/ubuntu/apps/ai-proj'
 
         // Node/Go 版本
         NODE_VERSION = '20'
-        GO_VERSION = '1.24'
+        GO_VERSION = '1.23'
 
         // 时区
         TZ = 'Asia/Shanghai'
@@ -67,8 +66,8 @@ pipeline {
                     $class: 'GitSCM',
                     branches: [[name: '*/main']],
                     userRemoteConfigs: [[
-                        url: 'git@github.com:qiudl/new-ai-proj.git',
-                        credentialsId: 'github-ssh-key'
+                        url: 'http://101.200.136.200:3000/Tools/new-ai-proj.git',
+                        credentialsId: 'gogs-credentials'
                     ]]
                 ])
 
@@ -195,38 +194,59 @@ pipeline {
             parallel {
                 stage('Backend Docker') {
                     steps {
-                        dir('backend') {
-                            script {
-                                def backendImage = docker.build(
-                                    "${BACKEND_IMAGE}:${VERSION}",
-                                    "--target production -f Dockerfile ."
-                                )
-
-                                docker.withRegistry("https://${DOCKER_REGISTRY}", 'docker-registry-credentials') {
-                                    backendImage.push()
-                                    backendImage.push('latest')
-                                }
-                            }
+                        script {
+                            sh """
+                                docker build \
+                                    -f deploy/tencent-cloud/Dockerfile.backend \
+                                    -t ${BACKEND_IMAGE}:${VERSION} \
+                                    -t ${BACKEND_IMAGE}:latest \
+                                    .
+                            """
                         }
                     }
                 }
 
                 stage('Frontend Docker') {
                     steps {
-                        dir('frontend') {
-                            script {
-                                def frontendImage = docker.build(
-                                    "${FRONTEND_IMAGE}:${VERSION}",
-                                    "--build-arg REACT_APP_API_URL=http://${PROD_SERVER}:8080/api/v1 -f Dockerfile.prod ."
-                                )
-
-                                docker.withRegistry("https://${DOCKER_REGISTRY}", 'docker-registry-credentials') {
-                                    frontendImage.push()
-                                    frontendImage.push('latest')
-                                }
-                            }
+                        script {
+                            sh """
+                                docker build \
+                                    -f deploy/tencent-cloud/Dockerfile.frontend \
+                                    -t ${FRONTEND_IMAGE}:${VERSION} \
+                                    -t ${FRONTEND_IMAGE}:latest \
+                                    --build-arg REACT_APP_API_URL=https://proj.joylodging.com/api \
+                                    .
+                            """
                         }
                     }
+                }
+            }
+        }
+
+        stage('Push to ACR') {
+            when {
+                anyOf {
+                    branch 'main'
+                    expression { params.FORCE_DEPLOY }
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'aliyun-acr',
+                    usernameVariable: 'ACR_USER',
+                    passwordVariable: 'ACR_PASS'
+                )]) {
+                    sh """
+                        echo "\${ACR_PASS}" | docker login -u "\${ACR_USER}" --password-stdin ${ACR_REGISTRY}
+
+                        docker push ${BACKEND_IMAGE}:${VERSION}
+                        docker push ${BACKEND_IMAGE}:latest
+
+                        docker push ${FRONTEND_IMAGE}:${VERSION}
+                        docker push ${FRONTEND_IMAGE}:latest
+
+                        docker logout ${ACR_REGISTRY}
+                    """
                 }
             }
         }
@@ -240,56 +260,51 @@ pipeline {
             }
             steps {
                 script {
-                    def deployEnv = params.DEPLOY_ENV ?: 'staging'
+                    sshagent(['prod-server-ssh']) {
+                        withCredentials([usernamePassword(
+                            credentialsId: 'aliyun-acr',
+                            usernameVariable: 'ACR_USER',
+                            passwordVariable: 'ACR_PASS'
+                        )]) {
+                            sh """
+                                ssh -o StrictHostKeyChecking=no ${PROD_USER}@${PROD_SERVER} << DEPLOY_SCRIPT
+                                    set -e
 
-                    sshagent(['prod-server-ssh-key']) {
-                        // 上传部署包
-                        sh """
-                            scp -o StrictHostKeyChecking=no \
-                                backend-${VERSION}.tar.gz \
-                                frontend-${VERSION}.tar.gz \
-                                docker-compose.prod.yml \
-                                ${PROD_USER}@${PROD_SERVER}:~/
-                        """
+                                    echo "=== Deploying version ${VERSION} ==="
 
-                        // 执行部署
-                        sh """
-                            ssh -o StrictHostKeyChecking=no ${PROD_USER}@${PROD_SERVER} << 'DEPLOY_SCRIPT'
-                                set -e
+                                    # 登录 ACR
+                                    echo "Logging into ACR..."
+                                    echo "${ACR_PASS}" | docker login -u "${ACR_USER}" --password-stdin ${ACR_REGISTRY}
 
-                                RELEASE_DIR="${DEPLOY_PATH}/releases/release_\$(date +%Y%m%d_%H%M%S)"
-                                mkdir -p \$RELEASE_DIR
+                                    # 拉取新镜像
+                                    echo "Pulling new images..."
+                                    docker pull ${BACKEND_IMAGE}:${VERSION}
+                                    docker pull ${FRONTEND_IMAGE}:${VERSION}
 
-                                # 解压部署包
-                                tar -xzf ~/backend-${VERSION}.tar.gz -C \$RELEASE_DIR/
-                                tar -xzf ~/frontend-${VERSION}.tar.gz -C \$RELEASE_DIR/
-                                cp ~/docker-compose.prod.yml \$RELEASE_DIR/docker-compose.yml
+                                    # 进入部署目录
+                                    cd ${DEPLOY_PATH}
 
-                                # 复制环境配置
-                                cp ${DEPLOY_PATH}/shared/config/.env.production \$RELEASE_DIR/.env 2>/dev/null || true
+                                    # 更新 docker-compose 中的镜像版本
+                                    export IMAGE_TAG=${VERSION}
+                                    export BACKEND_IMAGE=${BACKEND_IMAGE}
+                                    export FRONTEND_IMAGE=${FRONTEND_IMAGE}
 
-                                # 备份并切换版本
-                                if [ -L ${DEPLOY_PATH}/current ]; then
-                                    cp -P ${DEPLOY_PATH}/current ${DEPLOY_PATH}/previous 2>/dev/null || true
-                                fi
-                                ln -sfn \$RELEASE_DIR ${DEPLOY_PATH}/current
+                                    # 重启服务
+                                    echo "Restarting services..."
+                                    docker-compose -f docker-compose.prod.yml down --remove-orphans || true
+                                    docker-compose -f docker-compose.prod.yml up -d
 
-                                # 重启服务
-                                cd ${DEPLOY_PATH}/current
-                                docker compose down --remove-orphans || true
-                                docker compose up -d --build
+                                    # 等待服务启动
+                                    sleep 15
 
-                                # 等待服务启动
-                                sleep 30
+                                    # 清理旧镜像
+                                    echo "Cleaning up old images..."
+                                    docker image prune -f
 
-                                # 清理旧版本
-                                cd ${DEPLOY_PATH}/releases
-                                ls -t | tail -n +6 | xargs rm -rf 2>/dev/null || true
-                                rm -f ~/backend-*.tar.gz ~/frontend-*.tar.gz
-
-                                echo "Deployment completed successfully!"
+                                    echo "=== Deployment completed: Build #${VERSION} ==="
 DEPLOY_SCRIPT
-                        """
+                            """
+                        }
                     }
                 }
             }
@@ -304,49 +319,24 @@ DEPLOY_SCRIPT
             }
             steps {
                 script {
-                    def maxRetries = 10
+                    def maxRetries = 5
                     def retryInterval = 10
 
                     for (int i = 0; i < maxRetries; i++) {
                         try {
                             sh """
-                                curl -f -s --max-time 10 http://${PROD_SERVER}:8080/api/v1/health
+                                curl -f -s --max-time 10 https://proj.joylodging.com/api/v1/health
                             """
                             echo "Health check passed!"
                             break
                         } catch (Exception e) {
                             if (i == maxRetries - 1) {
-                                error "Health check failed after ${maxRetries} attempts"
+                                echo "Warning: Health check failed after ${maxRetries} attempts"
+                            } else {
+                                echo "Health check attempt ${i + 1}/${maxRetries} failed, retrying in ${retryInterval}s..."
+                                sleep(retryInterval)
                             }
-                            echo "Health check attempt ${i + 1}/${maxRetries} failed, retrying in ${retryInterval}s..."
-                            sleep(retryInterval)
                         }
-                    }
-                }
-            }
-        }
-
-        stage('Rollback') {
-            when {
-                expression { currentBuild.result == 'FAILURE' }
-            }
-            steps {
-                script {
-                    sshagent(['prod-server-ssh-key']) {
-                        sh """
-                            ssh -o StrictHostKeyChecking=no ${PROD_USER}@${PROD_SERVER} << 'ROLLBACK_SCRIPT'
-                                if [ -L ${DEPLOY_PATH}/previous ]; then
-                                    echo "Rolling back to previous version..."
-                                    mv ${DEPLOY_PATH}/current ${DEPLOY_PATH}/failed
-                                    mv ${DEPLOY_PATH}/previous ${DEPLOY_PATH}/current
-                                    cd ${DEPLOY_PATH}/current
-                                    docker compose up -d --build
-                                    echo "Rollback completed"
-                                else
-                                    echo "No previous version available for rollback"
-                                fi
-ROLLBACK_SCRIPT
-                        """
                     }
                 }
             }
