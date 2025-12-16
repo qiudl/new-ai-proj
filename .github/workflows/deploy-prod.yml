@@ -110,7 +110,7 @@ jobs:
             --exclude=coverage.out \
             --exclude=tmp \
             --exclude=.env \
-            main Dockerfile.prod go.mod go.sum migrations/ config/ templates/
+            main Dockerfile.prod go.mod go.sum migrations/ config/
       
       # Upload artifacts
       # Upload docker-compose configuration
