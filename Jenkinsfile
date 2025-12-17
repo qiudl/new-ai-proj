@@ -103,7 +103,7 @@ pipeline {
                     steps {
                         script {
                             sh """
-                                docker build \
+                                DOCKER_BUILDKIT=1 docker build \
                                     -f backend/Dockerfile \
                                     --target production \
                                     -t ${BACKEND_IMAGE}:${VERSION} \
@@ -119,7 +119,7 @@ pipeline {
                     steps {
                         script {
                             sh """
-                                docker build \
+                                DOCKER_BUILDKIT=1 docker build \
                                     -f frontend/Dockerfile.prod \
                                     --target production \
                                     -t ${FRONTEND_IMAGE}:${VERSION} \
