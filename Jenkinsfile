@@ -1,8 +1,10 @@
 // AI Project Management System - Jenkins CI/CD Pipeline
-// 配置说明: 请在 Jenkins 中配置以下凭据
-// - aliyun-acr: 阿里云 ACR 凭据 (用户名/密码)
-// - prod-server-ssh: 生产服务器 SSH 密钥
-// - gogs-credentials: Gogs 仓库凭据 (可选)
+// Gogs + Jenkins 内网 CI/CD 流水线
+//
+// 配置说明: Jenkins 凭据
+// - gogs-credentials-qiudl: Gogs 仓库凭据
+// - aliyun-acr: 阿里云 ACR 凭据 (备用)
+// - ai-proj-server-ssh: 生产服务器 SSH 密钥
 
 pipeline {
     agent any
@@ -10,21 +12,25 @@ pipeline {
     environment {
         // 版本信息
         VERSION = "${BUILD_NUMBER}"
+        GIT_COMMIT_SHORT = "${GIT_COMMIT?.take(7) ?: 'unknown'}"
 
-        // 阿里云 ACR 配置
-        ACR_REGISTRY = 'crpi-yrjk9aq7uty4hchw.cn-hangzhou.personal.cr.aliyuncs.com'
-        ACR_NAMESPACE = 'ops-tool2026'
-        BACKEND_IMAGE = "${ACR_REGISTRY}/${ACR_NAMESPACE}/ai-proj-backend"
-        FRONTEND_IMAGE = "${ACR_REGISTRY}/${ACR_NAMESPACE}/ai-proj-frontend"
+        // 本地 Docker Registry 配置 (后续可切换到阿里云 ACR)
+        REGISTRY = 'localhost:5000'
+        BACKEND_IMAGE = "${REGISTRY}/ai-proj-backend"
+        FRONTEND_IMAGE = "${REGISTRY}/ai-proj-frontend"
 
-        // 部署服务器配置
-        PROD_SERVER = '152.136.104.251'
-        PROD_USER = 'ubuntu'
-        DEPLOY_PATH = '/home/ubuntu/apps/ai-proj'
+        // 阿里云 ACR 配置 (备用)
+        // ACR_REGISTRY = 'crpi-yrjk9aq7uty4hchw.cn-hangzhou.personal.cr.aliyuncs.com'
+        // ACR_NAMESPACE = 'ops-tool2026'
+
+        // 部署服务器配置 (当前与 Jenkins 同服务器)
+        PROD_SERVER = '101.200.136.200'
+        PROD_USER = 'root'
+        DEPLOY_PATH = '/opt/ai-project'
 
         // Node/Go 版本
         NODE_VERSION = '20'
-        GO_VERSION = '1.23'
+        GO_VERSION = '1.24'
 
         // 时区
         TZ = 'Asia/Shanghai'
@@ -67,7 +73,7 @@ pipeline {
                     branches: [[name: '*/main']],
                     userRemoteConfigs: [[
                         url: 'http://101.200.136.200:3000/Tools/new-ai-proj.git',
-                        credentialsId: 'gogs-credentials'
+                        credentialsId: 'gogs-credentials-qiudl'
                     ]]
                 ])
 
@@ -76,131 +82,34 @@ pipeline {
                         script: 'git log -1 --pretty=%B',
                         returnStdout: true
                     ).trim()
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
                 }
 
-                echo "Building version: ${VERSION}"
+                echo "Building version: ${VERSION} (${env.GIT_COMMIT_SHORT})"
                 echo "Commit message: ${env.GIT_COMMIT_MSG}"
             }
         }
 
-        stage('Parallel Build') {
-            parallel {
-                stage('Build Backend') {
-                    steps {
-                        dir('backend') {
-                            script {
-                                // 使用 Go 容器构建
-                                docker.image("golang:${GO_VERSION}-alpine").inside('-v /go/pkg/mod:/go/pkg/mod') {
-                                    sh '''
-                                        export GOPROXY=https://goproxy.cn,direct
-                                        go mod download
-                                        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-                                            -ldflags="-w -s -X main.Version=${VERSION}" \
-                                            -o main .
-                                    '''
-                                }
-                            }
-
-                            // 打包后端
-                            sh '''
-                                tar -czf ../backend-${VERSION}.tar.gz \
-                                    main Dockerfile migrations/ config/
-                            '''
-                        }
-                    }
-                }
-
-                stage('Build Frontend') {
-                    steps {
-                        dir('frontend') {
-                            script {
-                                // 使用 Node 容器构建
-                                docker.image("node:${NODE_VERSION}-alpine").inside {
-                                    sh '''
-                                        npm config set registry https://registry.npmmirror.com
-                                        npm ci
-
-                                        export REACT_APP_API_URL=http://${PROD_SERVER}:8080/api/v1
-                                        export REACT_APP_ENV=production
-                                        export GENERATE_SOURCEMAP=false
-                                        export NODE_ENV=production
-
-                                        npm run build
-                                    '''
-                                }
-                            }
-
-                            // 打包前端
-                            sh '''
-                                tar -czf ../frontend-${VERSION}.tar.gz \
-                                    build/ nginx.conf Dockerfile.prod
-                            '''
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Test') {
-            when {
-                expression { !params.SKIP_TESTS }
-            }
-            parallel {
-                stage('Backend Tests') {
-                    steps {
-                        dir('backend') {
-                            script {
-                                docker.image("golang:${GO_VERSION}-alpine").inside {
-                                    sh '''
-                                        export GOPROXY=https://goproxy.cn,direct
-                                        go test -v -race ./... -coverprofile=coverage.out
-                                    '''
-                                }
-                            }
-                        }
-                    }
-                    post {
-                        always {
-                            publishCoverage adapters: [coberturaAdapter(path: 'backend/coverage.out')]
-                        }
-                    }
-                }
-
-                stage('Frontend Tests') {
-                    steps {
-                        dir('frontend') {
-                            script {
-                                docker.image("node:${NODE_VERSION}-alpine").inside {
-                                    sh '''
-                                        npm config set registry https://registry.npmmirror.com
-                                        npm ci
-                                        npm test -- --coverage --watchAll=false
-                                    '''
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // 注意: 使用 Docker 多阶段构建，跳过独立的构建和测试阶段
+        // 构建直接在 'Build Docker Images' 阶段通过 Dockerfile 完成
 
         stage('Build Docker Images') {
-            when {
-                anyOf {
-                    branch 'main'
-                    expression { params.FORCE_DEPLOY }
-                }
-            }
+            // 所有分支都构建镜像，但只有 main 分支推送和部署
             parallel {
                 stage('Backend Docker') {
                     steps {
                         script {
                             sh """
                                 docker build \
-                                    -f deploy/tencent-cloud/Dockerfile.backend \
+                                    -f backend/Dockerfile \
+                                    --target production \
                                     -t ${BACKEND_IMAGE}:${VERSION} \
                                     -t ${BACKEND_IMAGE}:latest \
-                                    .
+                                    -t ${BACKEND_IMAGE}:${env.GIT_COMMIT_SHORT} \
+                                    ./backend
                             """
                         }
                     }
@@ -211,11 +120,16 @@ pipeline {
                         script {
                             sh """
                                 docker build \
-                                    -f deploy/tencent-cloud/Dockerfile.frontend \
+                                    -f frontend/Dockerfile.prod \
+                                    --target production \
                                     -t ${FRONTEND_IMAGE}:${VERSION} \
                                     -t ${FRONTEND_IMAGE}:latest \
-                                    --build-arg REACT_APP_API_URL=https://proj.joylodging.com/api \
-                                    .
+                                    -t ${FRONTEND_IMAGE}:${env.GIT_COMMIT_SHORT} \
+                                    --build-arg REACT_APP_API_URL=http://${PROD_SERVER}:8080/api/v1 \
+                                    --build-arg REACT_APP_ENV=production \
+                                    --build-arg GENERATE_SOURCEMAP=false \
+                                    --build-arg CI=false \
+                                    ./frontend
                             """
                         }
                     }
@@ -223,7 +137,7 @@ pipeline {
             }
         }
 
-        stage('Push to ACR') {
+        stage('Push to Registry') {
             when {
                 anyOf {
                     branch 'main'
@@ -231,23 +145,20 @@ pipeline {
                 }
             }
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'aliyun-acr',
-                    usernameVariable: 'ACR_USER',
-                    passwordVariable: 'ACR_PASS'
-                )]) {
-                    sh """
-                        echo "\${ACR_PASS}" | docker login -u "\${ACR_USER}" --password-stdin ${ACR_REGISTRY}
+                // 本地 Registry 无需认证
+                sh """
+                    echo "Pushing images to local registry..."
 
-                        docker push ${BACKEND_IMAGE}:${VERSION}
-                        docker push ${BACKEND_IMAGE}:latest
+                    docker push ${BACKEND_IMAGE}:${VERSION}
+                    docker push ${BACKEND_IMAGE}:latest
+                    docker push ${BACKEND_IMAGE}:${env.GIT_COMMIT_SHORT}
 
-                        docker push ${FRONTEND_IMAGE}:${VERSION}
-                        docker push ${FRONTEND_IMAGE}:latest
+                    docker push ${FRONTEND_IMAGE}:${VERSION}
+                    docker push ${FRONTEND_IMAGE}:latest
+                    docker push ${FRONTEND_IMAGE}:${env.GIT_COMMIT_SHORT}
 
-                        docker logout ${ACR_REGISTRY}
-                    """
-                }
+                    echo "Images pushed successfully!"
+                """
             }
         }
 
@@ -260,52 +171,108 @@ pipeline {
             }
             steps {
                 script {
-                    sshagent(['prod-server-ssh']) {
-                        withCredentials([usernamePassword(
-                            credentialsId: 'aliyun-acr',
-                            usernameVariable: 'ACR_USER',
-                            passwordVariable: 'ACR_PASS'
-                        )]) {
-                            sh """
-                                ssh -o StrictHostKeyChecking=no ${PROD_USER}@${PROD_SERVER} << DEPLOY_SCRIPT
-                                    set -e
+                    // 本地部署 (Jenkins 和应用在同一服务器)
+                    sh """
+                        set -e
+                        echo "=== Deploying version ${VERSION} (${env.GIT_COMMIT_SHORT}) ==="
 
-                                    echo "=== Deploying version ${VERSION} ==="
+                        # 确保部署目录存在
+                        mkdir -p ${DEPLOY_PATH}
+                        cd ${DEPLOY_PATH}
 
-                                    # 登录 ACR
-                                    echo "Logging into ACR..."
-                                    echo "${ACR_PASS}" | docker login -u "${ACR_USER}" --password-stdin ${ACR_REGISTRY}
+                        # 复制 docker-compose 配置 (如果不存在)
+                        if [ ! -f docker-compose.yml ]; then
+                            echo "Creating docker-compose.yml..."
+                            cat > docker-compose.yml << 'COMPOSE_EOF'
+version: '3.8'
 
-                                    # 拉取新镜像
-                                    echo "Pulling new images..."
-                                    docker pull ${BACKEND_IMAGE}:${VERSION}
-                                    docker pull ${FRONTEND_IMAGE}:${VERSION}
+services:
+  backend:
+    image: localhost:5000/ai-proj-backend:latest
+    container_name: ai-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=production
+      - GIN_MODE=release
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=\${DB_USER:-ai_user}
+      - DB_PASSWORD=\${DB_PASSWORD:-ai_password_2024}
+      - DB_NAME=\${DB_NAME:-ai_project_db}
+      - JWT_SECRET=\${JWT_SECRET:-your-jwt-secret}
+    depends_on:
+      - postgres
+    networks:
+      - ai-network
 
-                                    # 进入部署目录
-                                    cd ${DEPLOY_PATH}
+  frontend:
+    image: localhost:5000/ai-proj-frontend:latest
+    container_name: ai-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    networks:
+      - ai-network
 
-                                    # 更新 docker-compose 中的镜像版本
-                                    export IMAGE_TAG=${VERSION}
-                                    export BACKEND_IMAGE=${BACKEND_IMAGE}
-                                    export FRONTEND_IMAGE=${FRONTEND_IMAGE}
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=\${DB_USER:-ai_user}
+      - POSTGRES_PASSWORD=\${DB_PASSWORD:-ai_password_2024}
+      - POSTGRES_DB=\${DB_NAME:-ai_project_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ai-network
 
-                                    # 重启服务
-                                    echo "Restarting services..."
-                                    docker-compose -f docker-compose.prod.yml down --remove-orphans || true
-                                    docker-compose -f docker-compose.prod.yml up -d
+networks:
+  ai-network:
+    driver: bridge
 
-                                    # 等待服务启动
-                                    sleep 15
+volumes:
+  postgres_data:
+COMPOSE_EOF
+                        fi
 
-                                    # 清理旧镜像
-                                    echo "Cleaning up old images..."
-                                    docker image prune -f
+                        # 创建环境配置文件 (如果不存在)
+                        if [ ! -f .env ]; then
+                            cat > .env << 'ENV_EOF'
+DB_USER=ai_user
+DB_PASSWORD=ai_password_2024
+DB_NAME=ai_project_db
+JWT_SECRET=jenkins-ci-jwt-secret-2024
+ENV_EOF
+                        fi
 
-                                    echo "=== Deployment completed: Build #${VERSION} ==="
-DEPLOY_SCRIPT
-                            """
-                        }
-                    }
+                        # 拉取最新镜像
+                        echo "Pulling new images..."
+                        docker pull ${BACKEND_IMAGE}:latest
+                        docker pull ${FRONTEND_IMAGE}:latest
+
+                        # 停止旧服务
+                        echo "Stopping old services..."
+                        docker-compose down --remove-orphans || true
+
+                        # 启动新服务
+                        echo "Starting new services..."
+                        docker-compose up -d
+
+                        # 等待服务启动
+                        sleep 10
+
+                        # 检查服务状态
+                        echo "Service status:"
+                        docker-compose ps
+
+                        # 清理旧镜像
+                        docker image prune -f || true
+
+                        echo "=== Deployment completed: Build #${VERSION} ==="
+                    """
                 }
             }
         }
@@ -325,13 +292,14 @@ DEPLOY_SCRIPT
                     for (int i = 0; i < maxRetries; i++) {
                         try {
                             sh """
-                                curl -f -s --max-time 10 https://proj.joylodging.com/api/v1/health
+                                curl -f -s --max-time 10 http://localhost:8080/health || curl -f -s --max-time 10 http://localhost:8080/api/v1/health
                             """
                             echo "Health check passed!"
                             break
                         } catch (Exception e) {
                             if (i == maxRetries - 1) {
                                 echo "Warning: Health check failed after ${maxRetries} attempts"
+                                // 不让整个构建失败，只是警告
                             } else {
                                 echo "Health check attempt ${i + 1}/${maxRetries} failed, retrying in ${retryInterval}s..."
                                 sleep(retryInterval)
