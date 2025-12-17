@@ -96,14 +96,29 @@ pipeline {
         // 注意: 使用 Docker 多阶段构建，跳过独立的构建和测试阶段
         // 构建直接在 'Build Docker Images' 阶段通过 Dockerfile 完成
 
+        stage('Prepare Cache') {
+            steps {
+                script {
+                    // 预拉取已有镜像用于缓存 (忽略失败，首次构建可能不存在)
+                    sh """
+                        echo "Pulling existing images for cache..."
+                        docker pull ${BACKEND_IMAGE}:latest || true
+                        docker pull ${FRONTEND_IMAGE}:latest || true
+                    """
+                }
+            }
+        }
+
         stage('Build Docker Images') {
             // 所有分支都构建镜像，但只有 main 分支推送和部署
             parallel {
                 stage('Backend Docker') {
                     steps {
                         script {
+                            // 使用 --cache-from 复用已有镜像的层缓存
                             sh """
                                 docker build \
+                                    --cache-from ${BACKEND_IMAGE}:latest \
                                     -f backend/Dockerfile \
                                     --target production \
                                     -t ${BACKEND_IMAGE}:${VERSION} \
@@ -118,8 +133,10 @@ pipeline {
                 stage('Frontend Docker') {
                     steps {
                         script {
+                            // 使用 --cache-from 复用已有镜像的层缓存
                             sh """
                                 docker build \
+                                    --cache-from ${FRONTEND_IMAGE}:latest \
                                     -f frontend/Dockerfile.prod \
                                     --target production \
                                     -t ${FRONTEND_IMAGE}:${VERSION} \
