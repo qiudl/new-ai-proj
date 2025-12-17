@@ -47,10 +47,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 # Download dependencies with optimizations
-# 使用 cache mount 来持久化模块缓存
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/go/cache \
-    go mod download && \
+RUN go mod download && \
     go mod verify
 
 # ======================================
@@ -59,9 +56,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM base AS development
 
 # Install development tools in one layer
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/go/cache \
-    go install github.com/air-verse/air@latest && \
+RUN go install github.com/air-verse/air@latest && \
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
     go install golang.org/x/tools/cmd/goimports@latest
 
@@ -92,10 +87,8 @@ FROM base AS builder
 # Copy source code
 COPY . .
 
-# Build with cache mount
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/go/cache \
-    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
+# Build the application
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s -X main.Version=dev" \
     -a -installsuffix cgo \
     -o /app/main .
@@ -148,10 +141,8 @@ CMD ["./main"]
 # ======================================
 FROM base AS testing
 
-# Install testing tools with cache mount
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/go/cache \
-    go install github.com/onsi/ginkgo/v2/ginkgo@latest && \
+# Install testing tools
+RUN go install github.com/onsi/ginkgo/v2/ginkgo@latest && \
     go install github.com/onsi/gomega/...@latest
 
 COPY . .
